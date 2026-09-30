@@ -186,7 +186,7 @@ public sealed class StartMenuShortcutInstaller(ILogger<StartMenuShortcutInstalle
             }
             finally
             {
-                ShellLinkInterop.PropVariantClearRaw(buffer);
+                ShellLinkInterop.PropVariantClear(buffer);
                 Marshal.FreeCoTaskMem(buffer);
             }
         }
@@ -240,7 +240,7 @@ public sealed class StartMenuShortcutInstaller(ILogger<StartMenuShortcutInstalle
             }
             finally
             {
-                ShellLinkInterop.PropVariantClearRaw(value);
+                ShellLinkInterop.PropVariantClear(value);
                 Marshal.FreeCoTaskMem(value);
             }
 

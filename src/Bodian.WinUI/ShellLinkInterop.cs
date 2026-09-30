@@ -157,7 +157,7 @@ internal static class ShellLinkInterop
     /// <c>out PropVariant</c> 这种声明编组回来的值是坏的（<c>vt</c> 读出来不是 31，
     /// 于是每次启动都判定「快捷方式缺 AUMID」而重写）。联合体的偏移在不同架构下还不同，
     /// 与其让编组器猜，不如自己按字节写。
-    /// <para>用完要 <see cref="PropVariantClearRaw"/> 再 <c>FreeCoTaskMem</c>。</para>
+    /// <para>用完要 <see cref="PropVariantClear"/> 再 <c>FreeCoTaskMem</c>。</para>
     /// </remarks>
     internal static IntPtr AllocateStringPropVariant(string value)
     {
@@ -170,6 +170,13 @@ internal static class ShellLinkInterop
     }
 
     /// <summary>清掉 <c>PROPVARIANT</c> 里的内容（字符串会被释放）。传入的 buffer 仍要自己释放。</summary>
-    [DllImport("ole32.dll")]
-    internal static extern int PropVariantClearRaw(IntPtr pv);
+    /// <remarks>
+    /// <b>导出名必须与 ole32.dll 里的一致。</b> 早先这个方法叫 <c>PropVariantClearRaw</c> 且没写
+    /// <c>EntryPoint</c>，方法名就被当成导出名去查 —— 而 ole32.dll 里没有这个名字，
+    /// 于是每次启动都抛 <c>EntryPointNotFoundException</c>。它的调用点都在 <c>finally</c> 里，
+    /// 异常一抛，整个流程就断在那里：快捷方式被反复重写、却永远写不进 AUMID，
+    /// 系统媒体面板因此一直显示 exe 名。
+    /// </remarks>
+    [DllImport("ole32.dll", EntryPoint = "PropVariantClear")]
+    internal static extern int PropVariantClear(IntPtr pv);
 }
