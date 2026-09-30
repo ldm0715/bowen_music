@@ -101,7 +101,11 @@ public sealed partial class PlayerViewModel : ObservableObject
     public double ProgressMaximum => Math.Max(DurationSeconds, 1);
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VolumeGlyph))]
     public partial double Volume { get; set; } = 100;
+
+    /// <summary>音量按钮上的图标。静音与有声用两个字形，按钮才不只是个「点我」的方块。</summary>
+    public string VolumeGlyph => Volume <= 0 ? "\uE74F" : "\uE767";
 
     [ObservableProperty]
     public partial bool CanGoNext { get; set; }

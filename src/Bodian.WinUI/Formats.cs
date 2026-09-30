@@ -14,6 +14,49 @@ public static class Formats
     /// <summary>秒数版本的时长格式化，供绑定到 <c>double</c> 属性的场合使用。</summary>
     public static string Seconds(double seconds) => Duration(TimeSpan.FromSeconds(seconds));
 
+    /// <summary>百分数。音量这类 0–100 的值用它显示。</summary>
+    public static string Percent(double value) =>
+        string.Create(CultureInfo.InvariantCulture, $"{Math.Round(value):0}%");
+
+    /// <summary>
+    /// 播放条上曲名的最大宽度：信息块总宽减去右侧会占位的徽标。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 曲名与徽标放在同一个横向 <see cref="StackPanel"/> 里，徽标才会<b>紧跟曲名</b> ——
+    /// 放在 <c>*</c>/<c>Auto</c> 两列的 <c>Grid</c> 里时，<c>*</c> 那一列会吃掉所有剩余宽度，
+    /// 徽标就永远钉在最右边界，曲名一短它就飘开。
+    /// </para>
+    /// <para>
+    /// 代价是横向 <c>StackPanel</c> 不约束子元素宽度，长曲名会把徽标顶出信息块 ——
+    /// 所以曲名必须自己带 <c>MaxWidth</c>，而它取决于当前显示了几个徽标。
+    /// </para>
+    /// <para>
+    /// <b>徽标宽度是按字号 11 + 左右内边距 6 估的</b>，改徽标样式时要一起改，否则又会被顶出去。
+    /// </para>
+    /// </remarks>
+    public static double PlayerTitleMaxWidth(bool hasAuditionBadge, bool hasPayBadge)
+    {
+        const double block = 220;   // 播放条信息块的固定宽度
+        const double lead = 6;      // 曲名与徽标组之间的间距
+        const double badge = 36;    // 单个徽标的实际宽度（含内边距）
+        const double gap = 4;       // 两个徽标之间的间距
+
+        var used = hasAuditionBadge || hasPayBadge ? lead : 0;
+
+        if (hasAuditionBadge)
+        {
+            used += badge;
+        }
+
+        if (hasPayBadge)
+        {
+            used += hasAuditionBadge ? badge + gap : badge;
+        }
+
+        return Math.Max(60, block - used);
+    }
+
     /// <summary>时长。一小时以内用 <c>m:ss</c>，超过用 <c>h:mm:ss</c>。</summary>
     public static string Duration(TimeSpan value) =>
         value.TotalHours >= 1
@@ -73,12 +116,6 @@ public static class Formats
 
         return string.IsNullOrWhiteSpace(artist) ? album : $"{artist} · {album}";
     }
-
-    /// <summary>歌词行的透明度：当前行实心，其余压暗。</summary>
-    public static double LyricLineOpacity(bool isCurrent) => isCurrent ? 1.0 : 0.45;
-
-    /// <summary>歌词行的字号：当前行放大。</summary>
-    public static double LyricLineSize(bool isCurrent) => isCurrent ? 20 : 16;
 
     /// <summary>
     /// 封面地址转图片源。

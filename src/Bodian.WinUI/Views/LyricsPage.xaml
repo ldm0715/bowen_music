@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    主歌词页。左栏是当前曲目的信息，右栏是歌词。
+
+    信息栏刻意绑定 PlayerViewModel 而不是 LyricsViewModel：封面那套 .webp → .jpg 改写与尺寸提升
+    已经在 PlayerViewModel 里做过了（SMTC 与播放条共用），再复制一份就是两条会漂移的实现。
+-->
+<Page
+    x:Class="Bodian.WinUI.Views.LyricsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Bodian.WinUI">
+
+    <Grid
+        Padding="28,20,28,12"
+        ColumnSpacing="28">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ── 左：返回 + 封面 + 曲名 / 歌手 · 专辑 ─────────────────────────── -->
+        <StackPanel Grid.Column="0" Spacing="16">
+            <Button
+                MinWidth="0"
+                Padding="10,6"
+                HorizontalAlignment="Left"
+                Click="OnBackClick"
+                ToolTipService.ToolTip="返回">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon FontSize="13" Glyph="&#xE72B;" />
+                    <TextBlock FontSize="13" Text="返回" />
+                </StackPanel>
+            </Button>
+
+            <!-- 没有在播的歌时整块隐藏，避免露出一张空封面 -->
+            <Border
+                Width="252"
+                Height="252"
+                HorizontalAlignment="Left"
+                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                CornerRadius="10"
+                Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
+                <Image
+                    Source="{x:Bind Player.CoverImage, Mode=OneWay}"
+                    Stretch="UniformToFill" />
+            </Border>
+
+            <StackPanel
+                Spacing="4"
+                Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
+                <TextBlock
+                    MaxLines="3"
+                    Style="{StaticResource SubtitleTextBlockStyle}"
+                    Text="{x:Bind Player.Title, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind local:Formats.ArtistLine(Player.ArtistText, Player.AlbumText), Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- ── 右：歌词 ────────────────────────────────────────────────────── -->
+        <Grid Grid.Column="1">
+            <!--
+                Win2D 歌词控件由构造函数注入（见 .xaml.cs），放到这里而不是直接写在 XAML 里 ——
+                它需要注入依赖，而 XAML 实例化要求无参构造。
+                两个 ContentAlignment 必须显式 Stretch，理由见 MainWindow.xaml 里的同名注释。
+            -->
+            <ContentControl
+                x:Name="CanvasHost"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch" />
+
+            <!-- 空态 / 失败态 / 加载中，居中盖在歌词区上 -->
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Orientation="Vertical"
+                Spacing="12">
+                <ProgressRing
+                    Width="20"
+                    Height="20"
+                    HorizontalAlignment="Center"
+                    IsActive="{x:Bind Lyrics.IsLoading, Mode=OneWay}"
+                    Visibility="{x:Bind local:Formats.Visible(Lyrics.IsLoading), Mode=OneWay}" />
+
+                <TextBlock
+                    HorizontalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind Lyrics.StatusText, Mode=OneWay}"
+                    Visibility="{x:Bind local:Formats.Visible(Lyrics.HasStatusText), Mode=OneWay}" />
+
+                <Button
+                    HorizontalAlignment="Center"
+                    Command="{x:Bind Lyrics.RetryCommand}"
+                    Content="重试"
+                    Visibility="{x:Bind local:Formats.Visible(Lyrics.LoadFailed), Mode=OneWay}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

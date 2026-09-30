@@ -25,6 +25,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <!-- 歌词的逐字渲染。原生 Microsoft.Graphics.Canvas.dll 会随 RID(win-x64) 拷进输出目录 -->
+    <PackageReference Include="Microsoft.Graphics.Win2D" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging" />

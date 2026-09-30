@@ -19,6 +19,8 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <!-- P5 引入。逐字歌词渲染，XAML 的 TextBlock 没有逐字定位 API，做不了单字裁剪/缩放 -->
+    <PackageVersion Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <!-- 下面两个 P1 只登记版本、不引用，省得 P2 再核一遍 -->
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="WinUIEx" Version="2.9.3" />

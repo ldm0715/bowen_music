@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Win2D 歌词宿主。
+
+    Host 那层不是装饰：CanvasAnimatedControl 不认 Background，只认 ClearColor，
+    而 ClearColor 写死一个颜色在另一套主题下就会难看。所以用主题画刷的 Border 垫在下面，
+    代码里把它的颜色读出来喂给 ClearColor（见 SyncThemeColors）。
+
+    文字颜色**不在这里读画刷**，由代码按实际主题定，见 SyncThemeColors。
+-->
+<UserControl
+    x:Class="Bodian.WinUI.Controls.LyricsCanvasView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml">
+
+    <Grid>
+        <Border x:Name="Host" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+            <canvas:CanvasAnimatedControl
+                x:Name="Canvas"
+                CreateResources="OnCreateResources"
+                Draw="OnDraw"
+                PointerPressed="OnPointerPressed"
+                SizeChanged="OnSizeChanged"
+                Update="OnUpdate" />
+        </Border>
+    </Grid>
+</UserControl>

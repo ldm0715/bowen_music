@@ -56,44 +56,43 @@
                     VerticalAlignment="Center"
                     Spacing="3">
 
-                    <Grid ColumnSpacing="6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <!--
+                        曲名与徽标必须在同一个横向 StackPanel 里，徽标才会紧跟曲名。
+                        放在 * / Auto 两列的 Grid 里时，* 那一列吃掉剩余宽度，徽标就永远钉在最右边界，
+                        曲名一短它就飘开（看起来像「贴着上一曲」）。
+                        曲名的 MaxWidth 由徽标占位算出来，见 Formats.PlayerTitleMaxWidth。
+                    -->
+                    <StackPanel
+                        HorizontalAlignment="Left"
+                        Orientation="Horizontal"
+                        Spacing="6">
 
                         <TextBlock
-                            Grid.Column="0"
+                            VerticalAlignment="Center"
+                            MaxWidth="{x:Bind local:Formats.PlayerTitleMaxWidth(ViewModel.IsAudition, ViewModel.HasPayLabel), Mode=OneWay}"
                             Text="{x:Bind ViewModel.Title, Mode=OneWay}"
-                            TextTrimming="CharacterEllipsis"
-                            VerticalAlignment="Center" />
+                            TextTrimming="CharacterEllipsis" />
 
-                        <StackPanel
-                            Grid.Column="1"
-                            Orientation="Horizontal"
-                            Spacing="4">
+                        <!-- 试听徽标常驻，不是一闪而过的提示 -->
+                        <Border
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="6,1"
+                            Visibility="{x:Bind ViewModel.IsAudition, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock FontSize="11" Text="试听" />
+                        </Border>
 
-                            <!-- 试听徽标常驻，不是一闪而过的提示 -->
-                            <Border
-                                VerticalAlignment="Center"
-                                Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
-                                CornerRadius="4"
-                                Padding="6,1"
-                                Visibility="{x:Bind ViewModel.IsAudition, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock FontSize="11" Text="试听" />
-                            </Border>
-
-                            <!-- 付费标识。**只是服务端标记的展示**，不代表当前账号一定播不了。 -->
-                            <Border
-                                VerticalAlignment="Center"
-                                Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
-                                CornerRadius="4"
-                                Padding="6,1"
-                                Visibility="{x:Bind ViewModel.HasPayLabel, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock FontSize="11" Text="{x:Bind ViewModel.PayLabel, Mode=OneWay}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
+                        <!-- 付费标识。**只是服务端标记的展示**，不代表当前账号一定播不了。 -->
+                        <Border
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                            CornerRadius="4"
+                            Padding="6,1"
+                            Visibility="{x:Bind ViewModel.HasPayLabel, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock FontSize="11" Text="{x:Bind ViewModel.PayLabel, Mode=OneWay}" />
+                        </Border>
+                    </StackPanel>
 
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -164,14 +163,14 @@
                         <FontIcon FontSize="14" Glyph="&#xE893;" />
                     </Button>
 
-                    <!-- 歌词。没有在播的歌时是灰的 —— 那时打开面板也没有内容可显示。 -->
+                    <!-- 歌词。没有在播的歌时是灰的 —— 那时进歌词页也没有内容可显示。 -->
                     <Button
                         Width="36"
                         Height="36"
                         MinWidth="0"
                         Margin="8,0,0,0"
                         Padding="0"
-                        Command="{x:Bind Lyrics.ToggleCommand}"
+                        Click="OnLyricsClick"
                         IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
                         ToolTipService.ToolTip="歌词">
                         <TextBlock FontSize="13" Text="词" />
@@ -232,14 +231,33 @@
                     TextTrimming="CharacterEllipsis"
                     ToolTipService.ToolTip="服务端实际给出的音质" />
 
-                <FontIcon FontSize="14" Glyph="&#xE767;" />
-
-                <Slider
-                    Width="110"
-                    IsThumbToolTipEnabled="False"
-                    Maximum="100"
-                    Minimum="0"
-                    Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />
+                <!--
+                    音量：点击弹出竖条。横条常驻会白占一段水平空间，而音量不是每首都调。
+                    Placement 必须是 Top —— 播放条在窗口底部，默认朝下会弹出屏幕外。
+                -->
+                <Button
+                    MinWidth="0"
+                    Padding="8,6"
+                    ToolTipService.ToolTip="音量">
+                    <FontIcon FontSize="14" Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" />
+                    <Button.Flyout>
+                        <Flyout Placement="Top">
+                            <StackPanel HorizontalAlignment="Center" Spacing="10">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind local:Formats.Percent(ViewModel.Volume), Mode=OneWay}" />
+                                <Slider
+                                    Height="140"
+                                    IsThumbToolTipEnabled="False"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    Orientation="Vertical"
+                                    Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" />
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
             </StackPanel>
 
             <InfoBar

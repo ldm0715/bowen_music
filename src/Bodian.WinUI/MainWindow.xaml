@@ -3,7 +3,6 @@
     x:Class="Bodian.WinUI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Bodian.WinUI"
     Title="波点音乐">
 
     <Grid>
@@ -12,20 +11,26 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <!-- 页面由 INavigationService 直接赋值 Content，见该接口的说明 -->
-            <Frame x:Name="RootFrame" />
+        <!--
+            页面由 INavigationService 直接赋值 Content，不走 Frame.Navigate。
+            **用 ContentControl 而不是 Frame**：返回时要把「原来那个页面实例」挂回去
+            （重建 SearchPage 会把搜索结果全丢掉），而 Frame.Content 不接受重复挂载同一个实例。
 
-            <!--
-                歌词盖在页面之上，不做成页面：这个应用还没有返回栈，
-                返回搜索页会新建 ViewModel、把搜索结果丢掉。
-            -->
-            <ContentControl
-                x:Name="LyricsHost"
-                Visibility="{x:Bind local:Formats.Visible(Lyrics.IsOpen), Mode=OneWay}" />
-        </Grid>
+            ★ 两个 ContentAlignment 必须显式写 Stretch。ContentControl 的默认是 Left/Top，
+            而 Frame 的默认模板是拉伸 —— 少写这两行，能收缩的页面（歌词列表有 TextWrapping）
+            就会缩成一条靠在左上角，看起来像块侧边栏。
+        -->
+        <ContentControl
+            x:Name="PageHost"
+            Grid.Row="0"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch" />
 
         <!-- 播放条常驻，不随页面切换重建 -->
-        <ContentControl x:Name="PlayerHost" Grid.Row="1" />
+        <ContentControl
+            x:Name="PlayerHost"
+            Grid.Row="1"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch" />
     </Grid>
 </Window>

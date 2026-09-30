@@ -70,7 +70,7 @@
 | --- | --- | --- |
 | **A · 双 TextBlock 裁剪** | 同位置叠两层文本，上层设 `Clip = RectangleGeometry`，逐帧改 `Rect.Width = 文字宽 × progress` | **只能做行内横向扫光**。无法单独变换某一个字，做不了「当前字放大 / 上浮 / 发光」。折行后「逻辑行」与「视觉行」不再一一对应，裁剪矩形要分行算——**这是最大的坑** |
 | **B · LinearGradientBrush 渐变遮罩** | `TextBlock.Foreground` 设渐变，用 Storyboard 动画化 `GradientStop.Offset` | **不推荐**。渐变坐标空间是 TextBlock 的整个布局边界而不是单个字符，天然只适合「一行一条渐变」。且微软文档**只保证 `GradientStop.Color` 可被动画化**，`Offset` 能否动画**没有官方保证**——走这条路先写 10 行 demo 验证 |
-| **C · Win2D 几何裁剪** ⭐ | `CanvasTextLayout` 排版 → `GetCharacterRegions()` 拿每字矩形 → 按进度构造高亮矩形 → `CanvasGeometry.CreateText` + `CombineWith(Intersect)` → `FillGeometry` | 真正的逐字能力：单字可独立裁剪、缩放、上浮、发光、模糊。跑在 `CanvasAnimatedControl` 的**独立渲染线程**，不占 UI 线程 |
+| **C · Win2D 逐字** ⭐ | `CanvasTextLayout` 排版 → `GetCharacterRegions()` 拿每字矩形。扫光**不是几何裁剪**（见 §4.1 的勘误）：渐变填充 + 文字形状遮罩；单字变换则把该音节拆出来单独画 | 真正的逐字能力：单字可独立裁剪、缩放、上浮、发光、模糊。跑在 `CanvasAnimatedControl` 的**独立渲染线程**，不占 UI 线程 |
 | **D · Win2D 栅格化 + Composition 遮罩** | Win2D 渲到 `CanvasRenderTarget` → `CompositionMaskBrush` 叠进度遮罩 | **不建议**。Composition 的 opacity mask 必须是 `CompositionSurfaceBrush`，做渐变扫光得先把渐变渲进一张 surface，绕一大圈。**等于路线 C 的全部工作量再加一层包装** |
 
 ### 选择
@@ -94,15 +94,32 @@
 
 ### 4.1 逐字高亮的机制
 
-- 每个字挂 **`CropEffect`（`BorderMode = Hard`）+ `GaussianBlurEffect`（`Source = Crop`，`BorderMode = Soft`）** —— 见 `Models/Lyrics/RenderLyricsChar.cs`。**「长音拖尾发光」就是这个裁剪后高斯模糊的产物**，不是单独的光晕层
-- 一行持有**原文 / 翻译 / 音译三套 `CanvasTextLayout`** 及各自的 `CanvasGeometry`；未播放态的着色走 `TintEffect` + `CompositeEffect`；描边/填充用 `CanvasCommandList` 缓存
+> **本节 2026-09-30 勘误（已核对源码）。** 原文写的「`GetCharacterRegions` → `CanvasGeometry.CreateText` +
+> `CombineWith(Intersect)` → `FillGeometry`」**与源码不符** —— 那三个 API 在它的 `Renderer/` 里**零命中**。
+> 下面是实际做法。另外原文引的路径少了项目名那一段，真实路径是
+> `src/BetterLyrics.DotNet/BetterLyrics.Core/...` 与 `.../BetterLyrics.WinUI3/BetterLyrics.WinUI3/...`。
+
+- **扫光不是几何裁剪，是「渐变填充 + 文字形状遮罩」**：文字先画成一张离屏图当透明度遮罩
+  （`AlphaMaskEffect.AlphaMask`），每帧把一条横向渐变画进另一张只含矩形的离屏图（`Source`），
+  两者合成后 => 渐变只在文字形状内显现，边界带一小段羽化。渐变的位置由
+  `Σ(字宽 × 该字进度) / 视觉行宽` 得到（`CalculateRegionPlayProgress`）。
+  **变化的部分每帧新建离屏图** —— command list 一旦被当图像用过就**不能再录制**。
+- **每字挂 `CropEffect`（`BorderMode = Hard`）+ `GaussianBlurEffect`（`Source = Crop`，`BorderMode = Soft`）** ——
+  见 `Renderer/../Models/Lyrics/RenderLyricsChar.cs`。**「长音拖尾发光」就是这个裁剪后高斯模糊的产物**，
+  不是单独的光晕层
+- 一行持有**原文 / 翻译 / 音译三套 `CanvasTextLayout`**；未播放态的着色走 `TintEffect` + `CompositeEffect`
 - **CJK 与西文是两个独立字体族**（`fontFamilyCJK` / `fontFamilyWestern`），字号也分原文/音译/翻译三档 —— 中英混排的字体回退在这里是显式配置，不是自动行为
 - 渲染分横排/竖排两条实现（`HorizontalLyricsLineRenderer` / `VerticalLyricsLineRenderer`），差异通过 5 个抽象方法分叉而非 `if`：
-  - `CalculateRegionPlayProgress(regionIndex)` —— 逐区域进度
-  - `GetPlayedCharCropRect(sourceCharRect, progressPlayed)` —— **已播放裁剪矩形**，逐字高亮的核心
+  - `CalculateRegionPlayProgress(regionIndex)` —— 逐区域进度（按字宽累加）
+  - `GetPlayedCharCropRect(sourceCharRect, progressPlayed)` —— 已播放的字符裁剪矩形，喂给 `CropEffect.SourceRectangle`
   - `CreateGradientBrush(...)` —— 扫光渐变
   - `ApplyFloatOffset(rect, floatOffset)` —— 浮动位移
   - `ApplyNonAutoWrapOffset(rect, offset)` —— 不折行时的偏移
+
+> **本项目实际用的不是上面这套。** 两次撞墙（`CreateLayer` 的裁剪矩形语义不可靠、
+> command list 不可复用）之后，扫光改成**逐字上色**（`CanvasTextLayout.SetColor`），
+> 单字变换改成**把长音音节拆出来单独画**。观感上少了「一个字唱到一半时高亮停在字中间」
+> 的像素级过渡与扫光羽化，换来的是不依赖任何语义可疑的 API。见 `docs/backlog.md` 的 P5 一节。
 
 ### 4.2 默认开启的效果与参数
 
@@ -131,6 +148,15 @@ scrollDelay  = baseDelay + staggerDelay
 ```
 
 以**首个可见行为波源**（delay = 0），越远的行延迟越大——所以滚动是**波浪式**的，不是整块平移。顶部与底部各有独立的时长/延迟，用来调出「上进下出」的不对称手感。
+
+> **⚠️ 勘误（2026-09-30 核对源码）**：上面那个 `scrollBottomDelay`（`LyricsScrollBottomDelay`）
+> **上游默认值是 0**，而源码里是 `if (scrollBottomDelaySec > 0)` 才启用 —— 也就是说
+> **「波浪式滚动」在上游的默认配置下是关着的**。原文把它写成「真正决定观感的是它」有误导性。
+> 本项目默认**开启**（观感优先），系数自定，**没有上游默认值可对照**。
+>
+> 另外「三段时长各管一段」也不准确：真实公式是
+> `scrollDuration = canvasTransDuration + (1−factor) × topExtra + factor × bottomExtra`，
+> 基准是容器滚动过渡自己的时长，三段时长只是**距离加权后的增量**。
 
 ### 4.4 可选的进阶效果（默认关）
 

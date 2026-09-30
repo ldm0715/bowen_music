@@ -8,6 +8,7 @@ using Bodian.Core.Services.Implementations;
 using Bodian.WinUI.Playback;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
+using Bodian.WinUI.Controls;
 using Bodian.WinUI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -103,9 +104,21 @@ public partial class App : Application
         builder.Services.AddTransient<LoginPage>();
         builder.Services.AddTransient<SearchViewModel>();
         builder.Services.AddTransient<SearchPage>();
+        builder.Services.AddTransient<LyricsPage>();
+
+        // Win2D 歌词控件由歌词页构造注入（XAML 实例化要求无参构造，所以不能直接写在 XAML 里）
+        builder.Services.AddTransient<LyricsCanvasView>();
 
         _host = builder.Build();
         _host.Start();
+
+        // 未处理异常必须进日志。
+        // unpackaged + WinUI 下崩溃只留一句 STATUS_STOWED_EXCEPTION（0xC000027B），
+        // 事件日志里也只有「模块 combase.dll、异常码 E_INVALIDARG」这种够不着原因的信息。
+        // 这三条是唯一能把堆栈留下来的地方。
+        UnhandledException += OnUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
         // 设备标识**不是凭据**（它是假名化的设备串，没有它就没有账号访问能力），
         // 记下来是为了让「客户端与 P0 探针用的是同一个 devid」这条验收可以核对。
@@ -167,6 +180,33 @@ public partial class App : Application
         // 挪到线程池（MTA）要靠宿主单线程套间代理，没必要引入那层不确定性。
         // 代价只是一次很小的文件读写，失败了也只记日志。
         _host.Services.GetRequiredService<IStartMenuShortcutInstaller>().EnsureInstalled();
+    }
+
+    /// <summary>XAML 线程上的未处理异常。</summary>
+    /// <remarks>
+    /// <b>不设 <c>e.Handled = true</c></b>：把这个异常吞掉会让程序带着坏了的状态继续跑，
+    /// 那比崩掉更难查。这里只负责留下堆栈。
+    /// </remarks>
+    private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        => LogFatal(e.Exception, "XAML 未处理异常");
+
+    private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+        => LogFatal(e.ExceptionObject as Exception, "AppDomain 未处理异常");
+
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        => LogFatal(e.Exception, "未观察到的任务异常");
+
+    /// <summary>把致命异常写进日志。找不到 logger 时退回标准错误。</summary>
+    private void LogFatal(Exception? exception, string title)
+    {
+        try
+        {
+            _host.Services.GetRequiredService<ILogger<App>>().LogCritical(exception, "{Title}", title);
+        }
+        catch (Exception)
+        {
+            Console.Error.WriteLine($"{title}: {exception}");
+        }
     }
 
     private static SerilogLoggerProvider CreateSerilogProvider()

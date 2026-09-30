@@ -9,8 +9,12 @@ using Microsoft.UI.Xaml;
 namespace Bodian.WinUI;
 
 /// <summary>
-/// 主窗口，也就是外壳：上面一块 <see cref="Frame"/> 放页面，下面一条常驻的播放条。
+/// 主窗口，也就是外壳：上面一块内容宿主放页面，下面一条常驻的播放条。
 /// </summary>
+/// <remarks>
+/// 宿主是 <see cref="ContentControl"/> 而不是 <see cref="Frame"/> —— 返回栈要挂回「原来那个页面实例」，
+/// 而 <c>Frame.Content</c> 不接受重复挂载同一个实例。理由见 <c>INavigationService</c> 的说明。
+/// </remarks>
 public sealed partial class MainWindow : Window
 {
     private readonly INavigationService _navigation;
@@ -18,9 +22,6 @@ public sealed partial class MainWindow : Window
 
     /// <summary>给 <c>x:Bind</c> 用。</summary>
     public PlayerViewModel Player { get; }
-
-    /// <summary>给 <c>x:Bind</c> 用（歌词面板的可见性）。</summary>
-    public LyricsViewModel Lyrics { get; }
 
     public MainWindow(
         INavigationService navigation,
@@ -37,18 +38,16 @@ public sealed partial class MainWindow : Window
         _login = login;
 
         Player = playerViewModel;
-        Lyrics = lyricsViewModel;
 
         InitializeComponent();
 
         ApplyMinimumSize();
 
-        _navigation.Attach(RootFrame);
-        PlayerHost.Content = new PlayerBar(playerViewModel, lyricsViewModel);
-        LyricsHost.Content = new LyricsPanel(lyricsViewModel);
+        _navigation.Attach(PageHost);
+        PlayerHost.Content = new PlayerBar(playerViewModel, lyricsViewModel, navigation);
 
         _login.AccountChanged += OnAccountChanged;
-        RootFrame.Loaded += OnRootLoaded;
+        PageHost.Loaded += OnHostLoaded;
     }
 
     /// <summary>
@@ -70,9 +69,9 @@ public sealed partial class MainWindow : Window
         presenter.PreferredMinimumHeight = 560;
     }
 
-    private void OnRootLoaded(object sender, RoutedEventArgs e)
+    private void OnHostLoaded(object sender, RoutedEventArgs e)
     {
-        RootFrame.Loaded -= OnRootLoaded;
+        PageHost.Loaded -= OnHostLoaded;
 
         // 先试着恢复上次的会话：本机已有登录态时不该每次都让人重新扫码。
         if (_login.TryRestorePersistedSession())

@@ -24,6 +24,11 @@ reverse/**/*.so
 reverse/**/*.log
 __pycache__/
 
+# 第三方参考源码（ref/）：P5 的歌词渲染观感与参数对齐自 BetterLyrics（GPL-3.0）。
+# 整仓不入库 —— 它是外部仓库的快照，不是我们的产物；自己的代码在 src/ 下自行实现。
+# 复现：git clone --depth 1 https://github.com/jayfunc/BetterLyrics.git ref/BetterLyrics
+/ref/
+
 # 本机环境
 .vscode/
 .dotnet/

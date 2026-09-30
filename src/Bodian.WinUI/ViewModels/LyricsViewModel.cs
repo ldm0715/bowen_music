@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Bodian.Core.Lyrics;
 using Bodian.Core.Models;
 using Bodian.Core.Models.Lyrics;
@@ -33,8 +32,6 @@ public sealed partial class LyricsViewModel : ObservableObject
     private readonly IPlaybackService _engine;
     private readonly ILogger<LyricsViewModel> _logger;
 
-    private LyricDocument _document = LyricDocument.Empty;
-
     /// <summary>已经装载歌词的曲目 id；<c>0</c> 表示还没装载过。</summary>
     private long _loadedTrackId;
 
@@ -60,10 +57,24 @@ public sealed partial class LyricsViewModel : ObservableObject
         _engine.PositionChanged += OnPositionChanged;
     }
 
-    /// <summary>歌词行的列表。</summary>
-    public ObservableCollection<LyricLineView> Lines { get; } = [];
+    /// <summary>
+    /// 当前装载的歌词文档。
+    /// </summary>
+    /// <remarks>
+    /// <b>渲染层要的是它，不是「行文本 + 是否当前行」。</b> 逐字扫光需要音节时间轴与
+    /// <see cref="LyricKind"/>，把那些信息压成一行文本就再也拿不回来了。
+    /// 变化会触发 <c>PropertyChanged</c>，Win2D 宿主据此把新文档投到渲染线程。
+    /// </remarks>
+    [ObservableProperty]
+    public partial LyricDocument Document { get; set; } = LyricDocument.Empty;
 
-    /// <summary>面板是否展开。</summary>
+    /// <summary>
+    /// 歌词页是否<b>活跃</b>（当前显示的就是它）。
+    /// </summary>
+    /// <remarks>
+    /// 由 <c>LyricsPage</c> 通过 <c>INavigationAware</c> 设置，不靠控件生命周期事件。
+    /// 置为 <c>true</c> 会触发取词。这一位就是「<b>不开歌词页就不取词</b>」的全部实现。
+    /// </remarks>
     [ObservableProperty]
     public partial bool IsOpen { get; set; }
 
@@ -97,21 +108,16 @@ public sealed partial class LyricsViewModel : ObservableObject
     public partial int CurrentIndex { get; set; } = -1;
 
     [RelayCommand]
-    private void Toggle() => IsOpen = !IsOpen;
-
-    [RelayCommand]
-    private void Close() => IsOpen = false;
-
-    [RelayCommand]
     private Task RetryAsync() => _coordinator.CurrentTrack is { } track
         ? LoadAsync(track)
         : Task.CompletedTask;
 
-    /// <summary>点某一行跳到那一句。</summary>
+    /// <summary>点某一行跳到那一句。参数是行下标（Win2D 那边命中测试拿到的就是下标）。</summary>
     [RelayCommand]
-    private Task SeekToLineAsync(LyricLineView? line) => line is null
-        ? Task.CompletedTask
-        : _engine.SeekAsync(line.Start);
+    private Task SeekToLineAsync(int lineIndex)
+        => lineIndex >= 0 && lineIndex < Document.Lines.Count
+            ? _engine.SeekAsync(Document.Lines[lineIndex].Start)
+            : Task.CompletedTask;
 
     partial void OnIsOpenChanged(bool value)
     {
@@ -192,30 +198,22 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     private void Apply(Track track, LyricDocument document)
     {
-        _document = document;
+        Document = document;
         _loadedTrackId = track.Id;
         HasTrack = true;
-
-        Lines.Clear();
         CurrentIndex = -1;
-
-        foreach (var line in document.Lines)
-        {
-            Lines.Add(new LyricLineView(line.Start, line.Text));
-        }
 
         // 空文档不是错误：服务端对没有歌词的歌返回空串，业务码仍是 200。
         StatusText = document.IsEmpty ? "这首歌还没有歌词" : "";
 
-        // 打开面板时歌可能已经唱到一半了，立刻对齐一次。
+        // 进歌词页时歌可能已经唱到一半了，立刻对齐一次。
         UpdateCurrentLine(_engine.Position);
     }
 
     private void Clear()
     {
-        _document = LyricDocument.Empty;
+        Document = LyricDocument.Empty;
         _loadedTrackId = 0;
-        Lines.Clear();
         CurrentIndex = -1;
     }
 
@@ -240,12 +238,12 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     private void UpdateCurrentLine(TimeSpan position)
     {
-        if (_document.IsEmpty)
+        if (Document.IsEmpty)
         {
             return;
         }
 
-        var index = _document.IndexOfLineAt(position);
+        var index = Document.IndexOfLineAt(position);
 
         if (index != CurrentIndex)
         {
@@ -253,19 +251,16 @@ public sealed partial class LyricsViewModel : ObservableObject
         }
     }
 
-    /// <summary>只动两行的高亮 —— 63 行每行都刷一遍是白费。</summary>
+    /// <summary>
+    /// 记录当前行下标。
+    /// </summary>
+    /// <remarks>
+    /// <b>渲染路径不读它。</b> 这一位是 5Hz 采样的（跟着引擎上报走），而 Win2D 渲染器按 60fps 的
+    /// 平滑时钟自己算当前行 —— 两套判断同时驱动高亮会打架，所以高亮只归渲染器。
+    /// 这一位留给页面外的公开状态用（例如将来 P6 的桌面歌词条）。
+    /// </remarks>
     private void SetCurrent(int index)
     {
-        if (CurrentIndex >= 0 && CurrentIndex < Lines.Count)
-        {
-            Lines[CurrentIndex].IsCurrent = false;
-        }
-
         CurrentIndex = index;
-
-        if (index >= 0 && index < Lines.Count)
-        {
-            Lines[index].IsCurrent = true;
-        }
     }
 }
