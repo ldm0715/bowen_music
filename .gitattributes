@@ -1,0 +1,19 @@
+# 仓库内统一存 LF，检出时按平台转换。与全局 core.autocrlf=true 配合即可，
+# 显式写出来是为了换机器时行为一致。
+* text=auto
+
+*.cs       text diff=csharp
+*.csproj   text
+*.xaml     text
+*.md       text
+*.json     text
+
+# VS 写出的解决方案文件固定 CRLF，别让它被规范化
+*.sln      text eol=crlf
+
+# 二进制
+*.apk      binary
+*.dll      binary
+*.png      binary
+*.jpg      binary
+*.ico      binary

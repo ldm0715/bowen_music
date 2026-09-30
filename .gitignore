@@ -1,0 +1,22 @@
+# 构建产物
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+
+# NuGet
+packages/
+*.nupkg
+
+# 逆向用的原始安装包
+# 283 MB 的第三方二进制，且 roadmap 的分发红线要求不打包官方客户端的任何二进制。
+# 不入库；需要复现逆向结论时自行放置。
+apk/
+
+# 本机环境
+.vscode/
+
+# 探针运行时的本机凭据（正常落在 %LOCALAPPDATA%，这里兜底防误提交）
+*.token
+session.json

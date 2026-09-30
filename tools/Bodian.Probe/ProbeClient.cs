@@ -1,0 +1,182 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json.Nodes;
+
+namespace Bodian.Probe;
+
+/// <summary>path 参与签名时的形态。文档写的是「不含 /api 前缀的业务路径」，实测对照用得上。</summary>
+internal enum PathForm
+{
+    Bare,
+    LeadingSlash,
+    WithApiPrefix,
+}
+
+/// <summary>签名时 query 里是否已经含一个空值的 sign 参数。文档字面描述是「含」。</summary>
+internal enum SignKeyForm
+{
+    Included,
+    Omitted,
+}
+
+internal sealed record ProbeResponse(
+    int Status,
+    string RawBody,
+    JsonNode? Envelope,
+    string Url,
+    string SignedQuery,
+    string SeedQuery)
+{
+    public int Code => Envelope?["code"]?.GetValue<int>() ?? -1;
+
+    public JsonNode? Data => Envelope?["data"];
+
+    public string Describe(string label = "业务码")
+        => $"HTTP {Status}  {label} {Code}";
+}
+
+/// <summary>
+/// 传输层：请求头、签名、信封解析。P0 阶段唯一碰 HttpClient 的地方。
+/// </summary>
+internal sealed class ProbeClient : IDisposable
+{
+    private const string BaseUrl = "https://bd-api.kuwo.cn/api/";
+    private const string Ver = "1.1.7";
+
+    private readonly HttpClient _http;
+    private readonly string _devid;
+
+    /// <summary>未登录为 -1。</summary>
+    public string Uid { get; set; } = "-1";
+
+    /// <summary>未登录为空串。</summary>
+    public string Token { get; set; } = "";
+
+    public bool Verbose { get; set; }
+
+    public ProbeClient(string? proxy, bool verbose = false)
+    {
+        Verbose = verbose;
+        _devid = DeviceIdentity.GetOrCreate();
+
+        var handler = new SocketsHttpHandler
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        };
+
+        if (!string.IsNullOrWhiteSpace(proxy))
+        {
+            handler.Proxy = new WebProxy(proxy);
+            handler.UseProxy = true;
+        }
+
+        _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+    }
+
+    public async Task<ProbeResponse> SendAsync(
+        string path,
+        IEnumerable<KeyValuePair<string, string>>? query = null,
+        string? body = null,
+        bool signed = false,
+        SignKeyForm signKeyForm = SignKeyForm.Included,
+        PathForm pathForm = PathForm.Bare,
+        bool post = false)
+    {
+        var pairs = new List<KeyValuePair<string, string>>(query ?? [])
+        {
+            new("uid", Uid),
+            new("token", Token),
+        };
+
+        var seedQuery = "";
+
+        if (signed)
+        {
+            pairs.Add(new KeyValuePair<string, string>("timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString()));
+            pairs.Add(new KeyValuePair<string, string>("sign", ""));
+
+            var seedPairs = signKeyForm == SignKeyForm.Included
+                ? pairs
+                : pairs.Where(p => p.Key != "sign");
+
+            seedQuery = BodianSigner.FormUrlEncode(seedPairs);
+            var sign = BodianSigner.SignRaw(SignPath(path, pathForm), seedQuery, body);
+            pairs[^1] = new KeyValuePair<string, string>("sign", sign);
+        }
+
+        var signedQuery = BodianSigner.FormUrlEncode(pairs);
+        var url = BaseUrl + path + "?" + signedQuery;
+
+        if (Verbose)
+        {
+            Console.Error.WriteLine($"> {(post ? "POST" : "GET")} {url}");
+            if (body is not null)
+            {
+                Console.Error.WriteLine($"> body {body}");
+            }
+        }
+
+        using var request = BuildRequest(post ? HttpMethod.Post : HttpMethod.Get, url, body);
+        using var response = await _http.SendAsync(request).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+        JsonNode? envelope = null;
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            try
+            {
+                envelope = JsonNode.Parse(raw);
+            }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException or ArgumentException)
+            {
+                // 非 JSON 响应（网关错误页等）保留原文供排查。
+            }
+        }
+
+        return new ProbeResponse((int)response.StatusCode, raw, envelope, url, signedQuery, seedQuery);
+    }
+
+    private static string SignPath(string path, PathForm form) => form switch
+    {
+        PathForm.LeadingSlash => "/" + path,
+        PathForm.WithApiPrefix => "/api/" + path,
+        _ => path,
+    };
+
+    private HttpRequestMessage BuildRequest(HttpMethod method, string url, string? body)
+    {
+        var request = new HttpRequestMessage(method, url);
+        var headers = request.Headers;
+
+        headers.TryAddWithoutValidation("User-Agent", "Dart/3.3 (dart:io)");
+        headers.TryAddWithoutValidation("plat", "win");
+        headers.TryAddWithoutValidation("channel", "W1");
+        headers.TryAddWithoutValidation("ver", Ver);
+        headers.TryAddWithoutValidation("svrver", "13");
+        headers.TryAddWithoutValidation("api-ver", "application/json");
+        headers.TryAddWithoutValidation("brand", "Windows");
+        headers.TryAddWithoutValidation("net", "wifi");
+        headers.TryAddWithoutValidation("devid", _devid);
+        headers.TryAddWithoutValidation("qimei36", _devid);
+        headers.TryAddWithoutValidation("Accept-Encoding", "gzip");
+
+        if (Uid != "-1")
+        {
+            headers.TryAddWithoutValidation("uid", Uid);
+            headers.TryAddWithoutValidation("token", Token);
+        }
+
+        if (body is not null)
+        {
+            // 签名覆盖的是这份精确字节，序列化必须发生在调用方，这里只做搬运。
+            request.Content = new ByteArrayContent(new UTF8Encoding(false).GetBytes(body));
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        }
+
+        return request;
+    }
+
+    public void Dispose() => _http.Dispose();
+}

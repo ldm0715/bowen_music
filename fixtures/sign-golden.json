@@ -1,0 +1,11 @@
+{
+  "note": "P0 signtest 候选签名用例，供 P1 做黄金用例复现",
+  "verified": false,
+  "reason": "匿名会话下 checkRight 不校验签名，此用例未经证实",
+  "path": "play/music/v2/checkRight",
+  "pathForm": "Bare",
+  "signKeyForm": "Included",
+  "seedQuery": "musicId=228908&uid=-1&token=&timestamp=1790750540920&sign=",
+  "body": "{\"musicId\":228908,\"freeSign\":\"\"}",
+  "sign": "bb658ff99a35b3d19570e0d783e9143e"
+}

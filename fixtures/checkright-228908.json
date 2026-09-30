@@ -1,0 +1,23 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "b3e74bce06c6f2b22cdcc8406381390d",
+  "data": {
+    "audition": {
+      "duration": 269,
+      "br": 128,
+      "overseas_copyright": "1",
+      "car_url": "http://vehiclecdn.kuwo.cn/5a292377777fb58e6e15d36f0861b468/6abcbd0e/resource/pay3_v2/228908/228908_29_0.1779762267.mp3?<redacted>",
+      "format": "mp3",
+      "start": 0,
+      "end": 29,
+      "id": 228908,
+      "https": "https://ga-sycdn.kuwo.cn/5a292377777fb58e6e15d36f0861b468/6abcbd0e/resource/pay3_v2/228908/228908_29_0.1779762267.mp3?<redacted>",
+      "car_url_https": "https://vehiclecdn.kuwo.cn/5a292377777fb58e6e15d36f0861b468/6abcbd0e/resource/pay3_v2/228908/228908_29_0.1779762267.mp3?<redacted>",
+      "url": "http://ga-sycdn.kuwo.cn/5a292377777fb58e6e15d36f0861b468/6abcbd0e/resource/pay3_v2/228908/228908_29_0.1779762267.mp3?<redacted>"
+    },
+    "status": 3
+  },
+  "profileId": "site",
+  "curTime": 1790750462640
+}
