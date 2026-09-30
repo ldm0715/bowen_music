@@ -11,6 +11,7 @@
 | `bodian-api-inventory.md` | 逆向勘查记录，查「这个路径从哪来」时看 |
 | `tech-stack.md` / `lyrics-ui.md` | P1 之后要用 |
 | `dev-environment.md` | 本机环境（三个非默认路径） |
+| `archive/` | **阶段归档**：每个阶段解决了什么、踩过哪些坑、哪些判断被推翻了。**冻结文档**，有变化写活文档再另开一份 |
 
 ## 现状一句话
 
