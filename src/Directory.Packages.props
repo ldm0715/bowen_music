@@ -1,0 +1,38 @@
+<Project>
+
+  <!--
+    中央包管理。★ 这个文件放在 src/ 而不是仓库根，是有意的：
+    MSBuild / NuGet 会从项目目录向上逐级查找，放仓库根会让 tools/Bodian.Probe 继承
+    ManagePackageVersionsCentrally，它那两行带 Version= 的 PackageReference 会直接报 NU1008。
+    详见 docs/transport.md 第 1.3 节。
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- 版本以 docs/tech-stack.md 第 2 节为准，不自行升级 -->
+  <ItemGroup>
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <!-- 下面两个 P1 只登记版本、不引用，省得 P2 再核一遍 -->
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="WinUIEx" Version="2.9.3" />
+    <PackageVersion Include="Serilog" Version="4.4.0" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <!--
+      仅在测试项目里以 ExcludeAssets=all 引用，目的是把 xunit.v3 传递引入的测试宿主遥测扩展
+      挤出 deps.json（见 tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj 的说明）。
+      版本跟随 xunit.v3 4.0.1 实际解析到的版本，不单独升级。
+    -->
+    <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.4.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <!-- XAML 编译靠它，不能省 -->
+    <UseWinUI>true</UseWinUI>
+    <RootNamespace>Bodian.WinUI</RootNamespace>
+    <AssemblyName>Bodian.WinUI</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!--
+      ★ RuntimeIdentifier 是单数且不可省：开自包含后不带 RID 构建会直接失败
+      （WindowsAppSDKSelfContained requires a supported Windows architecture）。
+    -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+
+    <!-- 关掉反射序列化：DTO 必须走 JsonSerializerContext -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bodian.Core\Bodian.Core.csproj" />
+  </ItemGroup>
+
+</Project>

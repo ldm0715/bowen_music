@@ -1,0 +1,6 @@
+<Project>
+
+  <!-- 与 src/ 共用同一张版本表 -->
+  <Import Project="..\src\Directory.Packages.props" />
+
+</Project>

@@ -1,0 +1,22 @@
+using System.Runtime.InteropServices;
+
+namespace Bodian.WinUI;
+
+internal static class NativeMethods
+{
+    /// <summary>
+    /// 显式设置进程的 AppUserModelID。影响任务栏分组与 toast 归属。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>必须在创建任何窗口之前调用。</b> unpackaged 应用没有 identity，这一步是替代品之一；
+    /// 另一个（SMTC 面板显示应用名而非 exe 文件名）要靠开始菜单快捷方式，那是 P3 的事。
+    /// </para>
+    /// <para>
+    /// 用 <c>DllImport</c> 而不是 <c>LibraryImport</c>：后者要求整个项目开
+    /// <c>AllowUnsafeBlocks</c>，为一个 P/Invoke 打开 unsafe 不划算。
+    /// </para>
+    /// </remarks>
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    internal static extern int SetCurrentProcessExplicitAppUserModelID(string appUserModelId);
+}

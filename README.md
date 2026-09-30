@@ -2,9 +2,12 @@
 
 非官方第三方桌面客户端，目标平台 Windows 10 / 11。
 
-> **当前状态：P0（协议探针）进行中，尚无客户端代码。**
-> 协议逆向与选型已完成，`checkRight` 链路已跑通；签名验证、登录、歌词解析等仍待实测。
-> 进度与下一步见 [`docs/roadmap.md`](docs/roadmap.md)。
+> **当前状态：P1（骨架与传输层）已完成，尚无界面。**
+> P0 完成了协议逆向与选型定稿，播放链路（`checkRight` → `audioUrl`）全程实测跑通，无损 FLAC 可用。
+> P1 把验证过的协议落成了 `Bodian.Core` + `Bodian.WinUI` + `Bodian.Core.Tests` 三个项目：
+> 传输层、会话、DPAPI 凭据、DTO、分页、日志脱敏、歌词入口，**152 个单测全绿**。
+> 设计稿见 [`docs/transport.md`](docs/transport.md)，进度见 [`docs/roadmap.md`](docs/roadmap.md)。
+> **下一步是 P1.5 透明悬浮窗 spike 或 P2 登录 + 播放最小闭环。**
 
 ## 为什么做这个
 
@@ -25,9 +28,12 @@
 
 | 路径 | 说明 |
 | --- | --- |
+| `src/Bodian.Core/` | `net10.0`，零 UI 依赖：传输层 / DTO / 分页 / 歌词解码 / 凭据。**可独立单测** |
+| `src/Bodian.WinUI/` | `net10.0-windows10.0.26100.0`，WinUI 3。目前只有 DI 组合根与一个空窗口 |
+| `tests/Bodian.Core.Tests/` | xunit.v3，用 `fixtures/` 的真实响应做断言，**零真实网络请求** |
 | `docs/` | 逆向勘查记录与设计方案。**开工前先读 [`docs/roadmap.md`](docs/roadmap.md)** |
-| `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具，不进主工程 |
-| `fixtures/` | 已脱敏的真实响应样本，供 P1 的单元测试使用 |
+| `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具。**不参与 `Bodian.sln`**，但必须保持可独立构建 |
+| `fixtures/` | 已脱敏的真实响应样本，单测的输入 |
 | `apk/` | 逆向用的原始安装包，**不入版本控制**（283 MB 第三方二进制，需自行放置） |
 
 ## 文档
@@ -35,20 +41,34 @@
 | 文档 | 用途 |
 | --- | --- |
 | [`roadmap.md`](docs/roadmap.md) | **分阶段执行计划**，先读这份 |
+| [`transport.md`](docs/transport.md) | **工程骨架与传输层的落地设计稿**：csproj 全文 / 类清单 / DTO 映射 / 测试清单 / 验收命令 |
 | [`bodian-api-reference.md`](docs/bodian-api-reference.md) | 接口主文档：传输层 / 签名 / 已验证接口 / 数据模型 / 音质档位 |
 | [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
+| [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |
 
 ## 构建与运行
 
-环境要求见 [`docs/dev-environment.md`](docs/dev-environment.md)（.NET 10 SDK + Windows SDK 10.0.26100）。当前只有探针：
+环境要求见 [`docs/dev-environment.md`](docs/dev-environment.md)（.NET 10 SDK + Windows SDK 10.0.26100）。
 
 ```bash
+# 客户端工程
+dotnet build Bodian.sln -c Debug
+dotnet test  --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
+
+# 启动（unpackaged + self-contained；「构建通过 ≠ 能跑」）
+timeout 8 ./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe
+# 退出码 124 = 跑满 8 秒被 timeout 杀掉 = 窗口一直开着，这才是正常
+
+# P0 探针（故意不在 sln 里，避免每次构建都被它拖住）
 dotnet build tools/Bodian.Probe
 dotnet run --project tools/Bodian.Probe -- --help
 ```
+
+**测试项目依赖 `global.json`**：`dotnet test` 走 Microsoft.Testing.Platform 靠它选择加入，
+所以命令要带 `--project`（MTP 模式下不接受位置参数）。详见 [`docs/transport.md`](docs/transport.md) 第 1.4 节。
 
 ## 许可
 

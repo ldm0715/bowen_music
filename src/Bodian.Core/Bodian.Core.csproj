@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      ★ 刻意不带 -windows：协议、签名、歌词解码、DPAPI 全部可单测，不依赖 UI 线程。
+      DPAPI 能在纯 net10.0 下编译，但实现类必须标 [SupportedOSPlatform("windows")]
+      —— 该包在 API 契约层面标了 Windows-only，不标注会触发 CA1416。详见 docs/transport.md 第 2.1 节。
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Bodian.Core</RootNamespace>
+    <AssemblyName>Bodian.Core</AssemblyName>
+
+    <!--
+      IsAotCompatible + TreatWarningsAsErrors 是机制不是约定：
+      任何反射式 JSON 用法会变成编译错误，逼着 DTO 走源生成。
+    -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bodian.Core.Tests" />
+  </ItemGroup>
+
+</Project>

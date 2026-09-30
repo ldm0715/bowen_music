@@ -38,9 +38,10 @@
 
 ---
 
-## 3. 两个曾修复的配置问题（换机器时重点看这节）
+## 3. 两个曾修复的配置问题 + 四条反直觉事实（换机器时重点看这节）
 
-这两个都是**把 VS 装在非默认盘（`F:`）留下的坑**，与项目本身无关，但会让构建直接失败。
+3.1 与 3.2 都是**把 VS 装在非默认盘（`F:`）留下的坑**，与项目本身无关，但会让构建直接失败。
+3.3 是另一类——不是配置坏了，是 .NET 10 工具链的行为与直觉相反，照着老习惯敲命令会直接卡住。
 
 ### 3.1 NuGet fallback 指向了不存在的盘
 
@@ -77,6 +78,41 @@ No .NET SDKs were found.
 ```
 
 **已把 `C:\Program Files\dotnet` 调整到 x86 那条之前。** 这项需要管理员权限，且改完要**重开终端**才生效。
+
+### 3.3 四条反直觉事实（**2026-09-30 实测**，P1 开工时核实）
+
+| # | 事实 | 证据 | 后果 |
+| --- | --- | --- | --- |
+| 1 | **`dotnet new sln` 默认生成 `.slnx`**（XML 格式），不是 `.sln` | `dotnet new sln --help` 的 `-f, --format <sln\|slnx>` 写着 `默认: slnx` | 不写 `-f sln` 就得到 `Bodian.slnx`，VS / `dotnet sln add` 的行为都要重新确认 |
+| 2 | **WinUI 3 没有 CLI 模板** | `dotnet new list winui` 找不到匹配（退出码 103）；全表里只有 console / classlib / winforms / wpf / xunit 等；`Microsoft.WindowsAppSDK.Templates` 在 nuget.org 上不存在 | WinUI 项目的 csproj 与 XAML **只能手写**，没有捷径可抄 |
+| 3 | **`xunit.v3` 要求测试项目 `OutputType=Exe`** | 包的 `buildTransitive` targets 里有 `Condition=" '$(OutputType)' != 'Exe' "` 的 `<Error>`；`dotnet new xunit` 生成的是 **xunit v2（2.9.3）**，不符合选型 | 测试 csproj 必须手写，且 `OutputType` 不能沿用 classlib 的默认值 |
+| 4 | **`dotnet test` 要走 MTP 必须在 `global.json` 里显式选择** | `dotnet test --help` 首行：「若要使用 Microsoft.Testing.Platform，请通过 global.json 选择加入」 | 不写 `{"test":{"runner":"Microsoft.Testing.Platform"}}` 就退回 VSTest 模式；选了 MTP 之后调用形态变为 `dotnet test --project <csproj>`，不再接受位置参数 |
+
+**另一个容易打挂 P0 探针的坑**：`Directory.Build.props` / `Directory.Packages.props` 是**从项目目录向上逐级查找**的。放仓库根会让 `tools/Bodian.Probe` 继承 `ManagePackageVersionsCentrally`，它那两行带 `Version=` 的 `PackageReference` 直接报 **NU1008**。**这两个文件放 `src/` 和 `tests/`，仓库根保持干净。**
+
+### 3.4 测试宿主的遥测（**已排除，2026-09-30**）
+
+`xunit.v3` 会传递引入 `Microsoft.Testing.Extensions.Telemetry`（2.4.0）。它是**默认开启、靠环境变量退出**的：
+
+```
+TESTINGPLATFORM_TELEMETRY_OPTOUT=1    或    DOTNET_CLI_TELEMETRY_OPTOUT=1
+```
+
+（变量名取自 `Microsoft.Testing.Platform.dll` 内的提示字符串，非记忆。）
+
+这与 README 的「不含遥测与日志上报」冲突，而「设环境变量」属于「靠自觉」。**已在 `tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj` 里用 `ExcludeAssets="all"` 直接把它挤出运行时**：
+
+```xml
+<PackageReference Include="Microsoft.Testing.Extensions.Telemetry" ExcludeAssets="all" PrivateAssets="all" />
+```
+
+> **注意**：写成 `<PackageReference Update="..." ExcludeAssets="all" />` **不生效**——对传递引入的包用 `Update` 改 `ExcludeAssets` 不会移除已解析的资产，DLL 照样被拷进输出目录（实测）。必须用 `Include` 提升为直接引用。因为开了中央包管理，还要在 `src/Directory.Packages.props` 里补一条 `PackageVersion`。
+
+**效果**：输出目录里不再有 `Microsoft.Testing.Extensions.Telemetry.dll`，`deps.json` 只剩不含 runtime 资产的库条目；测试仍正常通过，且单次运行从 ~1.8s 降到 ~0.7s。
+
+该包只影响开发机的测试宿主，不进客户端产物。
+
+完整的项目文件与约束见 [`transport.md`](transport.md) 第 1 节。
 
 ---
 

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Bodian.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="波点音乐">
+
+    <Grid Padding="32" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="波点音乐（非官方客户端）" />
+
+        <TextBlock
+            Grid.Row="1"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="P1 · 骨架与传输层。界面从 P2 开始做。" />
+
+        <StackPanel Grid.Row="2" Orientation="Vertical" Spacing="4" Margin="0,16,0,0">
+            <TextBlock x:Name="DeviceIdText" TextWrapping="Wrap" />
+            <TextBlock x:Name="SessionText" TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+
+</Window>

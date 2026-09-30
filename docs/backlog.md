@@ -17,7 +17,10 @@
 P0（协议探针）五轮实测 + **第六轮静态分析**做完，**播放链路已验证可用** —— 无损 FLAC 能拿到、`ffplay` 能解出。
 **协议空白基本清零**：收藏写入的 body、移动端签名算法、评论的键名、下载接口的增量、`freeSign` 的来源
 全部从 APK 的 Flutter AOT 里静态读出来了（零请求）。剩下的都是「读代码读得不够细」或「必须发一次请求验证」
-的小尾巴，不再有「不知道去哪找」的项。**客户端工程从 P1 起一行代码都没有。**
+的小尾巴，不再有「不知道去哪找」的项。
+
+**P1（骨架与传输层）也已完成**：`Bodian.sln` + `Bodian.Core` + `Bodian.WinUI` + `Bodian.Core.Tests`
+四个部分就位，152 个测试全绿。**现在可以直接进 P1.5 或 P2。**
 
 ## 做事的规矩
 
@@ -123,21 +126,25 @@ POST /api/service/collect    Body: {"source": <int>, "sourceId": [<int>...], "op
 
 ## C. 工程（纯本地，不被 A/B 阻塞）
 
-现在仓库里只有 `tools/Bodian.Probe`（一次性探针）+ `docs/` + `fixtures/`。**没有 `Bodian.sln`**。
+### ✅ P1 骨架与传输层 —— 已完成（2026-09-30）
+
+仓库现在有 `Bodian.sln` + `src/Bodian.Core` + `src/Bodian.WinUI` + `tests/Bodian.Core.Tests`，
+以及 `tools/Bodian.Probe`（一次性探针，**不参与解决方案，保持可独立构建**）。
+**落地设计稿与实现偏差见 [`transport.md`](transport.md)**，那里有 csproj 全文、类清单、
+DTO 字段映射与验收命令。实测：解决方案 0/0、探针 0/0、**152 个测试全绿 0 跳过**、
+WinUI 退出码 124、日志里凭据全被替换、探针会话仍可读。
+
+P1 **没做**的：`IBodianApi` 门面与 `Models/` 领域模型 —— 推迟到 P2，
+理由见 `transport.md` 第 10 节。歌单与评论 DTO 也推迟（无 fixture 可验证）。
 
 | 阶段 | 内容 | 粗估 | 依赖 |
 | --- | --- | --- | --- |
-| **P1** | 骨架与传输层（`Bodian.Core` / `Bodian.WinUI` / `Bodian.Core.Tests`） | 3–5 天 | 无 |
-| **P1.5** | 透明悬浮窗 spike（win10 上能否同时做到逐像素透明+置顶+点击穿透+可拖动） | 1–2 天 | P1 |
-| P2 起 | 见 `roadmap.md` 的阶段表 | | |
-
-**P1 的关键约束**（细节见 `tech-stack.md`）：
-
-- `Bodian.Core` 用纯 `net10.0`、**不带 `-windows` TFM** —— 协议、签名、歌词解码全部可单测
-- 打包形态已定 **unpackaged**；凭据只能走 **DPAPI**（`PasswordVault` 在 unpackaged 下不可用）
-- 签名的黄金用例见 `fixtures/sign-golden.json`，**`verified` 是 `false`** —— 它只是候选形态，别当成已验证的事实
+| **P1.5** | 透明悬浮窗 spike（win10 上能否同时做到逐像素透明+置顶+点击穿透+可拖动） | 1–2 天 | ✅ P1 已就绪 |
+| **P2** | 登录 + 播放最小闭环 | 1–2 周 | ✅ P1 已就绪 |
+| P3 起 | 见 `roadmap.md` 的阶段表 | | |
 
 **P1.5 如果过不了**，P5/P6 的歌词方案要整个重估 —— 这正是把它提前的原因。
+**它是现在排在第二位的风险**（协议风险已被 P0 消除），建议接着就做。
 
 ---
 

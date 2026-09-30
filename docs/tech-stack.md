@@ -26,6 +26,7 @@
 <PropertyGroup>
   <OutputType>WinExe</OutputType>
   <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+  <UseWinUI>true</UseWinUI>
   <LangVersion>14.0</LangVersion>
   <Nullable>enable</Nullable>
   <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -40,6 +41,9 @@
 > `error : WindowsAppSDKSelfContained requires a supported Windows architecture.`
 > 自包含要把对应架构的原生 DLL 拷进输出目录，没有 RID 就不知道该拷哪一份。
 > 若要多架构出包，用**复数的 `<RuntimeIdentifiers>` 声明集合，但每次构建仍须指定单个 RID**（`dotnet build -r win-arm64`）。只写复数不指定 `-r` 一样会报上面那个错。**2026-09-30 实测。**
+
+> **上面的片段不含 `UseWinUI`** —— 它在本节写作时被漏掉，已补在片段里。XAML 编译靠它，不能省。
+> **完整的、实际构建验证过的项目文件在 [`transport.md`](transport.md) 第 1 节**（含三个 csproj 全文、`global.json`、中央包管理的位置约束）。本节只讲为什么这么选。
 
 | 用途 | 包 | 版本 |
 | --- | --- | --- |

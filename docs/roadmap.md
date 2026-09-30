@@ -130,23 +130,30 @@ P0 里花点时间确认：分别用空串和一个已有的免费听场景对�
 
 ---
 
-## P1 · 骨架与传输层
+## P1 · 骨架与传输层 ✅ **已完成（2026-09-30）**
+
+> **落地设计稿见 [`transport.md`](transport.md)**——csproj 全文、类清单、DTO 字段映射、
+> 测试清单、验收命令都在那里。本节只保留阶段目标与达成情况。
 
 **目标**：把 P0 验证过的东西变成可长期维护的工程结构。
 
-| 项目 | 内容 |
-| --- | --- |
-| 解决方案结构 | **`Bodian.Core`（纯 `net10.0`，零 UI 依赖，可单测）+ `Bodian.WinUI` + `Bodian.Core.Tests`**。详见 `tech-stack.md` 的工程结构一节 |
-| `BodianHttpTransport` | 签名、请求头、信封解析（`code` 200/402/11012/11027/20018）、gzip、超时、8 MiB 上限。**唯一**碰 `HttpClient` 和 md5 的地方 |
-| `BodianSession` | uid/token、`revision` 计数、`11012` 触发清会话事件 |
-| 凭据落盘 | **DPAPI**（`System.Security.Cryptography.ProtectedData`，**需独立 NuGet 包**）。从第一天就做，不要留到后面 |
-| DTO 模型 | 曲目、歌单、`payInfo`、评论。独立一层，UI 不直接摸 JSON |
-| 分页封装 | 把「首页页号各家不同」和「稀疏分页游标」收敛成一处 |
-| 日志脱敏 | token、`freeSign`、audioUrl 一律不入日志。做**封装**，不靠自觉 |
+| 项目 | 内容 | 状态 |
+| --- | --- | --- |
+| 解决方案结构 | **`Bodian.Core`（纯 `net10.0`，零 UI 依赖，可单测）+ `Bodian.WinUI` + `Bodian.Core.Tests`** | ✅ |
+| `BodianHttpTransport` | 签名、请求头、信封解析（`code` 200/402/11012/11027/20018）、gzip、超时、8 MiB 上限。**唯一**碰 `HttpClient` 和 md5 的地方 | ✅ |
+| `BodianSession` | uid/token、`revision` 计数、`11012` 触发清会话事件 | ✅ |
+| 凭据落盘 | **DPAPI**（`System.Security.Cryptography.ProtectedData`，**需独立 NuGet 包**）。实现类要标 `[SupportedOSPlatform("windows")]` | ✅ |
+| DTO 模型 | 曲目、`payInfo`、播放、登录、歌词。独立一层，UI 不直接摸 JSON | ✅ 曲目/授权/播放/登录/歌词；**歌单与评论推迟**（无 fixture，见 `transport.md` 3.8 节） |
+| 分页封装 | 把「首页页号各家不同」和「稀疏分页游标」收敛成一处 | ✅ |
+| 日志脱敏 | token、`freeSign`、audioUrl 一律不入日志。做**封装**，不靠自觉 | ✅ |
 
 **Core 项目不带 `-windows` TFM 是关键**：协议、签名、歌词解码全部可单测，不依赖 UI 线程。
 
 **单元测试**：用 P0 的 fixture 跑 transport、签名、解码。签名要有一个固定输入的黄金用例。
+**实测 152 个测试全绿、0 跳过**；WinUI 退出码 124；探针仍能独立构建且会话可读。
+
+**P1 没做、留给后续的**：`IBodianApi` 门面与 `Models/` 领域模型（**推迟到 P2**，
+理由见 `transport.md` 第 10 节——门面要返回公开模型，而映射哪些字段取决于 P2 真正要什么）。
 
 ### 打包形态：已定 unpackaged
 
@@ -157,9 +164,9 @@ P0 里花点时间确认：分别用空串和一个已有的免费听场景对�
 | 原生依赖（libmpv） | 受包沙箱约束 | 自由 |
 | 侧载 | 需签名证书 | 直接跑 |
 
-**结论：unpackaged + DPAPI + 手动注册 AUMID**，因为 libmpv 的原生依赖处理更省事。项目文件要点见 `tech-stack.md`。
+**结论：unpackaged + DPAPI + 手动注册 AUMID**，因为 libmpv 的原生依赖处理更省事。项目文件要点见 `transport.md`。
 
-**工作量**：中，3–5 天（含技术栈落地）。
+**工作量**：中，3–5 天（含技术栈落地）。**实际约 1 天**——协议全部已知，P1 是照文档实现而非探索。
 
 ---
 

@@ -1,0 +1,6 @@
+<Project>
+
+  <!-- 与 src/ 共用同一套属性，避免两处漂移 -->
+  <Import Project="..\src\Directory.Build.props" />
+
+</Project>

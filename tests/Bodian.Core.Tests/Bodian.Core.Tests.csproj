@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- ★ xunit.v3 的 buildTransitive targets 对非 Exe 的 OutputType 直接报 Error -->
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Bodian.Core.Tests</RootNamespace>
+    <AssemblyName>Bodian.Core.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!-- xunit 自身大量用反射，不要开 AOT 分析器 -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 脱敏测试要用 LoggerFactory.Create 搭一个内层工厂；
+         它在这个包里，而不在 Core 引用的 Abstractions 里。 -->
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="xunit.v3" />
+    <!-- 保留它给 VS 测试资源管理器；dotnet test 仍按 global.json 走 MTP -->
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <!--
+      xunit.v3 会传递引入 Microsoft.Testing.Extensions.Telemetry，它是「默认开启、靠环境变量退出」，
+      与项目 README 的「不含遥测」立场冲突。这里直接排除资产，不依赖开发者记得设环境变量。
+      确认方法见 docs/dev-environment.md 第 3.3 节。
+    -->
+    <PackageReference Include="Microsoft.Testing.Extensions.Telemetry" ExcludeAssets="all" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bodian.Core\Bodian.Core.csproj" />
+  </ItemGroup>
+
+  <!-- ★ 编译期注入仓库根，测试靠它定位 fixtures/。不靠遍历输出目录，也不拷贝 fixture -->
+  <ItemGroup>
+    <AssemblyMetadata Include="RepositoryRoot" Value="$(MSBuildThisFileDirectory)..\..\" />
+  </ItemGroup>
+
+</Project>

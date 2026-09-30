@@ -1,0 +1,33 @@
+using System.Text.Json.Serialization;
+using Bodian.Core.Api.Dto;
+
+namespace Bodian.Core.Api;
+
+/// <summary>
+/// 源生成 JSON 上下文。**所有反序列化都必须从这里取 <c>JsonTypeInfo</c>。**
+/// </summary>
+/// <remarks>
+/// <para>
+/// 强制手段有两处：WinUI 项目开了 <c>JsonSerializerIsReflectionEnabledByDefault=false</c>，
+/// Core 开了 <c>IsAotCompatible</c> + <c>TreatWarningsAsErrors</c>——任何想退化成反射的写法
+/// 都是编译错误而不是运行时惊喜。第三处是 <c>IBodianTransport</c> 的签名要求调用方传
+/// <see cref="JsonTypeInfo{T}"/>。
+/// </para>
+/// <para>
+/// <b>信封不进这个上下文。</b> 源生成不支持开放泛型，所以不能写
+/// <c>JsonSerializable(typeof(BodianEnvelope&lt;&gt;))</c>。传输层用 <see cref="System.Text.Json.JsonDocument"/>
+/// 手工取 <c>code</c> / <c>msg</c> / <c>reqId</c>，再把 <c>data</c> 子树交给这里的类型信息。
+/// </para>
+/// </remarks>
+[JsonSourceGenerationOptions(
+    // ★ 这一行解决 payInfo 的类型不一致：refrain_start / refrain_end / limitfree
+    //   在 service/music/info 里是字符串、在 search/music/list 里是数字。
+    //   没有它，跑第二个接口时会抛 JsonException。
+    NumberHandling = JsonNumberHandling.AllowReadingFromString)]
+[JsonSerializable(typeof(TrackDto))]
+[JsonSerializable(typeof(SearchListPayload))]
+[JsonSerializable(typeof(CheckRightDto))]
+[JsonSerializable(typeof(AudioUrlDto))]
+[JsonSerializable(typeof(LoginResultDto))]
+[JsonSerializable(typeof(LyricContentDto))]
+internal sealed partial class BodianJsonContext : JsonSerializerContext;
