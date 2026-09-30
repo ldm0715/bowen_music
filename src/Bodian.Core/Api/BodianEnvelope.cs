@@ -18,12 +18,18 @@ namespace Bodian.Core.Api;
 /// 调用方发出请求前记下当时的版本，响应回来后若已变化，说明期间发生了登录/登出，
 /// **应当丢弃这次的结果**，否则迟到的旧写请求会污染新会话的界面。
 /// </param>
+/// <param name="Lrcx">
+/// 歌词站回显的版式（<c>1</c> 逐字 / <c>0</c> 逐行）。**只有歌词站有这个字段**，
+/// 其余端点一律为 <c>null</c>。它不在 <c>data</c> 里，所以进不了 DTO，
+/// 只能在信封层取——见 <c>bodian-api-reference.md</c> 2.6 节。
+/// </param>
 public sealed record BodianEnvelope<T>(
     int Code,
     string? Message,
     string? RequestId,
     T? Data,
-    int SessionRevision)
+    int SessionRevision,
+    int? Lrcx = null)
 {
     public BodianErrorCode ErrorCode => BodianErrorCodeExtensions.FromRaw(Code);
 

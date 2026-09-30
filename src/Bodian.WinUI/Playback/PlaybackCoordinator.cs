@@ -45,6 +45,17 @@ public sealed class PlaybackCoordinator
     /// <summary>当前曲目的播放策略。没播过时为 <c>null</c>。</summary>
     public PlaybackPolicy? CurrentPolicy { get; private set; }
 
+    /// <summary>
+    /// 当前真正在播的曲目。没播成过时为 <c>null</c>（被拒绝的曲目不会写进来）。
+    /// </summary>
+    /// <remarks>
+    /// <b>不要拿 <see cref="PlayQueue.Current"/> 当它用。</b> <see cref="PlayFromAsync"/> 里
+    /// <c>Queue.Replace</c> 早于音源解析完成，而 <see cref="Started"/> 要等两个 await 之后才到 ——
+    /// 切歌的那一瞬间 <c>Queue.Current</c> 已经是下一首了。
+    /// 读的人和 <see cref="Started"/> 的订阅方必须看到同一个答案，所以赋值放在事件触发之前。
+    /// </remarks>
+    public Track? CurrentTrack { get; private set; }
+
     /// <summary>成功开始播放（含试听）。</summary>
     public event EventHandler<PlaybackStartedEventArgs>? Started;
 
@@ -166,6 +177,9 @@ public sealed class PlaybackCoordinator
     {
         await _engine.LoadAsync(new PlaybackSource(url, start, end, track.Title), cancellationToken)
             .ConfigureAwait(true);
+
+        // ★ 先赋值再触发事件：订阅方在事件处理里读 CurrentTrack 时必须是这一首。
+        CurrentTrack = track;
 
         Started?.Invoke(this, new PlaybackStartedEventArgs(track, policy, source));
     }

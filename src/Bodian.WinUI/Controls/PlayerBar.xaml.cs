@@ -7,11 +7,13 @@ namespace Bodian.WinUI.Controls;
 /// <summary>底部播放条。</summary>
 public sealed partial class PlayerBar : UserControl
 {
-    public PlayerBar(PlayerViewModel viewModel)
+    public PlayerBar(PlayerViewModel viewModel, LyricsViewModel lyrics)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(lyrics);
 
         ViewModel = viewModel;
+        Lyrics = lyrics;
 
         InitializeComponent();
 
@@ -22,6 +24,9 @@ public sealed partial class PlayerBar : UserControl
     }
 
     public PlayerViewModel ViewModel { get; }
+
+    /// <summary>歌词面板。播放条上的「词」按钮归它管。</summary>
+    public LyricsViewModel Lyrics { get; }
 
     private void OnSliderPressed(object sender, PointerRoutedEventArgs e) => ViewModel.IsSeeking = true;
 

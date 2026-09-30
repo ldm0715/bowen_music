@@ -289,6 +289,11 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
                 ? reqIdElement.GetString()
                 : null;
 
+            // 只有歌词站回这个字段，其余端点取不到——所以是可空的，缺失不算异常。
+            var lrcx = root.TryGetProperty("lrcx", out var lrcxElement) && lrcxElement.TryGetInt32(out var parsedLrcx)
+                ? parsedLrcx
+                : (int?)null;
+
             T? data = default;
             if (root.TryGetProperty("data", out var dataElement)
                 && dataElement.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))
@@ -296,7 +301,7 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
                 data = dataElement.Deserialize(dataTypeInfo);
             }
 
-            return new BodianEnvelope<T>(code, message, requestId, data, sessionRevision);
+            return new BodianEnvelope<T>(code, message, requestId, data, sessionRevision, lrcx);
         }
     }
 

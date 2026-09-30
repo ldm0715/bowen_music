@@ -48,6 +48,21 @@ public static class Formats
         requiresVip || requiresPurchase ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
+    /// <c>bool</c> 转 <see cref="Visibility"/>。
+    /// </summary>
+    /// <remarks>
+    /// 有了它就不必为每个布尔可见性都在 XAML 里挂转换器资源 ——
+    /// 而且函数绑定不接受 <c>Converter</c>，转换器写法在这里根本用不了。
+    /// </remarks>
+    public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>歌词行的透明度：当前行实心，其余压暗。</summary>
+    public static double LyricLineOpacity(bool isCurrent) => isCurrent ? 1.0 : 0.45;
+
+    /// <summary>歌词行的字号：当前行放大。</summary>
+    public static double LyricLineSize(bool isCurrent) => isCurrent ? 20 : 16;
+
+    /// <summary>
     /// 封面地址转图片源。
     /// </summary>
     /// <remarks>

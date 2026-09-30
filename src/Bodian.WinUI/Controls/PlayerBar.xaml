@@ -63,6 +63,15 @@
                     ToolTipService.ToolTip="下一首">
                     <FontIcon FontSize="14" Glyph="&#xE893;" />
                 </Button>
+
+                <!-- 歌词。没有在播的歌时是灰的 —— 那时打开面板也没有内容可显示。 -->
+                <Button
+                    Margin="8,0,0,0"
+                    Command="{x:Bind Lyrics.ToggleCommand}"
+                    IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
+                    ToolTipService.ToolTip="歌词">
+                    <TextBlock FontSize="14" Text="词" />
+                </Button>
             </StackPanel>
 
             <!-- 曲目信息：封面 + 标题 / 歌手 / 专辑 -->

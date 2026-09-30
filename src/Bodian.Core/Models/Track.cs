@@ -5,9 +5,10 @@ namespace Bodian.Core.Models;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>只映射 P2 真正会用到的字段。</b> 底层 <c>TrackDto</c> 有六十多个字段，其中歌词轨
-/// （P4）、搜索角标、社交计数、MV 相关、付费位等一律不进来 —— 没有消费方的字段搬上来只是噪音，
-/// 而且会诱导后来的人「先填上，以后可能要用」。
+/// <b>只映射真正有消费方的字段。</b> 底层 <c>TrackDto</c> 有六十多个字段，其中搜索角标、
+/// 社交计数、MV 相关、付费位等一律不进来 —— 没有消费方的字段搬上来只是噪音，
+/// 而且会诱导后来的人「先填上，以后可能要用」。（歌词轨原本也在这条线外，
+/// P4 要按它决定请求哪一版歌词，所以 <see cref="Lyrics"/> 是带着消费方进来的。）
 /// </para>
 /// <para>
 /// <see cref="AvailableQualities"/> 在映射阶段就完成了「曲目级」的档位过滤：只保留本项目
@@ -62,4 +63,13 @@ public sealed record Track
 
     /// <summary>是否有本项目可播的档位。为 <c>false</c> 时只能试听或不可播。</summary>
     public bool HasPlayableQuality => AvailableQualities.Count > 0;
+
+    /// <summary>
+    /// 这首歌有哪些歌词轨。**只有曲目详情接口会填**，搜索结果的曲目为 <c>null</c>。
+    /// </summary>
+    /// <remarks>
+    /// 拉歌词时用它避免「请求逐字版拿到空串」这一趟。为 <c>null</c> 时按
+    /// <c>GetLyricsAsync</c> 的兜底策略走（先逐字、空了再逐行）。
+    /// </remarks>
+    public TrackLyricInfo? Lyrics { get; init; }
 }

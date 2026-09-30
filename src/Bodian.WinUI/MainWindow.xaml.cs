@@ -15,22 +15,34 @@ public sealed partial class MainWindow : Window
     private readonly INavigationService _navigation;
     private readonly IBodianLogin _login;
 
+    /// <summary>给 <c>x:Bind</c> 用。</summary>
+    public PlayerViewModel Player { get; }
+
+    /// <summary>给 <c>x:Bind</c> 用（歌词面板的可见性）。</summary>
+    public LyricsViewModel Lyrics { get; }
+
     public MainWindow(
         INavigationService navigation,
         IBodianLogin login,
-        PlayerViewModel playerViewModel)
+        PlayerViewModel playerViewModel,
+        LyricsViewModel lyricsViewModel)
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(login);
         ArgumentNullException.ThrowIfNull(playerViewModel);
+        ArgumentNullException.ThrowIfNull(lyricsViewModel);
 
         _navigation = navigation;
         _login = login;
 
+        Player = playerViewModel;
+        Lyrics = lyricsViewModel;
+
         InitializeComponent();
 
         _navigation.Attach(RootFrame);
-        PlayerHost.Content = new PlayerBar(playerViewModel);
+        PlayerHost.Content = new PlayerBar(playerViewModel, lyricsViewModel);
+        LyricsHost.Content = new LyricsPanel(lyricsViewModel);
 
         _login.AccountChanged += OnAccountChanged;
         RootFrame.Loaded += OnRootLoaded;

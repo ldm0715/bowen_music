@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Diagnostics;
+using Bodian.Core.Lyrics;
 using Bodian.Core.Models.Login;
 using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
@@ -37,8 +38,9 @@ public partial class App : Application
 
     public App()
     {
-        // ★ 必须在创建任何窗口之前
-        NativeMethods.SetCurrentProcessExplicitAppUserModelID("Bodian.WinUI");
+        // ★ 必须在创建任何窗口之前。
+        //   同一个 AUMID 也要写进开始菜单快捷方式（见 StartMenuShortcutInstaller），两处必须一致。
+        NativeMethods.SetCurrentProcessExplicitAppUserModelID(AppIdentity.AppUserModelId);
 
         InitializeComponent();
 
@@ -80,14 +82,23 @@ public partial class App : Application
             sp.GetRequiredService<ILogger<LibMpvPlaybackService>>()));
         builder.Services.AddSingleton<PlaybackCoordinator>();
 
+        // 系统媒体控件。构造时只订阅事件，会话在首次播放时才建 —— 所以必须在这里解析一次，
+        // 否则这个单例永远不会被实例化，事件订阅也就不存在。
+        builder.Services.AddSingleton<SmtcManager>();
+
+        // 歌词。仓库带缓存（同一首歌不重复取词），面板与播放条共享同一个实例。
+        builder.Services.AddSingleton(sp => new LyricRepository(sp.GetRequiredService<IBodianApi>()));
+
         // UI 基础设施
         builder.Services.AddSingleton<INavigationService, NavigationService>();
         builder.Services.AddSingleton<IQrImageFactory, QrImageFactory>();
+        builder.Services.AddSingleton<IStartMenuShortcutInstaller, StartMenuShortcutInstaller>();
 
         builder.Services.AddSingleton<MainWindow>();
 
         // 播放条常驻，所以 ViewModel 是单例；页面则每次导航新建。
         builder.Services.AddSingleton<PlayerViewModel>();
+        builder.Services.AddSingleton<LyricsViewModel>();
         builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddTransient<LoginPage>();
         builder.Services.AddTransient<SearchViewModel>();
@@ -131,7 +142,10 @@ public partial class App : Application
 
         window.Closed += (_, _) =>
         {
-            // 先放掉音频引擎（它会停 libmpv 的事件循环，卡住会拖住进程退出）。
+            // 先撤 SMTC 会话（它读引擎状态，得在引擎之前放）。
+            _host.Services.GetRequiredService<SmtcManager>().Dispose();
+
+            // 再放掉音频引擎（它会停 libmpv 的事件循环，卡住会拖住进程退出）。
             // 同步等待：窗口已经关了，这里阻塞不影响交互。
             _host.Services.GetRequiredService<IPlaybackService>()
                 .DisposeAsync()
@@ -144,6 +158,15 @@ public partial class App : Application
         };
 
         window.Activate();
+
+        // 解析一次，让 SmtcManager 的订阅生效（它自己是懒初始化的，这里不会建会话）。
+        _host.Services.GetRequiredService<SmtcManager>();
+
+        // 开始菜单快捷方式要在窗口起来之后再补 —— 系统媒体面板的应用名与图标取自它。
+        // 同步做（不挪后台线程）：COM 的 ShellLink 是 STA 对象，UI 线程是 STA，
+        // 挪到线程池（MTA）要靠宿主单线程套间代理，没必要引入那层不确定性。
+        // 代价只是一次很小的文件读写，失败了也只记日志。
+        _host.Services.GetRequiredService<IStartMenuShortcutInstaller>().EnsureInstalled();
     }
 
     private static SerilogLoggerProvider CreateSerilogProvider()

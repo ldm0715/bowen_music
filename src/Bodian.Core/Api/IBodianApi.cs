@@ -1,5 +1,6 @@
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
+using Bodian.Core.Models.Lyrics;
 
 namespace Bodian.Core.Api;
 
@@ -51,4 +52,34 @@ public interface IBodianApi
     Task<PlaybackResolution> ResolvePlaybackAsync(
         Track track,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 原始取词：直接要指定版式，返回 Base64 解码后的歌词文本。
+    /// </summary>
+    /// <param name="musicId">波点的 musicId，不是酷我 rid。</param>
+    /// <param name="lrcx"><c>1</c> 逐字 / <c>0</c> 逐行（见 <c>BodianLyricPayload</c>）。</param>
+    /// <param name="cancellationToken">取消标记。</param>
+    /// <returns>
+    /// 歌词文本。**空串是正常结果**：这首歌没有该版式的轨时服务端就返回空串，业务码仍是 200。
+    /// </returns>
+    /// <remarks>
+    /// 解析交给 <c>BodianLyricParser</c>，本方法只负责取回文本。
+    /// 多数调用方要的是 <see cref="GetLyricsAsync"/>。
+    /// </remarks>
+    Task<string> GetLyricAsync(long musicId, int lrcx, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 取这首歌的歌词并解析成统一模型。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 版式按 <see cref="Track.Lyrics"/> 决定：已知有逐字轨就只要逐字版，已知没有就直接要逐行版，
+    /// **未知时（搜索结果没有歌词轨信息）先试逐字版，拿到空串再退逐行版**。最多两次请求。
+    /// </para>
+    /// <para>
+    /// 这首歌没有歌词时返回 <see cref="LyricDocument.Empty"/> —— 那是正常结果，不是异常。
+    /// 网络与服务端异常**照常抛出**，不要在这里吞掉。
+    /// </para>
+    /// </remarks>
+    Task<LyricDocument> GetLyricsAsync(Track track, CancellationToken cancellationToken = default);
 }

@@ -177,6 +177,22 @@ _smtc.UpdateTimelineProperties(new SystemMediaTransportControlsTimelinePropertie
 
 **已知瑕疵**（社区实测）：来源名称偶尔更新有延迟；`AppMediaId` 相同的两个应用，只有都关闭后 SMTC 会话才释放；点击 SMTC 卡片无法跳回应用窗口（**没有可用事件**）。
 
+### 落地实测（2026-09-30，P3）
+
+以上方案已实现并跑通，`src/Bodian.WinUI/Playback/SmtcManager.cs`。四条**实测修正**：
+
+1. **借壳在 Win10 19045 上成立** —— 先用一次性 spike（`BODIAN_SMTC_SPIKE=1` 门控的假数据）验证过：媒体浮层能显示会话。这条是全阶段的地基，值得先花半天证伪。
+2. **封面不需要转码。** 酷我 CDN **按需生成尺寸与格式**：同一路径把 `.webp` 换成 `.jpg` 就是 200 `image/jpeg`（对 4 张专辑、两种路径前缀实测）。改写逻辑在 `Bodian.Core/Media/CoverArtUrl.cs`（只认 `.kuwo.cn` 的 `/star/albumcover/<尺寸>/` 形状）。
+   **不要走 WIC 转码**：Win10 **不预装** WebP 编解码器（要装商店的 WebP Image Extensions，Win11 才预装），转码方案会在开发机上一直成功、换台干净 Win10 就静默失败。
+3. **`MinSeekTime` / `MaxSeekTime` 不设就没有拖动。** 只给 `StartTime`/`EndTime`/`Position` 的话 SMTC **不会发** `PlaybackPositionChangeRequested`，面板上的进度条拖不动。
+4. **快捷方式必须用 `IShellLinkW` + `IPropertyStore`**：`WScript.Shell` 写不了属性存储，也就设不了 `PKEY_AppUserModel_ID`，名字与图标依然不对。几个坑：
+   - **先 `Save` 落盘 → 写属性 + `Commit` → 再 `Save` 一次**。属性存储是在 `Save` 时序列化进 `.lnk` 的，只 Commit 不 Save 的话文件里根本没有那个属性。
+   - **读 `.lnk` 的属性不要用 ShellLink 对象上 QI 出来的那个 `IPropertyStore`**：`Load` 之后直接 `GetValue` 取到的是未载入的空值。用 `SHGetPropertyStoreFromParsingName(路径, ...)`。
+   - **`PROPVARIANT` 别声明成显式布局的 struct**：`out PropVariant` 编组回来的值是坏的（`vt` 读出来不是 31），表现为「每次都判定缺 AUMID 而重写快捷方式」。用裸内存（`AllocCoTaskMem` + `Marshal.WriteInt16/WriteIntPtr`，x64 下联合体在偏移 8）最稳。
+   - 名字与 AUMID 用 `AppIdentity`（`Bodian` / `Bodian.WinUI`）。名字取自**快捷方式文件名**，所以快捷方式叫 `Bodian.lnk`；`Get-StartApps` 里应当看到 `Bodian` + AppID `Bodian.WinUI`。
+   - **图标本轮没做**：`roadmap.md` 的分发红线写明「含图标」不得打包官方客户端资产，需要时自绘。
+   - 幂等、失败只记 Warning、可用 `BODIAN_SKIP_SHELL_REGISTRATION` 关掉、撤销 = 删那个 `.lnk`。
+
 ### 只读会话（做「正在播放」类功能时）
 
 `GlobalSystemMediaTransportControlsSessionManager.RequestAsync()` 在桌面应用**完全可用，不需要 identity**。现成封装：`Dubya.WindowsMediaController`。

@@ -3,7 +3,9 @@ using System.Text.Json;
 using Bodian.Core.Api.Dto;
 using Bodian.Core.Api.Dto.Requests;
 using Bodian.Core.Api.Paging;
+using Bodian.Core.Lyrics;
 using Bodian.Core.Models;
+using Bodian.Core.Models.Lyrics;
 using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
@@ -266,6 +268,52 @@ public sealed class BodianApi : IBodianApi
         return new PlaybackResolution.Playable(source);
     }
 
+    public async Task<string> GetLyricAsync(
+        long musicId,
+        int lrcx,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureMusicId(musicId);
+
+        var envelope = await _transport.SendAbsoluteAsync(
+            BodianLyricPayload.BuildRequestUri(musicId, lrcx),
+            BodianJsonContext.Default.LyricContentDto,
+            cancellationToken).ConfigureAwait(false);
+
+        // 服务端回显的版式只用于排查：版式真相以文本里有没有 [kuwo:] 为准，不靠这个字段做分支。
+        if (envelope.Lrcx is { } served && served != lrcx)
+        {
+            _logger.LogDebug("歌词版式回显与请求不符：请求 {Requested}，回显 {Served}", lrcx, served);
+        }
+
+        return BodianLyricPayload.DecodeContent(envelope.Data?.Content);
+    }
+
+    public async Task<LyricDocument> GetLyricsAsync(
+        Track track,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        EnsureMusicId(track.Id);
+
+        // 歌词轨信息未知时先赌逐字版：有逐字轨的歌是多数，且逐字版能降级成逐行显示。
+        var tryWordByWord = track.Lyrics?.HasWordByWord ?? true;
+        var lrcx = tryWordByWord ? BodianLyricPayload.WordByWord : BodianLyricPayload.LineByLine;
+
+        var text = await GetLyricAsync(track.Id, lrcx, cancellationToken).ConfigureAwait(false);
+
+        // 空串不是错误，但逐字版为空时必须自己退版 —— 服务端不做回退。
+        // 两种原因都走这一支：这首歌只有逐行轨，或者 lrc_info 与歌词站不一致（轨信息过期）。
+        // 多一次请求换「有歌词可看」，比恪守「已知有逐字轨就不退」划算。
+        if (tryWordByWord && string.IsNullOrWhiteSpace(text))
+        {
+            text = await GetLyricAsync(track.Id, BodianLyricPayload.LineByLine, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return BodianLyricParser.Parse(text, track.Duration);
+    }
+
     private static Track MapTrack(TrackDto dto)
     {
         var (requiresVip, requiresPurchase) = PayTypeReader.Resolve(dto.PayInfo);
@@ -286,6 +334,11 @@ public sealed class BodianApi : IBodianApi
                 dto.Audios?.Select(a => a.Level) ?? []),
             RequiresVip = requiresVip,
             RequiresPurchase = requiresPurchase,
+
+            // 搜索结果不带 lrc_info，那里会是 null —— 取词策略对 null 有兜底。
+            Lyrics = dto.LrcInfo is { } lrc
+                ? new TrackLyricInfo(lrc.Lrc == 1, lrc.Lrcx == 1)
+                : null,
         };
     }
 

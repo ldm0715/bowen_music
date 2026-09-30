@@ -20,7 +20,15 @@ P0（协议探针）五轮实测 + **第六轮静态分析**做完，**播放链
 的小尾巴，不再有「不知道去哪找」的项。
 
 **P1（骨架与传输层）也已完成**：`Bodian.sln` + `Bodian.Core` + `Bodian.WinUI` + `Bodian.Core.Tests`
-四个部分就位，152 个测试全绿。**现在可以直接进 P1.5 或 P2。**
+四个部分就位。
+
+**P2 / P3 / P4 代码已完成（2026-09-30，294 个测试全绿、0 跳过、构建 0 警告）**：
+登录、搜索、播放、进度条之外，现在还有**歌词**（数据层 + 一个最小歌词面板）与**系统媒体控件**
+（借壳方案已在 Win10 19045 上实测成立，见 `tech-stack.md` §4）—— 后者正是项目的原始动机。
+落地点、偏离与踩过的坑见下面「P4 + P3」一节。
+
+**下一步的先手是 P1.5 的透明悬浮窗 spike**（仍未做）：它决定 P5/P6 的歌词窗方案要不要改。
+歌词主界面（P5，Win2D 逐字）现在可以开工了 —— P4 已把模型与解析铺好。
 
 ## 做事的规矩
 
@@ -136,6 +144,53 @@ WinUI 退出码 124、日志里凭据全被替换、探针会话仍可读。
 
 P1 **没做**的：`IBodianApi` 门面与 `Models/` 领域模型 —— 推迟到 P2，
 理由见 `transport.md` 第 10 节。歌单与评论 DTO 也推迟（无 fixture 可验证）。
+
+### ✅ P4 歌词数据层 + ✅ P3 SMTC —— 代码完成（2026-09-30）
+
+**P4 的一半在 P1 就做完了**（`BodianLyricPayload` 请求构造 + 一次 Base64、`KuwoFactorCodec` 八进制系数与
+`DecodeWord`），这轮补的是后半段：
+
+| 新增 | 内容 |
+| --- | --- |
+| `Core/Models/Lyrics/` | `LyricDocument` / `LyricLine` / `LyricSyllable` / `LyricKind`。**时间全部归一化成绝对值**，消费方不必碰系数 |
+| `Core/Lyrics/BodianLyricParser.cs` | LRC 行解析：多时间戳展开、两位小数按厘秒、元数据行跳过、逐字音节切分 |
+| `Core/Lyrics/LyricRepository.cs` | 内存 LRU（32 首，空结果也缓存）。理由：别把第三方服务当压测 |
+| `Core/Api` | `BodianEnvelope` 多一个 `int? Lrcx`（歌词站顶层回显，其余端点为 null）；`IBodianApi.GetLyricAsync` / `GetLyricsAsync` |
+| `Core/Media/CoverArtUrl.cs` | 封面 `.webp`→`.jpg` + 尺寸提升（SMTC 用），见 `tech-stack.md` §4 |
+| `WinUI/Playback/SmtcManager.cs` | SMTC 借壳、元数据/状态/时间轴/按钮/拖动 |
+| `WinUI/Services/StartMenuShortcutInstaller.cs` + `ShellLinkInterop.cs` | 开始菜单快捷方式 + AUMID（`Bodian.lnk`），见下 |
+| `WinUI/ViewModels/LyricsViewModel.cs` + `Controls/LyricsPanel.xaml` | 最小歌词面板（逐行高亮 + 跟随 + 点行跳转），P5 会被 Win2D 版替换 |
+
+**233 → 294 个测试**，0 跳过。构建 0 警告，冒烟 `exit=124`。
+
+#### 三条刻意的偏离（与前文计划不同）
+
+| 项 | 决定 | 理由 |
+| --- | --- | --- |
+| `Lyricify.Lyrics.Helper` | **不引入** | 它不支持 AWLRC（行内 `<a,b>`），解析本来就得自己写；而 Core 开了 `IsAotCompatible` + `TreatWarningsAsErrors`，未标 AOT 的第三方库会直接编译失败。少一个依赖、少一份体积 |
+| 「长度 < 6 的行跳过」 | **不实现** | 实测会误删 3 行真实歌词（`词：周杰伦`/`曲：周杰伦`/`鼓：陈柏州`），63 行变 60 行。测试里有守门用例 |
+| 已知有逐字轨但返回空串 | **仍退一次逐行版** | `lrc_info` 与歌词站不一致时，恪守「已知就不退」只会给用户一片空白，多一次请求更划算 |
+
+#### 实测撞到的坑（别再踩）
+
+| 坑 | 症状 | 处置 |
+| --- | --- | --- |
+| **`out PropVariant` 编组坏了** | 显式布局的 `PROPVARIANT` struct 用 `out` 取回来 `vt` 不是 31 → 每次都判定「快捷方式缺 AUMID」→ 每次启动重写 `.lnk` | `PROPVARIANT` 一律用裸内存（读写两侧），见 `tech-stack.md` §4 |
+| **`IPropertyStore` 属性必须 `Save` 之后写、再 `Save` 一次** | 属性写进去了但 `.lnk` 里没有：`Get-StartApps` 显示 AppID 是 exe 路径而不是 `Bodian.WinUI` | 顺序：`SetPath` → `Save` → `SetValue`+`Commit` → `Save` |
+| **读 `.lnk` 属性不能走 ShellLink 上 QI 的存储** | `Load` 后直接 `GetValue` 拿到空值 | 用 `SHGetPropertyStoreFromParsingName` |
+| `IPersistFile.Load` 不调就读 | new 出来的 ShellLink 是空的，`GetPath` 返回空 → 每次重建 | 读之前先 `Load(path, STGM_READ)` |
+
+#### 本轮留下的收尾项
+
+| 项 | 说明 |
+| --- | --- |
+| **SMTC 验收结果** | **已通过（2026-09-30）**。用回读诊断（`BODIAN_SMTC_DUMP=1`）确认系统侧能看到：标题/歌手/专辑正确、状态 Playing/Paused/Stopped 正确、进度与可拖区间 `0–曲长` 正确、**封面是能取到字节的真实 JPEG（约 65 KB）**。Lyricify 能识别并能显示歌词。 |
+| **Win10 上验不了「拖动」** | Win10 的媒体浮层**不画 seek 条**（只有上一首/播放暂停/下一首 + 封面）—— 那是 Win11 的媒体卡片或第三方浮层的功能。`MinSeekTime`/`MaxSeekTime` 已按规范上报（回读可见 0–曲长），但**本机没法用系统 UI 拖它**。要验这一条得换 Win11，或让一个会画 seek 条的消费方来拖。 |
+| **`词：周杰伦` 这类不会出现在 Lyricify 里** | 不是缺陷：SMTC **没有歌词字段**，Lyricify 也没有接受外部歌词的接口。Lyricify 显示的歌词永远是它自己去 QQ音乐/网易云等词源搜来的（通常不含 credit 行）。**我们的歌词（含 credit）只出现在本客户端的歌词面板里。** |
+| **两个"波点"会话会互相干扰** | 官方 PC 端在跑时，系统里会同时有 `bodian_pc.exe` 与 `Bodian.WinUI.exe` 两个会话。Lyricify 抓哪个不由我们决定 —— 验收时先关掉官方客户端，否则结论没法归因（本轮就撞到过：封面"传不过去"其实是抓错了会话）。 |
+| 开始菜单快捷方式 | 已经写进本机开始菜单（`Bodian.lnk`，AUMID=`Bodian.WinUI`，`Get-StartApps` 可核对）。**撤销 = 删掉那个 `.lnk`**；不想让它写就设 `BODIAN_SKIP_SHELL_REGISTRATION=1` |
+| spike 与诊断代码 | **已删**（`SmtcSpike.cs`、`SmtcInspector.cs` 与 `App.xaml.cs` 里的三处 `[SPIKE]` 调用）。要复验时照着 `tech-stack.md` §4 的「落地实测」一节重建即可 —— 借壳那几行就是全部秘密 |
+| 图标 | 本轮没做（分发红线不许打包官方资产）。SMTC 面板与开始菜单里是默认图标 |
 
 ### ✅ P2 登录 + 播放最小闭环 —— 代码完成（2026-09-30）
 

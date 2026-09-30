@@ -3,6 +3,7 @@
     x:Class="Bodian.WinUI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Bodian.WinUI"
     Title="波点音乐">
 
     <Grid>
@@ -11,8 +12,18 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 页面由 INavigationService 直接赋值 Content，见该接口的说明 -->
-        <Frame x:Name="RootFrame" Grid.Row="0" />
+        <Grid Grid.Row="0">
+            <!-- 页面由 INavigationService 直接赋值 Content，见该接口的说明 -->
+            <Frame x:Name="RootFrame" />
+
+            <!--
+                歌词盖在页面之上，不做成页面：这个应用还没有返回栈，
+                返回搜索页会新建 ViewModel、把搜索结果丢掉。
+            -->
+            <ContentControl
+                x:Name="LyricsHost"
+                Visibility="{x:Bind local:Formats.Visible(Lyrics.IsOpen), Mode=OneWay}" />
+        </Grid>
 
         <!-- 播放条常驻，不随页面切换重建 -->
         <ContentControl x:Name="PlayerHost" Grid.Row="1" />
