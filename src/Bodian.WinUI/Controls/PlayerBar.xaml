@@ -16,169 +16,211 @@
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="0,1,0,0">
 
-        <Grid Padding="16,10" ColumnSpacing="16" RowSpacing="6">
+        <!--
+            三栏分区：左=曲目信息，中=传输控制 + 进度（占满剩余宽度），右=音质与音量。
+            这是播放器的常规布局 —— 控制区居中且进度条尽量长，才像在操作播放而不是在填表格。
+        -->
+        <Grid Padding="16,12" ColumnSpacing="16" RowSpacing="6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="280" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- 传输控制 -->
+            <!-- ── 左：封面 + 标题 / 歌手 · 专辑 ───────────────────────────────── -->
             <StackPanel
                 Grid.Row="0"
                 Grid.Column="0"
                 VerticalAlignment="Center"
                 Orientation="Horizontal"
-                Spacing="4">
-                <Button
-                    Command="{x:Bind ViewModel.PreviousCommand}"
-                    IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"
-                    ToolTipService.ToolTip="上一首">
-                    <FontIcon FontSize="14" Glyph="&#xE892;" />
-                </Button>
+                Spacing="12">
 
-                <Button
-                    Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
-                    ToolTipService.ToolTip="播放 / 暂停">
-                    <Grid Width="16" Height="16">
-                        <FontIcon
-                            FontSize="16"
-                            Glyph="&#xE768;"
-                            Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource NotBoolToVisibility}}" />
-                        <FontIcon
-                            FontSize="16"
-                            Glyph="&#xE769;"
-                            Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
-                    </Grid>
-                </Button>
-
-                <Button
-                    Command="{x:Bind ViewModel.NextCommand}"
-                    IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"
-                    ToolTipService.ToolTip="下一首">
-                    <FontIcon FontSize="14" Glyph="&#xE893;" />
-                </Button>
-
-                <!-- 歌词。没有在播的歌时是灰的 —— 那时打开面板也没有内容可显示。 -->
-                <Button
-                    Margin="8,0,0,0"
-                    Command="{x:Bind Lyrics.ToggleCommand}"
-                    IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
-                    ToolTipService.ToolTip="歌词">
-                    <TextBlock FontSize="14" Text="词" />
-                </Button>
-            </StackPanel>
-
-            <!-- 曲目信息：封面 + 标题 / 歌手 / 专辑 -->
-            <StackPanel
-                Grid.Row="0"
-                Grid.Column="1"
-                VerticalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="10">
-
-                <!-- 封面。没有封面时留一块底色，布局不跳。 -->
+                <!-- 没有封面时留一块底色，布局不跳。 -->
                 <Border
-                    Width="44"
-                    Height="44"
+                    Width="56"
+                    Height="56"
                     Background="{ThemeResource ControlFillColorDefaultBrush}"
-                    CornerRadius="4">
+                    CornerRadius="6">
                     <Image
                         Source="{x:Bind ViewModel.CoverImage, Mode=OneWay}"
                         Stretch="UniformToFill" />
                 </Border>
 
-                <StackPanel VerticalAlignment="Center" Spacing="2" Width="224">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
+                <!-- 固定宽度：否则长标题会把中间的控制区挤走。 -->
+                <StackPanel
+                    Width="220"
+                    VerticalAlignment="Center"
+                    Spacing="3">
+
+                    <Grid ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
                         <TextBlock
+                            Grid.Column="0"
                             Text="{x:Bind ViewModel.Title, Mode=OneWay}"
                             TextTrimming="CharacterEllipsis"
                             VerticalAlignment="Center" />
 
-                        <!-- 试听徽标常驻，不是一闪而过的提示 -->
-                        <Border
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
-                            CornerRadius="4"
-                            Padding="6,1"
-                            Visibility="{x:Bind ViewModel.IsAudition, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock FontSize="11" Text="试听" />
-                        </Border>
+                        <StackPanel
+                            Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="4">
 
-                        <!-- 付费标识。**只是服务端标记的展示**，不代表当前账号一定播不了。 -->
-                        <Border
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
-                            CornerRadius="4"
-                            Padding="6,1"
-                            Visibility="{x:Bind ViewModel.HasPayLabel, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock FontSize="11" Text="{x:Bind ViewModel.PayLabel, Mode=OneWay}" />
-                        </Border>
-                    </StackPanel>
+                            <!-- 试听徽标常驻，不是一闪而过的提示 -->
+                            <Border
+                                VerticalAlignment="Center"
+                                Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                                CornerRadius="4"
+                                Padding="6,1"
+                                Visibility="{x:Bind ViewModel.IsAudition, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock FontSize="11" Text="试听" />
+                            </Border>
+
+                            <!-- 付费标识。**只是服务端标记的展示**，不代表当前账号一定播不了。 -->
+                            <Border
+                                VerticalAlignment="Center"
+                                Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                CornerRadius="4"
+                                Padding="6,1"
+                                Visibility="{x:Bind ViewModel.HasPayLabel, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock FontSize="11" Text="{x:Bind ViewModel.PayLabel, Mode=OneWay}" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
 
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind ViewModel.ArtistText, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis" />
-
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind ViewModel.AlbumText, Mode=OneWay}"
+                        Text="{x:Bind local:Formats.ArtistLine(ViewModel.ArtistText, ViewModel.AlbumText), Mode=OneWay}"
                         TextTrimming="CharacterEllipsis" />
                 </StackPanel>
             </StackPanel>
 
-            <!-- 进度 -->
-            <Grid
-                Grid.Row="0"
-                Grid.Column="2"
-                VerticalAlignment="Center"
-                ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+            <!-- ── 中：传输控制 + 进度 ─────────────────────────────────────────── -->
+            <Grid Grid.Row="0" Grid.Column="1" RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <TextBlock
-                    Grid.Column="0"
-                    VerticalAlignment="Center"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind local:Formats.Seconds(ViewModel.PositionSeconds), Mode=OneWay}" />
+                <StackPanel
+                    Grid.Row="0"
+                    HorizontalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
 
-                <!--
-                    显式给高度：这个 Slider 在一个 VerticalAlignment=Center 的 Grid 里，
-                    不给高度时容易被父布局压扁。
-                    Maximum 用 ProgressMaximum 而不是 DurationSeconds —— 后者初值为 0，
-                    而 Slider 的值域为零时轨道会退化成看不见。
-                -->
-                <Slider
-                    x:Name="PositionSlider"
-                    Grid.Column="1"
-                    Height="32"
-                    MinWidth="120"
-                    IsThumbToolTipEnabled="False"
-                    Maximum="{x:Bind ViewModel.ProgressMaximum, Mode=OneWay}"
-                    Value="{x:Bind ViewModel.PositionSeconds, Mode=OneWay}" />
+                    <Button
+                        Width="36"
+                        Height="36"
+                        MinWidth="0"
+                        Padding="0"
+                        Command="{x:Bind ViewModel.PreviousCommand}"
+                        IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"
+                        ToolTipService.ToolTip="上一首">
+                        <FontIcon FontSize="14" Glyph="&#xE892;" />
+                    </Button>
 
-                <TextBlock
-                    Grid.Column="2"
-                    VerticalAlignment="Center"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind local:Formats.Seconds(ViewModel.DurationSeconds), Mode=OneWay}" />
+                    <!--
+                        圆形的强调按钮：整个播放条上唯一一个「主角」，一眼能找到。
+                        **Padding 必须清零** —— 样式自带的左右内边距会把 40px 圆里的内容区压到装不下图标。
+                    -->
+                    <Button
+                        Width="40"
+                        Height="40"
+                        MinWidth="0"
+                        Padding="0"
+                        Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
+                        CornerRadius="20"
+                        Style="{StaticResource AccentButtonStyle}"
+                        ToolTipService.ToolTip="播放 / 暂停">
+                        <!-- 两个图标叠在同一格里，各自按内容定尺，不给容器写死尺寸（写死就会裁掉字形）。 -->
+                        <Grid>
+                            <FontIcon
+                                FontSize="18"
+                                Glyph="&#xE768;"
+                                Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource NotBoolToVisibility}}" />
+                            <FontIcon
+                                FontSize="18"
+                                Glyph="&#xE769;"
+                                Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                    </Button>
+
+                    <Button
+                        Width="36"
+                        Height="36"
+                        MinWidth="0"
+                        Padding="0"
+                        Command="{x:Bind ViewModel.NextCommand}"
+                        IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"
+                        ToolTipService.ToolTip="下一首">
+                        <FontIcon FontSize="14" Glyph="&#xE893;" />
+                    </Button>
+
+                    <!-- 歌词。没有在播的歌时是灰的 —— 那时打开面板也没有内容可显示。 -->
+                    <Button
+                        Width="36"
+                        Height="36"
+                        MinWidth="0"
+                        Margin="8,0,0,0"
+                        Padding="0"
+                        Command="{x:Bind Lyrics.ToggleCommand}"
+                        IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
+                        ToolTipService.ToolTip="歌词">
+                        <TextBlock FontSize="13" Text="词" />
+                    </Button>
+                </StackPanel>
+
+                <Grid Grid.Row="1" ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        Grid.Column="0"
+                        MinWidth="38"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind local:Formats.Seconds(ViewModel.PositionSeconds), Mode=OneWay}" />
+
+                    <!--
+                        显式给高度：这个 Slider 在一个 VerticalAlignment=Center 的 Grid 里，
+                        不给高度时容易被父布局压扁。
+                        Maximum 用 ProgressMaximum 而不是 DurationSeconds —— 后者初值为 0，
+                        而 Slider 的值域为零时轨道会退化成看不见。
+                    -->
+                    <Slider
+                        x:Name="PositionSlider"
+                        Grid.Column="1"
+                        Height="28"
+                        MinWidth="160"
+                        IsThumbToolTipEnabled="False"
+                        Maximum="{x:Bind ViewModel.ProgressMaximum, Mode=OneWay}"
+                        Value="{x:Bind ViewModel.PositionSeconds, Mode=OneWay}" />
+
+                    <TextBlock
+                        Grid.Column="2"
+                        MinWidth="38"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind local:Formats.Seconds(ViewModel.DurationSeconds), Mode=OneWay}" />
+                </Grid>
             </Grid>
 
-            <!-- 音量与实际音质 -->
+            <!-- ── 右：实际音质 + 音量 ─────────────────────────────────────────── -->
             <StackPanel
                 Grid.Row="0"
-                Grid.Column="3"
+                Grid.Column="2"
                 VerticalAlignment="Center"
                 Orientation="Horizontal"
                 Spacing="8">
@@ -187,12 +229,13 @@
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.QualityText, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
                     ToolTipService.ToolTip="服务端实际给出的音质" />
 
                 <FontIcon FontSize="14" Glyph="&#xE767;" />
 
                 <Slider
-                    Width="100"
+                    Width="110"
                     IsThumbToolTipEnabled="False"
                     Maximum="100"
                     Minimum="0"
@@ -202,7 +245,7 @@
             <InfoBar
                 Grid.Row="1"
                 Grid.Column="0"
-                Grid.ColumnSpan="4"
+                Grid.ColumnSpan="3"
                 IsClosable="False"
                 IsOpen="{x:Bind ViewModel.HasNotice, Mode=OneWay}"
                 Message="{x:Bind ViewModel.Notice, Mode=OneWay}"

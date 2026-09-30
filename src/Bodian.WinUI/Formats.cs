@@ -56,6 +56,24 @@ public static class Formats
     /// </remarks>
     public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>
+    /// 播放条第二行：<c>歌手 · 专辑</c>。
+    /// </summary>
+    /// <remarks>
+    /// 拼成一个字符串而不是两个 <c>TextBlock</c> 加一个分隔符：横向 <c>StackPanel</c> 不会约束子元素宽度，
+    /// 分了家的两个文本都没法省略号截断，长专辑名会把整条播放条撑开。一个字符串配
+    /// <c>TextTrimming</c> 才有得截。
+    /// </remarks>
+    public static string ArtistLine(string artist, string album)
+    {
+        if (string.IsNullOrWhiteSpace(album))
+        {
+            return artist;
+        }
+
+        return string.IsNullOrWhiteSpace(artist) ? album : $"{artist} · {album}";
+    }
+
     /// <summary>歌词行的透明度：当前行实心，其余压暗。</summary>
     public static double LyricLineOpacity(bool isCurrent) => isCurrent ? 1.0 : 0.45;
 

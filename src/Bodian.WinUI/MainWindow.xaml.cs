@@ -3,6 +3,7 @@ using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 
 namespace Bodian.WinUI;
@@ -40,12 +41,33 @@ public sealed partial class MainWindow : Window
 
         InitializeComponent();
 
+        ApplyMinimumSize();
+
         _navigation.Attach(RootFrame);
         PlayerHost.Content = new PlayerBar(playerViewModel, lyricsViewModel);
         LyricsHost.Content = new LyricsPanel(lyricsViewModel);
 
         _login.AccountChanged += OnAccountChanged;
         RootFrame.Loaded += OnRootLoaded;
+    }
+
+    /// <summary>
+    /// 给窗口设最小尺寸。
+    /// </summary>
+    /// <remarks>
+    /// <b>不是可选的润色。</b> 播放条是三栏布局，窗口窄到一定程度后中间那栏会被压得比按钮还窄，
+    /// 表现是「播放按钮的图标显示不全」——控件没坏，是被裁了。底部播放条的下限大约
+    /// 56(封面) + 220(信息) + 控制区 + 200(音质音量) + 间距，取 800。
+    /// </remarks>
+    private void ApplyMinimumSize()
+    {
+        if (AppWindow.Presenter is not OverlappedPresenter presenter)
+        {
+            return;
+        }
+
+        presenter.PreferredMinimumWidth = 800;
+        presenter.PreferredMinimumHeight = 560;
     }
 
     private void OnRootLoaded(object sender, RoutedEventArgs e)
