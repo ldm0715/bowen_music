@@ -14,6 +14,16 @@ packages/
 # 不入库；需要复现逆向结论时自行放置。
 apk/
 
+# 逆向分析工作区（reverse/）：只提交 findings 与 README，其余是二进制/工具链产物
+# 目录结构与用途见 reverse/README.md
+reverse/.venv/
+reverse/.uv-cache/
+reverse/_tools/
+reverse/**/blutter/
+reverse/**/*.so
+reverse/**/*.log
+__pycache__/
+
 # 本机环境
 .vscode/
 

@@ -14,8 +14,10 @@
 
 ## 现状一句话
 
-P0（协议探针）五轮实测做完，**播放链路已验证可用** —— 无损 FLAC 能拿到、`ffplay` 能解出。
-剩下两处协议空白、一处需要换工具链的逆向；**客户端工程从 P1 起一行代码都没有**。
+P0（协议探针）五轮实测 + **第六轮静态分析**做完，**播放链路已验证可用** —— 无损 FLAC 能拿到、`ffplay` 能解出。
+**协议空白基本清零**：收藏写入的 body、移动端签名算法、评论的键名、下载接口的增量、`freeSign` 的来源
+全部从 APK 的 Flutter AOT 里静态读出来了（零请求）。剩下的都是「读代码读得不够细」或「必须发一次请求验证」
+的小尾巴，不再有「不知道去哪找」的项。**客户端工程从 P1 起一行代码都没有。**
 
 ## 做事的规矩
 
@@ -27,72 +29,95 @@ P0（协议探针）五轮实测做完，**播放链路已验证可用** —— 
 
 ---
 
-## A. 协议空白（需要发请求）
+## A. 协议空白 —— **第六轮（纯静态、零请求）已全部解完**
 
-### A1. `service/collect` 的 body 字段 —— 优先级最高
+第六轮换了工具链（`blutter` 解析 Flutter AOT 快照），本节原本「需要发请求」的项**全部改用静态分析解决**。
+工具链、靶子、复跑步骤与完整证据链在 [`../reverse/README.md`](../reverse/README.md)，
+结论已回写 `bodian-api-reference.md` 对应章节与第 10 节第 6 轮。
 
-唯一协议未知的写操作。已确认：POST + JSON body；`source` 是 query 参数；`sourceId` 存在且是集合类型。
+**靶子限制（重要）**：能反编译的只有 **`apk/波点音乐_5.2.5.apk`（arm64 / Dart 2.19.6）**。
+5.9.8 只有 **armeabi-v7a**，blutter 处理不了；官方 PC 客户端的 `app.so` 是 **x64**，而 blutter
+**没有 x64 代码分析后端**（`sourcelist.cmake` 无条件编译 arm64 的分析器，`src/` 下没有 `_x64` 版本）。
+所以下面所有结论都是**移动端**的，桌面端只有一份间接证据。**下次要反编译最新版，必须先确认拿到 arm64 包。**
 
-**验证判据已经就绪**：`GET service/collect/multipleState?source=4&sourceIds=<id>` → `{"result":[{"id":..,"collect":false}]}`
+### A1. ✅ `service/collect` 的 body 字段 —— 已解
 
-**关键：不要盲试字段名。** 上次连发十次全部失败。按 `bodian-api-reference.md` 3.3 节的方法论走：
+```
+POST /api/service/collect    Body: {"source": <int>, "sourceId": [<int>...], "op": 1|2, "uid": <int>}
+```
 
-1. **空参数调用一次** → 服务端是 Spring，必填参数缺失时会原样返回参数名和类型：
-   `Required request parameter 'source' for method parameter type int is not present`
-2. 逐项补齐，每次都能拿回下一个缺失项
-3. 参数表齐了再发写请求
+来源是 `PlayListModel::doCollectSongList` 里 `Map._fromLiteral` 的 8 槽字面量数组，`uid` 落在 `[7]`
+与 `ArrayStore r1[7]` 吻合；`sourceId` **静态确认是 List**，与上一轮「传数组才过解析」的实测一致。
+详见 `bodian-api-reference.md` 3.3 节与 [`reverse/findings/01-collect-write.md`](../reverse/findings/01-collect-write.md)。
 
-另有用信息：Jackson 反序列化失败返回 **`HTTP 400 JSON parse error`**，服务层异常返回 **`HTTP 500`**。两者能区分「字段名不存在」与「字段名存在但类型不对」。
+**残留**：`op` 的 1/2 方向；`source` 被强制成 `6` 的那个分支；
+**以及这是移动端报文 —— PC 客户端也调这个端点且实现不同，本轮无法分析 PC 端。**
 
-### A2. `paytagindex` 复核
+### A2. ✅ 取消 —— 客户端根本不消费 `paytagindex`
 
-第 10 节第 1 轮证明它**不随曲目变化**（5 首完全相同的 `{L:0,H:1,S:2,F:3,HR:4,ZP:6,DB:7,AR501:8,ZPGA201:9,ZPGA501:10,ZPLY:11}`），但样本是同批次的 5 首。
-**待办**：用 VIP 账号（小号是活动 VIP）对免费曲 / 付费曲各取一次，彻底排除「仍编码账号状态」。
+第六轮在全工程搜 `paytagindex`：**0 命中**。无论它编码什么，客户端不做判断，
+本项目也不该用它推断账号权限。「用 VIP 账号对免费曲/付费曲各取一次对比」这条待办**作废**。
 
-### A3. `service/music/download/{info,config}` 是否比 `audioUrl` 有增量
+### A3. ✅ 已定论：**没有增量**
 
-从没测过。同一首歌两个接口都调，对比码率与地址 —— 可能返回更高码率或下载专用配置。
+`download/info` 接受与 `audioUrl` **同一套 `br`/`format`**，只是多了 `down=110`/`isMv`/`type`；
+`download/config` 是无参 GET，返回配额；`callback/success` 是 POST `{type, musicId}` 的上报。
+**本项目继续用 `audioUrl`，不引入这三个接口。** 详见 3.2 节。
 
 ### A4. 其余小项
 
-| 项 | 说明 |
+| 项 | 结果 |
 | --- | --- |
-| `service/collect/sort` 参数 | 排序后读 `collect/4/list` 确认顺序变化 |
-| `zp` / `bcms` 两档的有效 `br` | `20000kzp`、`22000kmgg` 都被降级到 128k mp3，命名规律未找到 |
-| `payInfo.local_encrypt` 语义 | 对比有无该字段的曲目行为 |
-| `freeSign` 的签发接口 | 出处已定位到看广告流程（`freeSign` 在两个 APK 的 AOT 里都紧挨着 `downLoadTaskListen_onReward`），但**没有任何接口签发它**。唯一可能是 `service/advert/watch` 的回调，需要真的看广告才能触发 —— 可能做不了 |
+| `service/collect/sort` 参数 | ✅ `POST service/collect/sort?source=4`，body `{"ids": [...]}` |
+| `zp` / `bcms` 两档的有效 `br` | ⚠️ **改判**：规律已实证为 `<码率>k<格式>`（样本 `"48kaac"`），且 `br` 由服务端下发的 `audios[]` 拼出，客户端没有第二套映射表。被降级说明**服务端拒绝该组合**，不是客户端填错名字。静态已到头，只能实测 |
+| `payInfo.local_encrypt` 语义 | ✅ **作废**：客户端零消费点（只出现在 `PayInfo` 的 toJson/fromJson 里），没有可观察行为。本项目按纯透传处理 |
+| `freeSign` 的签发接口 | ✅ **不存在**：它是服务端在 `payInfo` 里下发的字段，客户端只透传（`fromJson` 读进来 → 防盗链参数表带回去）。看广告之后服务端才带上它 —— 这正好解释了「找不到签发接口」 |
+| **（新增）**评论的键名 | ✅ **是 `moduleType`（=2）+ `moduleId`**，不是 `musicId`/`resourceId` —— 解释了上一轮 16 个端点全返回空 |
 
 ---
 
-## B. 需要换工具链的逆向（离线，零请求）
+## B. 需要换工具链的逆向（离线，零请求）—— **第六轮已做完**
 
-### B1. 移动端签名算法 —— **这一项是根**
+### B1. ✅ 移动端签名算法 —— **已还原**
 
-`bodian-api-reference.md` 1.3 节实测：**签名校验由 `ver` 请求头控制**。`ver ≤ 3.0.0`（含官方 PC 端现用的 `1.1.7`）完全不校验；`ver ≥ 3.5` 强制校验，返回 `439 sign invalid`。
+**结论**：实现是 `HttpUtils::encryptParam`，而且**名字有误导性 —— 它是签名，不是加密**。
+触发条件：`method` 是 **post / delete / put** 且 `content-type` 是 `application/json`；
+**GET 请求根本不签名**。
 
-本项目对签名算法的实现在强制校验下**是错的** —— 实测十种变体（盐的位置、body 的 md5 内外层、path 三种形态、大小写）全部被拒。
+与桌面版（`bodian-api-reference.md` 1.3 节）最大的差异，也就是 `439` 的根因：
 
-**它同时阻塞**：
+> **移动端的排序串覆盖整条 URL 的字母数字**（host + path + query 揉在一起，去掉非 `[a-zA-Z0-9]` 后升序），
+> 而桌面端只签 **query 串**、把 path 单独拼在末尾。上一轮试的十种变体**没有一种覆盖「整条 URL 排序」这一支**。
 
-- **P8 评论** —— 评论端点属移动端，用桌面头打不通（16 个端点全部返回空数据或服务端异常，见 3.1 节）；换移动端头就撞签名
-- **`ver` 能不能跟** —— 官方 PC 端目前仍是 `1.1.7`（`service/version/check/pc` 可查），暂时不用跟；但一旦这条线更新，全部请求会因为签名一起挂掉，且错误只有一个 `439`
+完整流程、字符串常量、剩余三处未确证的细节（`seed` 末段取 `uri` 的哪个成员、`kpk` 的值、body 摘要的分支条件）
+都在 [`reverse/findings/03-sign-mobile.md`](../reverse/findings/03-sign-mobile.md)。
 
-**已知线索**（都已验证过，别重复）：
+**⚠️ 版本标注**：取自 **5.2.5**，不是最新版（5.9.8 是 arm32，blutter 处理不了）。
+盐 `kuwotest` 在两版里都各出现一次、收藏族标识符形态一致，所以算法大概率没变，**但这是推断**。
+
+**它仍然阻塞** P8 评论与「`ver` 能不能跟」—— 还原出来了不等于验证过了，
+要证实必须发一次 `ver ≥ 3.5` 的请求（属写探测，账号风控要先想清楚）。
+
+<details>
+<summary>这条是怎么走通的（上一轮的方法学留档，别重复走）</summary>
+
+**已知线索**（上一轮已验证）：
 
 - 网络层**在 Dart / Flutter AOT**，不在原生 dex —— 5 个 `classes*.dex`（36.5 MB）搜 `service/collect`、`comments/v3` 命中 0
 - salt 是 `kuwotest` —— 在 5.2.5 与 5.9.8 的 `libapp.so` 里各出现一次，和桌面端同一个盐
-- 参数是**拼 query 字符串**构造的 —— 存在 `&source=`、`&sourceId=`、`&resourceId=` 这类碎片；`service/collect/sort?source=4` 把 query 直接写进了路径字面量
 - 收藏族的标识符：`CollectSourceInfo`、`collectId`、`collectType`、`_collectSongList`、`_setSubmitCollect`、`OP_COLLECT` / `OP_UNDO_COLLECT`
 
-**已排除的两条路**（别重复走）：
+**两条走不通的路**：
 
 - **字符串相邻法** —— Dart AOT 不保证字面量相邻，能捞到碎片但兄弟键不在旁边，拼不出完整请求
 - **ARM64 `ADRP+ADD` xref 扫描** —— Dart 用对象池 `LDR Xn, [Xpool, #off]` 加载字符串，不走 ADRP，扫不到引用者
 
-**下一步要用正经工具**：解析 Flutter AOT 快照的 **`blutter`**，或 **Ghidra**。拿 Python 抠字节到不了。
+**第六轮证明换 `blutter` 是对的**：上面那些线索全部变成了可直接读出的代码，
+连原始 Dart 文件路径（`allin/service/api_service.dart`、`allin/models/playlist/play_list_model.dart`…）都还原出来了。
 
-**包已经解好了**：`apk/波点音乐_5.2.5.apk`（arm64-v8a）、`apk/波点音乐_5.9.8.apk`（armeabi-v7a）。
-**临时解包产物**在 `%TEMP%\bodian_apk\`（`525_libapp.so` 27 MB、`598_libapp.so` 31 MB、`all.dex` 36.5 MB），做这项时能省一次解包。
+临时解包产物在 `%TEMP%\bodian_apk\`。**真正的靶子现在在仓库内**：`reverse/android-5.2.5/lib/arm64-v8a/`。
+
+</details>
 
 ---
 
@@ -122,11 +147,15 @@ P0（协议探针）五轮实测做完，**播放链路已验证可用** —— 
 | --- | --- |
 | 探针会话 | **是登录态的**（小号 uid=50303440，活动 VIP）。`whoami` 查；不用了跑 `logout`。凭据用 DPAPI 加密存在 `%LOCALAPPDATA%\Bodian\session.dat` |
 | devid | `%LOCALAPPDATA%\Bodian\devid.txt`。**别重新生成** —— 频繁变设备标识是账号风控的异常信号 |
-| 临时解包文件 | `%TEMP%\bodian_apk\`，约 95 MB，可删（做 B1 时留着省事） |
+| 临时解包文件 | `%TEMP%\bodian_apk\`，约 95 MB，**现在可以删了** —— 第六轮把靶子复制进了 `reverse/` |
+| **逆向工作区** | **`reverse/`**，约 1.3 GB（blutter 的 Dart 源码与编译产物占大头）。结构与复跑步骤见 `reverse/README.md`。**要回收磁盘就删 `reverse/_tools/blutter/{dartsdk,build}`**（下次换 Dart 版本要重来） |
 | Windows Terminal | 探针的二维码渲染用半块字符，终端要 UTF-8 字体 |
 
 ---
 
 ## 完成一项后要做的
 
-改 `bodian-api-reference.md` 对应章节的标记（🟡 → ✅ 或 ❌），并在**第 10 节追加一条记录**（五轮记录的格式照抄）。这样下一轮接手的人不用重新验证。
+改 `bodian-api-reference.md` 对应章节的标记（🟡 → ✅ 或 ❌），并在**第 10 节追加一条记录**（格式照抄前几轮）。这样下一轮接手的人不用重新验证。
+
+**第六轮已经照这个做了**：`bodian-api-reference.md` 的 2.5 / 3.1 / 3.2 / 3.3 / 7.3 / 8 节都已更新，
+第 10 节补了第 6 轮记录，原始证据留在 `reverse/findings/`。
