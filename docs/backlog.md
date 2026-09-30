@@ -137,10 +137,48 @@ WinUI 退出码 124、日志里凭据全被替换、探针会话仍可读。
 P1 **没做**的：`IBodianApi` 门面与 `Models/` 领域模型 —— 推迟到 P2，
 理由见 `transport.md` 第 10 节。歌单与评论 DTO 也推迟（无 fixture 可验证）。
 
+### ✅ P2 登录 + 播放最小闭环 —— 代码完成（2026-09-30）
+
+**Core 侧**：`BodianApi`（搜索 / 详情 / `ResolvePlaybackAsync`）、`BodianLogin`
+（二维码三步 + 身份校验 + 会话持久化）、`AudioQualityTable`（选档与降级判定）、
+`Models/` 领域模型、`SessionIdentity`（P1 欠下的那个纯函数）、`VipStatus`（会员判读）。
+**233 个测试全绿、0 跳过**（P1 是 152）。
+
+**WinUI 侧**：`LibMpvPlaybackService`（headless libmpv，懒初始化）、`PlayQueue` +
+`PlaybackCoordinator`、登录页 / 搜索页 / 底部播放条、自研导航、账号信息（昵称 / 头像 / VIP 徽标）。
+搜索列表与播放条都显示封面、专辑与付费标识。
+
+**实测中撞到的三个坑**（都已写进代码注释，别再踩）：
+
+| 坑 | 症状 | 处置 |
+| --- | --- | --- |
+| `LibMpv.LoadFile(extraArgs:)` 的参数下标错（从 2 开始写，覆盖 flags 位） | mpv 报 `Invalid flag for option loadfile` 并**静默放弃加载**，表现为 `idle-active` 恒为 1 | 绕开该重载，自己发 `loadfile <url> <flags> <index> <options>` |
+| 用 `TimeSpan.MinValue` 当节流哨兵值 | 首次比较算术溢出抛 `OverflowException`，异常逃出 mpv 的事件循环 Task 把它打死 —— 此后进度、文件事件全部消失，**且进程毫无异常迹象** | 改用 `TimeSpan?` 表达「还没上报过」 |
+| P1 遗留的 DI 注册错误 | 启动即崩，退出码 `0xC000027B` | `HttpMessageHandler` 必须显式注册到抽象类型上（`CreateHandler` 返回的是 `SocketsHttpHandler` 这个具体类型，按它注册就解析不到） |
+
+**P2 没做的**：歌词（P4/P5）、SMTC（P3）、歌单与收藏（P7）、评论（P8）、下载（P9）、
+音质设置页、NavigationView 外壳。
+
+**验收状态**：搜索、播放、暂停、进度拖动、上下首、音量、账号信息、列表与播放条的信息展示、
+**扫码登录**（二维码渲染 → 轮询 → `authType=10` → 身份校验 → 会话落盘）均已人工验证通过。
+
+#### P2 留下的一条待办
+
+| 项 | 说明 | 怎么收 |
+| --- | --- | --- |
+| **`feeType` 判据未闭环** | 界面上的 VIP/付费徽标来自 `payInfo.feeType`（见 `PayTypeReader`）。但现有样本 5 条**全是付费曲**（`{vip:"1", song:"1"}`），**没有一首免费歌作对照**，所以「`vip=0` 就是免费」仍是推断 —— 徽标有误报可能。**它只用于展示，不参与任何权限判断** | 搜一首免费歌采一次样本（只读请求），核对 `feeType` 的实际形态，然后回来改 `PayTypeReader` 与其测试 |
+
+#### XAML 的两个坑（写 `x:Bind` 时容易撞）
+
+| 坑 | 症状 | 处置 |
+| --- | --- | --- |
+| **函数绑定不接受 `Converter`** | `{x:Bind local:Formats.HasX(...), Converter=...}` 报 `WMC1121`（`return type Boolean must match binding target type Visibility`）。属性绑定接受转换器，函数绑定不接受 —— 同一种语法，规则不同 | 让函数直接返回目标类型（如 `Visibility`） |
+| **`Uri` 不能直接绑到 `Image.Source`** | 同样报 `WMC1121` | 用函数绑定转成 `ImageSource`（见 `Formats.CoverSource`） |
+
 | 阶段 | 内容 | 粗估 | 依赖 |
 | --- | --- | --- | --- |
-| **P1.5** | 透明悬浮窗 spike（win10 上能否同时做到逐像素透明+置顶+点击穿透+可拖动） | 1–2 天 | ✅ P1 已就绪 |
-| **P2** | 登录 + 播放最小闭环 | 1–2 周 | ✅ P1 已就绪 |
+| **P1.5** | 透明悬浮窗 spike（win10 上能否同时做到逐像素透明+置顶+点击穿透+可拖动） | 1–2 天 | ✅ P1 已就绪（**仍未做**） |
+| **P2** | 登录 + 播放最小闭环 | 1–2 周 | ✅ 代码完成 |
 | P3 起 | 见 `roadmap.md` 的阶段表 | | |
 
 **P1.5 如果过不了**，P5/P6 的歌词方案要整个重估 —— 这正是把它提前的原因。

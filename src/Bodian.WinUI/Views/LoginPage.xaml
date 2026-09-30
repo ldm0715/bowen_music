@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bodian.WinUI.Views.LoginPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="32" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="扫码登录" />
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="用波点 App 扫描下方二维码。项目为非官方第三方客户端，建议用小号。" />
+        </StackPanel>
+
+        <StackPanel
+            Grid.Row="1"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="16">
+
+            <Border
+                Background="White"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16">
+                <Grid Width="260" Height="260">
+                    <!--
+                        二维码是整数倍放大的位图，用 Uniform 保持等比：
+                        非等比拉伸会把码元拉成矩形，直接扫不出来。
+                    -->
+                    <Image
+                        Source="{x:Bind ViewModel.QrImage, Mode=OneWay}"
+                        Stretch="Uniform" />
+                    <ProgressRing
+                        Width="32"
+                        Height="32"
+                        IsActive="{x:Bind ViewModel.IsWaiting, Mode=OneWay}" />
+                </Grid>
+            </Border>
+
+            <TextBlock
+                HorizontalAlignment="Center"
+                Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Button
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            Command="{x:Bind ViewModel.RefreshCommand}"
+            Content="刷新二维码"
+            IsEnabled="{x:Bind ViewModel.CanRefresh, Mode=OneWay}" />
+    </Grid>
+</Page>

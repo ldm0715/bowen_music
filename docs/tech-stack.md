@@ -92,6 +92,43 @@
 - **红线**：**不要分发官方 PC 客户端里的 `E:\bodian\libmpv-2.dll`**——这条与许可无关
 - **分发方式**：unpackaged 下把 dll 放进输出目录，`<None Include="..." CopyToOutputDirectory="PreserveNewest" />`。x64 与 arm64 需分别出包
 
+### P2 实测 ✅（2026-09-30 · 路线 A 已验证可用）
+
+`HanumanInstitute.LibMpv` **0.10.1 + .NET 10.0.12 + shinchiro 20260928 构建**实测通过，本节的选型成立。
+
+| 验证项 | 结果 |
+| --- | --- |
+| 加载 `libmpv-2.dll` | ✅ `mpv.ClientApiVersion()` = `0x20005` |
+| 播放本地文件 | ✅ `pcm_s16le`，`AO: [wasapi]` 建立，`time-pos` 正常递增，`EndFile(EndOfFile)` 准时 |
+| **播放远程 CDN 直链** | ✅ 无损 FLAC 直链直接播，**不需要任何额外 http header**（默认 UA 即可） |
+| 元数据 | ✅ 从流里读出 `Artist/Album/Title` |
+| `duration` / `time-pos` | ✅ 269.75s，与 API 返回的 269 秒吻合（单位是**秒**） |
+| 文件事件 | ✅ `StartFile` / `FileLoaded` / `EndFile` 都触发 |
+| **`end=` per-file 选项** | ✅ 有效，播到指定秒数触发 `EndOfFile`（试听区间就靠它） |
+| 原生库加载路径 | `MpvApi.RootPath` 默认即 `AppContext.BaseDirectory`，**拷到输出目录即可，无需设置** |
+
+三条必须记进代码的坑：
+
+1. **`MpvContext` 没有带参构造函数**（它只是 `MpvContextBase` 的空 partial 类），事件循环**固定**为
+   `MpvEventLoop.Default` → `MpvSimpleEventLoop`。后者自己起 Task 跑 `mpv_wait_event`，够用，
+   **不用也无法换成 `Thread` 版**。
+2. **`MpvContext.LoadFile(path, ..., extraArgs:)` 有 bug，不能用。** 它的实现从 `index = 2` 开始写
+   extra 参数，**覆盖了 flags 位**（应为 3），mpv 会报
+   `Invalid flag for option loadfile: end=15` 并**放弃加载、静默回到 idle**——症状是
+   `idle-active` 恒为 1、`time-pos` 读不到，很容易误判成「libmpv 加载不了」。
+   绕法是直接发命令，用 mpv 原生的四段形式：
+   ```csharp
+   mpv.RunCommand(null, "loadfile", url, "replace", "0", "end=15");
+   //                               ↑flags    ↑index ↑per-file options（逗号分隔）
+   ```
+   只传三个参数（不带 per-file options）时 `LoadFile` 是正常的。
+3. `vo=null` / `vid=no` / `audio-display=no` / `keep-open=no` / `idle=yes` 这组 headless 选项在
+   **构造之后**用 `SetPropertyString` 设置有效（构造时已经 `mpv_initialize` 过，所以走 property 而非 option）。
+
+**关于 dll 体积**：118 MB 未压缩，**已经是 strip 过的，没有可剥离的调试段**——93 MB 的 `.text` 是
+真代码，来自静态链接的 ffmpeg 与全部解码器。不要试图 strip 也不要为此换构建，理由与复现步骤见
+[`libmpv/README.md`](../libmpv/README.md)。
+
 ---
 
 ## 4. SMTC

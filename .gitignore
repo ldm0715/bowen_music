@@ -45,3 +45,8 @@ logs/
 # 探针运行时的本机凭据（正常落在 %LOCALAPPDATA%，这里兜底防误提交）
 *.token
 session.json
+
+# libmpv 原生库：115 MB，且是 GPLv2+ 的第三方二进制，入库会带来对应的源码提供义务。
+# 只保留 libmpv/README.md（来源、校验和、复现步骤），见该文件。
+libmpv/*.dll
+libmpv/*.7z

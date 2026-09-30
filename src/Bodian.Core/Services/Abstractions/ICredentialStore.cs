@@ -6,10 +6,27 @@ namespace Bodian.Core.Services.Abstractions;
 /// <remarks>
 /// <b>属性名是对外契约的一部分。</b> 它决定了 <c>session.dat</c> 里的 JSON 字段名，
 /// 必须与 P0 探针的 <c>SessionStore</c> 写下的形态一致，否则老会话会读不出来。
-/// 改动这三个名字等于改凭据文件格式。
+/// 改动这几个名字等于改凭据文件格式。
 /// <para><see cref="Token"/> 是凭据字段，绝不入日志。</para>
 /// </remarks>
-public sealed record BodianCredential(string Uid, string Token, string? Nickname)
+/// <param name="Uid">账号 uid。</param>
+/// <param name="Token">会话 token。</param>
+/// <param name="Nickname">昵称。</param>
+/// <param name="AvatarUrl">
+/// 头像地址。**后加的字段**，老凭据文件里没有它，读出来是 <c>null</c> —— 界面要容忍没有头像。
+/// </param>
+/// <param name="IsVip">
+/// 登录那一刻的会员状态。**这是一份快照**：会员到期后它不会自己变。
+/// 真正的播放权限永远以服务端返回的 <c>checkRight</c> 为准，这里只用于界面展示。
+/// </param>
+/// <param name="VipExpiresAt">会员到期时刻；服务端没给或为 0 时为 <c>null</c>。</param>
+public sealed record BodianCredential(
+    string Uid,
+    string Token,
+    string? Nickname,
+    string? AvatarUrl = null,
+    bool IsVip = false,
+    DateTimeOffset? VipExpiresAt = null)
 {
     public bool IsAuthenticated => Uid.Length > 0 && Uid != "-1";
 }

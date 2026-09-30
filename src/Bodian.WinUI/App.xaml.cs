@@ -1,11 +1,17 @@
 using Bodian.Core.Api;
 using Bodian.Core.Diagnostics;
+using Bodian.Core.Models.Login;
 using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
 using Bodian.Core.Services.Implementations;
+using Bodian.WinUI.Playback;
+using Bodian.WinUI.Services;
+using Bodian.WinUI.ViewModels;
+using Bodian.WinUI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Serilog;
 using Serilog.Extensions.Logging;
@@ -54,10 +60,38 @@ public partial class App : Application
         builder.Services.AddSingleton<IDeviceIdentity, FileDeviceIdentity>();
         builder.Services.AddSingleton<ICredentialStore, DpapiCredentialStore>();
         builder.Services.AddSingleton<BodianSession>();
-        builder.Services.AddSingleton(sp => BodianHttpTransport.CreateHandler(
+        // ★ 必须显式声明成 HttpMessageHandler。
+        //   CreateHandler 返回的是 SocketsHttpHandler 这个**具体类型**，不写泛型参数就会按它注册，
+        //   而 BodianHttpTransport 的构造参数类型是 HttpMessageHandler —— 按接口/基类解析不到，
+        //   报 "Unable to resolve service for type 'HttpMessageHandler'"。
+        //   P1 的组合根从不解析 IBodianTransport（窗口只注入 devid 与 session），所以这个错
+        //   一直潜伏到 P2 第一次真正用到传输层才暴露。
+        builder.Services.AddSingleton<HttpMessageHandler>(sp => BodianHttpTransport.CreateHandler(
             sp.GetRequiredService<BodianTransportOptions>()));
         builder.Services.AddSingleton<IBodianTransport, BodianHttpTransport>();
+
+        // 业务门面与扫码登录
+        builder.Services.AddSingleton<LoginOptions>();
+        builder.Services.AddSingleton<IBodianApi, BodianApi>();
+        builder.Services.AddSingleton<IBodianLogin, BodianLogin>();
+
+        // 播放。引擎是单例，退出时显式释放（见 OnLaunched 的 Closed 处理）。
+        builder.Services.AddSingleton<IPlaybackService>(sp => new LibMpvPlaybackService(
+            sp.GetRequiredService<ILogger<LibMpvPlaybackService>>()));
+        builder.Services.AddSingleton<PlaybackCoordinator>();
+
+        // UI 基础设施
+        builder.Services.AddSingleton<INavigationService, NavigationService>();
+        builder.Services.AddSingleton<IQrImageFactory, QrImageFactory>();
+
         builder.Services.AddSingleton<MainWindow>();
+
+        // 播放条常驻，所以 ViewModel 是单例；页面则每次导航新建。
+        builder.Services.AddSingleton<PlayerViewModel>();
+        builder.Services.AddTransient<LoginViewModel>();
+        builder.Services.AddTransient<LoginPage>();
+        builder.Services.AddTransient<SearchViewModel>();
+        builder.Services.AddTransient<SearchPage>();
 
         _host = builder.Build();
         _host.Start();
@@ -81,10 +115,34 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        var window = _host.Services.GetRequiredService<MainWindow>();
+        MainWindow window;
 
-        // Dispose 会顺带 flush 掉 Serilog（注册时传了 dispose: true）
-        window.Closed += (_, _) => _host.Dispose();
+        try
+        {
+            window = _host.Services.GetRequiredService<MainWindow>();
+        }
+        catch (Exception ex)
+        {
+            // unpackaged 下启动期的异常不会自己进日志，进程只给一句
+            // STATUS_STOWED_EXCEPTION（0xC000027B），看不出原因。显式记下来。
+            _host.Services.GetRequiredService<ILogger<App>>().LogCritical(ex, "创建主窗口失败");
+            throw;
+        }
+
+        window.Closed += (_, _) =>
+        {
+            // 先放掉音频引擎（它会停 libmpv 的事件循环，卡住会拖住进程退出）。
+            // 同步等待：窗口已经关了，这里阻塞不影响交互。
+            _host.Services.GetRequiredService<IPlaybackService>()
+                .DisposeAsync()
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+
+            // Dispose 会顺带 flush 掉 Serilog（注册时传了 dispose: true）
+            _host.Dispose();
+        };
+
         window.Activate();
     }
 

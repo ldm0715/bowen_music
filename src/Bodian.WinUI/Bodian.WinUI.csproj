@@ -31,6 +31,28 @@
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!-- 音频引擎。原生库 libmpv-2.dll 由下面的 None 项拷到输出目录，见 libmpv/README.md -->
+    <PackageReference Include="HanumanInstitute.LibMpv" />
+    <!-- 扫码登录的二维码本地渲染 -->
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- 仓库根的 libmpv/。不入库，克隆后需自行下载，见该目录的 README -->
+    <LibMpvDir>$(MSBuildThisFileDirectory)..\..\libmpv\</LibMpvDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      条件拷贝：文件不存在时静默跳过，不进错误列表。
+      这样新克隆的仓库不做这一步也能 0/0 构建并正常启动（缺库由
+      LibMpvPlaybackService 在首次播放时给出可读提示，而不是启动就崩）。
+    -->
+    <None Include="$(LibMpvDir)libmpv-2.dll"
+          Condition="Exists('$(LibMpvDir)libmpv-2.dll')"
+          Link="libmpv-2.dll"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

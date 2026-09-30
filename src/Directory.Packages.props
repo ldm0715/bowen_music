@@ -22,6 +22,9 @@
     <!-- 下面两个 P1 只登记版本、不引用，省得 P2 再核一遍 -->
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="WinUIEx" Version="2.9.3" />
+    <!-- P2 引入 -->
+    <PackageVersion Include="HanumanInstitute.LibMpv" Version="0.10.1" />
+    <PackageVersion Include="QRCoder" Version="1.8.0" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />

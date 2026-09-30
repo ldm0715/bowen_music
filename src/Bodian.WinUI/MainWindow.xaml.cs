@@ -1,29 +1,68 @@
 using Bodian.Core.Api;
-using Bodian.Core.Services.Abstractions;
+using Bodian.WinUI.Controls;
+using Bodian.WinUI.Services;
+using Bodian.WinUI.ViewModels;
+using Bodian.WinUI.Views;
 using Microsoft.UI.Xaml;
 
 namespace Bodian.WinUI;
 
 /// <summary>
-/// P1 的主窗口。它的作用不是「界面」，而是**零网络地证明 DI 链真的通了**。
+/// 主窗口，也就是外壳：上面一块 <see cref="Frame"/> 放页面，下面一条常驻的播放条。
 /// </summary>
-/// <remarks>
-/// 窗口上显示的 devid 来自 <see cref="IDeviceIdentity"/> 的默认实现，
-/// 也就是 <c>%LOCALAPPDATA%\Bodian\devid.txt</c>——
-/// 它必须与 P0 探针用的是**同一个值**。若这里显示的是新生成的标识，
-/// 说明路径被改过，而那在账号风控看来是异常信号。
-/// </remarks>
 public sealed partial class MainWindow : Window
 {
-    public MainWindow(IDeviceIdentity device, BodianSession session)
+    private readonly INavigationService _navigation;
+    private readonly IBodianLogin _login;
+
+    public MainWindow(
+        INavigationService navigation,
+        IBodianLogin login,
+        PlayerViewModel playerViewModel)
     {
+        ArgumentNullException.ThrowIfNull(navigation);
+        ArgumentNullException.ThrowIfNull(login);
+        ArgumentNullException.ThrowIfNull(playerViewModel);
+
+        _navigation = navigation;
+        _login = login;
+
         InitializeComponent();
 
-        Title = $"波点音乐（非官方客户端）— devid {device.Value}";
+        _navigation.Attach(RootFrame);
+        PlayerHost.Content = new PlayerBar(playerViewModel);
 
-        DeviceIdText.Text = $"devid（与 P0 探针必须是同一个值）：{device.Value}";
-        SessionText.Text = session.IsAuthenticated
-            ? $"会话：已登录 uid={session.Uid}"
-            : "会话：未登录（P2 接扫码登录）";
+        _login.AccountChanged += OnAccountChanged;
+        RootFrame.Loaded += OnRootLoaded;
+    }
+
+    private void OnRootLoaded(object sender, RoutedEventArgs e)
+    {
+        RootFrame.Loaded -= OnRootLoaded;
+
+        // 先试着恢复上次的会话：本机已有登录态时不该每次都让人重新扫码。
+        if (_login.TryRestorePersistedSession())
+        {
+            _navigation.Reset<SearchPage>();
+        }
+        else
+        {
+            _navigation.Reset<LoginPage>();
+        }
+    }
+
+    /// <summary>
+    /// 会话没了（用户登出，或服务端返回 11012 把它清掉）就回登录页。
+    /// </summary>
+    /// <remarks>
+    /// 登录成功也会触发这个事件，但那时 <c>IsAuthenticated</c> 为真，不在这里导航 ——
+    /// 由登录页自己切到搜索页，避免两处同时导航。
+    /// </remarks>
+    private void OnAccountChanged(object? sender, EventArgs e)
+    {
+        if (!_login.IsAuthenticated)
+        {
+            _navigation.Reset<LoginPage>();
+        }
     }
 }

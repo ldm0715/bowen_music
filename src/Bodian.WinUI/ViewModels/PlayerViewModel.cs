@@ -1,0 +1,304 @@
+using Bodian.Core.Models;
+using Bodian.WinUI.Playback;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+
+namespace Bodian.WinUI.ViewModels;
+
+/// <summary>
+/// 底部播放条。**单例**，跨页面常驻。
+/// </summary>
+/// <remarks>
+/// 因为是单例，<b>不要在页面卸载时退订引擎事件</b> —— 那会导致从别的页面回来后进度条不动。
+/// 订阅在构造函数里做一次，生命周期与进程一致。
+/// </remarks>
+public sealed partial class PlayerViewModel : ObservableObject
+{
+    private readonly PlaybackCoordinator _coordinator;
+    private readonly IPlaybackService _engine;
+    private readonly ILogger<PlayerViewModel> _logger;
+
+    public PlayerViewModel(
+        PlaybackCoordinator coordinator,
+        IPlaybackService engine,
+        ILogger<PlayerViewModel>? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(coordinator);
+        ArgumentNullException.ThrowIfNull(engine);
+
+        _coordinator = coordinator;
+        _engine = engine;
+        _logger = logger ?? NullLogger<PlayerViewModel>.Instance;
+
+        _coordinator.Started += OnStarted;
+        _coordinator.Blocked += OnBlocked;
+        _coordinator.AuditionEnded += OnAuditionEnded;
+        _coordinator.QueueExhausted += OnQueueExhausted;
+        _coordinator.Queue.Changed += (_, _) => UpdateQueueButtons();
+
+        _engine.PositionChanged += OnPositionChanged;
+        _engine.StateChanged += OnEngineStateChanged;
+        _engine.Failed += OnEngineFailed;
+    }
+
+    /// <summary>播放条是否该显示。</summary>
+    [ObservableProperty]
+    public partial bool HasTrack { get; set; }
+
+    [ObservableProperty]
+    public partial string Title { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string ArtistText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string AlbumText { get; set; } = "";
+
+    /// <summary>封面。为 <c>null</c> 时界面显示占位底色。</summary>
+    [ObservableProperty]
+    public partial ImageSource? CoverImage { get; set; }
+
+    /// <summary>
+    /// 付费标识（<c>VIP</c> / <c>付费</c> / 空）。**只是展示** ——
+    /// 能不能播由服务端的 checkRight 裁决，不看这个。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPayLabel))]
+    public partial string PayLabel { get; set; } = "";
+
+    public bool HasPayLabel => PayLabel.Length > 0;
+
+    /// <summary>实际音质描述。被降级时会写成「无损 不可用，实得 mp3 320k」。</summary>
+    [ObservableProperty]
+    public partial string QualityText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial bool IsPlaying { get; set; }
+
+    /// <summary>当前放的是试听片段。</summary>
+    [ObservableProperty]
+    public partial bool IsAudition { get; set; }
+
+    [ObservableProperty]
+    public partial double PositionSeconds { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressMaximum))]
+    public partial double DurationSeconds { get; set; }
+
+    /// <summary>
+    /// 进度条的上限。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能让它是 0。</b> Slider 在 <c>Maximum</c> 与 <c>Minimum</c> 相等时值域为零，
+    /// 轨道宽度算出来是 0，视觉上就是「根本没有进度条」——而 <see cref="DurationSeconds"/>
+    /// 在拿到真实时长之前恰好是 0。给它一个非零保底，控件就始终可见。
+    /// </remarks>
+    public double ProgressMaximum => Math.Max(DurationSeconds, 1);
+
+    [ObservableProperty]
+    public partial double Volume { get; set; } = 100;
+
+    [ObservableProperty]
+    public partial bool CanGoNext { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanGoPrevious { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNotice))]
+    public partial string Notice { get; set; } = "";
+
+    public bool HasNotice => Notice.Length > 0;
+
+    /// <summary>
+    /// 用户正在拖动进度条。由界面在按下/松开时设置。
+    /// </summary>
+    /// <remarks>
+    /// 拖动期间不能再用引擎的进度覆盖滑块 —— 否则手指还没松开，滑块就被拽回去了。
+    /// </remarks>
+    public bool IsSeeking { get; set; }
+
+    /// <summary>进度条拖完时由界面调用。</summary>
+    public Task SeekToAsync(double seconds)
+    {
+        IsSeeking = false;
+
+        return HasTrack ? _engine.SeekAsync(TimeSpan.FromSeconds(seconds)) : Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private async Task TogglePlayPauseAsync()
+    {
+        if (!HasTrack)
+        {
+            return;
+        }
+
+        _logger.LogDebug(
+            "切换播放：界面认为 IsPlaying={IsPlaying}，引擎实际状态={State}",
+            IsPlaying,
+            _engine.State);
+
+        if (IsPlaying)
+        {
+            await _engine.PauseAsync();
+        }
+        else
+        {
+            await _engine.PlayAsync();
+        }
+    }
+
+    [RelayCommand]
+    private Task NextAsync() => _coordinator.NextAsync();
+
+    [RelayCommand]
+    private Task PreviousAsync() => _coordinator.PreviousAsync();
+
+    partial void OnVolumeChanged(double value) => _engine.SetVolume(value);
+
+    // ── 引擎事件 ────────────────────────────────────────────────────────────
+
+    private void OnPositionChanged(object? sender, PlaybackPositionChangedEventArgs e)
+    {
+        if (IsSeeking)
+        {
+            return;
+        }
+
+        PositionSeconds = e.Position.TotalSeconds;
+
+        if (e.Duration > TimeSpan.Zero)
+        {
+            DurationSeconds = e.Duration.TotalSeconds;
+        }
+    }
+
+    private void OnEngineStateChanged(object? sender, PlaybackStateChangedEventArgs e)
+    {
+        IsPlaying = e.State == PlaybackState.Playing;
+
+        if (e.State == PlaybackState.Idle)
+        {
+            PositionSeconds = 0;
+        }
+    }
+
+    private void OnEngineFailed(object? sender, PlaybackFailedEventArgs e)
+    {
+        Notice = e.Message;
+    }
+
+    // ── 协调器事件 ──────────────────────────────────────────────────────────
+
+    private void OnStarted(object? sender, PlaybackStartedEventArgs e)
+    {
+        HasTrack = true;
+        Title = e.Track.Title;
+        ArtistText = e.Track.ArtistText;
+        ApplyTrackDetails(e.Track);
+        IsAudition = e.Policy.IsAudition;
+        QualityText = DescribeQuality(e.Source, e.Policy.IsAudition);
+        PositionSeconds = 0;
+
+        // 试听时进度条的上限是试听终点，不是整曲时长 ——
+        // 否则会出现「走到 4:29 却停在 0:29」的错觉。
+        DurationSeconds = e.Policy.StopAt?.TotalSeconds ?? 0;
+
+        Notice = "";
+        IsPlaying = true;
+        UpdateQueueButtons();
+    }
+
+    private void OnBlocked(object? sender, PlaybackBlockedEventArgs e)
+    {
+        HasTrack = true;
+        Title = e.Track.Title;
+        ArtistText = e.Track.ArtistText;
+        ApplyTrackDetails(e.Track);
+        QualityText = "";
+        IsPlaying = false;
+        IsAudition = false;
+        PositionSeconds = 0;
+        DurationSeconds = 0;
+
+        Notice = e.Reason switch
+        {
+            PlaybackDenialReason.NotAuthenticated => "登录后可播放完整歌曲",
+            PlaybackDenialReason.NoPermission => "该歌曲暂无播放权限",
+            PlaybackDenialReason.NoUsableQuality => "该歌曲在当前客户端没有可用音质",
+            PlaybackDenialReason.TrackUnavailable => "该歌曲已下架，无法播放",
+            PlaybackDenialReason.AuditionUnavailable => "该歌曲只能试听，但试听片段取不到",
+            PlaybackDenialReason.NoStreamUrl => e.Detail is { Length: > 0 } detail
+                ? $"取不到音源：{detail}"
+                : "取不到音源地址",
+            _ => "暂时无法播放这首歌",
+        };
+
+        UpdateQueueButtons();
+    }
+
+    private void OnAuditionEnded(object? sender, EventArgs e)
+    {
+        IsPlaying = false;
+        Notice = "试听片段已结束，登录后可播放完整歌曲";
+    }
+
+    private void OnQueueExhausted(object? sender, EventArgs e)
+    {
+        IsPlaying = false;
+        Notice = "已经是最后一首了";
+    }
+
+    private void UpdateQueueButtons()
+    {
+        CanGoNext = _coordinator.Queue.HasNext;
+        CanGoPrevious = _coordinator.Queue.HasPrevious;
+    }
+
+    /// <summary>
+    /// 把曲目上的展示信息铺到播放条上（专辑 / 封面 / 付费标识）。
+    /// </summary>
+    /// <remarks>
+    /// 播不成的时候也要铺 —— 用户得知道刚才想播的是哪一首、以及它为什么播不了。
+    /// </remarks>
+    private void ApplyTrackDetails(Track track)
+    {
+        AlbumText = track.AlbumName ?? "";
+
+        // BitmapImage 自己异步加载；地址失效时图是空的，不影响布局。
+        CoverImage = track.CoverImage is { } cover ? new BitmapImage(cover) : null;
+
+        PayLabel = track.RequiresVip ? "VIP"
+            : track.RequiresPurchase ? "付费"
+            : "";
+    }
+
+    private static string DescribeQuality(AudioSource source, bool isAudition)
+    {
+        if (isAudition)
+        {
+            return "试听片段";
+        }
+
+        var actual = $"{source.Format} {source.BitrateKbps}k";
+
+        // 服务端静默降级时必须如实说明，不能显示成用户请求的那一档。
+        return source.RequestedQuality is { } requested && source.WasDowngraded
+            ? $"{Describe(requested)}不可用，实得 {actual}"
+            : actual;
+    }
+
+    private static string Describe(AudioQuality quality) => quality switch
+    {
+        AudioQuality.Lossless => "无损",
+        AudioQuality.High => "高音质",
+        AudioQuality.Standard => "标准音质",
+        _ => quality.ToString(),
+    };
+}

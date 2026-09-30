@@ -2,12 +2,13 @@
 
 非官方第三方桌面客户端，目标平台 Windows 10 / 11。
 
-> **当前状态：P1（骨架与传输层）已完成，尚无界面。**
+> **当前状态：P2（登录 + 播放最小闭环）代码完成，已经能用了。**
 > P0 完成了协议逆向与选型定稿，播放链路（`checkRight` → `audioUrl`）全程实测跑通，无损 FLAC 可用。
-> P1 把验证过的协议落成了 `Bodian.Core` + `Bodian.WinUI` + `Bodian.Core.Tests` 三个项目：
-> 传输层、会话、DPAPI 凭据、DTO、分页、日志脱敏、歌词入口，**152 个单测全绿**。
-> 设计稿见 [`docs/transport.md`](docs/transport.md)，进度见 [`docs/roadmap.md`](docs/roadmap.md)。
-> **下一步是 P1.5 透明悬浮窗 spike 或 P2 登录 + 播放最小闭环。**
+> P1 搭好了工程骨架与传输层。
+> **P2 把客户端跑起来了**：扫码登录、搜索、点播、暂停 / 进度拖动 / 音量 / 上下首，
+> 音频走 libmpv（headless，不需要渲染控件），**233 个单测全绿**。
+> 进度见 [`docs/roadmap.md`](docs/roadmap.md)，未完成事项与踩过的坑见 [`docs/backlog.md`](docs/backlog.md)。
+> **下一步是 P1.5 透明悬浮窗 spike（仍未做）或 P3 SMTC。**
 
 ## 为什么做这个
 
@@ -28,11 +29,12 @@
 
 | 路径 | 说明 |
 | --- | --- |
-| `src/Bodian.Core/` | `net10.0`，零 UI 依赖：传输层 / DTO / 分页 / 歌词解码 / 凭据。**可独立单测** |
-| `src/Bodian.WinUI/` | `net10.0-windows10.0.26100.0`，WinUI 3。目前只有 DI 组合根与一个空窗口 |
+| `src/Bodian.Core/` | `net10.0`，零 UI 依赖：传输层 / 门面 / DTO / 领域模型 / 分页 / 歌词解码 / 凭据。**可独立单测** |
+| `src/Bodian.WinUI/` | `net10.0-windows10.0.26100.0`，WinUI 3。页面 / ViewModel / libmpv 播放引擎 / 导航 |
 | `tests/Bodian.Core.Tests/` | xunit.v3，用 `fixtures/` 的真实响应做断言，**零真实网络请求** |
 | `docs/` | 逆向勘查记录与设计方案。**开工前先读 [`docs/roadmap.md`](docs/roadmap.md)** |
 | `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具。**不参与 `Bodian.sln`**，但必须保持可独立构建 |
+| `libmpv/` | 音频引擎的原生库（115 MB，**不入版本控制**）。来源、校验和与复现步骤见该目录的 README |
 | `fixtures/` | 已脱敏的真实响应样本，单测的输入 |
 | `apk/` | 逆向用的原始安装包，**不入版本控制**（283 MB 第三方二进制，需自行放置） |
 
