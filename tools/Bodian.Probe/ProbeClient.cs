@@ -42,7 +42,6 @@ internal sealed record ProbeResponse(
 internal sealed class ProbeClient : IDisposable
 {
     private const string BaseUrl = "https://bd-api.kuwo.cn/api/";
-    private const string Ver = "1.1.7";
 
     private readonly HttpClient _http;
     private readonly string _devid;
@@ -52,6 +51,16 @@ internal sealed class ProbeClient : IDisposable
 
     /// <summary>未登录为空串。</summary>
     public string Token { get; set; } = "";
+
+    /// <summary>设备标识。audioUrl 的 devId 参数要用它。</summary>
+    public string DeviceId => _devid;
+
+    /// <summary>
+    /// 客户端版本头。默认 PC 端的 1.1.7——但 <c>service/advert/config</c> 里有一条
+    /// <c>highQuality.reason = "the version is too low or payVip!!"</c>，
+    /// 说明某些档位会被版本门挡住，所以这里要能改。
+    /// </summary>
+    public string Version { get; set; } = "1.1.7";
 
     public bool Verbose { get; set; }
 
@@ -82,7 +91,9 @@ internal sealed class ProbeClient : IDisposable
         bool signed = false,
         SignKeyForm signKeyForm = SignKeyForm.Included,
         PathForm pathForm = PathForm.Bare,
-        bool post = false)
+        bool post = false,
+        string? overrideSign = null,
+        long? fixedTimestamp = null)
     {
         var pairs = new List<KeyValuePair<string, string>>(query ?? [])
         {
@@ -94,7 +105,8 @@ internal sealed class ProbeClient : IDisposable
 
         if (signed)
         {
-            pairs.Add(new KeyValuePair<string, string>("timestamp", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString()));
+            var stamp = fixedTimestamp ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            pairs.Add(new KeyValuePair<string, string>("timestamp", stamp.ToString()));
             pairs.Add(new KeyValuePair<string, string>("sign", ""));
 
             var seedPairs = signKeyForm == SignKeyForm.Included
@@ -102,7 +114,9 @@ internal sealed class ProbeClient : IDisposable
                 : pairs.Where(p => p.Key != "sign");
 
             seedQuery = BodianSigner.FormUrlEncode(seedPairs);
-            var sign = BodianSigner.SignRaw(SignPath(path, pathForm), seedQuery, body);
+
+            // overrideSign 是给 signtest 做对照组用的：请求形状完全正确，只有 sign 的值是垃圾。
+            var sign = overrideSign ?? BodianSigner.SignRaw(SignPath(path, pathForm), seedQuery, body);
             pairs[^1] = new KeyValuePair<string, string>("sign", sign);
         }
 
@@ -138,6 +152,34 @@ internal sealed class ProbeClient : IDisposable
         return new ProbeResponse((int)response.StatusCode, raw, envelope, url, signedQuery, seedQuery);
     }
 
+    /// <summary>发一个绝对 URL（歌词站在 mlyric.kuwo.cn，不走 API 主站的 /api 前缀，也不签名）。</summary>
+    public async Task<ProbeResponse> SendAbsoluteAsync(string url)
+    {
+        if (Verbose)
+        {
+            Console.Error.WriteLine($"> GET {url}");
+        }
+
+        using var request = BuildRequest(HttpMethod.Get, url, null);
+        using var response = await _http.SendAsync(request).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+        JsonNode? envelope = null;
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            try
+            {
+                envelope = JsonNode.Parse(raw);
+            }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException or ArgumentException)
+            {
+                // 非 JSON 响应保留原文供排查。
+            }
+        }
+
+        return new ProbeResponse((int)response.StatusCode, raw, envelope, url, "", "");
+    }
+
     private static string SignPath(string path, PathForm form) => form switch
     {
         PathForm.LeadingSlash => "/" + path,
@@ -153,7 +195,7 @@ internal sealed class ProbeClient : IDisposable
         headers.TryAddWithoutValidation("User-Agent", "Dart/3.3 (dart:io)");
         headers.TryAddWithoutValidation("plat", "win");
         headers.TryAddWithoutValidation("channel", "W1");
-        headers.TryAddWithoutValidation("ver", Ver);
+        headers.TryAddWithoutValidation("ver", Version);
         headers.TryAddWithoutValidation("svrver", "13");
         headers.TryAddWithoutValidation("api-ver", "application/json");
         headers.TryAddWithoutValidation("brand", "Windows");

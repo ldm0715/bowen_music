@@ -1,0 +1,17 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "f32f9acbefbb0f3b749e3c14a56ac8a8",
+  "data": {
+    "audioUrl": "http://bd-er.kuwo.cn/21758b8ca0f5eeefd03bc49135841ba0/6abcb61c/resource/30106/trackmedia/M800000bYDlc2XxKLs.mp3?<redacted>",
+    "format": "mp3",
+    "duration": 269,
+    "bitrate": 320,
+    "size": "10.29Mb",
+    "respCode": 200,
+    "p2pAudioSourceId": "49364071230106trackmediaM800000bYDlc2XxKLsmp3",
+    "audioHttpsUrl": "https://bd-er.kuwo.cn/21758b8ca0f5eeefd03bc49135841ba0/6abcb61c/resource/30106/trackmedia/M800000bYDlc2XxKLs.mp3?<redacted>"
+  },
+  "profileId": "site",
+  "curTime": 1790752284199
+}

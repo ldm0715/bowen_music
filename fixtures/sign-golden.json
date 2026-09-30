@@ -1,7 +1,8 @@
 {
   "note": "P0 signtest 候选签名用例，供 P1 做黄金用例复现",
   "verified": false,
-  "reason": "匿名会话下 checkRight 不校验签名，此用例未经证实",
+  "reason": "当前会话下 checkRight 不校验签名，此用例未经证实；签名实现本身在 ver>=3.5 的强制校验下是被拒的",
+  "anonymous": true,
   "path": "play/music/v2/checkRight",
   "pathForm": "Bare",
   "signKeyForm": "Included",

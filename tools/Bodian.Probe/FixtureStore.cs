@@ -8,11 +8,15 @@ internal static class FixtureStore
 {
     public static string Root { get; } = ResolveRoot();
 
-    public static string Save(string name, string rawBody)
+    /// <summary>
+    /// <paramref name="extraMaskedKeys"/> 用于「同一个键名在别的响应里要保留、但在这份响应里是账号标识」的场景。
+    /// 典型例子：登录响应里的 <c>id</c> 是账号 id，而曲目响应里的 <c>id</c> 是要保留的 musicId。
+    /// </summary>
+    public static string Save(string name, string rawBody, params string[] extraMaskedKeys)
     {
         Directory.CreateDirectory(Root);
         var path = Path.Combine(Root, name + ".json");
-        File.WriteAllText(path, Sanitizer.ForFixture(rawBody));
+        File.WriteAllText(path, Sanitizer.ForFixture(rawBody, extraMaskedKeys));
         return path;
     }
 

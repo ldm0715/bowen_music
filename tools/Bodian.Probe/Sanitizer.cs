@@ -1,4 +1,5 @@
 using System.Text.Encodings.Web;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -8,6 +9,11 @@ namespace Bodian.Probe;
 internal static class Sanitizer
 {
     public const string Placeholder = "<redacted>";
+
+    /// <summary>query 形态的凭据参数。<c>sign</c> 也收进来——非空值的 sign 同样是凭据。</summary>
+    private static readonly Regex QueryCredentialPattern = new(
+        @"\b(token|uid|freeSign|devid|devId|qimei36|sign)=([^&\s""]*)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>响应里的中文默认会被转义成 \uXXXX，读起来太费劲，这里放开。</summary>
     public static readonly JsonSerializerOptions Pretty = new()
@@ -38,7 +44,17 @@ internal static class Sanitizer
 
     public static string ForDisplay(string json) => Mask(json, DisplayKeys);
 
-    public static string ForFixture(string json) => Mask(json, FixtureKeys);
+    public static string ForFixture(string json, params string[] extraMaskedKeys)
+    {
+        if (extraMaskedKeys.Length == 0)
+        {
+            return Mask(json, FixtureKeys);
+        }
+
+        var keys = new HashSet<string>(FixtureKeys, StringComparer.OrdinalIgnoreCase);
+        keys.UnionWith(extraMaskedKeys);
+        return Mask(json, keys);
+    }
 
     private static string Mask(string json, HashSet<string> maskedKeys)
     {
@@ -92,6 +108,14 @@ internal static class Sanitizer
                         continue;
                     }
 
+                    // 字符串里可能嵌着 query（比如 signtest 的 seedQuery），
+                    // 按键名抹值抹不到，要再扫一遍内容。
+                    if (child is JsonValue && child.GetValueKind() == JsonValueKind.String)
+                    {
+                        obj[key] = RedactQueryCredentials(child.GetValue<string>());
+                        continue;
+                    }
+
                     MaskInPlace(child, maskedKeys);
                 }
 
@@ -108,6 +132,21 @@ internal static class Sanitizer
 
                 break;
         }
+    }
+
+    /// <summary>
+    /// 抹掉字符串里以 query 形态出现的凭据参数。
+    /// 空值不动——seed 里的 <c>sign=</c> 是签名用例的一部分，要留着。
+    /// </summary>
+    private static string RedactQueryCredentials(string value)
+    {
+        if (!value.Contains('='))
+        {
+            return value;
+        }
+
+        return QueryCredentialPattern.Replace(value, m =>
+            m.Groups[2].Value.Length == 0 ? m.Value : $"{m.Groups[1].Value}={Placeholder}");
     }
 
     private static string StripQuery(string value)

@@ -1,7 +1,7 @@
 {
   "code": 200,
   "msg": "success",
-  "reqId": "04af856119e736fabf086b8f929cc4e4",
+  "reqId": "abbd179e1d920b3ca4c6f3a2df0e19f8",
   "data": {
     "id": 228908,
     "name": "晴天",
@@ -21,7 +21,7 @@
     ],
     "duration": 269,
     "releaseDate": "2003-07-31",
-    "favorite": 3837257,
+    "favorite": 3837270,
     "share": 42427,
     "comment": 30149,
     "isMv": 1,
@@ -221,8 +221,8 @@
     "bak3": 0,
     "showButton": 1,
     "showAd": 1,
-    "haveAudition": true,
     "offline": false,
+    "haveAudition": true,
     "lrc_info": {
       "lrc": 1,
       "lrcx": 1,
@@ -236,5 +236,5 @@
     }
   },
   "profileId": "site",
-  "curTime": 1790750589303
+  "curTime": 1790751746538
 }

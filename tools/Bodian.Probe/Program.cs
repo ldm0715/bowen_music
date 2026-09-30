@@ -19,6 +19,15 @@ var signed = false;
 var post = false;
 var save = false;
 var verbose = false;
+var timeoutSeconds = 300;
+var quality = "lossless";
+var seconds = 20;
+var noPlay = false;
+string? brOverride = null;
+var lrcx = 1;
+string? verOverride = null;
+string? forceSign = null;
+var anonymous = false;
 
 for (var i = 0; i < args.Length; i++)
 {
@@ -40,6 +49,45 @@ for (var i = 0; i < args.Length; i++)
             break;
         case "--verbose":
             verbose = true;
+            break;
+        case "--quality":
+            quality = NextValue(args, ref i) ?? quality;
+            break;
+        case "--seconds":
+            if (int.TryParse(NextValue(args, ref i), out var playSeconds) && playSeconds > 0)
+            {
+                seconds = playSeconds;
+            }
+
+            break;
+        case "--br":
+            brOverride = NextValue(args, ref i);
+            break;
+        case "--anonymous":
+            anonymous = true;
+            break;
+        case "--force-sign":
+            forceSign = NextValue(args, ref i);
+            break;
+        case "--ver":
+            verOverride = NextValue(args, ref i);
+            break;
+        case "--lrcx":
+            if (int.TryParse(NextValue(args, ref i), out var lrcxValue))
+            {
+                lrcx = lrcxValue;
+            }
+
+            break;
+        case "--no-play":
+            noPlay = true;
+            break;
+        case "--timeout":
+            if (int.TryParse(NextValue(args, ref i), out var timeoutValue) && timeoutValue > 0)
+            {
+                timeoutSeconds = timeoutValue;
+            }
+
             break;
         case "--body":
             body = NextValue(args, ref i);
@@ -78,6 +126,42 @@ if (command == "devid")
     return Commands.Devid();
 }
 
+if (command == "logout")
+{
+    return Commands.Logout();
+}
+
+if (command == "login")
+{
+    // 登录刻意不加载已有会话：要拿的是新会话，带上旧 token 反而可能换回旧账号。
+    using var loginClient = new ProbeClient(proxy, verbose);
+    return await Commands.LoginAsync(loginClient, timeoutSeconds, save);
+}
+
+// 除上面三条外，其余命令一律带会话跑——signtest 的意义就在于「登录后签名是否被校验」。
+using var client = new ProbeClient(proxy, verbose);
+
+if (!anonymous && SessionStore.Load() is { } session)
+{
+    client.Uid = session.Uid;
+    client.Token = session.Token;
+
+    if (verbose)
+    {
+        Console.Error.WriteLine($"> 使用已保存会话：{session.Describe()}");
+    }
+}
+
+if (verOverride is not null)
+{
+    client.Version = verOverride;
+}
+
+if (command == "whoami")
+{
+    return Commands.WhoAmI();
+}
+
 if (command == "call")
 {
     if (positional.Count < 2)
@@ -87,11 +171,10 @@ if (command == "call")
         return 2;
     }
 
-    using var callClient = new ProbeClient(proxy, verbose);
-    return await Commands.CallAsync(callClient, positional[1], queryPairs, body, signed, post, save, fixtureName);
+    return await Commands.CallAsync(client, positional[1], queryPairs, body, signed, post, save, fixtureName, forceSign);
 }
 
-if (command is "info" or "checkright" or "signtest")
+if (command is "info" or "checkright" or "signtest" or "play" or "lyric" or "sigsweep")
 {
     if (positional.Count < 2)
     {
@@ -103,16 +186,21 @@ if (command is "info" or "checkright" or "signtest")
     var musicId = positional[1];
     var freeSign = queryPairs.FirstOrDefault(p => p.Key == "freeSign").Value ?? "";
 
-    using var client = new ProbeClient(proxy, verbose);
-
-    if (command == "info")
+    switch (command)
     {
-        return await Commands.InfoAsync(client, musicId, save);
+        case "info":
+            return await Commands.InfoAsync(client, musicId, save);
+        case "checkright":
+            return await Commands.CheckRightAsync(client, musicId, freeSign, save);
+        case "play":
+            return await Commands.PlayAsync(client, musicId, quality, seconds, noPlay, brOverride);
+        case "lyric":
+            return await Commands.LyricAsync(client, musicId, save, lrcx);
+        case "sigsweep":
+            return await Commands.SignSweepAsync(client, musicId);
+        default:
+            return await Commands.SignTestAsync(client, musicId);
     }
-
-    return command == "checkright"
-        ? await Commands.CheckRightAsync(client, musicId, freeSign, save)
-        : await Commands.SignTestAsync(client, musicId);
 }
 
 Console.Error.WriteLine($"未知命令：{command}");

@@ -2,11 +2,12 @@
 
   <!--
     P0 协议探针。一次性控制台工具，不进主工程、不引 UI 依赖。
-    目标框架刻意用纯 net10.0：探针只碰 HTTP 与 JSON，不需要 WinRT 投影。
+    TFM 带 -windows 是因为 DPAPI（SessionStore）只在 Windows 上可用；
+    不用 WinRT 投影，所以不带版本号，也就不需要 WindowsAppSDK。
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -14,5 +15,12 @@
     <AssemblyName>bodian-probe</AssemblyName>
     <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 终端渲染二维码，登录用 -->
+    <PackageReference Include="QRCoder" Version="1.8.0" />
+    <!-- 会话凭据落盘加密。.NET 10 下仍需独立包，见 tech-stack.md -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+  </ItemGroup>
 
 </Project>
