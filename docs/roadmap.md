@@ -6,6 +6,7 @@
 
 | 文档 | 用途 |
 | --- | --- |
+| **`backlog.md`** | **未完成事项清单**。开工前先看这份 —— 现状、缺什么、每项的验证方法都在里面 |
 | `bodian-api-reference.md` | **接口主文档**。传输层/签名、27 个已验证接口、评论与下载、全部路径、数据模型、音质档位、待实测清单 |
 | `bodian-api-inventory.md` | 逆向勘查记录。PC 端与 Android 端两部分、版本差异。查"这个路径从哪来的"时看这份 |
 | `tech-stack.md` | **技术栈选型**。.NET/WinAppSDK 版本、包清单、音频引擎、SMTC 借壳方案、工程结构。开工前必读 |
@@ -36,8 +37,10 @@
 
 | 路径 | 说明 |
 | --- | --- |
-| `tools/Bodian.Probe/` | 一次性协议探针，纯 `net10.0` 控制台，不进主工程。`bodian-probe --help` 看用法 |
+| `tools/Bodian.Probe/` | 一次性协议探针，纯 `net10.0-windows` 控制台，不进主工程。`bodian-probe --help` 看用法 |
 | `fixtures/` | 已脱敏的真实响应样本，P1 的单元测试靠它 |
+
+**还没做完的、以及每项该怎么验证，全部收在 [`backlog.md`](backlog.md)。** 那份是给接手的人看的交接单，开工前先读它。
 
 ---
 
