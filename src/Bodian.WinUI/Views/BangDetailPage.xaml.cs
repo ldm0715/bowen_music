@@ -1,3 +1,4 @@
+using Bodian.Core.Models;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml.Controls;
@@ -32,11 +33,5 @@ public sealed partial class BangDetailPage : Page, INavigationAware
     {
     }
 
-    private void OnItemClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is RankedTrack entry)
-        {
-            _ = ViewModel.PlayAsync(entry);
-        }
-    }
+    private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
 }

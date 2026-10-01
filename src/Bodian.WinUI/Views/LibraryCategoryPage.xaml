@@ -13,7 +13,7 @@
         ★ 子类与专辑不是一回事：子类来自首页那一次 navigation（不用请求），
           而每个子类的专辑列表要单独请求，所以只有下半部分有加载状态。
     -->
-    <Grid Padding="24,16" RowSpacing="10">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -32,11 +32,11 @@
 
             <Border
                 Grid.Column="0"
-                Width="72"
-                Height="72"
+                Width="{StaticResource SizeCoverMd}"
+                Height="{StaticResource SizeCoverMd}"
                 VerticalAlignment="Top"
                 Background="{ThemeResource ControlFillColorDefaultBrush}"
-                CornerRadius="10">
+                CornerRadius="{StaticResource RadiusMd}">
                 <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.Group.CoverImage)}" Stretch="UniformToFill" />
             </Border>
 
@@ -147,8 +147,7 @@
 
             <ProgressRing
                 Grid.Column="0"
-                Width="16"
-                Height="16"
+                Style="{StaticResource BodianPageBusyRing}"
                 HorizontalAlignment="Left"
                 IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" />
 

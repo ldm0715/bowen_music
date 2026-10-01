@@ -43,11 +43,55 @@ public sealed partial class BangListPage : Page, INavigationAware
 
     public BangListViewModel ViewModel { get; }
 
-    public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
+    public void OnNavigatedTo()
+    {
+        // 订阅在这里而不是 ViewModel 的构造函数里：本页的 ViewModel 是 transient，
+        // 而协调器是单例 —— 在构造函数里订阅会让单例一直持有已离开的页面。
+        _coordinator.Started += OnPlaybackStarted;
+        _coordinator.Blocked += OnPlaybackBlocked;
 
-    /// <summary>不需要收尾：整页一次加载完，没有常驻订阅要摘。</summary>
+        _ = LoadAndSyncAsync();
+    }
+
     public void OnNavigatedFrom()
     {
+        _coordinator.Started -= OnPlaybackStarted;
+        _coordinator.Blocked -= OnPlaybackBlocked;
+    }
+
+    private async Task LoadAndSyncAsync()
+    {
+        await ViewModel.EnsureLoadedAsync().ConfigureAwait(true);
+
+        // 加载完立刻对一次：进页面时可能已经有一首在播了。
+        SyncCurrent();
+    }
+
+    private void OnPlaybackStarted(object? sender, PlaybackStartedEventArgs e) => SyncCurrent();
+
+    private void OnPlaybackBlocked(object? sender, PlaybackBlockedEventArgs e) => SyncCurrent();
+
+    /// <summary>把「当前是哪一首」刷到所有预览行上。</summary>
+    private void SyncCurrent()
+    {
+        var current = _coordinator.CurrentTrack?.Id;
+
+        foreach (var bang in ViewModel.Sections.SelectMany(section => section.Bangs))
+        {
+            bang.SetCurrent(current);
+        }
+    }
+
+    private void OnPreviewRowPointerEntered(object sender, PointerRoutedEventArgs e) => SetPointerOver(sender, true);
+
+    private void OnPreviewRowPointerExited(object sender, PointerRoutedEventArgs e) => SetPointerOver(sender, false);
+
+    private static void SetPointerOver(object sender, bool value)
+    {
+        if (sender is FrameworkElement { Tag: TrackRow row })
+        {
+            row.IsPointerOver = value;
+        }
     }
 
     /// <summary>「更多」→ 该榜的完整榜单。</summary>
@@ -87,27 +131,27 @@ public sealed partial class BangListPage : Page, INavigationAware
     /// <remarks>
     /// 队列是这一行所在的榜，不是整页 —— 「下一首」在榜内有效，与搜索页的行为一致。
     /// <para>
-    /// 行上只带得到 <see cref="RankedTrack"/>，所以要反查它属于哪个榜。
-    /// 榜数不多（实测 20 个），线性找足够。
+    /// 行上带的是 <see cref="TrackRow"/>，要反查它属于哪个榜。榜数不多（实测 20 个），
+    /// 线性找足够。行对象是每行一个实例，所以 <c>Contains</c> 走的是引用相等，不会误判。
     /// </para>
     /// </remarks>
     private async void OnTrackTapped(object sender, TappedRoutedEventArgs e)
     {
-        if (sender is not FrameworkElement { Tag: RankedTrack entry })
+        if (sender is not FrameworkElement { Tag: TrackRow row })
         {
             return;
         }
 
         var bang = ViewModel.Sections
             .SelectMany(section => section.Bangs)
-            .FirstOrDefault(item => item.Tracks.Contains(entry));
+            .FirstOrDefault(item => item.Tracks.Contains(row));
 
         if (bang is null)
         {
             return;
         }
 
-        var index = bang.Tracks.IndexOf(entry);
+        var index = bang.Tracks.IndexOf(row);
 
         if (index < 0)
         {
@@ -115,6 +159,6 @@ public sealed partial class BangListPage : Page, INavigationAware
         }
 
         // 名次是榜单的展示概念，不进队列 —— 与榜详情页同一条规矩。
-        await _coordinator.PlayFromAsync([.. bang.Tracks.Select(item => item.Track)], index);
+        await _coordinator.PlayFromAsync([.. bang.Tracks.Select(item => item.Source)], index);
     }
 }

@@ -66,12 +66,18 @@ public sealed partial class BangDetailViewModel : ObservableObject
     public Task EnsureLoadedAsync(CancellationToken cancellationToken = default) =>
         Tracks.EnsureLoadedAsync(cancellationToken);
 
-    /// <summary>点播榜里的第 N 首：队列就是这个榜，所以「下一首」在榜内有效。</summary>
-    public async Task PlayAsync(RankedTrack entry)
+    /// <summary>点播榜里的某一首：队列就是这个榜，所以「下一首」在榜内有效。</summary>
+    /// <remarks>
+    /// <b>入参是曲目而不是 <see cref="RankedTrack"/></b>：行模板换成了共享的
+    /// <c>TrackListView</c>，它按约定只上报曲目。名次是榜单自己的展示概念，
+    /// 到这一层就该脱掉了 —— 原来靠 <c>IndexOf(entry)</c> 拿下标，其实是在借
+    /// 展示层的对象做定位。现在按 <c>Id</c> 找，语义更直白。
+    /// </remarks>
+    public async Task PlayAsync(Track track)
     {
-        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(track);
 
-        var index = Tracks.Items.IndexOf(entry);
+        var index = IndexOf(track);
 
         if (index < 0)
         {
@@ -81,5 +87,18 @@ public sealed partial class BangDetailViewModel : ObservableObject
         // 队列要的是纯曲目，名次是榜单自己的展示概念，不进队列。
         await _coordinator.PlayFromAsync([.. Tracks.Items.Select(entry => entry.Track)], index)
             .ConfigureAwait(true);
+    }
+
+    private int IndexOf(Track track)
+    {
+        for (var i = 0; i < Tracks.Items.Count; i++)
+        {
+            if (Tracks.Items[i].Track.Id == track.Id)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 }

@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bodian.WinUI.Controls">
 
-    <Grid Padding="24,16" RowSpacing="12">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -13,12 +13,10 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="{x:Bind ViewModel.Title, Mode=OneWay}" />
+            <TextBlock Style="{StaticResource BodianPageTitle}" Text="{x:Bind ViewModel.Title, Mode=OneWay}" />
             <TextBlock
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
-                Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis" />
+                Style="{StaticResource BodianPageStatus}"
+                Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" />
         </StackPanel>
 
         <controls:TrackListView
@@ -26,7 +24,7 @@
             ItemsSource="{x:Bind ViewModel.Tracks}"
             TrackInvoked="OnTrackInvoked" />
 
-        <Grid Grid.Row="2" ColumnSpacing="12">
+        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -35,9 +33,7 @@
 
             <ProgressRing
                 Grid.Column="0"
-                Width="16"
-                Height="16"
-                HorizontalAlignment="Left"
+                Style="{StaticResource BodianPageBusyRing}"
                 IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
 
             <Button

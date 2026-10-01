@@ -6,7 +6,7 @@
     xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI">
 
-    <Grid Padding="24,16" RowSpacing="12">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -87,8 +87,7 @@
 
             <ProgressRing
                 Grid.Column="0"
-                Width="16"
-                Height="16"
+                Style="{StaticResource BodianPageBusyRing}"
                 HorizontalAlignment="Left"
                 IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
 

@@ -18,9 +18,9 @@
         ★ 榜里的曲目是**首页带来的预览**（实测 5 首），整页只要一次请求。
           完整榜单（实测 100 首）按榜点进详情页取。
 
-        ★ 名次由数据带着走（RankedTrack），不靠控件算位置：ItemsControl 拿不到下标。
+        ★ 名次由数据带着走（TrackRow.Ordinal），不靠控件算位置：ItemsControl 拿不到下标。
     -->
-    <Grid Padding="24,16" RowSpacing="12">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -85,7 +85,7 @@
                                                 Height="40"
                                                 VerticalAlignment="Center"
                                                 Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                                CornerRadius="6">
+                                                CornerRadius="{StaticResource RadiusSm}">
                                                 <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
                                             </Border>
 
@@ -109,9 +109,17 @@
                                                 Visibility="{x:Bind local:Formats.Visible(HasMore)}" />
                                         </Grid>
 
+                                        <!--
+                                            预览行。数据是 TrackRow —— 与曲目列表共用同一套
+                                            「正在播放 / 悬停 / 名次」三态，所以这里也有波普条。
+
+                                            这一层不能换成 TrackListView：它内含 ListView，
+                                            嵌在分组里会和外层的滚动打架（外层 ListView 已经
+                                            滚动到「组」这一层了）。
+                                        -->
                                         <ItemsControl ItemsSource="{x:Bind Tracks}">
                                             <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:RankedTrack">
+                                                <DataTemplate x:DataType="vm:TrackRow">
                                                     <!--
                                                         行可点播。点行 → 这首歌所在的**那个榜**整体入队，
                                                         所以「下一首」在榜内有效（与搜索页同一套行为）。
@@ -120,6 +128,8 @@
                                                         Padding="4,5"
                                                         ColumnSpacing="10"
                                                         Background="Transparent"
+                                                        PointerEntered="OnPreviewRowPointerEntered"
+                                                        PointerExited="OnPreviewRowPointerExited"
                                                         Tag="{x:Bind}"
                                                         Tapped="OnTrackTapped">
                                                         <Grid.ColumnDefinitions>
@@ -129,13 +139,49 @@
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
 
-                                                        <!-- 名次。前三名用主题强调色区分 -->
-                                                        <TextBlock
-                                                            Grid.Column="0"
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center"
-                                                            Foreground="{x:Bind vm:BangVisuals.RankBrush(Rank)}"
-                                                            Text="{x:Bind RankText}" />
+                                                        <!-- 名次列三态互斥：正在播放 → 波普条；悬停 → 播放键；其余 → 名次 -->
+                                                        <Grid Grid.Column="0">
+                                                            <TextBlock
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                Text="{x:Bind OrdinalText}"
+                                                                Visibility="{x:Bind IndexVisibility, Mode=OneWay}" />
+
+                                                            <FontIcon
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                FontSize="12"
+                                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                                Glyph="&#xE768;"
+                                                                Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
+
+                                                            <StackPanel
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Orientation="Horizontal"
+                                                                Spacing="2"
+                                                                Visibility="{x:Bind BarsVisibility, Mode=OneWay}">
+                                                                <Rectangle
+                                                                    Width="3"
+                                                                    Height="8"
+                                                                    Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                                                    RadiusX="1.5"
+                                                                    RadiusY="1.5" />
+                                                                <Rectangle
+                                                                    Width="3"
+                                                                    Height="12"
+                                                                    Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                                                    RadiusX="1.5"
+                                                                    RadiusY="1.5" />
+                                                                <Rectangle
+                                                                    Width="3"
+                                                                    Height="9"
+                                                                    Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                                                    RadiusX="1.5"
+                                                                    RadiusY="1.5" />
+                                                            </StackPanel>
+                                                        </Grid>
 
                                                         <!-- 封面。没有封面时留一块底色，行高不跳 -->
                                                         <Border
@@ -145,7 +191,7 @@
                                                             VerticalAlignment="Center"
                                                             Background="{ThemeResource ControlFillColorDefaultBrush}"
                                                             CornerRadius="4">
-                                                            <Image Source="{x:Bind local:Formats.CoverSource(Track.CoverImage)}" Stretch="UniformToFill" />
+                                                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
                                                         </Border>
 
                                                         <StackPanel
@@ -153,12 +199,12 @@
                                                             VerticalAlignment="Center"
                                                             Spacing="2">
                                                             <TextBlock
-                                                                Text="{x:Bind Track.Title}"
+                                                                Text="{x:Bind Title}"
                                                                 TextTrimming="CharacterEllipsis" />
                                                             <TextBlock
                                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                 Style="{StaticResource CaptionTextBlockStyle}"
-                                                                Text="{x:Bind Track.ArtistText}"
+                                                                Text="{x:Bind ArtistText}"
                                                                 TextTrimming="CharacterEllipsis" />
                                                         </StackPanel>
 
@@ -167,7 +213,7 @@
                                                             VerticalAlignment="Center"
                                                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                             Style="{StaticResource CaptionTextBlockStyle}"
-                                                            Text="{x:Bind local:Formats.Duration(Track.Duration)}" />
+                                                            Text="{x:Bind DurationText}" />
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
@@ -183,8 +229,7 @@
 
         <ProgressRing
             Grid.Row="2"
-            Width="16"
-            Height="16"
+            Style="{StaticResource BodianPageBusyRing}"
             HorizontalAlignment="Left"
             IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
     </Grid>

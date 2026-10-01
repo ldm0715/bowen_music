@@ -37,12 +37,11 @@ public static class Formats
     /// </remarks>
     public static double PlayerTitleMaxWidth(bool hasAuditionBadge, bool hasPayBadge)
     {
-        const double block = 220;   // 播放条信息块的固定宽度
-        const double lead = 6;      // 曲名与徽标组之间的间距
-        const double badge = 36;    // 单个徽标的实际宽度（含内边距）
-        const double gap = 4;       // 两个徽标之间的间距
+        // 徽标宽度是按「字号 11 + 左右内边距 6」估的（见 PlayerBar.xaml 里那两个 Border），
+        // 改徽标样式时要一起改，否则又会被顶出去。
+        const double badge = 36;
 
-        var used = hasAuditionBadge || hasPayBadge ? lead : 0;
+        var used = hasAuditionBadge || hasPayBadge ? PlayerBadgeSpacing : 0;
 
         if (hasAuditionBadge)
         {
@@ -51,11 +50,28 @@ public static class Formats
 
         if (hasPayBadge)
         {
-            used += hasAuditionBadge ? badge + gap : badge;
+            used += hasAuditionBadge ? badge + PlayerBadgeSpacing : badge;
         }
 
-        return Math.Max(60, block - used);
+        return Math.Max(60, PlayerInfoBlockWidth - used);
     }
+
+    /// <summary>
+    /// 播放条信息块的固定宽度。<c>PlayerBar.xaml</c> 上那个 <c>Width</c> 绑的就是它。
+    /// </summary>
+    /// <remarks>
+    /// <b>必须与上面那个算式用同一个值。</b> 这两处是同一件事的两面：
+    /// XAML 用宽度约束布局，算式用宽度反推曲名的 <c>MaxWidth</c>。
+    /// 分开写就会漂 —— 实测漂过一次：算式里两个徽标之间的间距写死 4，
+    /// 而 XAML 里那个 <c>StackPanel</c> 是 <c>Spacing="6"</c>，
+    /// 于是两个徽标同时出现时算少了 2px，长曲名会把第二个徽标顶出信息块。
+    /// </remarks>
+    public static double PlayerInfoBlockWidth => 220;
+
+    /// <summary>
+    /// 播放条上曲名与徽标之间的间距。<c>PlayerBar.xaml</c> 里那个 <c>Spacing</c> 绑的就是它。
+    /// </summary>
+    public static double PlayerBadgeSpacing => 6;
 
     /// <summary>时长。一小时以内用 <c>m:ss</c>，超过用 <c>h:mm:ss</c>。</summary>
     public static string Duration(TimeSpan value) =>

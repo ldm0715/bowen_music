@@ -11,9 +11,15 @@
         <conv:BoolToVisibilityConverter x:Key="NotBoolToVisibility" Invert="True" />
     </UserControl.Resources>
 
+    <!--
+        播放条是通栏的，压在侧栏与内容区之下。给它一层比侧栏更强的底 + 一条顶部细线，
+        让它「浮」在内容之上 —— 否则与上面的页面糊成一片，看不出这是常驻控制条。
+
+        底仍是半透明的，氛围渐变照样透得上来。
+    -->
     <Border
-        Background="{ThemeResource LayerFillColorDefaultBrush}"
-        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        Background="{ThemeResource SurfaceRaisedBrush}"
+        BorderBrush="{ThemeResource SurfaceStrokeBrush}"
         BorderThickness="0,1,0,0">
 
         <!--
@@ -41,18 +47,23 @@
 
                 <!-- 没有封面时留一块底色，布局不跳。 -->
                 <Border
-                    Width="56"
-                    Height="56"
+                    Width="{StaticResource SizeCoverRow}"
+                    Height="{StaticResource SizeCoverRow}"
                     Background="{ThemeResource ControlFillColorDefaultBrush}"
-                    CornerRadius="6">
+                    CornerRadius="{StaticResource RadiusMd}">
                     <Image
                         Source="{x:Bind ViewModel.CoverImage, Mode=OneWay}"
                         Stretch="UniformToFill" />
                 </Border>
 
-                <!-- 固定宽度：否则长标题会把中间的控制区挤走。 -->
+                <!--
+                    固定宽度：否则长标题会把中间的控制区挤走。
+
+                    ★ 宽度绑 Formats 而不是写字面量 —— 曲名的 MaxWidth 是靠这个宽度反推的
+                      （见 Formats.PlayerTitleMaxWidth），两处必须同源。
+                -->
                 <StackPanel
-                    Width="220"
+                    Width="{x:Bind local:Formats.PlayerInfoBlockWidth}"
                     VerticalAlignment="Center"
                     Spacing="3">
 
@@ -65,7 +76,7 @@
                     <StackPanel
                         HorizontalAlignment="Left"
                         Orientation="Horizontal"
-                        Spacing="6">
+                        Spacing="{x:Bind local:Formats.PlayerBadgeSpacing}">
 
                         <TextBlock
                             VerticalAlignment="Center"
@@ -115,65 +126,70 @@
                     Orientation="Horizontal"
                     Spacing="8">
 
+                    <!--
+                        上下首是裸图标：按钮比图标稍大一点留出点击热区，但不给底色 ——
+                        播放条上只有主按钮带底色，其余靠 hover 反馈。
+                    -->
                     <Button
-                        Width="36"
-                        Height="36"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
                         MinWidth="0"
                         Padding="0"
                         Command="{x:Bind ViewModel.PreviousCommand}"
                         IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"
                         ToolTipService.ToolTip="上一首">
-                        <FontIcon FontSize="14" Glyph="&#xE892;" />
+                        <FontIcon FontSize="{StaticResource SizeIconSm}" Glyph="&#xE892;" />
                     </Button>
 
                     <!--
                         圆形的强调按钮：整个播放条上唯一一个「主角」，一眼能找到。
-                        **Padding 必须清零** —— 样式自带的左右内边距会把 40px 圆里的内容区压到装不下图标。
+                        **Padding 必须清零** —— 样式自带的左右内边距会把圆里的内容区压到装不下图标。
+                        CornerRadius 是尺寸的一半，改尺寸时这里要跟着改。
                     -->
                     <Button
-                        Width="40"
-                        Height="40"
+                        Width="{StaticResource SizePlayButton}"
+                        Height="{StaticResource SizePlayButton}"
                         MinWidth="0"
                         Padding="0"
                         Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
-                        CornerRadius="20"
+                        CornerRadius="22"
                         Style="{StaticResource AccentButtonStyle}"
                         ToolTipService.ToolTip="播放 / 暂停">
                         <!-- 两个图标叠在同一格里，各自按内容定尺，不给容器写死尺寸（写死就会裁掉字形）。 -->
                         <Grid>
                             <FontIcon
-                                FontSize="18"
+                                FontSize="{StaticResource SizeIconMd}"
                                 Glyph="&#xE768;"
                                 Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource NotBoolToVisibility}}" />
                             <FontIcon
-                                FontSize="18"
+                                FontSize="{StaticResource SizeIconMd}"
                                 Glyph="&#xE769;"
                                 Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                         </Grid>
                     </Button>
 
                     <Button
-                        Width="36"
-                        Height="36"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
                         MinWidth="0"
                         Padding="0"
                         Command="{x:Bind ViewModel.NextCommand}"
                         IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"
                         ToolTipService.ToolTip="下一首">
-                        <FontIcon FontSize="14" Glyph="&#xE893;" />
+                        <FontIcon FontSize="{StaticResource SizeIconSm}" Glyph="&#xE893;" />
                     </Button>
 
                     <!-- 歌词。没有在播的歌时是灰的 —— 那时进歌词页也没有内容可显示。 -->
                     <Button
-                        Width="36"
-                        Height="36"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
                         MinWidth="0"
                         Margin="8,0,0,0"
                         Padding="0"
                         Click="OnLyricsClick"
                         IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
                         ToolTipService.ToolTip="歌词">
-                        <TextBlock FontSize="13" Text="词" />
+                        <TextBlock FontSize="{StaticResource FontSizeBody}" Text="词" />
                     </Button>
                 </StackPanel>
 
@@ -236,10 +252,12 @@
                     Placement 必须是 Top —— 播放条在窗口底部，默认朝下会弹出屏幕外。
                 -->
                 <Button
+                    Width="{StaticResource SizeRoundButton}"
+                    Height="{StaticResource SizeRoundButton}"
                     MinWidth="0"
-                    Padding="8,6"
+                    Padding="0"
                     ToolTipService.ToolTip="音量">
-                    <FontIcon FontSize="14" Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" />
+                    <FontIcon FontSize="{StaticResource SizeIconSm}" Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" />
                     <Button.Flyout>
                         <Flyout Placement="Top">
                             <StackPanel HorizontalAlignment="Center" Spacing="10">

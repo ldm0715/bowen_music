@@ -15,7 +15,7 @@
 
         ★ 一次请求带回全部结构，所以首页也没有懒加载。
     -->
-    <Grid Padding="24,16" RowSpacing="12">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -41,10 +41,10 @@
                 <DataTemplate x:DataType="models:MusicCategoryGroup">
                     <StackPanel Width="150" Spacing="6">
                         <Border
-                            Width="150"
-                            Height="150"
+                            Width="{StaticResource SizeCoverGrid}"
+                            Height="{StaticResource SizeCoverGrid}"
                             Background="{ThemeResource ControlFillColorDefaultBrush}"
-                            CornerRadius="10">
+                            CornerRadius="{StaticResource RadiusMd}">
                             <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
                         </Border>
 
@@ -68,8 +68,7 @@
 
         <ProgressRing
             Grid.Row="2"
-            Width="16"
-            Height="16"
+            Style="{StaticResource BodianPageBusyRing}"
             HorizontalAlignment="Left"
             IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
     </Grid>

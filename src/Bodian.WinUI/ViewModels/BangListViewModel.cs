@@ -30,14 +30,36 @@ public sealed partial class BangItemViewModel : ObservableObject
         for (var i = 0; i < bang.PreviewTracks.Count; i++)
         {
             // 名次就是位次：预览是从第 1 名开始的。
-            Tracks.Add(new RankedTrack(i + 1, bang.PreviewTracks[i]));
+            // 名次不补零 —— 「第 1 名」写成 01 是错的（曲目列表才补零）。
+            Tracks.Add(new TrackRow
+            {
+                Source = bang.PreviewTracks[i],
+                Ordinal = i + 1,
+                PadOrdinal = false,
+            });
         }
     }
 
     public Bang Bang { get; }
 
-    /// <summary>首页带来的那几首（实测 5 首），带名次。</summary>
-    public ObservableCollection<RankedTrack> Tracks { get; } = [];
+    /// <summary>
+    /// 首页带来的那几首（实测 5 首），带名次。
+    /// </summary>
+    /// <remarks>
+    /// 用 <see cref="TrackRow"/> 而不是 <see cref="RankedTrack"/>：预览行也要显示
+    /// 「正在播放」，而那是一个随外部状态变化的可绑定属性，record 装不下。
+    /// 行模板与曲目列表共用同一套三态序号列。
+    /// </remarks>
+    public ObservableCollection<TrackRow> Tracks { get; } = [];
+
+    /// <summary>把「当前是哪一首」刷到预览行上。由页面在播放状态变化时调用。</summary>
+    internal void SetCurrent(long? trackId)
+    {
+        foreach (var row in Tracks)
+        {
+            row.IsCurrent = trackId is not null && row.Source.Id == trackId;
+        }
+    }
 
     /// <summary>有没有完整榜单可看 —— 决定「更多」按钮显不显示。</summary>
     /// <remarks>
