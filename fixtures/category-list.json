@@ -1,0 +1,332 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "2c12a2e82960afb41a48dfa29d9eea4a",
+  "data": {
+    "total": 6,
+    "customCategory": [
+      {
+        "id": 1,
+        "name": "推荐"
+      },
+      {
+        "id": 2,
+        "name": "歌单"
+      }
+    ],
+    "categories": [
+      {
+        "name": "主题",
+        "icon": "http://wimg1.kuwo.cn/1885f90a22101aaa594c70670bb73e75?f=png",
+        "id": 67,
+        "subCategories": [
+          {
+            "name": "网红",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/7/7/1517380562103_.png",
+            "id": 77,
+            "sort": 1
+          },
+          {
+            "name": "纯音乐",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/14/14/1524130384286_.png",
+            "id": 78,
+            "sort": 2
+          },
+          {
+            "name": "古风",
+            "icon": "http://img4.kwcdn.kuwo.cn/star/upload/11/11/1517380562443_.png",
+            "id": 79,
+            "sort": 3
+          },
+          {
+            "name": "影视",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/7/7/1517380562103_.png",
+            "id": 80,
+            "sort": 4
+          },
+          {
+            "name": "游戏",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/9/9/1517380562105_.png",
+            "id": 81,
+            "sort": 5
+          },
+          {
+            "name": "小文艺",
+            "id": 82,
+            "sort": 6
+          },
+          {
+            "name": "经典情歌",
+            "id": 83,
+            "sort": 7
+          },
+          {
+            "name": "动漫",
+            "icon": "http://img1.kwcdn.kuwo.cn/star/upload/10/10/1517468038218_.png",
+            "id": 84,
+            "sort": 8
+          },
+          {
+            "name": "老歌",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/7/7/1517380561751_.png",
+            "id": 85,
+            "sort": 9
+          },
+          {
+            "name": "金曲",
+            "icon": "http://img1.kwcdn.kuwo.cn/star/upload/6/6/1507883159190_.png",
+            "id": 86,
+            "sort": 10
+          },
+          {
+            "name": "神曲",
+            "id": 87,
+            "sort": 11
+          },
+          {
+            "name": "同人",
+            "id": 135,
+            "sort": 16
+          }
+        ],
+        "sort": 1
+      },
+      {
+        "name": "流派",
+        "icon": "http://wimg1.kuwo.cn/8c596b3a16a21c555615e5bbfdba3264?f=png",
+        "id": 69,
+        "subCategories": [
+          {
+            "name": "流行",
+            "icon": "http://img4.kwcdn.kuwo.cn/star/upload/11/11/1507866722059_.png",
+            "id": 88,
+            "sort": 1
+          },
+          {
+            "name": "摇滚",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/11/11/1507866778379_.png",
+            "id": 89,
+            "sort": 2
+          },
+          {
+            "name": "民谣",
+            "icon": "http://img1.kwcdn.kuwo.cn/star/upload/11/11/1507866837499_.png",
+            "id": 90,
+            "sort": 3
+          },
+          {
+            "name": "嘻哈",
+            "icon": "http://img4.kwcdn.kuwo.cn/star/upload/8/8/1517468234136_.png",
+            "id": 91,
+            "sort": 4
+          },
+          {
+            "name": "DJ",
+            "id": 92,
+            "sort": 5
+          },
+          {
+            "name": "爵士",
+            "icon": "http://img1.kwcdn.kuwo.cn/star/upload/6/6/1507866797318_.png",
+            "id": 94,
+            "sort": 6
+          },
+          {
+            "name": "MC",
+            "id": 119,
+            "sort": 7
+          },
+          {
+            "name": "电音",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/9/9/1507866744649_.png",
+            "id": 122,
+            "sort": 8
+          },
+          {
+            "name": "R&B",
+            "icon": "http://img1.kwcdn.kuwo.cn/star/upload/11/11/1507866815739_.png",
+            "id": 125,
+            "sort": 9
+          },
+          {
+            "name": "古典",
+            "id": 130,
+            "sort": 10
+          },
+          {
+            "name": "波萨诺瓦",
+            "id": 136,
+            "sort": 17
+          }
+        ],
+        "sort": 2
+      },
+      {
+        "name": "语言",
+        "icon": "http://wimg1.kuwo.cn/77c6f5c34e8c730297f3d4d19e70b9f9?f=png",
+        "id": 70,
+        "subCategories": [
+          {
+            "name": "欧美",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/9/9/1507866499465_.png",
+            "id": 97,
+            "sort": 1
+          },
+          {
+            "name": "韩语",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/5/5/1507886214677_.png",
+            "id": 98,
+            "sort": 2
+          },
+          {
+            "name": "粤语",
+            "icon": "http://img1.kwcdn.kuwo.cn/star/upload/14/14/1507866553486_.png",
+            "id": 99,
+            "sort": 3
+          },
+          {
+            "name": "日语",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/9/9/1507866530505_.png",
+            "id": 100,
+            "sort": 4
+          }
+        ],
+        "sort": 3
+      },
+      {
+        "name": "心情",
+        "icon": "http://wimg1.kuwo.cn/8657e33fc56513307fb9f6c9b6927861?f=png",
+        "id": 71,
+        "subCategories": [
+          {
+            "name": "燃",
+            "id": 102,
+            "sort": 1
+          },
+          {
+            "name": "开心",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/1/1/1507881938529_.png",
+            "id": 103,
+            "sort": 2
+          },
+          {
+            "name": "放松",
+            "icon": "http://img4.kwcdn.kuwo.cn/star/upload/3/3/1517380562355_.png",
+            "id": 104,
+            "sort": 3
+          },
+          {
+            "name": "甜蜜",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/13/13/1507881681997_.png",
+            "id": 105,
+            "sort": 4
+          },
+          {
+            "name": "治愈",
+            "icon": "http://img4.kwcdn.kuwo.cn/star/upload/7/7/1517380562087_.png",
+            "id": 106,
+            "sort": 5
+          },
+          {
+            "name": "丧",
+            "id": 107,
+            "sort": 6
+          },
+          {
+            "name": "伤感",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/7/7/1507880388103_.png",
+            "id": 108,
+            "sort": 7
+          },
+          {
+            "name": "high",
+            "id": 109,
+            "sort": 8
+          }
+        ],
+        "sort": 4
+      },
+      {
+        "name": "场景",
+        "icon": "http://wimg1.kuwo.cn/1a7f01123bf27f00d712b098f5cad203?f=png",
+        "id": 72,
+        "subCategories": [
+          {
+            "name": "开车",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/4/4/1507882143860_.png",
+            "id": 110,
+            "sort": 1
+          },
+          {
+            "name": "运动",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/13/13/1507882327133_.png",
+            "id": 111,
+            "sort": 2
+          },
+          {
+            "name": "学习",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/11/11/1507882229403_.png",
+            "id": 112,
+            "sort": 3
+          },
+          {
+            "name": "夜店",
+            "icon": "http://img3.kwcdn.kuwo.cn/star/upload/1/1/1507882289153_.png",
+            "id": 113,
+            "sort": 4
+          },
+          {
+            "name": "睡前",
+            "icon": "http://img1.kwcdn.kuwo.cn/star/upload/10/10/1507882105930_.png",
+            "id": 114,
+            "sort": 5
+          },
+          {
+            "name": "深夜",
+            "id": 116,
+            "sort": 6
+          },
+          {
+            "name": "店铺",
+            "id": 117,
+            "sort": 7
+          }
+        ],
+        "sort": 5
+      },
+      {
+        "name": "年代",
+        "icon": "http://wimg1.kuwo.cn/d000d747627aca3e8c7143675e519da2?f=png",
+        "id": 66,
+        "subCategories": [
+          {
+            "name": "70后",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/6/6/1507882866278_.png",
+            "id": 73,
+            "sort": 1
+          },
+          {
+            "name": "80后",
+            "icon": "http://img4.kwcdn.kuwo.cn/star/upload/9/9/1507882844009_.png",
+            "id": 74,
+            "sort": 2
+          },
+          {
+            "name": "90后",
+            "icon": "http://img2.kwcdn.kuwo.cn/star/upload/6/6/1507882820598_.png",
+            "id": 75,
+            "sort": 3
+          },
+          {
+            "name": "Z世代",
+            "id": 76,
+            "sort": 4
+          }
+        ],
+        "sort": 6
+      }
+    ]
+  },
+  "profileId": "site",
+  "curTime": 1790821723339
+}

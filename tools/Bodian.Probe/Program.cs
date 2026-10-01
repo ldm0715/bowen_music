@@ -27,6 +27,8 @@ string? brOverride = null;
 var lrcx = 1;
 string? verOverride = null;
 string? forceSign = null;
+var mobileSign = false;
+string? platOverride = null;
 var anonymous = false;
 
 for (var i = 0; i < args.Length; i++)
@@ -41,6 +43,14 @@ for (var i = 0; i < args.Length; i++)
         case "--post":
             post = true;
             break;
+        case "--plat":
+            platOverride = NextValue(args, ref i);
+            break;
+
+        case "--mobile-sign":
+            mobileSign = true;
+            break;
+
         case "--signed":
             signed = true;
             break;
@@ -139,7 +149,10 @@ if (command == "login")
 }
 
 // 除上面三条外，其余命令一律带会话跑——signtest 的意义就在于「登录后签名是否被校验」。
-using var client = new ProbeClient(proxy, verbose);
+using var client = new ProbeClient(proxy, verbose)
+{
+    Plat = platOverride ?? "win",
+};
 
 if (!anonymous && SessionStore.Load() is { } session)
 {
@@ -171,7 +184,8 @@ if (command == "call")
         return 2;
     }
 
-    return await Commands.CallAsync(client, positional[1], queryPairs, body, signed, post, save, fixtureName, forceSign);
+    return await Commands.CallAsync(
+        client, positional[1], queryPairs, body, signed, post, save, fixtureName, forceSign, mobileSign);
 }
 
 if (command is "info" or "checkright" or "signtest" or "play" or "lyric" or "sigsweep")

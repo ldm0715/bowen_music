@@ -1,0 +1,3034 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "654490977863525844dcf64848ac2ae3",
+  "data": {
+    "moduleName": "心动收藏相似推荐",
+    "type": 10,
+    "musicList": [
+      {
+        "id": 57689813,
+        "name": "secret base ～君がくれたもの～ (Memento mori Ver.)",
+        "albumId": 183037,
+        "album": "secret base～君がくれたもの～",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s76/7/2829725284.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s76/7/2829725284.webp",
+        "artist": "茅野愛衣&戸松遥&早見沙織",
+        "artistId": 98268,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s45/11/1920248161.webp",
+        "artists": [
+          {
+            "id": 98268,
+            "name": "茅野愛衣",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s45/11/1920248161.png"
+          },
+          {
+            "id": 39054,
+            "name": "戸松遥",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s72/90/4038924278.png"
+          },
+          {
+            "id": 17118,
+            "name": "早見沙織",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s30/2/3652267080.png"
+          }
+        ],
+        "duration": 280,
+        "releaseDate": "2011-04-27",
+        "isMv": 0,
+        "allArtistId": "98268&39054&17118",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "7.53Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "21.69Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "178.74Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "77.26Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "29.5Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "35.35Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "30.04Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "5.81Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.86Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "10.7Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "4.28Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.62Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "0",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "0",
+          "play": "1000",
+          "download": "1000",
+          "down": "1000",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "000111111111",
+          "ndown": "000111111111",
+          "paytype": 0,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "0",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "78722",
+          "refrain_end": "114987",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_9_4_0_5007163_0_17010202339769889705_1790819164#daily30:qmconcept#0:0:0#4:innerdssm:9:1@innerdssm:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#17010202339769889705#1:5007163:0:57689813:78,22:78#50303440:5007163:innerdssm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -7.0,
+          "peak": 1.0,
+          "lra": 4.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_57689813",
+        "songName": "secret base ～君がくれたもの～ (Memento mori Ver.)",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 0,
+        "terminalOnline": "",
+        "tpay": 0,
+        "preOnline": false,
+        "kw_cp": 0,
+        "data_source": 3,
+        "isbatch": 1,
+        "lrcUpdateTime": "2025-07-15 15:17:20",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "65_3052",
+        "qyId": "5007163",
+        "qid": 5007163,
+        "offline": false,
+        "haveAudition": false,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 296024140,
+        "name": "Sincerely",
+        "albumId": 41133957,
+        "album": "Sincerely",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s3s11/81/4007785283.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s3s11/81/4007785283.webp",
+        "artist": "TRUE",
+        "artistId": 12198,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s38/8/219198833.webp",
+        "artists": [
+          {
+            "id": 12198,
+            "name": "TRUE",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s38/8/219198833.jpg"
+          }
+        ],
+        "duration": 275,
+        "releaseDate": "2018-01-31",
+        "isMv": 0,
+        "allArtistId": "12198",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "7.39Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "22.21Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "196.52Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "86.81Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "32.97Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "36.12Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "61.24Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "10.5Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.97Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "10.5Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "4.2Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.58Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "44995",
+          "refrain_end": "86195",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_9_4_0_466163099_1_11214446808459312302_1790819164#daily30:qmconcept#0:0:0#4:default:9:1@recall-unifybert:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#11214446808459312302#1:466163099:1:296024140:60,78,59:60#50303440:466163099:unifybert:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -10.0,
+          "peak": 0.0,
+          "lra": 6.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_296024140",
+        "songName": "Sincerely",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 14762,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": -1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-19 18:28:02",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "",
+        "qyId": "466163099",
+        "qid": 466163099,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 360569929,
+        "name": "雑踏、僕らの街",
+        "albumId": 50306447,
+        "album": "雑踏、僕らの街",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s30/83/1984603852.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s30/83/1984603852.webp",
+        "artist": "トゲナシトゲアリ",
+        "artistId": 12319565,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/32/23/3836991527.webp",
+        "artists": [
+          {
+            "id": 12319565,
+            "name": "トゲナシトゲアリ",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/32/23/3836991527.jpg"
+          }
+        ],
+        "duration": 184,
+        "releaseDate": "2024-04-06",
+        "isMv": 1,
+        "allArtistId": "12319565",
+        "mvPic": "https://img3.kuwo.cn/wmvpic/700/s4s37/39/861733991.jpg",
+        "vid": 17864327,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "4.95Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "15.52Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "137.78Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "58.46Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "22.63Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "23.17Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "22.52Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "4.03Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.09Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "7.03Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "2.81Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.06Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "47131",
+          "refrain_end": "84065",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 90,
+        "online": 1,
+        "vidIsshow": 0,
+        "src": "{'trace':'ai_day_1_1_224527158_481819484_2_13527294125114186536_1790819164#daily30:qmconcept#0:0:0#1:224527158:1:1@recall-gnn-v3.alias:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#13527294125114186536#1:481819484:2:360569929:7,78,59:7#50303440:481819484:actioni2i:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "224527158",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -12.0,
+          "peak": 0.0,
+          "lra": 4.0
+        },
+        "videoType": 7,
+        "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+        "musicRid": "MUSIC_360569929",
+        "songName": "雑踏、僕らの街",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 35,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-18 14:02:02",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "65_4",
+        "qyId": "481819484",
+        "qid": 481819484,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 288671142,
+        "name": "風のたより",
+        "albumId": 40012622,
+        "album": "風のたより",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s7/58/2464870577.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s7/58/2464870577.webp",
+        "artist": "tayori",
+        "artistId": 13989816,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s80/5/702400836.webp",
+        "artists": [
+          {
+            "id": 13989816,
+            "name": "tayori",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s80/5/702400836.jpg"
+          }
+        ],
+        "duration": 240,
+        "releaseDate": "2023-07-29",
+        "isMv": 0,
+        "allArtistId": "13989816",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "6.46Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "20.54Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "165.65Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "71.87Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "27.73Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "31.09Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "51.77Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "5.3Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "9.35Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.68Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "9.17Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.67Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.4Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "120865",
+          "refrain_end": "220283",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_1_1_224527158_423163666_3_6857615140216789317_1790819164#daily30:qmconcept#0:0:0#1:224527158:1:8@1:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#6857615140216789317#1:423163666:3:288671142:9,7,60,78,64,59:9#50303440:423163666:swingi2i:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "224527158",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -10.0,
+          "peak": 1.0,
+          "lra": 8.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_288671142",
+        "songName": "風のたより",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 3,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-21 14:04:22",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "",
+        "qyId": "423163666",
+        "qid": 423163666,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 94357939,
+        "name": "Don't say \"lazy\"",
+        "albumId": 13480420,
+        "album": "Don't say lazy",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s6/58/4151284287.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s6/58/4151284287.webp",
+        "artist": "桜高軽音部&豊崎愛生&日笠陽子&佐藤聡美&寿美菜子",
+        "artistId": 40343,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s59/52/1882226880.webp",
+        "artists": [
+          {
+            "id": 40343,
+            "name": "桜高軽音部",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s59/52/1882226880.jpg"
+          },
+          {
+            "id": 40298,
+            "name": "豊崎愛生",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s69/14/468906836.jpg"
+          },
+          {
+            "id": 20602,
+            "name": "日笠陽子",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/91/99/2777209565.jpg"
+          },
+          {
+            "id": 20580,
+            "name": "佐藤聡美",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/28/56/598289751.jpg"
+          },
+          {
+            "id": 20249,
+            "name": "寿美菜子",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s62/70/2468616567.jpg"
+          }
+        ],
+        "duration": 263,
+        "releaseDate": "2009-04-22",
+        "isMv": 0,
+        "allArtistId": "40343&40298&20602&20580&20249",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "7.09Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "22.23Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "203.61Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "90.68Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "36.16Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "33.89Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "36.58Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "6.34Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "11.21Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "3.02Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "10.07Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "4.03Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.52Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "75963",
+          "refrain_end": "97587",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_1_1_224527158_257955882_4_9932709461945829914_1790819164#daily30:qmconcept#0:0:0#1:224527158:1:1@recall-gnn-v3.alias:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#9932709461945829914#1:257955882:4:94357939:7,78,64,59:7#50303440:257955882:actioni2i:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "224527158",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -12.0,
+          "peak": 0.0,
+          "lra": 1.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_94357939",
+        "songName": "Don't say \"lazy\"",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 240,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 0,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-18 09:28:04",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "65_4",
+        "qyId": "257955882",
+        "qid": 257955882,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 263908255,
+        "name": "可愛くてごめん",
+        "albumId": 35798830,
+        "album": "ねぇ、好きって痛いよ。～告白実行委員会キャラクターソング集～",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s98/91/2101723019.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s98/91/2101723019.webp",
+        "artist": "HoneyWorks&早見沙織",
+        "artistId": 105315,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s90/31/4262369956.webp",
+        "artists": [
+          {
+            "id": 105315,
+            "name": "HoneyWorks",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s90/31/4262369956.png"
+          },
+          {
+            "id": 17118,
+            "name": "早見沙織",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s30/2/3652267080.png"
+          }
+        ],
+        "duration": 219,
+        "releaseDate": "2023-03-15",
+        "isMv": 0,
+        "allArtistId": "105315&17118",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "5.91Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "18.09Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "151.78Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "68.67Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "26.41Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "29.05Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "49.12Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "8.91Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.58Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "8.39Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.36Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.27Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "42471",
+          "refrain_end": "69578",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_9_4_0_398149706_5_10315245331394110195_1790819164#daily30:qmconcept#0:0:0#4:innerdssm:9:1@innerdssm:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#10315245331394110195#1:398149706:5:263908255:78:78#50303440:398149706:innerdssm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -9.0,
+          "peak": 0.0,
+          "lra": 3.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_263908255",
+        "songName": "可愛くてごめん",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 5,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-18 08:34:16",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "",
+        "qyId": "398149706",
+        "qid": 398149706,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 182538148,
+        "name": "あいつら全員同窓会",
+        "albumId": 21258475,
+        "album": "あいつら全員同窓会",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s85/17/836054741.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s85/17/836054741.webp",
+        "artist": "ずっと真夜中でいいのに。",
+        "artistId": 3100493,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s87/11/402272763.webp",
+        "artists": [
+          {
+            "id": 3100493,
+            "name": "ずっと真夜中でいいのに。",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s87/11/402272763.jpg"
+          }
+        ],
+        "duration": 254,
+        "releaseDate": "2021-06-18",
+        "isMv": 1,
+        "allArtistId": "3100493",
+        "mvPic": "https://img3.kuwo.cn/wmvpic/700/17/27/2065472441.jpg",
+        "vid": 13654209,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "6.84Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "22.71Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "186.01Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "81.29Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "31.37Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "34.06Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "32.45Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "5.84Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.82Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "9.71Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.88Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.48Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "49293",
+          "refrain_end": "79007",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 255,
+        "online": 1,
+        "vidIsshow": 0,
+        "src": "{'trace':'ai_day_1_1_224527158_314853546_6_6166323291273835186_1790819164#daily30:qmconcept#0:0:0#1:224527158:1:1@recall-gnn-v3.alias:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#6166323291273835186#1:314853546:6:182538148:7,60,78,64,59:7#50303440:314853546:actioni2i:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "224527158",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -10.0,
+          "peak": 0.0,
+          "lra": 4.0
+        },
+        "videoType": 7,
+        "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+        "musicRid": "MUSIC_182538148",
+        "songName": "あいつら全員同窓会",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 35,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-18 04:36:33",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "",
+        "qyId": "314853546",
+        "qid": 314853546,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 336132931,
+        "name": "若月亮没来 (若是月亮还没来)",
+        "albumId": 46586252,
+        "album": "若月亮没来 (若是月亮还没来)",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s28/84/2925331793.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s28/84/2925331793.webp",
+        "artist": "王宇宙Leto&乔浚丞",
+        "artistId": 8175239,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s65/69/2692146353.webp",
+        "artists": [
+          {
+            "id": 8175239,
+            "name": "王宇宙Leto",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s65/69/2692146353.jpg"
+          },
+          {
+            "id": 2549092,
+            "name": "乔浚丞",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s3s14/41/2774029432.jpg"
+          }
+        ],
+        "duration": 173,
+        "releaseDate": "2024-01-22",
+        "isMv": 1,
+        "allArtistId": "8175239&2549092",
+        "mvPic": "https://img3.kuwo.cn/wmvpic/700/s4s72/50/2932453942.jpg",
+        "vid": 17606247,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "4.67Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "13.8Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "107.71Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "44.81Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "17.21Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "21.71Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "34.0Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "3.49Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "1.81Mb"
+          },
+          {
+            "level": "ac4",
+            "bitrate": "11000",
+            "format": "mp4",
+            "size": "5.36Mb"
+          },
+          {
+            "level": "dd4",
+            "bitrate": "11500",
+            "format": "mp4",
+            "size": "9.35Mb"
+          },
+          {
+            "level": "dd6",
+            "bitrate": "11600",
+            "format": "mp4",
+            "size": "13.35Mb"
+          },
+          {
+            "level": "dd7",
+            "bitrate": "11700",
+            "format": "mp4",
+            "size": "16.03Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "6.63Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "2.65Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.01Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "111111111111",
+          "overseas_ndown": "111111111111",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "57043",
+          "refrain_end": "84013",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 173,
+        "online": 1,
+        "vidIsshow": 0,
+        "src": "{'trace':'ai_day_9_0_0_465608024_7_8178131081895083698_1790819164#daily30:qmconcept#0:0:0#0::9:0@:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#8178131081895083698#1:465608024:7:336132931:63:63#50303440:465608024:tdm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -5.0,
+          "peak": 0.0,
+          "lra": 4.0
+        },
+        "videoType": 7,
+        "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+        "musicRid": "MUSIC_336132931",
+        "songName": "若月亮没来 (若是月亮还没来)",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 3793,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 5,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-06-29 20:14:24",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "普通话",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "0",
+        "qyGenre": "98",
+        "qyId": "465608024",
+        "qid": 465608024,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 0,
+          "lrcx_roma": 0,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 489378320,
+        "name": "怪物",
+        "albumId": 17028192,
+        "album": "怪物",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/83/4/2988322061.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/83/4/2988322061.webp",
+        "artist": "YOASOBI",
+        "artistId": 4444256,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s0/88/2227585000.webp",
+        "artists": [
+          {
+            "id": 4444256,
+            "name": "YOASOBI",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s0/88/2227585000.jpg"
+          }
+        ],
+        "duration": 206,
+        "releaseDate": "2021-01-06",
+        "isMv": 0,
+        "allArtistId": "4444256",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "5.54Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "18.06Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "152.22Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "62.62Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "23.92Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "27.44Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "45.3Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "4.73Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "8.35Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.31Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "7.86Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.14Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.19Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "35677",
+          "refrain_end": "60426",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_9_4_0_289448163_8_12175439663052940161_1790819164#daily30:qmconcept#0:0:0#4:innerdssm:9:1@innerdssm:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#12175439663052940161#1:289448163:8:489378320:78,59:78#50303440:289448163:innerdssm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -9.0,
+          "peak": 0.0,
+          "lra": 6.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_489378320",
+        "songName": "怪物",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 5,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-19 17:28:35",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "65",
+        "qyId": "289448163",
+        "qid": 289448163,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 411541454,
+        "name": "「僕は...」",
+        "albumId": 57687669,
+        "album": "朝露は木漏れ日に溶けて",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s34/34/407821671.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s34/34/407821671.webp",
+        "artist": "あたらよ",
+        "artistId": 7178226,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s6/37/379664804.webp",
+        "artists": [
+          {
+            "id": 7178226,
+            "name": "あたらよ",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s6/37/379664804.jpg"
+          }
+        ],
+        "duration": 239,
+        "releaseDate": "2024-09-11",
+        "isMv": 0,
+        "allArtistId": "7178226",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "6.44Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "19.64Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "170.01Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "74.19Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "28.64Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "29.47Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "28.76Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "5.0Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.55Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "9.15Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.66Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.38Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "11111",
+          "overseas_ndown": "11111",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "59100",
+          "refrain_end": "84578",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_1_1_224527158_513046577_9_9838995272576483604_1790819164#daily30:qmconcept#0:0:0#1:224527158:1:1@bodian-159-new-content-pool.alias:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#9838995272576483604#1:513046577:9:411541454:81,55,10,7,78:81#50303440:513046577:shorttermi2i:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "224527158",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -11.0,
+          "peak": 1.0,
+          "lra": 3.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_411541454",
+        "songName": "「僕は...」",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 101433,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-19 18:10:20",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "",
+        "qyId": "513046577",
+        "qid": 513046577,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 156411013,
+        "name": "僕が死のうと思ったのは",
+        "albumId": 16601145,
+        "album": "WITH",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s71/49/762849203.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s71/49/762849203.webp",
+        "artist": "中島美嘉",
+        "artistId": 1260,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s87/76/2033271898.webp",
+        "artists": [
+          {
+            "id": 1260,
+            "name": "中島美嘉",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s87/76/2033271898.jpg"
+          }
+        ],
+        "duration": 382,
+        "releaseDate": "2020-12-02",
+        "isMv": 0,
+        "allArtistId": "1260",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "10.29Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "29.05Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "243.06Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "101.1Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "39.65Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "48.18Mb"
+          },
+          {
+            "level": "hr",
+            "bitrate": "4000",
+            "format": "flac",
+            "size": "137.3Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "77.42Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "8.12Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "13.89Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "4.12Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "14.61Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "5.84Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "2.21Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "98655",
+          "refrain_end": "121178",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_9_4_0_284627214_10_6459257087575633465_1790819164#daily30:qmconcept#0:0:0#4:innerdssm:9:1@innerdssm:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#6459257087575633465#1:284627214:10:156411013:78,22:78#50303440:284627214:innerdssm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -8.0,
+          "peak": 0.0,
+          "lra": 10.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_156411013",
+        "songName": "僕が死のうと思ったのは",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 5,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 1,
+        "isbatch": 1,
+        "lrcUpdateTime": "2025-07-01 13:09:11",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "98",
+        "qyId": "284627214",
+        "qid": 284627214,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 9327382,
+        "name": "なんでもないや （ 没什么大不了） (Movie ver.)",
+        "albumId": 1271470,
+        "album": "君の名は。",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s50/90/2227912404.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s50/90/2227912404.webp",
+        "artist": "RADWIMPS",
+        "artistId": 12033,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s82/65/1265923134.webp",
+        "artists": [
+          {
+            "id": 12033,
+            "name": "RADWIMPS",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s82/65/1265923134.jpg"
+          }
+        ],
+        "duration": 341,
+        "releaseDate": "2016-08-24",
+        "isMv": 1,
+        "allArtistId": "12033",
+        "mvPic": "https://img3.kuwo.cn/wmvpic/700/6/23/3155169357.jpg",
+        "vid": 14251154,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "9.19Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "26.0Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "208.42Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "86.64Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "34.08Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "41.7Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "66.58Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "6.92Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "12.08Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "3.53Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "13.05Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "5.22Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.98Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "0",
+          "overseas_ndown": "0",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "83211",
+          "refrain_end": "104778",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 107,
+        "online": 1,
+        "vidIsshow": 0,
+        "src": "{'trace':'ai_day_9_4_0_107762031_11_11549632123796825366_1790819164#daily30:qmconcept#0:0:0#4:innerdssm:9:1@innerdssm:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#11549632123796825366#1:107762031:11:9327382:78:78#50303440:107762031:innerdssm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -8.0,
+          "peak": 0.0,
+          "lra": 9.0
+        },
+        "videoType": 7,
+        "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L",
+        "musicRid": "MUSIC_9327382",
+        "songName": "なんでもないや （ 没什么大不了） (Movie ver.)",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 89353,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 3,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-17 23:47:27",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "65_64",
+        "qyId": "107762031",
+        "qid": 107762031,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 82198948,
+        "name": "君が好きだと叫びたい",
+        "albumId": 11565479,
+        "album": "BAAD",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s7/24/1167898269.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s7/24/1167898269.webp",
+        "artist": "BAAD",
+        "artistId": 4846,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s85/0/2568279310.webp",
+        "artists": [
+          {
+            "id": 4846,
+            "name": "BAAD",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s85/0/2568279310.png"
+          }
+        ],
+        "duration": 230,
+        "releaseDate": "1994-02-23",
+        "isMv": 0,
+        "allArtistId": "4846",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "6.19Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "17.44Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "154.74Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "65.26Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "25.85Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "28.97Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "26.75Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "5.13Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "8.74Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.63Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "8.78Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.51Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.33Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "11111",
+          "overseas_ndown": "11111",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "64613",
+          "refrain_end": "92918",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_3_4_0_245591860_12_17693116084145062175_1790819164#daily30:qmconcept#0:0:0#4:default:3:3@638:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#17693116084145062175#1:245591860:12:82198948:37:37#50303440:245591860:hotpool:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -6.0,
+          "peak": 1.0,
+          "lra": 3.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_82198948",
+        "songName": "君が好きだと叫びたい",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 468,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 0,
+        "isbatch": 1,
+        "lrcUpdateTime": "2025-07-24 16:08:44",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "4",
+        "qyId": "245591860",
+        "qid": 245591860,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 40546680,
+        "name": "summertime",
+        "albumId": 5390948,
+        "album": "summertime",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/83/71/50885404.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/83/71/50885404.webp",
+        "artist": "cinnamons&evening cinema",
+        "artistId": 2511644,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s35/48/3236132762.webp",
+        "artists": [
+          {
+            "id": 2511644,
+            "name": "cinnamons",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s35/48/3236132762.jpg"
+          },
+          {
+            "id": 3622870,
+            "name": "evening cinema",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s87/1/374214860.jpg"
+          }
+        ],
+        "duration": 251,
+        "releaseDate": "2017-08-07",
+        "isMv": 0,
+        "allArtistId": "2511644&3622870",
+        "mvPic": "https://img3.kuwo.cn/wmvpic/700/20/80/3617341918.jpg",
+        "vid": 13062914,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "6.77Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "20.06Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "166.54Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "73.55Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "28.26Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "32.58Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "29.07Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "5.81Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "9.78Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.86Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "9.61Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.84Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.47Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "0",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1100",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "11111",
+          "overseas_ndown": "11111",
+          "nplay": "001111111111",
+          "ndown": "111111111111",
+          "paytype": 2,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "73573",
+          "refrain_end": "102073",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 251,
+        "online": 1,
+        "vidIsshow": 0,
+        "src": "{'trace':'ai_day_9_4_0_212903141_13_11346124343819435697_1790819164#daily30:qmconcept#0:0:0#4:innerdssm:9:1@innerdssm:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#11346124343819435697#1:212903141:13:40546680:78,64,59:78#50303440:212903141:innerdssm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -8.0,
+          "peak": 0.0,
+          "lra": 4.0
+        },
+        "videoType": 7,
+        "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+        "musicRid": "MUSIC_40546680",
+        "songName": "summertime",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 6208380,
+        "terminalOnline": "",
+        "tpay": 0,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 3,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-18 01:17:29",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "98",
+        "qyId": "212903141",
+        "qid": 212903141,
+        "offline": false,
+        "haveAudition": false,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      {
+        "id": 326077543,
+        "name": "sweets parade",
+        "albumId": 534116,
+        "album": "妖狐×僕SS ENDING SONG Vol.3",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/s4s97/58/1843703085.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/s4s97/58/1843703085.webp",
+        "artist": "花澤香菜",
+        "artistId": 10176,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s80/11/110434059.webp",
+        "artists": [
+          {
+            "id": 10176,
+            "name": "花澤香菜",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s80/11/110434059.jpg"
+          }
+        ],
+        "duration": 239,
+        "releaseDate": "2012-07-25",
+        "isMv": 0,
+        "allArtistId": "10176",
+        "mvPic": "",
+        "vid": 0,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "6.43Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "21.57Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "158.52Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "68.16Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "26.26Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "32.49Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "26.76Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.73Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "9.14Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.66Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.37Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "0",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "0",
+          "play": "1000",
+          "download": "1000",
+          "down": "1000",
+          "overseas_nplay": "11111",
+          "overseas_ndown": "11111",
+          "nplay": "000111111111",
+          "ndown": "000111111111",
+          "paytype": 0,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "0",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "63538",
+          "refrain_end": "85121",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 0,
+        "online": 1,
+        "vidIsshow": 1,
+        "src": "{'trace':'ai_day_9_4_0_335470602_14_4625957250852301347_1790819164#daily30:qmconcept#0:0:0#4:innerdssm:9:1@innerdssm:0_0_0_0_0_0_-1_-1_0_-1_0_0_0.0000_-1_0_-1_0_-1_0_-1:0_-1_-1_0_-1_0_-1#4625957250852301347#1:335470602:14:326077543:78:78#50303440:335470602:innerdssm:4:4:0:0:2:2:3:0:0:50303440:0:0:4:4:0##discoverySong:discoverySong#info:1:-1:0:0:0:0:32:0.000000:0:0','abt':'1869_10242,263_0,1630_8695,1421_6837,386_0,601_0,634_0,363_0,523_0,1629_8979,459_0,584_0,573_0,582_0,1831_10156,439_0,1842_9991,1818_10204,460_0,517_0,518_0,1864_10145,411_0,445_0,433_0,511_0,641_0,391_0,438_0,564_0,481_0,410_0,510_0,342_0,1817_9813,413_0,496_0,468_0,1865_10218,609_0,354_0,371_0,643_0,476_0,345_0,1782_9507,1402_6732,329_0,1391_6018,3591_0','source':'QQ_CONCEPT'}",
+        "srcid": "0",
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -7.0,
+          "peak": 1.0,
+          "lra": 4.0
+        },
+        "videoType": 0,
+        "videoFmtCodes": "",
+        "musicRid": "MUSIC_326077543",
+        "songName": "sweets parade",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 101433,
+        "terminalOnline": "",
+        "tpay": 0,
+        "preOnline": false,
+        "kw_cp": 0,
+        "data_source": 8,
+        "isbatch": 0,
+        "lrcUpdateTime": "2025-07-01 11:48:19",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "日语",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "qyLanguage": "3",
+        "qyGenre": "",
+        "qyId": "335470602",
+        "qid": 335470602,
+        "offline": false,
+        "haveAudition": false,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 0,
+          "lrc_roma": 1,
+          "lrcx_roma": 1,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      }
+    ]
+  },
+  "profileId": "site",
+  "curTime": 1790819165344
+}

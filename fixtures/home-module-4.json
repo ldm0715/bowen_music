@@ -1,0 +1,270 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "deae583e1f078c7cbe7191d1b5d9fb0b",
+  "data": {
+    "moduleName": "波点实验室",
+    "type": 6,
+    "lab": {
+      "calendar": {
+        "id": 681,
+        "title": "假期做一只大懒猫吧~",
+        "pic": "https://h5s.kuwo.cn/upload/pictures/20260928/fec431d267a7b46c1fc0fa217664a2e1.jpg",
+        "tag": "耳虫热单",
+        "sourceType": 2,
+        "source": "551406014",
+        "status": 1,
+        "type": 1,
+        "createTime": "2026-09-28 16:44:37",
+        "updateTime": "2026-09-28 16:44:37",
+        "showDate": "2026-10-01"
+      },
+      "schemaJump": {
+        "sourceType": 43,
+        "source": "bodian.kuwo.cn://play?openWeiXin=1&username=gh_1e2d137413a4&path=/pages/index/index&source=discover"
+      },
+      "music": {
+        "id": 199422508,
+        "name": "朋友别哭 (Live)",
+        "albumId": 24357996,
+        "album": "中国梦之声·我们的歌第三季 第9期",
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/800/80/76/3489680417.webp",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/240/80/76/3489680417.webp",
+        "artist": "吕方&翟潇闻",
+        "artistId": 1128,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/800/s4s96/64/958789943.webp",
+        "artists": [
+          {
+            "id": 1128,
+            "name": "吕方",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/s4s96/64/958789943.jpg"
+          },
+          {
+            "id": 2723128,
+            "name": "翟潇闻",
+            "pic": "https://img4.kuwo.cn/star/starheads/120/72/72/2305162154.jpg"
+          }
+        ],
+        "duration": 228,
+        "releaseDate": "2021-11-14",
+        "resource": {
+          "id": 771632,
+          "authorId": 774279,
+          "author": {
+            "id": 774279,
+            "name": "^十月",
+            "icon": "https://thirdqq.qlogo.cn/g?b=oidb&k=go4Uic5U7tow9wLEH7aggQQ&s=100&t=1605053823",
+            "isVip": 2
+          },
+          "type": 1,
+          "fileUrl": "https://bodiancdn.kuwo.cn/files/lg_Bj7rfjaCld6Htx6GYQv__T2TC.mp4",
+          "coverUrl": "https://bodiancdn.kuwo.cn/files/lg_Bj7rfjaCld6Htx6GYQv__T2TC.mp4?vframe/jpg/offset/0",
+          "shareGifUrl": "https://bodianimgcdn.kuwo.cn/lg_Bj7rfjaCld6Htx6GYQv__T2TC.gif",
+          "width": 1080,
+          "height": 1920,
+          "description": "好听",
+          "praise": 20,
+          "views": 233917,
+          "checkStatus": 2,
+          "isPrivate": 0,
+          "isPraise": 0,
+          "isUserDefault": 0,
+          "isBest": 0,
+          "level": 5,
+          "source": 2,
+          "musicId": 199422508
+        },
+        "isMv": 1,
+        "allArtistId": "1128&2723128",
+        "mvPic": "https://img3.kuwo.cn/wmvpic/700/50/78/3407858031.jpg",
+        "vid": 11624166,
+        "audios": [
+          {
+            "level": "dtsx",
+            "bitrate": "25000",
+            "format": "mmp4",
+            "size": "6.14Mb"
+          },
+          {
+            "level": "bcms",
+            "bitrate": "22000",
+            "format": "mgg",
+            "size": "16.53Mb"
+          },
+          {
+            "level": "zply",
+            "bitrate": "20900",
+            "format": "mflac",
+            "size": "134.43Mb"
+          },
+          {
+            "level": "zpga501",
+            "bitrate": "20501",
+            "format": "mflac",
+            "size": "55.61Mb"
+          },
+          {
+            "level": "zpga201",
+            "bitrate": "20201",
+            "format": "mflac",
+            "size": "21.74Mb"
+          },
+          {
+            "level": "zpga714",
+            "bitrate": "24000",
+            "format": "mgg",
+            "size": "26.78Mb"
+          },
+          {
+            "level": "ff",
+            "bitrate": "2000",
+            "format": "flac",
+            "size": "43.76Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "192",
+            "format": "ogg",
+            "size": "4.65Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "300",
+            "format": "ogg",
+            "size": "8.06Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "100",
+            "format": "ogg",
+            "size": "2.4Mb"
+          },
+          {
+            "level": "p",
+            "bitrate": "320",
+            "format": "mp3",
+            "size": "8.71Mb"
+          },
+          {
+            "level": "h",
+            "bitrate": "128",
+            "format": "mp3",
+            "size": "3.49Mb"
+          },
+          {
+            "level": "s",
+            "bitrate": "48",
+            "format": "aac",
+            "size": "1.32Mb"
+          },
+          {
+            "level": "zp",
+            "bitrate": "20000",
+            "format": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "payInfo": {
+          "cannotDownload": 0,
+          "listen_fragment": "1",
+          "tips_intercept": "0",
+          "extendAttr": 0,
+          "local_encrypt": "1",
+          "play": "1111",
+          "download": "1111",
+          "down": "1111",
+          "overseas_nplay": "11111",
+          "overseas_ndown": "11111",
+          "nplay": "111111111111",
+          "ndown": "111111111111",
+          "paytype": 3,
+          "paytagindex": {
+            "L": 0,
+            "H": 1,
+            "S": 2,
+            "F": 3,
+            "HR": 4,
+            "DB": 7,
+            "ZP": 6,
+            "AR501": 8,
+            "ZPGA201": 9,
+            "ZPGA501": 10,
+            "ZPLY": 11
+          },
+          "feeType": {
+            "vip": "1",
+            "song": "1",
+            "album": "0",
+            "bookvip": "0",
+            "bodianAlbum": "0"
+          },
+          "refrain_start": "70319",
+          "refrain_end": "96525",
+          "cannotOnlinePlay": 0,
+          "limitfree": "0"
+        },
+        "mvduration": 230,
+        "online": 1,
+        "vidIsshow": 0,
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -5.0,
+          "peak": 0.0,
+          "lra": 13.0
+        },
+        "videoType": 7,
+        "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+        "musicRid": "MUSIC_199422508",
+        "songName": "朋友别哭 (Live)",
+        "isOriginal": 0,
+        "isNew": 0,
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "isPay": 0,
+        "cpId": 5439,
+        "terminalOnline": "",
+        "tpay": 1,
+        "preOnline": false,
+        "kw_cp": 1,
+        "data_source": 2,
+        "isbatch": 1,
+        "lrcUpdateTime": "2026-08-28 08:28:56",
+        "hasKnowledge": false,
+        "isRedSong": 0,
+        "language": "普通话",
+        "bak3": 0,
+        "showButton": 1,
+        "showAd": 1,
+        "offline": false,
+        "haveAudition": true,
+        "lrc_info": {
+          "lrc": 1,
+          "lrcx": 1,
+          "lrcs": 1,
+          "lrc_roma": 0,
+          "lrcx_roma": 0,
+          "lrc_homophone": 0,
+          "lrcx_homophone": 0,
+          "lrc_kana": 0,
+          "lrcx_kana": 0
+        }
+      },
+      "albumStore": {
+        "sourceType": 5,
+        "source": "https://h5app.kuwo.cn/m/bd_digitaltalbum_shop/index.html"
+      },
+      "putao": {
+        "sourceType": 5,
+        "id": 926,
+        "pic": "https://bodianimgcdn.kuwo.cn/images/b215d4f78d7d255a7dd177868f70a915.jpg",
+        "source": "https://i2.y.qq.com/n3/cm/pages/putao/home/index.html?ADTAG=bodianlab&_hidehd=1&_miniplayer=1"
+      },
+      "earning": {
+        "sourceType": 5,
+        "source": "https://h5app.kuwo.cn/app/web/earning-sign-bd/index.html"
+      }
+    }
+  },
+  "profileId": "site",
+  "curTime": 1790819162286
+}

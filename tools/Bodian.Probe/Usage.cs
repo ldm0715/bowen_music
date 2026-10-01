@@ -40,6 +40,9 @@ internal static class Usage
               --ver <版本>               覆盖 ver 请求头（默认 1.1.7）。
                                          ≤3.0.0 服务端不校验签名，≥3.5 强制校验并返回 439
               --force-sign <hex>         用指定的 sign 发送，绕过本地计算（签名调试用）
+              --plat <值>                覆盖 plat 请求头（默认 win）。移动端专属端点要传 android
+              --mobile-sign              用移动端签名（签整条 URL）而不是桌面签名。
+                                         与 --signed 同用；见 reverse/findings/03-sign-mobile.md
               --proxy <url>              代理，如 http://127.0.0.1:7890
               --verbose                  在 stderr 打印实际请求 URL 与 body
               -h, --help                 本帮助

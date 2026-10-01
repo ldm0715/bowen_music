@@ -979,9 +979,10 @@ internal static class Commands
         bool post,
         bool save,
         string? name,
-        string? forceSign = null)
+        string? forceSign = null,
+        bool mobileSign = false)
     {
-        var response = await client.SendAsync(path, query, body, signed, post: post, overrideSign: forceSign);
+        var response = await client.SendAsync(path, query, body, signed, post: post, overrideSign: forceSign, mobileSign: mobileSign);
         Console.WriteLine(response.Describe());
         SaveIfRequested(save, name ?? "call-" + path.Replace('/', '-'), response);
 

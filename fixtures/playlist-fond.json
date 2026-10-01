@@ -1,0 +1,24 @@
+{
+  "code": 200,
+  "msg": "",
+  "reqId": "<redacted>",
+  "data": {
+    "id": 99980832,
+    "pic": "https://img4.kuwo.cn/star/albumcover/800/s4s25/47/1952109617.webp",
+    "isPrivate": 0,
+    "name": "我喜欢的音乐",
+    "musicCount": 5,
+    "sourceType": 5,
+    "type": 4,
+    "subType": 0,
+    "description": "",
+    "creatorDescription": "",
+    "creatorIcon": "",
+    "creatorId": 0,
+    "creatorName": "",
+    "createTime": "2026-09-06 12:56:40",
+    "initialSongId": 0,
+    "isRecommendStream": false,
+    "playPos": 1
+  }
+}

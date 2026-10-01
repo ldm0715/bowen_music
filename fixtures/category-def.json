@@ -1,0 +1,66 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "71d54c8bced946bf66ba4c971f2ace82",
+  "data": {
+    "total": 9,
+    "categories": [
+      {
+        "name": "流行",
+        "icon": "http://img4.kwcdn.kuwo.cn/star/upload/11/11/1507866722059_.png",
+        "id": 88,
+        "sort": 1
+      },
+      {
+        "name": "网红",
+        "icon": "http://img3.kwcdn.kuwo.cn/star/upload/7/7/1517380562103_.png",
+        "id": 77,
+        "sort": 1
+      },
+      {
+        "name": "古风",
+        "icon": "http://img4.kwcdn.kuwo.cn/star/upload/11/11/1517380562443_.png",
+        "id": 79,
+        "sort": 3
+      },
+      {
+        "name": "游戏",
+        "icon": "http://img3.kwcdn.kuwo.cn/star/upload/9/9/1517380562105_.png",
+        "id": 81,
+        "sort": 5
+      },
+      {
+        "name": "影视",
+        "icon": "http://img3.kwcdn.kuwo.cn/star/upload/7/7/1517380562103_.png",
+        "id": 80,
+        "sort": 4
+      },
+      {
+        "name": "摇滚",
+        "icon": "http://img2.kwcdn.kuwo.cn/star/upload/11/11/1507866778379_.png",
+        "id": 89,
+        "sort": 2
+      },
+      {
+        "name": "嘻哈",
+        "icon": "http://img4.kwcdn.kuwo.cn/star/upload/8/8/1517468234136_.png",
+        "id": 91,
+        "sort": 4
+      },
+      {
+        "name": "民谣",
+        "icon": "http://img1.kwcdn.kuwo.cn/star/upload/11/11/1507866837499_.png",
+        "id": 90,
+        "sort": 3
+      },
+      {
+        "name": "欧美",
+        "icon": "http://img2.kwcdn.kuwo.cn/star/upload/9/9/1507866499465_.png",
+        "id": 97,
+        "sort": 1
+      }
+    ]
+  },
+  "profileId": "site",
+  "curTime": 1790822291594
+}

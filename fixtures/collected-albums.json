@@ -1,0 +1,46 @@
+{
+  "code": 200,
+  "msg": "",
+  "reqId": "<redacted>",
+  "data": {
+    "total": 2,
+    "playLists": [
+      {
+        "id": 62694324,
+        "name": "仙剑奇侠传三电视剧原声带",
+        "pic": "https://img4.kuwo.cn/star/albumcover/800/s4s22/69/2426315762.webp",
+        "musicCount": 12,
+        "sourceType": 6,
+        "type": 1,
+        "subType": 0,
+        "isPrivate": 0,
+        "description": "",
+        "creatorName": "麦振鸿",
+        "creatorId": 0,
+        "creatorIcon": "",
+        "createTime": "",
+        "initialSongId": 0,
+        "isRecommendStream": false,
+        "playPos": 0
+      },
+      {
+        "id": 2233,
+        "name": "十一月的萧邦",
+        "pic": "https://img4.kuwo.cn/star/albumcover/800/s4s22/69/2426315762.webp",
+        "musicCount": 12,
+        "sourceType": 6,
+        "type": 1,
+        "subType": 0,
+        "isPrivate": 0,
+        "description": "",
+        "creatorName": "周杰伦",
+        "creatorId": 0,
+        "creatorIcon": "",
+        "createTime": "",
+        "initialSongId": 0,
+        "isRecommendStream": false,
+        "playPos": 0
+      }
+    ]
+  }
+}

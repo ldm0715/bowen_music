@@ -1,0 +1,30 @@
+{
+  "code": 200,
+  "msg": "",
+  "reqId": "<redacted>",
+  "data": {
+    "size": 2,
+    "albumList": [
+      {
+        "albumId": 1293,
+        "name": "叶惠美",
+        "pic": "https://img4.kuwo.cn/star/albumcover/700/s3s94/93/211513640.jpg",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "showtime": "2003-07-31",
+        "buyTotal": 1,
+        "musicCount": 11
+      },
+      {
+        "albumId": 1294,
+        "name": "范特西",
+        "pic": "https://img4.kuwo.cn/star/albumcover/700/s3s94/93/211513640.jpg",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "showtime": "2001-09-14",
+        "buyTotal": 1,
+        "musicCount": 10
+      }
+    ]
+  }
+}

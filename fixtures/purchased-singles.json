@@ -1,0 +1,382 @@
+{
+  "code": 200,
+  "msg": "",
+  "reqId": "<redacted>",
+  "data": {
+    "size": 3,
+    "musicList": [
+      {
+        "album": "叶惠美",
+        "albumId": 1293,
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s3s94/93/211513640.jpg",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s3s94/93/211513640.jpg",
+        "allArtistId": "336",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+        "artists": [
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+          }
+        ],
+        "audios": [
+          {
+            "bitrate": "22000",
+            "format": "mgg",
+            "level": "bcms",
+            "size": "22.11Mb"
+          },
+          {
+            "bitrate": "20900",
+            "format": "mflac",
+            "level": "zply",
+            "size": "178.32Mb"
+          },
+          {
+            "bitrate": "20501",
+            "format": "mflac",
+            "level": "zpga501",
+            "size": "76.71Mb"
+          },
+          {
+            "bitrate": "20201",
+            "format": "mflac",
+            "level": "zpga201",
+            "size": "29.72Mb"
+          },
+          {
+            "bitrate": "24000",
+            "format": "mgg",
+            "level": "zpga714",
+            "size": "34.94Mb"
+          },
+          {
+            "bitrate": "2000",
+            "format": "flac",
+            "level": "ff",
+            "size": "52.83Mb"
+          },
+          {
+            "bitrate": "192",
+            "format": "ogg",
+            "level": "p",
+            "size": "5.59Mb"
+          },
+          {
+            "bitrate": "300",
+            "format": "ogg",
+            "level": "p",
+            "size": "9.85Mb"
+          },
+          {
+            "bitrate": "100",
+            "format": "ogg",
+            "level": "h",
+            "size": "2.79Mb"
+          },
+          {
+            "bitrate": "320",
+            "format": "mp3",
+            "level": "p",
+            "size": "10.29Mb"
+          },
+          {
+            "bitrate": "128",
+            "format": "mp3",
+            "level": "h",
+            "size": "4.12Mb"
+          },
+          {
+            "bitrate": "48",
+            "format": "aac",
+            "level": "s",
+            "size": "1.57Mb"
+          },
+          {
+            "bitrate": "20000",
+            "format": "zp",
+            "level": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "duration": 269,
+        "id": 228908,
+        "isMv": 0,
+        "isNew": 0,
+        "isOriginal": 1,
+        "isRedSong": 0,
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -7.60297,
+          "lra": 3.71173,
+          "peak": 0.946442
+        },
+        "musicRid": "MUSIC_228908",
+        "mvduration": 317,
+        "name": "晴天",
+        "online": 1,
+        "preOnline": false,
+        "releaseDate": "2003-07-31",
+        "showAd": 1,
+        "showButton": 1,
+        "songName": "晴天",
+        "vid": 8132306,
+        "vidIsshow": 0,
+        "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+        "videoType": 7
+      },
+      {
+        "album": "我很忙",
+        "albumId": 12449,
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/700/7/83/4087363627.jpg",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/7/83/4087363627.jpg",
+        "allArtistId": "336",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+        "artists": [
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+          }
+        ],
+        "audios": [
+          {
+            "bitrate": "25000",
+            "format": "mmp4",
+            "level": "dtsx",
+            "size": "6.43Mb"
+          },
+          {
+            "bitrate": "22000",
+            "format": "mgg",
+            "level": "bcms",
+            "size": "19.17Mb"
+          },
+          {
+            "bitrate": "20900",
+            "format": "mflac",
+            "level": "zply",
+            "size": "149.21Mb"
+          },
+          {
+            "bitrate": "20501",
+            "format": "mflac",
+            "level": "zpga501",
+            "size": "63.29Mb"
+          },
+          {
+            "bitrate": "20201",
+            "format": "mflac",
+            "level": "zpga201",
+            "size": "24.79Mb"
+          },
+          {
+            "bitrate": "24000",
+            "format": "mgg",
+            "level": "zpga714",
+            "size": "30.69Mb"
+          },
+          {
+            "bitrate": "2000",
+            "format": "flac",
+            "level": "ff",
+            "size": "24.96Mb"
+          },
+          {
+            "bitrate": "192",
+            "format": "ogg",
+            "level": "p",
+            "size": "5.16Mb"
+          },
+          {
+            "bitrate": "100",
+            "format": "ogg",
+            "level": "h",
+            "size": "2.58Mb"
+          },
+          {
+            "bitrate": "320",
+            "format": "mp3",
+            "level": "p",
+            "size": "9.13Mb"
+          },
+          {
+            "bitrate": "128",
+            "format": "mp3",
+            "level": "h",
+            "size": "3.65Mb"
+          },
+          {
+            "bitrate": "48",
+            "format": "aac",
+            "level": "s",
+            "size": "1.38Mb"
+          },
+          {
+            "bitrate": "20000",
+            "format": "zp",
+            "level": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "duration": 239,
+        "id": 324244,
+        "isMv": 0,
+        "isNew": 0,
+        "isOriginal": 1,
+        "isRedSong": 0,
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -7.07008,
+          "lra": 5.40667,
+          "peak": 1
+        },
+        "musicRid": "MUSIC_324244",
+        "mvduration": 243,
+        "name": "青花瓷",
+        "online": 1,
+        "preOnline": false,
+        "releaseDate": "2007-11-02",
+        "showAd": 1,
+        "showButton": 1,
+        "songName": "青花瓷",
+        "vid": 8116560,
+        "vidIsshow": 0,
+        "videoFmtCodes": "MP4|MP4L|MV500|MV700|EXMP4|EXMP4L|EXMV500|EXMV700",
+        "videoType": 7
+      },
+      {
+        "album": "十一月的萧邦",
+        "albumId": 14466,
+        "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s11/89/774616642.jpg",
+        "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s11/89/774616642.jpg",
+        "allArtistId": "336",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+        "artists": [
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+          }
+        ],
+        "audios": [
+          {
+            "bitrate": "25000",
+            "format": "mmp4",
+            "level": "dtsx",
+            "size": "6.09Mb"
+          },
+          {
+            "bitrate": "22000",
+            "format": "mgg",
+            "level": "bcms",
+            "size": "19.4Mb"
+          },
+          {
+            "bitrate": "20900",
+            "format": "mflac",
+            "level": "zply",
+            "size": "148.41Mb"
+          },
+          {
+            "bitrate": "20501",
+            "format": "mflac",
+            "level": "zpga501",
+            "size": "63.43Mb"
+          },
+          {
+            "bitrate": "20201",
+            "format": "mflac",
+            "level": "zpga201",
+            "size": "24.89Mb"
+          },
+          {
+            "bitrate": "24000",
+            "format": "mgg",
+            "level": "zpga714",
+            "size": "29.64Mb"
+          },
+          {
+            "bitrate": "2000",
+            "format": "flac",
+            "level": "ff",
+            "size": "25.45Mb"
+          },
+          {
+            "bitrate": "192",
+            "format": "ogg",
+            "level": "p",
+            "size": "5.34Mb"
+          },
+          {
+            "bitrate": "100",
+            "format": "ogg",
+            "level": "h",
+            "size": "2.7Mb"
+          },
+          {
+            "bitrate": "320",
+            "format": "mp3",
+            "level": "p",
+            "size": "8.66Mb"
+          },
+          {
+            "bitrate": "128",
+            "format": "mp3",
+            "level": "h",
+            "size": "3.46Mb"
+          },
+          {
+            "bitrate": "48",
+            "format": "aac",
+            "level": "s",
+            "size": "1.32Mb"
+          },
+          {
+            "bitrate": "20000",
+            "format": "zp",
+            "level": "zp",
+            "size": "zpMb"
+          }
+        ],
+        "bodianPayAlbum": 0,
+        "bodianPayAlbumOffline": 0,
+        "duration": 226,
+        "id": 118980,
+        "isMv": 0,
+        "isNew": 0,
+        "isOriginal": 1,
+        "isRedSong": 0,
+        "isShowType": 0,
+        "mediaBasicInfo": {
+          "gain": -9.99575,
+          "lra": 2.96845,
+          "peak": 1
+        },
+        "musicRid": "MUSIC_118980",
+        "mvduration": 231,
+        "name": "夜曲",
+        "online": 1,
+        "preOnline": false,
+        "releaseDate": "2005-11-01",
+        "showAd": 1,
+        "showButton": 1,
+        "songName": "夜曲",
+        "vid": 8164146,
+        "vidIsshow": 0,
+        "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+        "videoType": 7
+      }
+    ]
+  }
+}

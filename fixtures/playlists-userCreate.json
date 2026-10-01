@@ -1,0 +1,67 @@
+{
+  "code": 200,
+  "msg": "",
+  "reqId": "<redacted>",
+  "data": {
+    "total": 3,
+    "playLists": [
+      {
+        "id": 97634652,
+        "pic": "https://img4.kuwo.cn/star/albumcover/800/s4s25/47/1952109617.webp",
+        "isPrivate": 0,
+        "name": "示例歌单 A",
+        "musicCount": 11,
+        "sourceType": 5,
+        "type": 0,
+        "subType": 0,
+        "description": "",
+        "creatorDescription": "",
+        "creatorIcon": "",
+        "creatorId": 0,
+        "creatorName": "",
+        "createTime": "2026-09-06 12:56:40",
+        "initialSongId": 0,
+        "isRecommendStream": false,
+        "playPos": 5
+      },
+      {
+        "id": 97634653,
+        "pic": "https://img4.kuwo.cn/star/albumcover/800/s4s25/47/1952109617.webp",
+        "isPrivate": 0,
+        "name": "示例歌单 B",
+        "musicCount": 3,
+        "sourceType": 5,
+        "type": 0,
+        "subType": 0,
+        "description": "",
+        "creatorDescription": "",
+        "creatorIcon": "",
+        "creatorId": 0,
+        "creatorName": "",
+        "createTime": "2026-09-06 12:56:40",
+        "initialSongId": 0,
+        "isRecommendStream": false,
+        "playPos": 2
+      },
+      {
+        "id": 97634654,
+        "pic": "https://img4.kuwo.cn/star/albumcover/800/s4s25/47/1952109617.webp",
+        "isPrivate": 0,
+        "name": "示例歌单 C",
+        "musicCount": 0,
+        "sourceType": 5,
+        "type": 0,
+        "subType": 0,
+        "description": "",
+        "creatorDescription": "",
+        "creatorIcon": "",
+        "creatorId": 0,
+        "creatorName": "",
+        "createTime": "2026-09-06 12:56:40",
+        "initialSongId": 0,
+        "isRecommendStream": false,
+        "playPos": 1
+      }
+    ]
+  }
+}

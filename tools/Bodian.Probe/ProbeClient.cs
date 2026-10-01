@@ -64,6 +64,15 @@ internal sealed class ProbeClient : IDisposable
 
     public bool Verbose { get; set; }
 
+    /// <summary>
+    /// <c>plat</c> 请求头。默认 <c>win</c>（桌面协议）。
+    /// </summary>
+    /// <remarks>
+    /// 有些端点是移动端专属的（如 <c>play/music/library/*</c>），
+    /// 用桌面头打过去服务端会回 500 <c>Service error</c>。要试这些端点就换成 <c>android</c>。
+    /// </remarks>
+    public string Plat { get; set; } = "win";
+
     public ProbeClient(string? proxy, bool verbose = false)
     {
         Verbose = verbose;
@@ -93,7 +102,8 @@ internal sealed class ProbeClient : IDisposable
         PathForm pathForm = PathForm.Bare,
         bool post = false,
         string? overrideSign = null,
-        long? fixedTimestamp = null)
+        long? fixedTimestamp = null,
+        bool mobileSign = false)
     {
         var pairs = new List<KeyValuePair<string, string>>(query ?? [])
         {
@@ -107,17 +117,31 @@ internal sealed class ProbeClient : IDisposable
         {
             var stamp = fixedTimestamp ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             pairs.Add(new KeyValuePair<string, string>("timestamp", stamp.ToString()));
-            pairs.Add(new KeyValuePair<string, string>("sign", ""));
 
-            var seedPairs = signKeyForm == SignKeyForm.Included
-                ? pairs
-                : pairs.Where(p => p.Key != "sign");
+            if (mobileSign)
+            {
+                // ★ 移动端签的是**整条 URL**，所以要先按「没有 sign」的参数表把 URL 拼出来，
+                //   签完再补 sign —— 桌面版那条路签的是 query 串 + 裸路径，两者不可混用。
+                var unsignedUrl = BaseUrl + path + "?" + BodianSigner.FormUrlEncode(pairs);
 
-            seedQuery = BodianSigner.FormUrlEncode(seedPairs);
+                var mobileSignature = overrideSign ?? BodianMobileSigner.Sign(unsignedUrl, post ? body : null);
 
-            // overrideSign 是给 signtest 做对照组用的：请求形状完全正确，只有 sign 的值是垃圾。
-            var sign = overrideSign ?? BodianSigner.SignRaw(SignPath(path, pathForm), seedQuery, body);
-            pairs[^1] = new KeyValuePair<string, string>("sign", sign);
+                pairs.Add(new KeyValuePair<string, string>("sign", mobileSignature));
+            }
+            else
+            {
+                pairs.Add(new KeyValuePair<string, string>("sign", ""));
+
+                var seedPairs = signKeyForm == SignKeyForm.Included
+                    ? pairs
+                    : pairs.Where(p => p.Key != "sign");
+
+                seedQuery = BodianSigner.FormUrlEncode(seedPairs);
+
+                // overrideSign 是给 signtest 做对照组用的：请求形状完全正确，只有 sign 的值是垃圾。
+                var sign = overrideSign ?? BodianSigner.SignRaw(SignPath(path, pathForm), seedQuery, body);
+                pairs[^1] = new KeyValuePair<string, string>("sign", sign);
+            }
         }
 
         var signedQuery = BodianSigner.FormUrlEncode(pairs);
@@ -193,7 +217,7 @@ internal sealed class ProbeClient : IDisposable
         var headers = request.Headers;
 
         headers.TryAddWithoutValidation("User-Agent", "Dart/3.3 (dart:io)");
-        headers.TryAddWithoutValidation("plat", "win");
+        headers.TryAddWithoutValidation("plat", Plat);
         headers.TryAddWithoutValidation("channel", "W1");
         headers.TryAddWithoutValidation("ver", Version);
         headers.TryAddWithoutValidation("svrver", "13");
