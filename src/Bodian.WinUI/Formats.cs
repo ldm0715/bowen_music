@@ -35,7 +35,7 @@ public static class Formats
     /// <b>徽标宽度是按字号 11 + 左右内边距 6 估的</b>，改徽标样式时要一起改，否则又会被顶出去。
     /// </para>
     /// </remarks>
-    public static double PlayerTitleMaxWidth(bool hasAuditionBadge, bool hasPayBadge)
+    public static double PlayerTitleMaxWidth(double infoBlockWidth, bool hasAuditionBadge, bool hasPayBadge)
     {
         // 徽标宽度是按「字号 11 + 左右内边距 6」估的（见 PlayerBar.xaml 里那两个 Border），
         // 改徽标样式时要一起改，否则又会被顶出去。
@@ -53,19 +53,10 @@ public static class Formats
             used += hasAuditionBadge ? badge + PlayerBadgeSpacing : badge;
         }
 
-        return Math.Max(60, PlayerInfoBlockWidth - used);
+        return Math.Max(60, infoBlockWidth - used);
     }
 
-    /// <summary>
-    /// 播放条信息块的固定宽度。<c>PlayerBar.xaml</c> 上那个 <c>Width</c> 绑的就是它。
-    /// </summary>
-    /// <remarks>
-    /// <b>必须与上面那个算式用同一个值。</b> 这两处是同一件事的两面：
-    /// XAML 用宽度约束布局，算式用宽度反推曲名的 <c>MaxWidth</c>。
-    /// 分开写就会漂 —— 实测漂过一次：算式里两个徽标之间的间距写死 4，
-    /// 而 XAML 里那个 <c>StackPanel</c> 是 <c>Spacing="6"</c>，
-    /// 于是两个徽标同时出现时算少了 2px，长曲名会把第二个徽标顶出信息块。
-    /// </remarks>
+    /// <summary>播放条信息块的常规宽度。窄窗口会缩短，曲名按当前宽度为徽标留位。</summary>
     public static double PlayerInfoBlockWidth => 220;
 
     /// <summary>
@@ -85,6 +76,10 @@ public static class Formats
     /// </summary>
     public static string Quality(IReadOnlyList<AudioQuality> qualities) =>
         qualities.Count == 0 ? "" : Describe(qualities[0]);
+
+    /// <summary>播放条音质按钮：尚未获取实际音质时显示入口名称。</summary>
+    public static string PlayerQualityLabel(string quality) =>
+        string.IsNullOrWhiteSpace(quality) ? "音质" : quality;
 
     /// <summary>专辑条目右侧的曲目数。0 时留空 —— 「0 首」在列表里只是噪音。</summary>
     public static string AlbumCount(int count) => count > 0 ? $"{count} 首" : "";
