@@ -19,4 +19,14 @@ internal static class NativeMethods
     /// </remarks>
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
     internal static extern int SetCurrentProcessExplicitAppUserModelID(string appUserModelId);
+
+    /// <summary>
+    /// 取窗口所在显示器的 DPI（96 = 100%）。
+    /// </summary>
+    /// <remarks>
+    /// <b>为什么需要它</b>：<c>AppWindow.MoveAndResize</c> 收的是**物理像素**，
+    /// 而用户说的「窗口 1300×1000」是逻辑像素。不换算的话，125% 缩放下窗口会比预期小一圈。
+    /// </remarks>
+    [DllImport("user32.dll")]
+    internal static extern uint GetDpiForWindow(nint hwnd);
 }

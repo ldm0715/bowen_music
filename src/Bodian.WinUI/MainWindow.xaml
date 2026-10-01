@@ -3,13 +3,16 @@
     x:Class="Bodian.WinUI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
     Title="波点音乐">
 
     <!--
-        外壳 = 侧栏 + 内容区 + 常驻播放条。
+        外壳 = 侧栏 + 内容区（第 0 行）+ 通栏播放条（第 1 行）。
 
-        ★ 播放条放在 NavigationView 的 Content 里、而不是窗口底部通栏 ——
-          这样侧栏天然从顶到底（官方桌面端也是这个形态：left_menu + right_content + player_bar）。
+        ★ 播放条**通栏**，横跨整个窗口宽度，所以侧栏不再到窗口底部。
+          这是刻意改的：早先的做法是把播放条塞进 NavigationView 的 Content，
+          让侧栏从顶到底（模仿官方 PC 端）。但那样播放条不横跨侧栏，
+          与用户对播放器的预期不符 —— 现在按 Spotify / Apple Music 的形态来。
 
         ★ IsBackButtonVisible=Collapsed：返回栈是自己的（INavigationService），
           详情页自带返回入口。交给 NavigationView 会多出一个不受控的按钮。
@@ -17,12 +20,42 @@
         ★ 用 ItemInvoked 而不是 SelectionChanged：SelectionChanged 在我们自己
           同步高亮时也会触发，会和导航互相打架。ItemInvoked 只在用户点击时触发。
     -->
-    <NavigationView
-        x:Name="Nav"
-        IsBackButtonVisible="Collapsed"
-        IsSettingsVisible="False"
-        ItemInvoked="OnItemInvoked"
-        PaneDisplayMode="Left">
+    <!--
+        ★ RequestedTheme 必须设在最外层这个 Grid 上，**不能设在里面的 NavigationView 上**。
+          设在 NavigationView 上时只有它自己的子树跟随主题，窗口底色的那层就漏掉了 ——
+          主题无关的兄弟节点会一直用浅色，深色模式下整个窗口变成一片白。实测踩过。
+
+        ★ 底色也必须自己铺：NavigationView 的面板是 AcrylicBrush、内容区是半透明层刷，
+          两者都假定自己叠在 Mica 背板上。本应用不设背板（氛围渐变才是背景），
+          没有东西可叠时深色下面板会退回浅色，白字压白底 —— 导航项整个看不见。
+          见 Themes/Theme.xaml 里 AppSurfaceBrush 的说明。
+
+        ★ 不能用 Application.RequestedTheme：那个只能在窗口创建之前设，
+          运行期改会抛异常。所以运行期切换只能走元素级。
+    -->
+    <Grid RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+        <Grid.RowDefinitions>
+            <!-- 上：侧栏 + 内容区 -->
+            <RowDefinition Height="*" />
+            <!-- 下：播放条。**通栏**，横跨侧栏与内容区 -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--
+            底色层与氛围渐变层都要**跨两行**：只铺第 0 行的话，播放条那一带会露出纯色，
+            与上面的渐变之间出现一条硬边。
+        -->
+        <Border Grid.RowSpan="2" Background="{ThemeResource AppSurfaceBrush}" />
+        <controls:AmbientBackdrop Grid.RowSpan="2" />
+
+        <NavigationView
+            x:Name="Nav"
+            Grid.Row="0"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            ItemInvoked="OnItemInvoked"
+            OpenPaneLength="{StaticResource SizeSidebarWidth}"
+            PaneDisplayMode="Left">
 
         <NavigationView.MenuItems>
             <NavigationViewItem
@@ -94,60 +127,16 @@
             <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
         </NavigationView.MenuItems>
 
-        <NavigationView.PaneFooter>
-            <!-- 账号卡片。属性是 OneWay 的：侧栏在登录之前就构造好了，OneTime 会永远停在空白 -->
-            <Grid
-                Padding="8,8,8,12"
-                ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <Border
-                    Grid.Column="0"
-                    Width="32"
-                    Height="32"
-                    VerticalAlignment="Center"
-                    Background="{ThemeResource ControlFillColorDefaultBrush}"
-                    CornerRadius="16">
-                    <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
-                </Border>
-
-                <StackPanel
-                    Grid.Column="1"
-                    VerticalAlignment="Center"
-                    Spacing="2">
-                    <TextBlock
-                        Text="{x:Bind Account.AccountText, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis" />
-
-                    <!-- 会员徽标只是展示：播放权限一律以服务端 checkRight 为准 -->
-                    <Border
-                        Padding="5,0"
-                        HorizontalAlignment="Left"
-                        Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
-                        CornerRadius="3"
-                        Visibility="{x:Bind Account.IsVip, Mode=OneWay}">
-                        <TextBlock FontSize="11" Text="VIP" />
-                    </Border>
-                </StackPanel>
-
-                <Button
-                    Grid.Column="2"
-                    VerticalAlignment="Center"
-                    Command="{x:Bind Account.SignOutCommand}"
-                    Content="退出"
-                    ToolTipService.ToolTip="清除本机保存的会话，回到扫码登录" />
-            </Grid>
-        </NavigationView.PaneFooter>
+        <!--
+            侧栏底部**不再放账号卡片**。账号入口移到了内容区顶栏（主题按钮右边），
+            见下面 SearchBarHost 里的头像按钮 —— 那里常驻可见，而且不占侧栏的纵向空间。
+        -->
 
         <Grid>
+            <!-- 只剩两行：顶栏 + 页面。播放条已经移到根 Grid 的通栏那一行 -->
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!--
@@ -159,14 +148,126 @@
             <Grid
                 x:Name="SearchBarHost"
                 Grid.Row="0"
-                Padding="24,16,24,0"
+                Padding="24,16,24,16"
+                ColumnSpacing="12"
                 Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
                 <AutoSuggestBox
                     x:Name="SearchBox"
+                    Grid.Column="0"
                     PlaceholderText="搜索歌曲、歌手"
                     QueryIcon="Find"
                     QuerySubmitted="OnSearchQuerySubmitted"
                     Text="{x:Bind Search.Keyword, Mode=TwoWay}" />
+
+                <!--
+                    外观切换。放在顶栏右侧，Step 4 做自定义标题栏时这里会自然变成标题栏的一部分。
+
+                    ★ 用 RadioMenuFlyoutItem 而不是自绘三选一：它自带 GroupName 的互斥语义
+                      与选中标记，不用自己维护选中态。
+                    ★ 未登录时整条顶栏是 Collapsed 的，所以登录页上切不了外观 ——
+                      但设置是持久化的，登录页本身会跟随已保存的档位。
+                -->
+                <Button
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ToolTipService.ToolTip="{x:Bind Theme.CurrentLabel, Mode=OneWay}">
+                    <FontIcon
+                        FontSize="16"
+                        Glyph="&#xE706;" />
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <RadioMenuFlyoutItem
+                                Click="OnThemeSystemClicked"
+                                GroupName="AppTheme"
+                                IsChecked="{x:Bind Theme.IsSystem, Mode=OneWay}"
+                                Text="跟随系统" />
+                            <RadioMenuFlyoutItem
+                                Click="OnThemeLightClicked"
+                                GroupName="AppTheme"
+                                IsChecked="{x:Bind Theme.IsLight, Mode=OneWay}"
+                                Text="浅色" />
+                            <RadioMenuFlyoutItem
+                                Click="OnThemeDarkClicked"
+                                GroupName="AppTheme"
+                                IsChecked="{x:Bind Theme.IsDark, Mode=OneWay}"
+                                Text="深色" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+
+                <!--
+                    账号入口。从侧栏底部的账号卡片挪过来的 —— 那里占侧栏的纵向空间，
+                    而顶栏右侧本来就是「放全局入口」的位置。
+
+                    ★ 点它弹出面板，里面有账号信息与退出登录。
+                    ★ 属性必须是 OneWay：顶栏在主窗口构造时就建好了，那时还没有会话，
+                      OneTime 会永远停在空白（这是侧栏卡片踩过的同一个坑）。
+                -->
+                <Button
+                    Grid.Column="2"
+                    Width="{StaticResource SizeRoundButton}"
+                    Height="{StaticResource SizeRoundButton}"
+                    MinWidth="0"
+                    Padding="0"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ToolTipService.ToolTip="{x:Bind Account.AccountText, Mode=OneWay}">
+                    <Border
+                        Width="24"
+                        Height="24"
+                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                        CornerRadius="12">
+                        <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <Button.Flyout>
+                        <!-- 右对齐：顶栏在窗口右上角，默认居中会往左偏出去 -->
+                        <Flyout Placement="BottomEdgeAlignedRight">
+                            <StackPanel MinWidth="200" Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Border
+                                        Width="32"
+                                        Height="32"
+                                        VerticalAlignment="Center"
+                                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                        CornerRadius="16">
+                                        <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
+                                    </Border>
+
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock
+                                            Text="{x:Bind Account.AccountText, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis" />
+
+                                        <!-- 会员徽标只是展示：播放权限一律以服务端 checkRight 为准 -->
+                                        <Border
+                                            Padding="5,0"
+                                            HorizontalAlignment="Left"
+                                            Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                                            CornerRadius="3"
+                                            Visibility="{x:Bind Account.IsVip, Mode=OneWay}">
+                                            <TextBlock FontSize="11" Text="VIP" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Button
+                                    HorizontalAlignment="Stretch"
+                                    Command="{x:Bind Account.SignOutCommand}"
+                                    Content="退出登录"
+                                    ToolTipService.ToolTip="清除本机保存的会话，回到扫码登录" />
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
             </Grid>
 
             <!--
@@ -180,13 +281,18 @@
                 Grid.Row="1"
                 HorizontalContentAlignment="Stretch"
                 VerticalContentAlignment="Stretch" />
-
-            <!-- 播放条常驻，不随页面切换重建 -->
-            <ContentControl
-                x:Name="PlayerHost"
-                Grid.Row="2"
-                HorizontalContentAlignment="Stretch"
-                VerticalContentAlignment="Stretch" />
         </Grid>
-    </NavigationView>
+        </NavigationView>
+
+        <!--
+            播放条常驻，不随页面切换重建。
+            **放在根 Grid 而不是 NavigationView 的 Content 里** —— 这样它横跨整个窗口宽度，
+            侧栏在它上方结束。见文件头对布局形态的说明。
+        -->
+        <ContentControl
+            x:Name="PlayerHost"
+            Grid.Row="1"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch" />
+    </Grid>
 </Window>

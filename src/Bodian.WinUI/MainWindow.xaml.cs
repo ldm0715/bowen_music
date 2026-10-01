@@ -1,12 +1,15 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Windows.Graphics;
 
 namespace Bodian.WinUI;
 
@@ -48,6 +51,7 @@ public sealed partial class MainWindow : Window
     private readonly INavigationService _navigation;
     private readonly IBodianLogin _login;
     private readonly SidebarViewModel _sidebar;
+    private readonly IWindowPlacementStore _placement;
     private readonly Func<Playlist, int, PlaylistDetailPage> _playlistDetailFactory;
 
     /// <summary>侧栏里为「创建的歌单」动态加进去的项。重新加载时要先摘掉它们。</summary>
@@ -61,6 +65,8 @@ public sealed partial class MainWindow : Window
         AccountViewModel account,
         SidebarViewModel sidebar,
         SearchViewModel search,
+        ThemeViewModel theme,
+        IWindowPlacementStore placement,
         Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory)
     {
         ArgumentNullException.ThrowIfNull(navigation);
@@ -70,20 +76,33 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(sidebar);
         ArgumentNullException.ThrowIfNull(search);
+        ArgumentNullException.ThrowIfNull(theme);
+        ArgumentNullException.ThrowIfNull(placement);
         ArgumentNullException.ThrowIfNull(playlistDetailFactory);
 
         _navigation = navigation;
         _login = login;
         _sidebar = sidebar;
+        _placement = placement;
         _playlistDetailFactory = playlistDetailFactory;
 
         Player = playerViewModel;
         Account = account;
         Search = search;
+        Theme = theme;
 
         InitializeComponent();
 
-        ApplyMinimumSize();
+        // 曲目列表靠这个知道「哪一行在播」。
+        //
+        // ★ 为什么走 App 资源而不是给 6 个页面各传一份：TrackListView 是 XAML 实例化的，
+        //   构造函数必须无参，拿不到 DI 容器。显式传就要改 6 份 XAML + 6 个 ViewModel，
+        //   而这里放一份引用就够了。控件侧仍保留一个 NowPlaying 依赖属性，
+        //   显式指定时优先 —— 见 TrackListView.NowPlaying 的说明。
+        Application.Current.Resources["BodianNowPlaying"] = playerViewModel;
+
+        ApplyWindowPlacement();
+        Closed += (_, _) => SaveWindowPlacement();
 
         _navigation.Attach(PageHost);
         _navigation.Navigated += OnNavigated;
@@ -103,19 +122,38 @@ public sealed partial class MainWindow : Window
     /// <summary>顶部搜索框的数据源。<b>与搜索页是同一个实例</b>，所以框里的词与结果永远一致。</summary>
     public SearchViewModel Search { get; }
 
+    /// <summary>外观切换。绑在根 <c>NavigationView</c> 的 <c>RequestedTheme</c> 上。</summary>
+    public ThemeViewModel Theme { get; }
+
+    // 三个档位各一个处理函数。用 RadioMenuFlyoutItem 自带的 Click 而不是把命令绑到
+    // CommandParameter 上：后者要传枚举，绕一层字符串解析或转换器，反而更绕。
+
+    private void OnThemeSystemClicked(object sender, RoutedEventArgs e) => Theme.Select(AppTheme.System);
+
+    private void OnThemeLightClicked(object sender, RoutedEventArgs e) => Theme.Select(AppTheme.Light);
+
+    private void OnThemeDarkClicked(object sender, RoutedEventArgs e) => Theme.Select(AppTheme.Dark);
+
     /// <summary>
-    /// 给窗口设最小尺寸。
+    /// 首次运行（或记录不可用）时的默认窗口尺寸，单位是**逻辑像素**。
     /// </summary>
     /// <remarks>
-    /// <b>不是可选的润色。</b> 播放条是三栏布局，窗口窄到一定程度后中间那栏会被压得比按钮还窄，
-    /// 表现是「播放按钮的图标显示不全」——控件没坏，是被裁了。底部播放条的下限大约
-    /// 56(封面) + 220(信息) + 控制区 + 200(音质音量) + 间距，取 800。
-    /// <para>
-    /// 侧栏又占了约 300，所以内容区实际只剩 500 左右 —— 再窄就得让侧栏进紧凑模式，
-    /// 那是后续的事（<c>PaneDisplayMode</c> 现在是恒展开的 <c>Left</c>）。
-    /// </para>
+    /// 与参照项目 <c>LyciaMusic</c> 的 <c>src-tauri/tauri.conf.json</c> 对齐（1200×800、居中）。
+    /// Tauri 配的也是逻辑像素，所以两边概念一致，数值可以直接抄。
     /// </remarks>
-    private void ApplyMinimumSize()
+    private const int DefaultWidthDip = 1200;
+
+    private const int DefaultHeightDip = 800;
+
+    /// <summary>
+    /// 摆窗口：有记录就还原，没有就默认尺寸 + 居中。顺带设最小尺寸。
+    /// </summary>
+    /// <remarks>
+    /// <b>最小尺寸不是可选的润色。</b> 播放条是三栏布局，窗口窄到一定程度后中间那栏会被压得
+    /// 比按钮还窄，表现是「播放按钮的图标显示不全」——控件没坏，是被裁了。
+    /// 下限大约 56(封面) + 220(信息) + 控制区 + 200(音质音量) + 间距，取 800。
+    /// </remarks>
+    private void ApplyWindowPlacement()
     {
         if (AppWindow.Presenter is not OverlappedPresenter presenter)
         {
@@ -124,6 +162,73 @@ public sealed partial class MainWindow : Window
 
         presenter.PreferredMinimumWidth = 800;
         presenter.PreferredMinimumHeight = 560;
+
+        // 有记录、且那块屏幕还在，就原样还原。
+        if (_placement.Load() is { } saved && IsOnSomeDisplay(saved))
+        {
+            AppWindow.MoveAndResize(new RectInt32(saved.X, saved.Y, saved.Width, saved.Height));
+
+            return;
+        }
+
+        CenterAtDefaultSize();
+    }
+
+    /// <summary>
+    /// 记录里的坐标还在某块屏幕上吗。
+    /// </summary>
+    /// <remarks>
+    /// <b>这一步不能省。</b> 上次把窗口放在副屏上、这次副屏拔了，直接还原会把窗口丢到
+    /// 看不见的地方 —— 用户看到的是「应用打不开」。
+    /// </remarks>
+    private bool IsOnSomeDisplay(WindowPlacement placement)
+    {
+        var rect = new RectInt32(placement.X, placement.Y, placement.Width, placement.Height);
+
+        // Fallback.None：不在任何屏幕上就返回 null，而不是硬塞给主屏。
+        return DisplayArea.GetFromRect(rect, DisplayAreaFallback.None) is not null;
+    }
+
+    /// <summary>默认尺寸 + 居中。</summary>
+    private void CenterAtDefaultSize()
+    {
+        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+
+        // AppWindow 收的是**物理像素**，而默认尺寸是按逻辑像素定的 —— 不换算的话，
+        // 125% 缩放下窗口会比预期小一圈。
+        var scale = NativeMethods.GetDpiForWindow(
+            Win32Interop.GetWindowFromWindowId(AppWindow.Id)) / 96.0;
+
+        // 也别超出工作区（小屏或缩放很大的机器上会）。
+        var width = Math.Min((int)Math.Round(DefaultWidthDip * scale), work.Width);
+        var height = Math.Min((int)Math.Round(DefaultHeightDip * scale), work.Height);
+
+        AppWindow.MoveAndResize(new RectInt32(
+            work.X + ((work.Width - width) / 2),
+            work.Y + ((work.Height - height) / 2),
+            width,
+            height));
+    }
+
+    /// <summary>
+    /// 关闭时记下窗口位置。
+    /// </summary>
+    /// <remarks>
+    /// <b>最大化状态下不记。</b> 那时记录的是最大化后的尺寸，下次还原会得到一个
+    /// 铺满屏幕、且无法再放大的窗口。保留上一次普通状态的记录才有意义。
+    /// </remarks>
+    private void SaveWindowPlacement()
+    {
+        if (AppWindow.Presenter is OverlappedPresenter { State: not OverlappedPresenterState.Restored })
+        {
+            return;
+        }
+
+        _placement.Save(new WindowPlacement(
+            AppWindow.Position.X,
+            AppWindow.Position.Y,
+            AppWindow.Size.Width,
+            AppWindow.Size.Height));
     }
 
     /// <summary>
