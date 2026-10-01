@@ -195,6 +195,8 @@ public partial class App : Application
 
         // Win2D 歌词控件由歌词页构造注入（XAML 实例化要求无参构造，所以不能直接写在 XAML 里）
         builder.Services.AddTransient<LyricsCanvasView>();
+        builder.Services.AddTransient<AudioSpectrumSource>();
+        builder.Services.AddTransient<AudioSpectrumView>();
 
         _host = builder.Build();
         _host.Start();

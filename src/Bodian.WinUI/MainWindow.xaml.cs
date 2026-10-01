@@ -61,6 +61,10 @@ public sealed partial class MainWindow : Window
     private AppWindowPresenter? _lyricsRestorePresenter;
     private FrameworkElement? _lyricsTitleBar;
     private bool _lyricsVisible;
+    private bool _lyricsChromeVisible = true;
+    private OverlappedPresenter? _hiddenCaptionPresenter;
+    private bool _captionRestoreBorder;
+    private bool _captionRestoreTitleBar;
 
     public MainWindow(
         INavigationService navigation,
@@ -493,7 +497,9 @@ public sealed partial class MainWindow : Window
 
     public void EnterLyrics(FrameworkElement titleBar)
     {
+        RestoreNativeCaption();
         _lyricsVisible = true;
+        _lyricsChromeVisible = true;
         _lyricsTitleBar = titleBar;
         AppTitleBar.Visibility = Visibility.Collapsed;
         Nav.Visibility = Visibility.Collapsed;
@@ -505,6 +511,7 @@ public sealed partial class MainWindow : Window
 
     public void ToggleLyricsFullscreen()
     {
+        RestoreNativeCaption();
         if (IsLyricsFullscreen)
         {
             RestoreLyricsPresenter();
@@ -529,8 +536,10 @@ public sealed partial class MainWindow : Window
 
     public void ExitLyrics()
     {
+        RestoreNativeCaption();
         RestoreLyricsPresenter();
         _lyricsVisible = false;
+        _lyricsChromeVisible = true;
         _lyricsTitleBar = null;
         ImmersiveHost.Visibility = Visibility.Collapsed;
         AppTitleBar.Visibility = Visibility.Visible;
@@ -538,6 +547,31 @@ public sealed partial class MainWindow : Window
         PlayerHost.Visibility = Visibility.Visible;
         SetTitleBar(AppTitleBar);
         UpdateCaptionButtonColors();
+    }
+
+    public void SetLyricsChromeVisible(bool visible)
+    {
+        if (_lyricsChromeVisible == visible) return;
+        _lyricsChromeVisible = visible;
+        if (visible)
+        {
+            RestoreNativeCaption();
+        }
+        else if (_lyricsVisible && AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            _hiddenCaptionPresenter = presenter;
+            _captionRestoreBorder = presenter.HasBorder;
+            _captionRestoreTitleBar = presenter.HasTitleBar;
+            presenter.SetBorderAndTitleBar(_captionRestoreBorder, false);
+        }
+        UpdateCaptionButtonColors();
+    }
+
+    private void RestoreNativeCaption()
+    {
+        if (_hiddenCaptionPresenter is not { } presenter) return;
+        presenter.SetBorderAndTitleBar(_captionRestoreBorder, _captionRestoreTitleBar);
+        _hiddenCaptionPresenter = null;
     }
 
     private void OnNavigated(object? sender, Page page) => SyncSelection();

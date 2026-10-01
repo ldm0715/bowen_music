@@ -58,6 +58,7 @@
 | 测试 | `xunit.v3` / `xunit.runner.visualstudio` | **4.0.1** / **4.0.0** |
 | 歌词解析 | `Lyricify.Lyrics.Helper` | **0.2.0** |
 | 歌词渲染 | `Microsoft.Graphics.Win2D` | **1.4.0** |
+| 输出音频频谱（2026-10-02 引入） | `NAudio.Wasapi` | **2.2.1**（MIT） |
 | 音频（路线 A，推荐） | `HanumanInstitute.LibMpv` | **0.10.1** |
 | 音频（路线 B，备选） | `FlyleafLib` / `FlyleafLib.Controls.WinUI` | **3.11.11** / **1.4.11** |
 

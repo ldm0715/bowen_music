@@ -38,6 +38,7 @@
     <PackageReference Include="HanumanInstitute.LibMpv" />
     <!-- 扫码登录的二维码本地渲染 -->
     <PackageReference Include="QRCoder" />
+    <PackageReference Include="NAudio.Wasapi" />
   </ItemGroup>
 
   <PropertyGroup>

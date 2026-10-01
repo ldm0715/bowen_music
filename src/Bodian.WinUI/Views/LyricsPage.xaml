@@ -16,6 +16,12 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="12" />
         </Style>
+        <Style x:Key="LyricsChromeButtonStyle" TargetType="Button" BasedOn="{StaticResource LyricsButtonStyle}">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
         <Style TargetType="FontIcon">
             <Setter Property="FontSize" Value="20" />
             <Setter Property="IsTextScaleFactorEnabled" Value="False" />
@@ -42,49 +48,61 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="72" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="128" />
+                <RowDefinition Height="80" />
             </Grid.RowDefinitions>
-            <TitleBar x:Name="LyricsTitleBar" Height="56" VerticalAlignment="Top"
+            <TitleBar x:Name="LyricsTitleBar" Height="48" VerticalAlignment="Top"
                 Background="Transparent" Foreground="#CCFFFFFF" AutomationProperties.Name="全屏歌词标题栏">
                 <TitleBar.Resources>
-                    <x:Double x:Key="TitleBarCompactHeight">56</x:Double>
-                    <x:Double x:Key="TitleBarExpandedHeight">56</x:Double>
+                    <x:Double x:Key="TitleBarCompactHeight">48</x:Double>
+                    <x:Double x:Key="TitleBarExpandedHeight">48</x:Double>
+                    <x:Double x:Key="TitleBarLeftPaddingWidth">0</x:Double>
+                    <x:Double x:Key="TitleBarLeftHeaderPaddingWidth">0</x:Double>
+                    <x:Double x:Key="TitleBarMinDragRegionWidth">0</x:Double>
+                    <Thickness x:Key="TitleBarCompactContentMargin">0</Thickness>
                     <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
                 </TitleBar.Resources>
                 <TitleBar.LeftHeader>
-                    <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource LyricsButtonStyle}"
-                        AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
-                        <FontIcon Glyph="&#xE70D;" />
-                    </Button>
+                    <Grid x:Name="LeftChromeHost" Width="186">
+                        <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource LyricsChromeButtonStyle}"
+                            HorizontalAlignment="Left" Margin="16,0,0,0"
+                            AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
+                            <FontIcon Glyph="&#xE70D;" FontSize="22" Width="24" Height="24" />
+                        </Button>
+                    </Grid>
                 </TitleBar.LeftHeader>
                 <TitleBar.Content>
-                    <TextBlock Text="{x:Bind Player.Title, Mode=OneWay}" FontSize="14"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Opacity="0.8" />
+                    <Grid />
                 </TitleBar.Content>
                 <TitleBar.RightHeader>
-                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource LyricsButtonStyle}"
+                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource LyricsChromeButtonStyle}"
+                        Width="48" Height="48"
                         AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
-                        <FontIcon x:Name="FullscreenIcon" Glyph="&#xE740;" FontSize="18" />
+                        <FontIcon x:Name="FullscreenIcon" Glyph="&#xE740;" FontSize="16" Width="20" Height="20" />
                     </Button>
                 </TitleBar.RightHeader>
             </TitleBar>
-            <Grid x:Name="MainStage" Grid.Row="1" Margin="32,0,24,0" ColumnSpacing="28">
+            <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top" IsHitTestVisible="False">
+                <StackPanel VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{x:Bind SongHeading(Player.Title, Player.ArtistText), Mode=OneWay}"
+                        TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="SemiBold"
+                        Foreground="#CCFFFFFF" />
+                    <TextBlock Text="{x:Bind Player.AlbumText, Mode=OneWay}" TextAlignment="Center"
+                        TextTrimming="CharacterEllipsis" FontSize="11" Foreground="#80FFFFFF" />
+                </StackPanel>
+            </Grid>
+            <Grid x:Name="MainStage" Grid.Row="1" Margin="32,0,24,80" ColumnSpacing="28">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*" />
                     <ColumnDefinition Width="3*" />
                 </Grid.ColumnDefinitions>
-                <StackPanel x:Name="CoverDeck" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="22"
+                <Canvas x:Name="CoverDeck" Width="320" Height="320" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
+                    <controls:AlbumCoverReflection x:Name="ReflectionView" Width="320" Height="176" Canvas.Top="322"
+                        Opacity="0.25" CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
                     <Border x:Name="CoverFrame" Width="320" Height="320" CornerRadius="16" Background="#18FFFFFF">
                         <Image Source="{x:Bind Player.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
                     </Border>
-                    <StackPanel Spacing="7">
-                        <TextBlock Text="{x:Bind Player.Title, Mode=OneWay}" Foreground="#F2FFFFFF" FontSize="26"
-                            FontWeight="SemiBold" MaxLines="2" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{x:Bind Player.ArtistText, Mode=OneWay}" Foreground="#B8FFFFFF" FontSize="18" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="{x:Bind Player.AlbumText, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="14" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                </StackPanel>
+                </Canvas>
                 <Grid Grid.Column="1" Margin="0,0,0,4">
                     <ContentControl x:Name="CanvasHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
                     <Button x:Name="FollowButton" Content="回到当前歌词" Click="OnFollowClick"
@@ -100,38 +118,15 @@
                     </StackPanel>
                 </Grid>
             </Grid>
-            <Grid x:Name="ControlDeck" Grid.Row="2" Margin="40,12,40,12">
+            <ContentControl x:Name="SpectrumHost" Grid.Row="1" Height="64" Margin="20,0,20,12"
+                VerticalAlignment="Bottom" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                IsHitTestVisible="False" />
+            <Grid x:Name="ControlDeck" Grid.Row="2" Margin="24,12,24,8">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="34" />
                     <RowDefinition Height="48" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <Grid MaxWidth="680" HorizontalAlignment="Stretch" ColumnSpacing="14">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="46" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="46" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="{x:Bind local:Formats.Seconds(PositionSlider.Value), Mode=OneWay}"
-                        FontSize="12" Foreground="#8FFFFFFF" VerticalAlignment="Center" />
-                    <Slider x:Name="PositionSlider" Grid.Column="1" MinWidth="0" VerticalAlignment="Center"
-                        Maximum="{x:Bind Player.ProgressMaximum, Mode=OneWay}"
-                        Value="{x:Bind Player.PositionSeconds, Mode=OneWay}" IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
-                        AutomationProperties.Name="播放进度">
-                        <Slider.Resources>
-                            <SolidColorBrush x:Key="SliderTrackFill" Color="#38FFFFFF" />
-                            <SolidColorBrush x:Key="SliderTrackValueFill" Color="#B8FFFFFF" />
-                            <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
-                            <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="White" />
-                            <x:Double x:Key="SliderTrackThemeHeight">3</x:Double>
-                            <x:Double x:Key="SliderHorizontalThumbWidth">10</x:Double>
-                            <x:Double x:Key="SliderHorizontalThumbHeight">10</x:Double>
-                        </Slider.Resources>
-                    </Slider>
-                    <TextBlock Grid.Column="2" Text="{x:Bind local:Formats.Seconds(Player.DurationSeconds), Mode=OneWay}"
-                        FontSize="12" Foreground="#8FFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                </Grid>
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
                     <Button Style="{StaticResource LyricsButtonStyle}" Command="{x:Bind Player.PreviousCommand}"
                         IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
                         <FontIcon Glyph="&#xE892;" FontSize="22" />
@@ -145,19 +140,54 @@
                         <FontIcon Glyph="&#xE893;" FontSize="22" />
                     </Button>
                 </StackPanel>
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
                     <TextBlock Text="{x:Bind Player.QualityText, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="12" />
                     <TextBlock Text="{x:Bind Player.PayLabel, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="12" />
                     <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
                 </StackPanel>
-                <StackPanel x:Name="VolumeDeck" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
+                <StackPanel x:Name="VolumeDeck" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
                     <FontIcon Glyph="{x:Bind Player.VolumeGlyph, Mode=OneWay}" FontSize="16" Foreground="#99FFFFFF" />
                     <Slider x:Name="VolumeSlider" Width="96" MinWidth="0" Maximum="100" Value="{x:Bind Player.Volume, Mode=TwoWay}" AutomationProperties.Name="音量" />
                 </StackPanel>
-                <TextBlock Grid.Row="2" Text="{x:Bind Player.Notice, Mode=OneWay}" FontSize="12"
+                <TextBlock Grid.Row="1" Text="{x:Bind Player.Notice, Mode=OneWay}" FontSize="12"
                     Foreground="#BCFFFFFF" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"
                     Visibility="{x:Bind local:Formats.Visible(Player.HasNotice), Mode=OneWay}" />
             </Grid>
+
+            <Slider x:Name="PositionSlider" Grid.Row="2" MinWidth="0" Height="22" Margin="0,-11,0,0"
+                Padding="0" VerticalAlignment="Top" Maximum="{x:Bind Player.ProgressMaximum, Mode=OneWay}"
+                Value="{x:Bind Player.PositionSeconds, Mode=OneWay}" ValueChanged="OnProgressValueChanged"
+                IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}" AutomationProperties.Name="播放进度">
+                <Slider.Resources>
+                    <SolidColorBrush x:Key="SliderTrackFill" Color="#40FFFFFF" />
+                    <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#40FFFFFF" />
+                    <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#40FFFFFF" />
+                    <SolidColorBrush x:Key="SliderTrackValueFill" Color="#F2FFFFFF" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
+                    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="White" />
+                    <SolidColorBrush x:Key="SliderThumbBackground" Color="White" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="White" />
+                    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="White" />
+                    <SolidColorBrush x:Key="SliderInnerThumbBackground" Color="White" />
+                    <SolidColorBrush x:Key="SliderInnerThumbBackgroundPointerOver" Color="White" />
+                    <SolidColorBrush x:Key="SliderInnerThumbBackgroundPressed" Color="White" />
+                    <x:Double x:Key="SliderTrackThemeHeight">2</x:Double>
+                    <x:Double x:Key="SliderHorizontalHeight">22</x:Double>
+                    <x:Double x:Key="SliderPreContentMargin">0</x:Double>
+                    <x:Double x:Key="SliderPostContentMargin">0</x:Double>
+                    <x:Double x:Key="SliderHorizontalThumbWidth">14</x:Double>
+                    <x:Double x:Key="SliderHorizontalThumbHeight">14</x:Double>
+                    <x:Double x:Key="SliderInnerThumbWidth">10</x:Double>
+                    <x:Double x:Key="SliderInnerThumbHeight">10</x:Double>
+                </Slider.Resources>
+            </Slider>
         </Grid>
+        <Popup x:Name="ProgressTimePopup" IsHitTestVisible="False">
+            <Border x:Name="ProgressTimeBubble" Padding="9,5" Background="#EF191B22" CornerRadius="7"
+                BorderBrush="#26FFFFFF" BorderThickness="1">
+                <TextBlock x:Name="ProgressTimeText" FontSize="11" FontWeight="SemiBold"
+                    FontFamily="Cascadia Mono" Foreground="White" />
+            </Border>
+        </Popup>
     </Grid>
 </Page>

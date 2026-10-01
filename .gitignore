@@ -1,6 +1,7 @@
 # 构建产物
 [Bb]in/
 [Oo]bj/
+/artifacts/
 *.user
 *.suo
 .vs/

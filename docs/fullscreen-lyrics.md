@@ -1,6 +1,6 @@
 # 全屏歌词实现与验收
 
-**更新日期：2026-10-01。** 当前视觉与交互已由用户确认，进一步性能优化留到后续。
+**更新日期：2026-10-02。** 歌词效果和本轮沉浸交互已由用户确认，进一步性能优化留到后续。
 
 本轮以本地 `F:\My_Project\LyciaMusic` 的全屏播放器为参考，在 WinUI 3 中实现沉浸歌词。
 歌词页覆盖整个窗口客户区，替换此前嵌在内容区中的歌词设计。显示器全屏由页面按钮或 `F11` 切换。
@@ -9,7 +9,10 @@
 ## 界面与操作
 
 封面背景经过模糊并在切歌时淡入淡出，歌词透明叠加其上，没有单独的黑色背景。
-左侧显示封面及曲目信息，右侧显示大字歌词，底部提供进度、上一首、播放暂停、下一首和音量。
+顶部居中显示“歌名 - 歌手”，下一行显示专辑名；封面下方不再重复显示曲目信息。
+左侧显示封面及水面倒影，右侧显示大字歌词。通栏进度条位于底部控制区上沿，频谱条位于进度条上方，
+底栏提供上一首、播放暂停、下一首、音量、实际音质与试听/付费标记。
+全屏按钮紧邻最小化按钮左侧，与原生窗口按钮统一为 48 DIP 高度；移除标题栏模板额外的 48 DIP 拖动留白。
 进入歌词页时隐藏原应用标题栏、侧栏和底部播放条；返回后恢复原来的页面实例和窗口外壳。
 
 | 操作 | 行为 |
@@ -24,8 +27,37 @@
 | 点击“回到当前歌词” | 结束浏览并回到正在播放的歌词 |
 | 浏览后空闲 | 约 4 秒后恢复跟随；浏览时继续移动鼠标会延长等待 |
 
-全屏模式下，顶部及底部操作区在空闲约 3 秒后淡出，鼠标活动后重新出现。
+普通窗口和显示器全屏均支持自动收起：鼠标离开顶部或底部操作区域 3 秒后，顶栏、曲目信息、
+底栏及原生窗口按钮淡出。封面、倒影与歌词继续显示，进度条及频谱保留并降到 25% 不透明度。
+鼠标返回顶部（含原生窗口按钮）或底部操作区域时恢复；在封面或歌词区域移动不会反复唤醒操作栏。
+悬停操作区域、拖动进度或音量、键盘聚焦操作控件时保持显示。隐藏操作栏不改变页面布局。
+鼠标区域判断每 200 ms 校验一次实际屏幕光标与窗口命中，避免非全屏标题栏遗漏离开事件后一直保持悬停。
+只有实际键盘操作才启用焦点保护，页面打开时自动分配的焦点不会阻止收起。
+普通窗口的最小化、最大化和关闭按钮通过 `OverlappedPresenter.SetBorderAndTitleBar` 真正移除原生标题栏，
+保留原有窗口边框。鼠标返回顶部、切换全屏或退出歌词页时恢复原来的标题栏设置。
+原先仅将按钮前景色设为透明的方式已移除，避免系统仍绘制窗口按钮。
+参考 LyciaMusic 的原始等待时间为顶栏 2.5 秒、底栏 2 秒；本项目按用户要求统一为 3 秒。
 进度拖动期间暂停来自播放器的滑块更新，结束后提交一次跳转。
+
+## 进度条、频谱与封面倒影
+
+进度条保留原生 Slider 的拖动和键盘行为，轨道从原先居中的短滑条改为通栏白色细线。
+通常轨道高 2 DIP，悬停、拖动或键盘聚焦时增至 5 DIP，并显示 14 DIP 的白色滑块。
+播放时间不常驻；悬停或拖动时以独立浮层显示目标时间和总时长。底部播放控制仍位于进度条下方。
+
+频谱来自 `NAudio.Wasapi` 2.2.1 的 WASAPI 输出回环采样，使用默认多媒体输出设备，
+分析其混合输出，其他应用的声音也可能进入频谱。音频仅在内存中分析，不写音频文件。
+当前采样没有接入 libmpv 的独立 PCM 输出；后续若要求仅分析本客户端，需要另行接入。
+
+`AudioSpectrumAnalyzer` 使用 2048 点 Hann 窗与 FFT，归并为约 40 Hz–16 kHz 的 48 个对数频段，
+再由界面插值为 112 根蓝灰色细柱。频谱最多按 30 fps 刷新，采用快上升、慢回落的平滑效果，
+暂停时回落到低亮度基线。只在歌词页可见且播放中启动采样；切走、不可见或暂停时停止采样。
+采样不可用时保持静态基线，不影响音频播放和歌词。
+
+封面倒影按用户修正采用水面效果，取消斜切和平行四边形轮廓。
+封面垂直翻转后从底边向下延伸，边缘和下方柔和渐隐；水平波纹随深度增强，按 20 fps 缓慢变化。
+翻转图像先缓存，波纹绘制使用水平图像条带，窗口尺寸或封面变化时更新缓存。
+倒影与封面共用播放/暂停的整体缩放，页面不可见或离场时停止倒影刷新。
 
 ## 歌词效果与浏览焦点
 
@@ -53,12 +85,17 @@
 | `src/Bodian.WinUI/MainWindow.xaml(.cs)` | 独立 `ImmersiveHost`、标题栏切换、全屏呈现器恢复；不保存全屏尺寸 |
 | `src/Bodian.WinUI/Services/NavigationService.cs` | 根据页面选择普通或沉浸宿主，继续使用同一返回栈 |
 | `src/Bodian.WinUI/Controls/LyricsBackdrop.cs` | 封面解码、模糊、淡入淡出与切歌结果代次检查 |
+| `src/Bodian.WinUI/Controls/AlbumCoverReflection.cs` | 水面镜像、渐隐、条带波纹、缓存与生命周期 |
+| `src/Bodian.WinUI/Controls/AudioSpectrumView.cs` | 112 根频谱柱、30 fps 刷新、插值与升降平滑 |
+| `src/Bodian.WinUI/Playback/AudioSpectrumSource.cs` | 默认输出设备的 WASAPI 回环采样、启停和无数据处理 |
+| `src/Bodian.Core/Playback/AudioSpectrumAnalyzer.cs` | 2048 点 FFT、窗口函数及 48 个对数频段 |
 | `src/Bodian.WinUI/Controls/LyricsCanvasView.xaml(.cs)` | 透明合成表面、绘制生命周期、播放时钟及滚轮/拖动/点击事件 |
 | `src/Bodian.WinUI/LyricRenderer/LyricsRenderer.cs` | 播放焦点与浏览焦点、逐字渐变、长音、边缘羽化及点击命中 |
 | `src/Bodian.WinUI/LyricRenderer/LyricsLayout.cs` | 文本排版、字形到音节映射、独立长音排版、缓存资源释放 |
 | `src/Bodian.WinUI/LyricRenderer/LyricsScrollAnimator.cs` | 各行的位置、速度和错峰弹簧 |
 | `src/Bodian.Core/Models/Lyrics/LyricMotionMath.cs` | 弹簧、单向高亮、浏览行选择、字形扫光的纯数学 |
 | `tests/Bodian.Core.Tests/LyricMotionMathTests.cs` | 帧率差异、目标切换、时间校正、浏览焦点及字宽分配回归 |
+| `tests/Bodian.Core.Tests/AudioSpectrumAnalyzerTests.cs` | 静音、频率峰值、分块采样及立体声回归 |
 
 `LyricsCanvasView` 通过 `CanvasComposition.CreateCompositionGraphicsDevice` 创建
 `CompositionDrawingSurface`，像素格式为 `B8G8R8A8UIntNormalized`，使用预乘透明度。
@@ -80,6 +117,11 @@
 | 高亮回退、换行抽动 | 阻止正常时间校正回退高亮；错峰等待期间继续积分原弹簧运动 |
 | 滚远后所有歌词模糊 | 浏览焦点改为显示锚点附近的行，悬停行也保持清晰 |
 | 浏览后点击未跳转 | 点击由完整 `Tapped` 手势识别；拖动与点击分开，命中使用当前视觉位置 |
+| 底部控制错放到内容区顶部 | 底栏归位到窗口布局的第 2 行，进度条保持位于底栏上沿 |
+| 全屏按钮远离最小化 | 清除模板最小拖动留白，按实际窗口按钮占位调整右侧边界 |
+| 非全屏鼠标移出后不收起 | 校验真实光标和窗口命中，防止遗漏离开事件；自动焦点不再作为持续操作 |
+| 全屏收起时进度条消失 | 普通窗口与全屏共用显隐逻辑，进度及频谱仅降低亮度，保持可见和可操作 |
+| 三个原生窗口按钮仍显示 | 改为实际隐藏原生标题栏并保存原边框/标题栏状态，唤醒与离场时恢复 |
 
 ## 验证
 
@@ -89,7 +131,7 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 ```
 
 构建通过，保留既有 `AiPlaylistPage.xaml:28` 的 `WMC1506` 绑定警告。
-核心测试共 546 个，全部通过、无跳过；覆盖弹簧、扫光、高亮不回退及浏览焦点。
+核心测试共 551 个，全部通过、无跳过；覆盖弹簧、扫光、高亮不回退、浏览焦点和音频频谱。
 
 运行检查使用真实曲目及 UI Automation/鼠标输入，确认：
 
@@ -97,6 +139,34 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 - 全屏窗口从普通窗口切换到显示器尺寸，退出后恢复原尺寸，返回后侧栏恢复。
 - 滚轮浏览显示清晰歌词，点击后播放进度从约 5.7 秒跳到所选句的 38 秒，日志记录行 22 的起始时间。
 - 用户确认当前歌词效果及浏览、点击行为可用。
+
+2026-10-02 的界面调整检查了通栏进度线、真实频谱和封面倒影。
+本机 125% 缩放下，全屏按钮与最小化按钮边界间距为 0 物理像素，底部控制仍在进度条下方。
+自动收起的最终界面验收由用户进行，用户已确认非全屏移出鼠标的修复可用。
+原生窗口按钮追加验证：移出操作区 4 秒后，可见的最小化、最大化、关闭按钮从 3 个变为 0 个；
+移回顶部后恢复为 3 个，退出歌词页后仍保持 3 个，客户端继续响应。
+
+## 仓库内运行版本
+
+当前 Release x64 自包含运行版本位于 `artifacts/Bodian.WinUI/Bodian.WinUI.exe`。
+`artifacts/` 已加入 Git 忽略规则，本地程序与原生库不纳入提交；修改源码后需要重新编译该目录。
+不要把默认 Debug 输出与 `artifacts/` 的更新混用，更新一个目录不会同步另一个目录。
+
+```powershell
+dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 --self-contained true -p:PublishTrimmed=false -o artifacts/Bodian.WinUI
+
+$compiledXaml = Join-Path $PWD 'src\Bodian.WinUI\obj\Release\net10.0-windows10.0.26100.0\win-x64'
+$runOutput = Join-Path $PWD 'artifacts\Bodian.WinUI'
+Get-ChildItem -LiteralPath $compiledXaml -Recurse -Filter '*.xbf' | ForEach-Object {
+    $relativePath = [System.IO.Path]::GetRelativePath($compiledXaml, $_.FullName)
+    $targetPath = Join-Path $runOutput $relativePath
+    [void][System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($targetPath))
+    Copy-Item -LiteralPath $_.FullName -Destination $targetPath
+}
+```
+
+本机指定输出目录时需额外补齐编译后的 `.xbf`；生成的 `.pri` 和原生运行库由发布流程复制。
+本轮已完成 Release 编译和资源复制，保留既有绑定警告。
 
 ## 后续工作
 

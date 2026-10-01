@@ -29,4 +29,28 @@ internal static class NativeMethods
     /// </remarks>
     [DllImport("user32.dll")]
     internal static extern uint GetDpiForWindow(nint hwnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NativePoint
+    {
+        internal int X;
+        internal int Y;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorPos(out NativePoint point);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ScreenToClient(nint window, ref NativePoint point);
+
+    [DllImport("user32.dll")]
+    internal static extern nint WindowFromPoint(NativePoint point);
+
+    [DllImport("user32.dll")]
+    internal static extern nint GetAncestor(nint window, uint flags);
+
+    [DllImport("user32.dll")]
+    internal static extern nint GetForegroundWindow();
 }
