@@ -1,4 +1,8 @@
+using System.Globalization;
+using System.Numerics;
 using Bodian.Core.Models.Lyrics;
+using Microsoft.Graphics.Canvas.Brushes;
+using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Text;
 using Windows.Foundation;
@@ -14,21 +18,37 @@ namespace Bodian.WinUI.LyricRenderer;
 /// 所以长音音节从主行里排除出去（把那些字设成透明），再用这份小排版逐个画。
 /// 文字内容不会变，所以每首歌只需要建一次。
 /// </remarks>
-internal sealed class LyricsLongSyllable(int syllableIndex, CanvasTextLayout layout, Rect bounds, int charCount) : IDisposable
+internal sealed class LyricsLongSyllable(
+    int syllableIndex, CanvasTextLayout layout, Rect bounds, int charStart, int charCount) : IDisposable
 {
-    /// <summary>它在行内的第几个音节。</summary>
     public int SyllableIndex { get; } = syllableIndex;
-
-    /// <summary>这个音节有几个字。给逐字上色用。</summary>
+    public int CharStart { get; } = charStart;
     public int CharCount { get; } = charCount;
-
-    /// <summary>独立的小排版，<c>NoWrap</c> 且左对齐。</summary>
     public CanvasTextLayout Layout { get; } = layout;
-
-    /// <summary>该音节在<b>行局部坐标</b>里的矩形。</summary>
     public Rect Bounds { get; } = bounds;
+    public CanvasLinearGradientBrush? Brush { get; set; }
+    public LyricsGlyph? Glyph { get; set; }
+    public CanvasCommandList? GlowImage { get; set; }
+    public GaussianBlurEffect? Glow { get; set; }
+    public void Dispose()
+    {
+        Glow?.Dispose();
+        GlowImage?.Dispose();
+        Brush?.Dispose();
+        Layout.Dispose();
+    }
+}
 
-    public void Dispose() => Layout.Dispose();
+internal sealed class LyricsGlyph(int start, int length, int syllable, Rect bounds)
+{
+    public int Start { get; } = start;
+    public int Length { get; } = length;
+    public int Syllable { get; } = syllable;
+    public Rect Bounds { get; } = bounds;
+    public double Offset { get; set; }
+    public double TotalWidth { get; set; }
+    public CanvasLinearGradientBrush? Brush { get; set; }
+    public double LastProgress { get; set; } = double.NaN;
 }
 
 /// <summary>
@@ -77,6 +97,12 @@ internal sealed class LyricsLineLayout : IDisposable
     /// <summary>达到长音阈值的音节，各带一份独立排版。多数行是空的。</summary>
     public LyricsLongSyllable[] LongSyllables { get; }
 
+    public LyricsGlyph[] Glyphs { get; init; } = [];
+    public CanvasCommandList? PlainImage { get; set; }
+    public CanvasCommandList? FocusedImage { get; set; }
+    public GaussianBlurEffect? Blur { get; set; }
+    public bool ActivePrepared { get; set; }
+
     public float Width { get; }
 
     public float Height { get; }
@@ -88,6 +114,10 @@ internal sealed class LyricsLineLayout : IDisposable
             syllable.Dispose();
         }
 
+        foreach (var glyph in Glyphs) glyph.Brush?.Dispose();
+        Blur?.Dispose();
+        PlainImage?.Dispose();
+        FocusedImage?.Dispose();
         Layout.Dispose();
     }
 }
@@ -220,7 +250,29 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         var charSyllable = BuildSyllableMap(line, span);
         var longSyllables = BuildLongSyllables(resourceCreator, line, charSyllable, charBounds);
 
-        return new LyricsLineLayout(layout, charBounds, charSyllable, longSyllables);
+        var glyphs = new List<LyricsGlyph>();
+        var enumerator = StringInfo.GetTextElementEnumerator(text);
+        while (enumerator.MoveNext())
+        {
+            var index = enumerator.ElementIndex;
+            var length = enumerator.GetTextElement().Length;
+            var bounds = UnionOf(layout.GetCharacterRegions(index, length));
+            glyphs.Add(new LyricsGlyph(index, length, charSyllable[index], bounds));
+        }
+        foreach (var group in glyphs.GroupBy(g => g.Syllable))
+        {
+            var total = group.Sum(g => g.Bounds.Width);
+            var offset = 0.0;
+            foreach (var glyph in group)
+            {
+                glyph.Offset = offset;
+                glyph.TotalWidth = total;
+                offset += glyph.Bounds.Width;
+            }
+        }
+        foreach (var syllable in longSyllables)
+            syllable.Glyph = glyphs.First(glyph => glyph.Start == syllable.CharStart);
+        return new LyricsLineLayout(layout, charBounds, charSyllable, longSyllables) { Glyphs = [.. glyphs] };
     }
 
     /// <summary>
@@ -246,37 +298,31 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
 
         var found = new List<LyricsLongSyllable>();
 
-        for (var s = 0; s < line.Syllables.Count; s++)
+        using var subFormat = new CanvasTextFormat
         {
-            var syllable = line.Syllables[s];
-
-            if (syllable.Duration < threshold || syllable.Text.Length == 0)
-            {
-                continue;
-            }
-
-            var bounds = SyllableBounds(charSyllable, charBounds, s);
-
-            if (bounds.Width <= 0 || bounds.Height <= 0)
-            {
-                continue;
-            }
-
-            // NoWrap + 左对齐：这一份只画一个音节，不需要折行，也不要居中。
-            var subFormat = new CanvasTextFormat
-            {
-                FontFamily = settings.FontFamily,
-                FontSize = (float)settings.BaseFontSize,
-                FontWeight = Microsoft.UI.Text.FontWeights.Normal,
-                WordWrapping = CanvasWordWrapping.NoWrap,
-                HorizontalAlignment = CanvasHorizontalAlignment.Left,
-                VerticalAlignment = CanvasVerticalAlignment.Top,
-            };
-
-            var subLayout = new CanvasTextLayout(resourceCreator, syllable.Text, subFormat, 0, 0);
-            subFormat.Dispose();
-
-            found.Add(new LyricsLongSyllable(s, subLayout, bounds, syllable.Text.Length));
+            FontFamily = settings.FontFamily,
+            FontSize = (float)settings.BaseFontSize,
+            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+            WordWrapping = CanvasWordWrapping.NoWrap,
+            HorizontalAlignment = CanvasHorizontalAlignment.Left,
+            VerticalAlignment = CanvasVerticalAlignment.Top,
+            LineSpacingMode = CanvasLineSpacingMode.Uniform,
+            LineSpacing = (float)(settings.BaseFontSize * settings.LineHeight),
+        };
+        var enumerator = StringInfo.GetTextElementEnumerator(line.Text);
+        while (enumerator.MoveNext())
+        {
+            var start = enumerator.ElementIndex;
+            if (start >= charSyllable.Length) continue;
+            var s = charSyllable[start];
+            if (s < 0 || s >= line.Syllables.Count || line.Syllables[s].Duration < threshold) continue;
+            var element = enumerator.GetTextElement();
+            if (string.IsNullOrWhiteSpace(element)) continue;
+            var bounds = charBounds[start];
+            for (var c = start + 1; c < start + element.Length && c < charBounds.Length; c++) bounds.Union(charBounds[c]);
+            if (bounds.Width <= 0 || bounds.Height <= 0) continue;
+            var subLayout = new CanvasTextLayout(resourceCreator, element, subFormat, 0, 0);
+            found.Add(new LyricsLongSyllable(s, subLayout, bounds, start, element.Length));
         }
 
         return [.. found];
@@ -361,21 +407,28 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         return bounds;
     }
 
-    private CanvasTextFormat GetFormat() => _format ??= new CanvasTextFormat
+    private CanvasTextFormat GetFormat()
+    {
+        if (_format is not null && Math.Abs(_format.FontSize - settings.BaseFontSize) > 0.1)
+        {
+            _format.Dispose();
+            _format = null;
+        }
+        return _format ??= new CanvasTextFormat
     {
         FontFamily = settings.FontFamily,
         FontSize = (float)settings.BaseFontSize,
-        FontWeight = Microsoft.UI.Text.FontWeights.Normal,
+        FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 
         // 中文按字断行；WrapWholeWords 会把整句中文当成一个词，长句溢出。
         WordWrapping = CanvasWordWrapping.Wrap,
 
-        // 居中对齐：配合「requestedWidth 给满视口宽」的排版，画的时候从 x=0 开始就是居中的，
-        // 下游不必再算每行的横向偏移。
-        HorizontalAlignment = CanvasHorizontalAlignment.Center,
+        // 左对齐，并以左侧为缩放锚点。
+        HorizontalAlignment = CanvasHorizontalAlignment.Left,
         VerticalAlignment = CanvasVerticalAlignment.Top,
 
         LineSpacingMode = CanvasLineSpacingMode.Uniform,
         LineSpacing = (float)(settings.BaseFontSize * settings.LineHeight),
     };
+    }
 }

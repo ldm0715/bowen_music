@@ -1,105 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    主歌词页。左栏是当前曲目的信息，右栏是歌词。
-
-    信息栏刻意绑定 PlayerViewModel 而不是 LyricsViewModel：封面那套 .webp → .jpg 改写与尺寸提升
-    已经在 PlayerViewModel 里做过了（SMTC 与播放条共用），再复制一份就是两条会漂移的实现。
--->
-<Page
-    x:Class="Bodian.WinUI.Views.LyricsPage"
+<Page x:Class="Bodian.WinUI.Views.LyricsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Bodian.WinUI">
-
-    <Grid
-        Padding="28,20,28,12"
-        ColumnSpacing="28">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-
-        <!-- ── 左：返回 + 封面 + 曲名 / 歌手 · 专辑 ─────────────────────────── -->
-        <StackPanel Grid.Column="0" Spacing="16">
-            <Button
-                MinWidth="0"
-                Padding="10,6"
-                HorizontalAlignment="Left"
-                Click="OnBackClick"
-                ToolTipService.ToolTip="返回">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon FontSize="13" Glyph="&#xE72B;" />
-                    <TextBlock FontSize="13" Text="返回" />
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI" RequestedTheme="Dark">
+    <Page.Resources>
+        <Style x:Key="LyricsButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+            <Setter Property="Width" Value="44" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="#DBFFFFFF" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style TargetType="FontIcon">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="IsTextScaleFactorEnabled" Value="False" />
+        </Style>
+    </Page.Resources>
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Key="Escape" Invoked="OnEscapeInvoked" />
+        <KeyboardAccelerator Key="F11" Invoked="OnFullscreenInvoked" />
+        <KeyboardAccelerator Key="Space" Invoked="OnPlayPauseInvoked" />
+    </Page.KeyboardAccelerators>
+    <Grid x:Name="LyricsRoot" Background="#0B1222" SizeChanged="OnRootSizeChanged">
+        <controls:LyricsBackdrop CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
+        <controls:AmbientBackdrop Opacity="0.18" />
+        <Border IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#08000000" Offset="0" />
+                    <GradientStop Color="#08000000" Offset="0.5" />
+                    <GradientStop Color="#58000000" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="72" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="128" />
+            </Grid.RowDefinitions>
+            <TitleBar x:Name="LyricsTitleBar" Height="56" VerticalAlignment="Top"
+                Background="Transparent" Foreground="#CCFFFFFF" AutomationProperties.Name="全屏歌词标题栏">
+                <TitleBar.Resources>
+                    <x:Double x:Key="TitleBarCompactHeight">56</x:Double>
+                    <x:Double x:Key="TitleBarExpandedHeight">56</x:Double>
+                    <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
+                </TitleBar.Resources>
+                <TitleBar.LeftHeader>
+                    <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource LyricsButtonStyle}"
+                        AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
+                        <FontIcon Glyph="&#xE70D;" />
+                    </Button>
+                </TitleBar.LeftHeader>
+                <TitleBar.Content>
+                    <TextBlock Text="{x:Bind Player.Title, Mode=OneWay}" FontSize="14"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Opacity="0.8" />
+                </TitleBar.Content>
+                <TitleBar.RightHeader>
+                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource LyricsButtonStyle}"
+                        AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
+                        <FontIcon x:Name="FullscreenIcon" Glyph="&#xE740;" FontSize="18" />
+                    </Button>
+                </TitleBar.RightHeader>
+            </TitleBar>
+            <Grid x:Name="MainStage" Grid.Row="1" Margin="32,0,24,0" ColumnSpacing="28">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="3*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel x:Name="CoverDeck" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="22"
+                    Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
+                    <Border x:Name="CoverFrame" Width="320" Height="320" CornerRadius="16" Background="#18FFFFFF">
+                        <Image Source="{x:Bind Player.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Spacing="7">
+                        <TextBlock Text="{x:Bind Player.Title, Mode=OneWay}" Foreground="#F2FFFFFF" FontSize="26"
+                            FontWeight="SemiBold" MaxLines="2" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{x:Bind Player.ArtistText, Mode=OneWay}" Foreground="#B8FFFFFF" FontSize="18" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{x:Bind Player.AlbumText, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="14" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
                 </StackPanel>
-            </Button>
-
-            <!-- 没有在播的歌时整块隐藏，避免露出一张空封面 -->
-            <Border
-                Width="252"
-                Height="252"
-                HorizontalAlignment="Left"
-                Background="{ThemeResource ControlFillColorDefaultBrush}"
-                CornerRadius="10"
-                Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
-                <Image
-                    Source="{x:Bind Player.CoverImage, Mode=OneWay}"
-                    Stretch="UniformToFill" />
-            </Border>
-
-            <StackPanel
-                Spacing="4"
-                Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
-                <TextBlock
-                    MaxLines="3"
-                    Style="{StaticResource SubtitleTextBlockStyle}"
-                    Text="{x:Bind Player.Title, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis"
-                    TextWrapping="Wrap" />
-                <TextBlock
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind local:Formats.ArtistLine(Player.ArtistText, Player.AlbumText), Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-        </StackPanel>
-
-        <!-- ── 右：歌词 ────────────────────────────────────────────────────── -->
-        <Grid Grid.Column="1">
-            <!--
-                Win2D 歌词控件由构造函数注入（见 .xaml.cs），放到这里而不是直接写在 XAML 里 ——
-                它需要注入依赖，而 XAML 实例化要求无参构造。
-                两个 ContentAlignment 必须显式 Stretch，理由见 MainWindow.xaml 里的同名注释。
-            -->
-            <ContentControl
-                x:Name="CanvasHost"
-                HorizontalContentAlignment="Stretch"
-                VerticalContentAlignment="Stretch" />
-
-            <!-- 空态 / 失败态 / 加载中，居中盖在歌词区上 -->
-            <StackPanel
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Orientation="Vertical"
-                Spacing="12">
-                <ProgressRing
-                    Width="20"
-                    Height="20"
-                    HorizontalAlignment="Center"
-                    IsActive="{x:Bind Lyrics.IsLoading, Mode=OneWay}"
-                    Visibility="{x:Bind local:Formats.Visible(Lyrics.IsLoading), Mode=OneWay}" />
-
-                <TextBlock
-                    HorizontalAlignment="Center"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="{x:Bind Lyrics.StatusText, Mode=OneWay}"
-                    Visibility="{x:Bind local:Formats.Visible(Lyrics.HasStatusText), Mode=OneWay}" />
-
-                <Button
-                    HorizontalAlignment="Center"
-                    Command="{x:Bind Lyrics.RetryCommand}"
-                    Content="重试"
-                    Visibility="{x:Bind local:Formats.Visible(Lyrics.LoadFailed), Mode=OneWay}" />
-            </StackPanel>
+                <Grid Grid.Column="1" Margin="0,0,0,4">
+                    <ContentControl x:Name="CanvasHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                    <Button x:Name="FollowButton" Content="回到当前歌词" Click="OnFollowClick"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,20"
+                        Visibility="Collapsed" AutomationProperties.Name="回到当前歌词" />
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" MaxWidth="420">
+                        <ProgressRing Width="24" Height="24" IsActive="{x:Bind Lyrics.IsLoading, Mode=OneWay}"
+                            Visibility="{x:Bind local:Formats.Visible(Lyrics.IsLoading), Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind Lyrics.StatusText, Mode=OneWay}" Foreground="#A6FFFFFF" FontSize="18"
+                            TextAlignment="Center" TextWrapping="Wrap" Visibility="{x:Bind local:Formats.Visible(Lyrics.HasStatusText), Mode=OneWay}" />
+                        <Button Content="重试" Command="{x:Bind Lyrics.RetryCommand}" HorizontalAlignment="Center"
+                            Visibility="{x:Bind local:Formats.Visible(Lyrics.LoadFailed), Mode=OneWay}" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+            <Grid x:Name="ControlDeck" Grid.Row="2" Margin="40,12,40,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="34" />
+                    <RowDefinition Height="48" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid MaxWidth="680" HorizontalAlignment="Stretch" ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="46" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="46" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind local:Formats.Seconds(PositionSlider.Value), Mode=OneWay}"
+                        FontSize="12" Foreground="#8FFFFFFF" VerticalAlignment="Center" />
+                    <Slider x:Name="PositionSlider" Grid.Column="1" MinWidth="0" VerticalAlignment="Center"
+                        Maximum="{x:Bind Player.ProgressMaximum, Mode=OneWay}"
+                        Value="{x:Bind Player.PositionSeconds, Mode=OneWay}" IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                        AutomationProperties.Name="播放进度">
+                        <Slider.Resources>
+                            <SolidColorBrush x:Key="SliderTrackFill" Color="#38FFFFFF" />
+                            <SolidColorBrush x:Key="SliderTrackValueFill" Color="#B8FFFFFF" />
+                            <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
+                            <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="White" />
+                            <x:Double x:Key="SliderTrackThemeHeight">3</x:Double>
+                            <x:Double x:Key="SliderHorizontalThumbWidth">10</x:Double>
+                            <x:Double x:Key="SliderHorizontalThumbHeight">10</x:Double>
+                        </Slider.Resources>
+                    </Slider>
+                    <TextBlock Grid.Column="2" Text="{x:Bind local:Formats.Seconds(Player.DurationSeconds), Mode=OneWay}"
+                        FontSize="12" Foreground="#8FFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+                    <Button Style="{StaticResource LyricsButtonStyle}" Command="{x:Bind Player.PreviousCommand}"
+                        IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
+                        <FontIcon Glyph="&#xE892;" FontSize="22" />
+                    </Button>
+                    <Button Style="{StaticResource LyricsButtonStyle}" Command="{x:Bind Player.TogglePlayPauseCommand}"
+                        IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}" AutomationProperties.Name="播放 / 暂停" ToolTipService.ToolTip="播放 / 暂停 (Space)">
+                        <FontIcon Glyph="{x:Bind PlayPauseGlyph(Player.IsPlaying), Mode=OneWay}" FontSize="30" />
+                    </Button>
+                    <Button Style="{StaticResource LyricsButtonStyle}" Command="{x:Bind Player.NextCommand}"
+                        IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}" AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
+                        <FontIcon Glyph="&#xE893;" FontSize="22" />
+                    </Button>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
+                    <TextBlock Text="{x:Bind Player.QualityText, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="12" />
+                    <TextBlock Text="{x:Bind Player.PayLabel, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="12" />
+                    <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel x:Name="VolumeDeck" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
+                    <FontIcon Glyph="{x:Bind Player.VolumeGlyph, Mode=OneWay}" FontSize="16" Foreground="#99FFFFFF" />
+                    <Slider x:Name="VolumeSlider" Width="96" MinWidth="0" Maximum="100" Value="{x:Bind Player.Volume, Mode=TwoWay}" AutomationProperties.Name="音量" />
+                </StackPanel>
+                <TextBlock Grid.Row="2" Text="{x:Bind Player.Notice, Mode=OneWay}" FontSize="12"
+                    Foreground="#BCFFFFFF" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"
+                    Visibility="{x:Bind local:Formats.Visible(Player.HasNotice), Mode=OneWay}" />
+            </Grid>
         </Grid>
     </Grid>
 </Page>

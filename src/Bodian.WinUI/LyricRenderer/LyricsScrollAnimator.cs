@@ -2,100 +2,54 @@ using Bodian.Core.Models.Lyrics;
 
 namespace Bodian.WinUI.LyricRenderer;
 
-/// <summary>
-/// 滚动的波浪式推进。
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>波浪在「每行自己的时长与延迟」里。</b> 一次滚动只有一个起点与终点，但每一行用
-/// <c>duration</c> 与 <c>delay</c> 各自插值 —— 延迟随离当前行的距离指数增长，
-/// 于是越远的行起步越晚，整体看起来是波浪推进而不是整块平移。
-/// </para>
-/// <para>
-/// 公式与参数来源见 <see cref="LyricEffectMath.ScrollDuration"/> 与
-/// <see cref="LyricEffectMath.StaggerDelay"/>（取自 BetterLyrics，GPL-3.0）。
-/// </para>
-/// <para>
-/// <b>只保存起点、终点与起始时刻</b>；每行的插值进度由调用方按自己的 duration/delay 算，
-/// 所以这里没有「每行一个过渡对象」的负担。
-/// </para>
-/// </remarks>
+/// <summary>每行独立保留位置和速度，换行时从当前运动状态接续弹簧。</summary>
 internal sealed class LyricsScrollAnimator
 {
-    private double _from;
-    private double _to;
-    private TimeSpan _start;
-    private bool _active;
+    private double[] _positions = [];
+    private double[] _velocities = [];
+    private double[] _targets = [];
+    private TimeSpan _started;
+    private int _anchor;
+    private bool _stagger = true;
+    public int Count => _positions.Length;
 
-    /// <summary>本次滚动的目标偏移。</summary>
-    public double Target => _to;
-
-    /// <summary>当前是否还在动。</summary>
-    public bool IsAnimating => _active;
-
-    /// <summary>
-    /// 直接落到目标位置，不做动画。
-    /// </summary>
-    /// <remarks>拖动进度条、切歌、以及第一次布局时用 —— 那些场合做波浪反而像卡顿。</remarks>
-    public void JumpTo(double offset)
+    public void Reset(int count, double target)
     {
-        _from = offset;
-        _to = offset;
-        _active = false;
+        _positions = new double[count];
+        _velocities = new double[count];
+        _targets = new double[count];
+        Array.Fill(_positions, target);
+        Array.Fill(_targets, target);
+        Target = target;
     }
 
-    /// <summary>
-    /// 滚到新位置。
-    /// </summary>
-    /// <param name="from">本次动画的起点（当前实际偏移）。</param>
-    /// <param name="target">目标偏移。</param>
-    /// <param name="now">当前时刻。</param>
-    public void ScrollTo(double from, double target, TimeSpan now)
-    {
-        if (_active && Math.Abs(target - _to) < 0.5)
-        {
-            return;   // 目标没变，别把进行中的动画重启
-        }
+    public double Target { get; private set; }
 
-        _from = from;
-        _to = target;
-        _start = now;
-        _active = true;
+    public void Retarget(double target, int anchor, TimeSpan now, bool stagger = true)
+    {
+        Target = target;
+        _started = now;
+        _anchor = anchor;
+        _stagger = stagger;
     }
 
-    /// <summary>
-    /// 某一行在这一刻的偏移。
-    /// </summary>
-    /// <param name="durationSeconds">该行的滚动时长（秒）。</param>
-    /// <param name="delaySeconds">该行的错峰延迟（秒）。</param>
-    /// <param name="now">当前时刻。</param>
-    public double OffsetAt(double durationSeconds, double delaySeconds, TimeSpan now)
+    public void Update(TimeSpan now, double seconds)
     {
-        if (!_active || durationSeconds <= 0)
+        for (var i = 0; i < _positions.Length; i++)
         {
-            return _to;
+            var delay = _stagger ? Math.Min(0.21, Math.Abs(i - _anchor) * 0.035) : 0;
+            // 只积分延迟结束后的时间，避免低帧率下各行同时起步。
+            var activeSeconds = Math.Min(seconds, Math.Max(0, (now - _started).TotalSeconds - delay));
+            var waitingSeconds = Math.Max(0, seconds - activeSeconds);
+            if (waitingSeconds > 0)
+                (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSpring(
+                    _positions[i], _velocities[i], _targets[i], waitingSeconds);
+            if (activeSeconds <= 0) continue;
+            _targets[i] = Target;
+            (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSpring(
+                _positions[i], _velocities[i], _targets[i], activeSeconds);
         }
-
-        var elapsed = (now - _start).TotalSeconds;
-        var progress = (elapsed - delaySeconds) / durationSeconds;
-
-        if (progress <= 0)
-        {
-            return _from;   // 还没轮到这一行
-        }
-
-        if (progress >= 1)
-        {
-            return _to;
-        }
-
-        return _from + ((_to - _from) * LyricEffectMath.EaseOutQuad(progress));
     }
 
-    /// <summary>
-    /// 全部行是否都已经落定。
-    /// </summary>
-    /// <remarks>落定之后 <see cref="OffsetAt"/> 恒返回终点，调用方可以省掉逐行的插值计算。</remarks>
-    public bool IsSettled(TimeSpan now, double maxDurationSeconds, double maxDelaySeconds)
-        => !_active || (now - _start).TotalSeconds >= maxDurationSeconds + maxDelaySeconds;
+    public double OffsetAt(int index) => _positions[index];
 }

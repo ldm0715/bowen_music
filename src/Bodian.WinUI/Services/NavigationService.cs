@@ -18,6 +18,8 @@ public sealed class NavigationService : INavigationService
     private readonly NavigationStack<Page> _stack;
 
     private ContentControl? _host;
+    private ContentControl? _shownHost;
+    private Func<Page, ContentControl>? _selectHost;
 
     /// <summary>当前真正挂在宿主上的页面。用来判断「这次到底变没变」。</summary>
     private Page? _shown;
@@ -44,10 +46,11 @@ public sealed class NavigationService : INavigationService
 
     public Page? Root => _stack.Root;
 
-    public void Attach(ContentControl host)
+    public void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null)
     {
         ArgumentNullException.ThrowIfNull(host);
         _host = host;
+        _selectHost = selectHost;
     }
 
     public void Navigate<TPage>() where TPage : Page =>
@@ -104,7 +107,13 @@ public sealed class NavigationService : INavigationService
         // OnNavigatedFrom 里释放、在 OnNavigatedTo 里重建。
         Notify(_shown, leaving: true);
 
-        _host.Content = next;
+        if (_shownHost is not null)
+        {
+            _shownHost.Content = null;
+        }
+
+        _shownHost = _selectHost?.Invoke(next) ?? _host;
+        _shownHost.Content = next;
         _shown = next;
 
         Notify(next, leaving: false);

@@ -58,6 +58,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>侧栏里为「创建的歌单」动态加进去的项。重新加载时要先摘掉它们。</summary>
     private readonly List<NavigationViewItem> _playlistItems = [];
+    private AppWindowPresenter? _lyricsRestorePresenter;
+    private FrameworkElement? _lyricsTitleBar;
+    private bool _lyricsVisible;
 
     public MainWindow(
         INavigationService navigation,
@@ -111,7 +114,7 @@ public sealed partial class MainWindow : Window
         ConfigureTitleBar();
         Closed += (_, _) => SaveWindowPlacement();
 
-        _navigation.Attach(PageHost);
+        _navigation.Attach(PageHost, page => page is LyricsPage ? ImmersiveHost : PageHost);
         _navigation.Navigated += OnNavigated;
 
         PlayerHost.Content = new PlayerBar(playerViewModel, lyricsViewModel, navigation);
@@ -148,8 +151,8 @@ public sealed partial class MainWindow : Window
     private void UpdateCaptionButtonColors()
     {
         var titleBar = AppWindow.TitleBar;
-        var isDark = ShellRoot.ActualTheme == ElementTheme.Dark;
-        var foreground = AppTitleBar.Foreground is SolidColorBrush brush
+        var isDark = _lyricsVisible || ShellRoot.ActualTheme == ElementTheme.Dark;
+        var foreground = _lyricsVisible ? Colors.White : AppTitleBar.Foreground is SolidColorBrush brush
             ? brush.Color
             : isDark ? Colors.White : Colors.Black;
         var hoverBackground = isDark
@@ -274,6 +277,11 @@ public sealed partial class MainWindow : Window
     /// </remarks>
     private void SaveWindowPlacement()
     {
+        if (AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+        {
+            return;
+        }
+
         if (AppWindow.Presenter is OverlappedPresenter { State: not OverlappedPresenterState.Restored })
         {
             return;
@@ -479,6 +487,57 @@ public sealed partial class MainWindow : Window
                 _navigation.NavigateRoot(_playlistDetailFactory(playlist, SidebarPlaylistSource));
                 break;
         }
+    }
+
+    public bool IsLyricsFullscreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
+
+    public void EnterLyrics(FrameworkElement titleBar)
+    {
+        _lyricsVisible = true;
+        _lyricsTitleBar = titleBar;
+        AppTitleBar.Visibility = Visibility.Collapsed;
+        Nav.Visibility = Visibility.Collapsed;
+        PlayerHost.Visibility = Visibility.Collapsed;
+        ImmersiveHost.Visibility = Visibility.Visible;
+        SetTitleBar(titleBar);
+        UpdateCaptionButtonColors();
+    }
+
+    public void ToggleLyricsFullscreen()
+    {
+        if (IsLyricsFullscreen)
+        {
+            RestoreLyricsPresenter();
+        }
+        else
+        {
+            _lyricsRestorePresenter = AppWindow.Presenter;
+            SetTitleBar(null);
+            AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+        }
+    }
+
+    private void RestoreLyricsPresenter()
+    {
+        if (_lyricsRestorePresenter is { } presenter)
+        {
+            AppWindow.SetPresenter(presenter);
+            _lyricsRestorePresenter = null;
+            SetTitleBar(_lyricsTitleBar);
+        }
+    }
+
+    public void ExitLyrics()
+    {
+        RestoreLyricsPresenter();
+        _lyricsVisible = false;
+        _lyricsTitleBar = null;
+        ImmersiveHost.Visibility = Visibility.Collapsed;
+        AppTitleBar.Visibility = Visibility.Visible;
+        Nav.Visibility = Visibility.Visible;
+        PlayerHost.Visibility = Visibility.Visible;
+        SetTitleBar(AppTitleBar);
+        UpdateCaptionButtonColors();
     }
 
     private void OnNavigated(object? sender, Page page) => SyncSelection();

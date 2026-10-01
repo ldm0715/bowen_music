@@ -347,5 +347,12 @@
             Grid.Row="2"
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch" />
+
+        <ContentControl
+            x:Name="ImmersiveHost"
+            Grid.RowSpan="3"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            Visibility="Collapsed" />
     </Grid>
 </Window>

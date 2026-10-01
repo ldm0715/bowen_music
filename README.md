@@ -2,13 +2,12 @@
 
 非官方第三方桌面客户端，目标平台 Windows 10 / 11。
 
-> **当前状态：P2（登录 + 播放最小闭环）代码完成，已经能用了。**
-> P0 完成了协议逆向与选型定稿，播放链路（`checkRight` → `audioUrl`）全程实测跑通，无损 FLAC 可用。
-> P1 搭好了工程骨架与传输层。
-> **P2 把客户端跑起来了**：扫码登录、搜索、点播、暂停 / 进度拖动 / 音量 / 上下首，
-> 音频走 libmpv（headless，不需要渲染控件），**233 个单测全绿**。
-> 进度见 [`docs/roadmap.md`](docs/roadmap.md)，未完成事项与踩过的坑见 [`docs/backlog.md`](docs/backlog.md)。
-> **下一步是 P1.5 透明悬浮窗 spike（仍未做）或 P3 SMTC。**
+> **当前状态（2026-10-01）：P0–P5、P7 代码完成，546 个核心测试通过。**
+> 已支持登录、搜索、播放、SMTC、曲库与歌单；歌词界面已替换为参考 LyciaMusic 的全窗口沉浸设计，
+> 包含透明封面背景、逐字渐变、弹簧滚动、长音效果、滚动浏览和点击歌词跳转。
+> 当前歌词效果已确认，进一步性能优化留到后续，说明见 [`docs/fullscreen-lyrics.md`](docs/fullscreen-lyrics.md)。
+> 进度见 [`docs/roadmap.md`](docs/roadmap.md)，待办见 [`docs/backlog.md`](docs/backlog.md)。
+> P6 桌面悬浮歌词及其 P1.5 透明窗口验证仍未完成。
 
 ## 为什么做这个
 
@@ -48,6 +47,7 @@
 | [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
+| [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |
 

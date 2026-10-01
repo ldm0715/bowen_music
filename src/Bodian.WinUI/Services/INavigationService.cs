@@ -64,7 +64,7 @@ public interface INavigationIdentity
 public interface INavigationService
 {
     /// <summary>由宿主窗口在构造后调一次，把承载页面用的 <see cref="ContentControl"/> 交进来。</summary>
-    void Attach(ContentControl host);
+    void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null);
 
     /// <summary>
     /// 切到某个页面（<b>压栈</b>，用于详情页）。当前页已经是同一个身份时什么都不做。

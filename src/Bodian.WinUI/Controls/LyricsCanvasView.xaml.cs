@@ -1,321 +1,335 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Numerics;
 using Bodian.Core.Playback;
 using Bodian.WinUI.LyricRenderer;
 using Bodian.WinUI.Playback;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Graphics.Canvas.UI;
-using Microsoft.Graphics.Canvas.UI.Xaml;
-using Microsoft.UI.Dispatching;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.UI.Composition;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Hosting;
+using Windows.Foundation;
+using Microsoft.Graphics.DirectX;
 using Microsoft.UI.Xaml.Media;
 
 namespace Bodian.WinUI.Controls;
 
-/// <summary>
-/// Win2D 歌词宿主。只做四件事：转发生命周期、转发指针、把 UI 线程的变动投到渲染线程、喂时钟。
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>位置源只有 5Hz</b>（引擎按 200ms 节流上报），逐字高亮要按帧推进，
-/// 所以中间隔一层 <see cref="LyricsPlaybackClock"/> 做插值。
-/// </para>
-/// <para>
-/// <b>渲染线程零写入。</b> 时钟用不可变锚点交换引用，渲染器只读；
-/// UI 线程要改渲染器状态（换歌、视口变化）一律走 <c>RunOnGameLoopThreadAsync</c> 投递，
-/// 不是直接赋值。
-/// </para>
-/// <para>
-/// <b>三条渲染线程的禁忌</b>（都是踩过的）：
-/// </para>
-/// <list type="number">
-/// <item><b>不读任何 XAML 属性</b>。<c>ActualWidth</c> / <c>ActualHeight</c> 只能在 UI 线程读，
-/// 在 <c>CreateResources</c> 里读会以 <c>E_INVALIDARG</c> 崩掉进程。所以视口尺寸缓存在字段里，
-/// 由 UI 线程的 <c>Loaded</c> / <c>SizeChanged</c> 写。</item>
-/// <item><b>不用控件当资源创建者</b>，用它的 <c>Device</c>。排版是懒建的（在 <c>Update</c> 里），
-/// 而用控件建资源只在 <c>CreateResources</c> 期间被允许。</item>
-/// <item><b>不在这里读播放器的属性</b>，只读时钟 —— 引擎属性会碰 libmpv。</item>
-/// </list>
-/// <para>
-/// <b>渲染回调里 catch 住异常。</b> 渲染线程上未处理的异常会把整个进程带走，而且堆栈不会进日志
-/// （WinUI 只给一句 <c>STATUS_STOWED_EXCEPTION</c>）。这里记下并停掉循环：画面停在最后一帧，
-/// 但进程活着、日志里有完整堆栈。
-/// </para>
-/// </remarks>
 public sealed partial class LyricsCanvasView : UserControl
 {
     private readonly LyricsViewModel _viewModel;
     private readonly IPlaybackService _engine;
     private readonly ILogger<LyricsCanvasView> _logger;
     private readonly LyricsPlaybackClock _clock = new(TimeProvider.System);
+    private readonly Stopwatch _animationClock = Stopwatch.StartNew();
     private readonly LyricsRenderer _renderer;
-
-    /// <summary>视口尺寸。由 UI 线程写，渲染线程读（见类注释的禁忌 1）。</summary>
-    private double _viewportWidth;
-
-    private double _viewportHeight;
-
-    private bool _subscribed;
+    private bool _loaded;
+    private bool _rendering;
     private bool _paused;
     private bool _broken;
+    private CanvasDevice? _canvasDevice;
+    private CompositionGraphicsDevice? _graphicsDevice;
+    private CompositionDrawingSurface? _surface;
+    private CompositionSurfaceBrush? _surfaceBrush;
+    private SpriteVisual? _surfaceVisual;
+    private double _rasterizationScale = 1;
+    private double _surfaceWidth;
+    private double _surfaceHeight;
+    private bool _browsing;
+    private uint? _pressedPointer;
+    private double _pressY;
+    private double _lastPointerY;
+    private int _pressedLine = -1;
+    private bool _dragging;
+    private bool _tapSuppressed;
+    private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
+    private long _statsStarted;
+    private int _statsFrames;
+    private double _statsDrawMilliseconds;
+    private double _statsMaxMilliseconds;
+    private double _statsMaxFrameInterval;
+    private long _previousDraw;
 
-    public LyricsCanvasView(
-        LyricsViewModel viewModel,
-        IPlaybackService engine,
-        ILoggerFactory? loggerFactory = null)
+    public LyricsCanvasView(LyricsViewModel viewModel, IPlaybackService engine, ILoggerFactory? loggerFactory = null)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(engine);
-
-        // 注入 ILoggerFactory 而不是 ILogger<T>：渲染器要自己那一类的 logger，
-        // 从 ILogger<LyricsCanvasView> 转不过去（泛型类型不协变）。
         var factory = loggerFactory ?? NullLoggerFactory.Instance;
-
         _viewModel = viewModel;
         _engine = engine;
         _logger = factory.CreateLogger<LyricsCanvasView>();
         _renderer = new LyricsRenderer(LyricsRenderSettings.Default, factory.CreateLogger<LyricsRenderer>());
-
         InitializeComponent();
-
+        Canvas.AddHandler(PointerWheelChangedEvent, new PointerEventHandler(OnPointerWheelChanged), true);
+        Canvas.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), true);
+        Canvas.AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerMoved), true);
+        Canvas.AddHandler(PointerExitedEvent, new PointerEventHandler(OnPointerExited), true);
+        Canvas.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnPointerReleased), true);
+        Canvas.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnPointerCaptureLost), true);
+        Canvas.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnPointerCanceled), true);
+        Canvas.AddHandler(TappedEvent, new TappedEventHandler(OnTapped), true);
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
-        ActualThemeChanged += (_, _) => SyncThemeColors();
     }
 
-    /// <summary>渲染循环的开关。歌词页不活跃或窗口不可见时为 <c>true</c>。</summary>
-    /// <remarks>
-    /// <b>显式控制，不依赖 Win2D 的隐式省电行为</b> —— 那个行为没有官方承诺。
-    /// </remarks>
+    public event EventHandler? BrowsingChanged;
+    public bool IsBrowsing => _browsing;
     public bool IsPaused
     {
         get => _paused;
         set
         {
-            if (_paused == value)
-            {
-                return;
-            }
-
             _paused = value;
-            Canvas.Paused = value;
+            UpdateRenderingSubscription();
         }
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    public void SetFontSize(double fontSize) => _renderer.SetFontSize(fontSize);
+    public void ResumeFollowing() => _renderer.ResumeFollowing();
+
+    private void OnLoaded(object sender, RoutedEventArgs args)
     {
-        SyncThemeColors();
-
-        // 视口尺寸只在 UI 线程量，量完投给渲染线程。
-        MeasureViewport();
-        Post(() => _renderer.SetViewport(_viewportWidth, _viewportHeight));
-
-        if (_subscribed)
-        {
-            return;
-        }
-
-        _subscribed = true;
-
+        if (_loaded) return;
+        _loaded = true;
+        _broken = false;
+        _clock.SetDuration(_engine.Duration);
+        _clock.Sync(_engine.Position, force: true);
+        _clock.SetPlaying(_engine.State == PlaybackState.Playing);
+        _renderer.SetDocument(_viewModel.Document);
+        _renderer.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight);
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        XamlRoot.Changed += OnXamlRootChanged;
+        Guarded(nameof(CreateSurface), CreateSurface);
+        UpdateRenderingSubscription();
     }
 
-    /// <summary>
-    /// 退场：退订 + 放掉设备资源。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>必须退订。</b> 引擎与 ViewModel 都是单例，订阅挂在它们身上；不退订的话
-    /// 每进一次歌词页就漏一份处理器，而且退场之后还会继续被调用。
-    /// </para>
-    /// <para>
-    /// <b>可以在这里释放设备资源</b>：控件离开可视树之后 Win2D 就停了游戏循环，
-    /// 不会再有在途的 <c>Draw</c>。这也是 Win2D 对「<c>CreateResources</c> 里建的东西」的
-    /// 官方释放时机 —— 没有对应的 <c>ReleaseResources</c> 回调。
-    /// </para>
-    /// </remarks>
-    private void OnUnloaded(object sender, RoutedEventArgs e)
+    private void OnUnloaded(object sender, RoutedEventArgs args)
     {
-        if (_subscribed)
-        {
-            _subscribed = false;
+        _loaded = false;
+        UpdateRenderingSubscription();
+        _engine.PositionChanged -= OnPositionChanged;
+        _engine.StateChanged -= OnStateChanged;
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        ResetPointerGesture();
+        XamlRoot.Changed -= OnXamlRootChanged;
+        ReleaseSurface();
+    }
 
-            _engine.PositionChanged -= OnPositionChanged;
-            _engine.StateChanged -= OnStateChanged;
-            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-        }
+    private void UpdateRenderingSubscription()
+    {
+        var shouldRender = _loaded && !_paused && !_broken;
+        if (_rendering == shouldRender) return;
+        _rendering = shouldRender;
+        if (shouldRender) CompositionTarget.Rendering += OnRendering;
+        else CompositionTarget.Rendering -= OnRendering;
+    }
 
+    private void CreateSurface()
+    {
+        _canvasDevice = CanvasDevice.GetSharedDevice();
+        _canvasDevice.DeviceLost += OnDeviceLost;
+        var compositor = ElementCompositionPreview.GetElementVisual(Canvas).Compositor;
+        _graphicsDevice = CanvasComposition.CreateCompositionGraphicsDevice(compositor, _canvasDevice);
+        _rasterizationScale = XamlRoot.RasterizationScale;
+        _surfaceWidth = Math.Max(1, Math.Ceiling(Canvas.ActualWidth * _rasterizationScale));
+        _surfaceHeight = Math.Max(1, Math.Ceiling(Canvas.ActualHeight * _rasterizationScale));
+        _surface = _graphicsDevice.CreateDrawingSurface(new Size(_surfaceWidth, _surfaceHeight),
+            DirectXPixelFormat.B8G8R8A8UIntNormalized, DirectXAlphaMode.Premultiplied);
+        _surfaceBrush = compositor.CreateSurfaceBrush(_surface);
+        _surfaceBrush.Stretch = CompositionStretch.Fill;
+        _surfaceVisual = compositor.CreateSpriteVisual();
+        _surfaceVisual.RelativeSizeAdjustment = Vector2.One;
+        _surfaceVisual.Brush = _surfaceBrush;
+        ElementCompositionPreview.SetElementChildVisual(Canvas, _surfaceVisual);
+        _renderer.RebuildDeviceResources(_canvasDevice);
+        _renderer.SetDpi((float)(_rasterizationScale * 96));
+        _renderer.SetDocument(_viewModel.Document);
+        _renderer.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight);
+    }
+
+    private void ReleaseSurface()
+    {
+        if (_canvasDevice is not null) _canvasDevice.DeviceLost -= OnDeviceLost;
+        ElementCompositionPreview.SetElementChildVisual(Canvas, null);
         _renderer.Dispose();
+        _surfaceVisual?.Dispose();
+        _surfaceBrush?.Dispose();
+        _surface?.Dispose();
+        _graphicsDevice?.Dispose();
+        _surfaceVisual = null;
+        _surfaceBrush = null;
+        _surface = null;
+        _graphicsDevice = null;
+        _canvasDevice = null;
     }
 
-    private void OnCreateResources(CanvasAnimatedControl sender, CanvasCreateResourcesEventArgs args)
-    {
-        Guarded(nameof(OnCreateResources), () =>
+    private void OnDeviceLost(CanvasDevice sender, object args)
+        => DispatcherQueue.TryEnqueue(() =>
         {
-            // 设备相关资源只能在这里建。设备丢失时本方法会以 NewDevice 重入，整体换代。
-            // ★ 传 Device 而不是 sender，见类注释的禁忌 2。
-            _renderer.RebuildDeviceResources(sender.Device);
-
-            // 换设备之后排版也要重建，所以这里重新同步一次当前文档与视口。
-            _renderer.SetDocument(_viewModel.Document);
-            _renderer.SetViewport(_viewportWidth, _viewportHeight);
+            if (!_loaded) return;
+            Guarded(nameof(OnDeviceLost), () => { ReleaseSurface(); CreateSurface(); });
         });
-    }
 
-    private void OnUpdate(ICanvasAnimatedControl sender, CanvasAnimatedUpdateEventArgs args)
-        => Guarded(nameof(OnUpdate), () => _renderer.Update(_clock.Position, args.Timing.TotalTime, _clock.JumpCount));
+    private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => ResizeSurface();
 
-    private void OnDraw(ICanvasAnimatedControl sender, CanvasAnimatedDrawEventArgs args)
-        => Guarded(nameof(OnDraw), () => _renderer.Draw(args.DrawingSession));
-
-    private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+    private void ResizeSurface()
     {
-        _viewportWidth = e.NewSize.Width;
-        _viewportHeight = e.NewSize.Height;
-
-        var width = _viewportWidth;
-        var height = _viewportHeight;
-        Post(() => _renderer.SetViewport(width, height));
-    }
-
-    private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        var point = e.GetCurrentPoint(Canvas);
-        var index = _renderer.LineIndexAt(point.Position.Y);
-
-        if (index >= 0)
+        if (_surface is null || XamlRoot is null) return;
+        var scale = XamlRoot.RasterizationScale;
+        var width = Math.Max(1, Math.Ceiling(Canvas.ActualWidth * scale));
+        var height = Math.Max(1, Math.Ceiling(Canvas.ActualHeight * scale));
+        if (width != _surfaceWidth || height != _surfaceHeight)
         {
-            _viewModel.SeekToLineCommand.Execute(index);
+            CanvasComposition.Resize(_surface, new Size(width, height));
+            _surfaceWidth = width;
+            _surfaceHeight = height;
         }
+        _rasterizationScale = scale;
+        _renderer.SetDpi((float)(scale * 96));
+        _renderer.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight);
     }
 
-    private void OnPositionChanged(object? sender, PlaybackPositionChangedEventArgs e)
-    {
-        _clock.SetDuration(e.Duration);
-        _clock.Sync(e.Position);
-    }
-
-    private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs e)
-        => _clock.SetPlaying(e.State == PlaybackState.Playing);
-
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(LyricsViewModel.Document))
+    private void OnRendering(object? sender, object args)
+        => Guarded(nameof(OnRendering), () =>
         {
-            return;
-        }
+            if (_surface is null || Canvas.ActualWidth <= 0 || Canvas.ActualHeight <= 0) return;
+            var drawStarted = Stopwatch.GetTimestamp();
+            _renderer.Update(_clock.Position, _animationClock.Elapsed, _clock.JumpCount);
+            using (var session = CanvasComposition.CreateDrawingSession(_surface,
+                new Rect(0, 0, _surfaceWidth, _surfaceHeight), (float)(_rasterizationScale * 96)))
+            {
+                session.Clear(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+                _renderer.Draw(session);
+            }
+            if (_diagnostics) RecordFrame(drawStarted);
+            if (_browsing != _renderer.IsBrowsing)
+            {
+                _browsing = _renderer.IsBrowsing;
+                BrowsingChanged?.Invoke(this, EventArgs.Empty);
+            }
+        });
 
-        var document = _viewModel.Document;
-        Post(() => _renderer.SetDocument(document));
-    }
-
-    /// <summary>在 UI 线程量视口尺寸。</summary>
-    private void MeasureViewport()
+    private void RecordFrame(long drawStarted)
     {
-        _viewportWidth = Canvas.ActualWidth;
-        _viewportHeight = Canvas.ActualHeight;
+        if (_statsStarted == 0) _statsStarted = drawStarted;
+        var elapsed = Stopwatch.GetElapsedTime(drawStarted).TotalMilliseconds;
+        _statsDrawMilliseconds += elapsed;
+        _statsMaxMilliseconds = Math.Max(_statsMaxMilliseconds, elapsed);
+        if (_previousDraw != 0)
+            _statsMaxFrameInterval = Math.Max(_statsMaxFrameInterval, Stopwatch.GetElapsedTime(_previousDraw, drawStarted).TotalMilliseconds);
+        _previousDraw = drawStarted;
+        _statsFrames++;
+        var window = Stopwatch.GetElapsedTime(_statsStarted).TotalSeconds;
+        if (window < 5) return;
+        _logger.LogInformation("歌词绘制统计：{Fps:F1} fps，平均绘制 {Average:F2} ms，最慢绘制 {Maximum:F2} ms，最大帧间隔 {Interval:F2} ms",
+            _statsFrames / window, _statsDrawMilliseconds / _statsFrames, _statsMaxMilliseconds, _statsMaxFrameInterval);
+        _statsStarted = _previousDraw = 0;
+        _statsFrames = 0;
+        _statsDrawMilliseconds = _statsMaxMilliseconds = _statsMaxFrameInterval = 0;
     }
 
-    /// <summary>把一次状态改动投到渲染线程上。</summary>
-    private void Post(DispatcherQueueHandler action)
+    private void OnSizeChanged(object sender, SizeChangedEventArgs args) => ResizeSurface();
+
+    private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs args)
     {
-        if (_broken)
-        {
-            return;
-        }
-
-        try
-        {
-            _ = Canvas.RunOnGameLoopThreadAsync(action);
-        }
-        catch (Exception ex)
-        {
-            // 控件已经不在树里（页面切走了）。丢掉这次更新不影响正确性 ——
-            // 下次进场时 CreateResources 会把当前文档重新同步一遍。
-            _logger.LogDebug(ex, "投递到渲染线程失败（控件可能已经退场）");
-        }
+        var properties = args.GetCurrentPoint(Canvas).Properties;
+        if (properties.IsHorizontalMouseWheel || properties.MouseWheelDelta == 0) return;
+        _renderer.ScrollBy(-properties.MouseWheelDelta * 0.85, _animationClock.Elapsed);
+        args.Handled = true;
     }
 
-    /// <summary>
-    /// 包住渲染线程上的回调，别让异常带走进程。
-    /// </summary>
-    /// <remarks>
-    /// 出错后<b>停掉循环</b>（而不是继续每帧抛一次）：画面停在最后一帧，日志里有完整堆栈。
-    /// 修好之前那一帧也画不出来，但至少能看见原因。
-    /// </remarks>
+    private void OnPointerPressed(object sender, PointerRoutedEventArgs args)
+    {
+        var point = args.GetCurrentPoint(Canvas);
+        if (args.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Mouse
+            && !point.Properties.IsLeftButtonPressed) return;
+        _pressedPointer = args.Pointer.PointerId;
+        _pressY = _lastPointerY = point.Position.Y;
+        _pressedLine = _renderer.LineIndexAt(point.Position.Y);
+        _dragging = false;
+        _tapSuppressed = false;
+        Canvas.CapturePointer(args.Pointer);
+        args.Handled = true;
+    }
+
+    private void OnPointerMoved(object sender, PointerRoutedEventArgs args)
+    {
+        var point = args.GetCurrentPoint(Canvas);
+        _renderer.SetPointerY(point.Position.Y, _animationClock.Elapsed);
+        if (_pressedPointer != args.Pointer.PointerId) return;
+        if (Math.Abs(point.Position.Y - _pressY) > 6) _dragging = _tapSuppressed = true;
+        if (_dragging)
+        {
+            _renderer.ScrollBy(_lastPointerY - point.Position.Y, _animationClock.Elapsed);
+            args.Handled = true;
+        }
+        _lastPointerY = point.Position.Y;
+    }
+
+    private void OnPointerExited(object sender, PointerRoutedEventArgs args)
+        => _renderer.SetPointerY(null, _animationClock.Elapsed);
+
+    private void OnPointerReleased(object sender, PointerRoutedEventArgs args)
+    {
+        if (_pressedPointer != args.Pointer.PointerId) return;
+        ResetPointerGesture();
+        Canvas.ReleasePointerCapture(args.Pointer);
+        args.Handled = true;
+    }
+
+    private async void OnTapped(object sender, TappedRoutedEventArgs args)
+    {
+        if (_tapSuppressed) return;
+        var line = _renderer.LineIndexAt(args.GetPosition(Canvas).Y);
+        if (line < 0 || line >= _viewModel.Document.Lines.Count) return;
+        args.Handled = true;
+        var position = _viewModel.Document.Lines[line].Start;
+        await _viewModel.SeekToLineCommand.ExecuteAsync(line);
+        _clock.Sync(position, force: true);
+        _renderer.ResumeFollowing();
+        _logger.LogInformation("歌词点击跳转：行 {Line}，时间 {Position:F2} 秒", line, position.TotalSeconds);
+    }
+
+    private void OnPointerCaptureLost(object sender, PointerRoutedEventArgs args) => ResetPointerGesture();
+    private void OnPointerCanceled(object sender, PointerRoutedEventArgs args)
+    {
+        _tapSuppressed = true;
+        ResetPointerGesture();
+    }
+    private void ResetPointerGesture()
+    {
+        _pressedPointer = null;
+        _pressedLine = -1;
+        _dragging = false;
+    }
+
+    private void OnPositionChanged(object? sender, PlaybackPositionChangedEventArgs args)
+    {
+        _clock.SetDuration(args.Duration);
+        _clock.Sync(args.Position);
+    }
+    private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)
+        => _clock.SetPlaying(args.State == PlaybackState.Playing);
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(LyricsViewModel.Document)) _renderer.SetDocument(_viewModel.Document);
+    }
     private void Guarded(string callback, Action action)
     {
-        if (_broken)
-        {
-            return;
-        }
-
-        try
-        {
-            action();
-        }
-        catch (Exception ex)
+        if (_broken) return;
+        try { action(); }
+        catch (Exception exception)
         {
             _broken = true;
-
-            _logger.LogCritical(ex, "Win2D 歌词渲染在 {Callback} 中失败，已停掉渲染循环", callback);
-
-            try
-            {
-                Canvas.Paused = true;
-            }
-            catch (Exception pauseEx)
-            {
-                // 暂停都失败就只能这样了，日志里已经有一条 Critical。
-                _logger.LogDebug(pauseEx, "渲染循环暂停失败");
-            }
+            UpdateRenderingSubscription();
+            _logger.LogCritical(exception, "全屏歌词渲染在 {Callback} 中失败，已暂停绘制", callback);
         }
-    }
-
-    /// <summary>
-    /// 定歌词的配色：底色与页面一致，文字颜色按<b>实际主题</b>直接定。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>文字颜色刻意不读主题画刷。</b> 读画刷拿到的是解析当时的主题值，一旦与底色不配对，
-    /// 就是白字配白底 —— 字都在，一个也看不见。这里按
-    /// <see cref="FrameworkElement.ActualTheme"/> 直接定：浅底深字、深底浅字。
-    /// </para>
-    /// <para>
-    /// 底色仍然优先用页面的主题画刷（这样和搜索页、播放条一致），取不到才退回保底色。
-    /// </para>
-    /// </remarks>
-    private void SyncThemeColors()
-    {
-        var dark = ActualTheme == ElementTheme.Dark;
-
-        var background = (Host.Background as SolidColorBrush)?.Color
-                         ?? (dark
-                             ? Windows.UI.Color.FromArgb(255, 32, 32, 32)
-                             : Windows.UI.Color.FromArgb(255, 243, 243, 243));
-
-        var played = dark
-            ? Windows.UI.Color.FromArgb(255, 255, 255, 255)
-            : Windows.UI.Color.FromArgb(255, 24, 24, 24);
-
-        var unplayed = dark
-            ? Windows.UI.Color.FromArgb(255, 148, 148, 154)
-            : Windows.UI.Color.FromArgb(255, 132, 132, 138);
-
-        Canvas.ClearColor = background;
-
-        _logger.LogInformation(
-            "歌词配色：主题 {Theme}，底色 {Background}，已唱 {Played}，未唱 {Unplayed}",
-            ActualTheme,
-            background,
-            played,
-            unplayed);
-
-        Post(() => _renderer.SetColors(played, unplayed));
     }
 }
