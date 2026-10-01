@@ -102,9 +102,9 @@ public sealed class LyricsPlaybackClockTests
 
     // ── 普通推进：平滑消化 ──────────────────────────────────────────────────
 
-    /// <summary>偏差不大时不动锚点，只记一个修正量；读出来的位置立刻等于上报值。</summary>
+    /// <summary>小偏差保留当前已显示的位置，校正从这一位置连续接续。</summary>
     [Fact]
-    public void SmallDeviation_IsAbsorbedWithoutMovingTheAnchor()
+    public void SmallDeviation_DoesNotJumpTheDisplayedPosition()
     {
         var (time, clock) = Create();
 
@@ -112,13 +112,13 @@ public sealed class LyricsPlaybackClockTests
         time.Advance(TimeSpan.FromMilliseconds(500));
         clock.Sync(TimeSpan.FromMilliseconds(600));   // 引擎说 600，时钟预测 500
 
-        Assert.Equal(TimeSpan.FromMilliseconds(600), clock.Position);
+        Assert.Equal(TimeSpan.FromMilliseconds(500), clock.Position);
         Assert.Equal(0, clock.JumpCount);
     }
 
-    /// <summary>修正量在消化窗口内线性衰减掉，之后位置回到「锚点 + 真实流逝」这条线上。</summary>
+    /// <summary>校正逐渐加入时间推进，在限定速度内追上音频；完成后继续等速推进。</summary>
     [Fact]
-    public void TheCorrection_DecaysOverTheSmoothWindow()
+    public void TheCorrection_ConvergesWithoutDroppingTheAudioOffset()
     {
         var (time, clock) = Create();
 
@@ -128,8 +128,11 @@ public sealed class LyricsPlaybackClockTests
 
         time.Advance(LyricsPlaybackClock.SmoothWindow);
 
-        // 锚点在 0、已经过去 700ms，修正量消耗殆尽
-        Assert.Equal(TimeSpan.FromMilliseconds(700), clock.Position);
+        Assert.Equal(TimeSpan.FromMilliseconds(750), clock.Position);
+        time.Advance(LyricsPlaybackClock.SmoothWindow);
+        Assert.Equal(TimeSpan.FromMilliseconds(1000), clock.Position);
+        time.Advance(TimeSpan.FromMilliseconds(100));
+        Assert.Equal(TimeSpan.FromMilliseconds(1100), clock.Position);
     }
 
     /// <summary>
@@ -204,7 +207,7 @@ public sealed class LyricsPlaybackClockTests
 
         clock.SetPlaying(true);
         time.Advance(TimeSpan.FromMilliseconds(100));
-        clock.Sync(TimeSpan.FromMilliseconds(150));          // 平滑消化，留下 −50ms 的修正量
+        clock.Sync(TimeSpan.FromMilliseconds(150));
         clock.Sync(TimeSpan.FromSeconds(30), force: true);   // 紧接着一次硬跳
 
         time.Advance(TimeSpan.FromMilliseconds(100));
