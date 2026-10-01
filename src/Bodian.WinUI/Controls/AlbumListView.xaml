@@ -12,6 +12,7 @@
         点行进专辑详情 —— 与 TrackListView 同形，只是报的是 Album。
     -->
     <ListView
+        Padding="{StaticResource SpaceVerticalScrollContentPadding}"
         IsItemClickEnabled="True"
         ItemClick="OnItemClick"
         ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"

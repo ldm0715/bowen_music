@@ -9,7 +9,7 @@
         搜索页**没有自己的搜索框**：输入在内容区顶部那个常驻的框里（外壳提供），
         提交之后才切到这一页。两处各放一个框会出现「框里是 A、结果是 B」。
     -->
-    <Grid Style="{StaticResource BodianPageRoot}">
+    <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />

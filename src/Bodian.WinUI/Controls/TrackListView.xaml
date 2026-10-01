@@ -23,18 +23,27 @@
         ★ 行根必须有 Background="Transparent"。少了它，行内的空白处收不到指针事件，
           序号列就不会在悬停时切换成播放键。
     -->
+    <!-- Padding 作用在原生 ItemsPresenter 上，给时间列与滚动条之间留出独立空间。 -->
     <ListView
+        Padding="{StaticResource SpaceVerticalScrollContentPadding}"
         IsItemClickEnabled="True"
         ItemClick="OnItemClick"
         ItemsSource="{x:Bind Rows}"
         SelectionMode="None">
+        <!-- 行内自己保留播放区；移除原生容器的额外左右内边距，沿用原生完整模板。 -->
+        <ListView.ItemContainerStyle>
+            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            </Style>
+        </ListView.ItemContainerStyle>
         <ListView.ItemTemplate>
             <DataTemplate x:DataType="vm:TrackRow">
                 <Grid
                     MinHeight="{StaticResource SizeRowHeight}"
                     Padding="{StaticResource SpaceRowPadding}"
                     Background="Transparent"
-                    ColumnSpacing="12"
+                    ColumnSpacing="{StaticResource SpaceRow}"
                     PointerEntered="OnRowPointerEntered"
                     PointerExited="OnRowPointerExited">
                     <!--
@@ -44,7 +53,7 @@
                         SizeRowOrdinalColumn / SizeRowDurationColumn 一致，改的时候两处一起改。
                     -->
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="32" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="0.7*" />

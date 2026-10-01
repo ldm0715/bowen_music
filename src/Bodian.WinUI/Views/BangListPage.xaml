@@ -20,7 +20,7 @@
 
         ★ 名次由数据带着走（TrackRow.Ordinal），不靠控件算位置：ItemsControl 拿不到下标。
     -->
-    <Grid Style="{StaticResource BodianPageRoot}">
+    <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -39,6 +39,7 @@
         <ListView
             x:Name="SectionList"
             Grid.Row="1"
+            Padding="{StaticResource SpaceVerticalScrollContentPadding}"
             ItemsSource="{x:Bind ViewModel.Sections}"
             SelectionMode="None"
             ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -125,7 +126,7 @@
                                                         所以「下一首」在榜内有效（与搜索页同一套行为）。
                                                     -->
                                                     <Grid
-                                                        Padding="4,5"
+                                                        Padding="4,5,16,5"
                                                         ColumnSpacing="10"
                                                         Background="Transparent"
                                                         PointerEntered="OnPreviewRowPointerEntered"

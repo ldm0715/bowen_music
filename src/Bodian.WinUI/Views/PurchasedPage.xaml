@@ -11,7 +11,7 @@
         ★ 不做成页签：页签要维护一套选中状态，而这种「两节都不长」的内容并排放着更省事，
           用户也不用先点一下才知道另一边有什么。
     -->
-    <Grid Style="{StaticResource BodianPageRoot}">
+    <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />

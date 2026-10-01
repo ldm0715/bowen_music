@@ -176,35 +176,68 @@
                             FontSize="{StaticResource SizeIconSm}"
                             Glyph="{x:Bind Theme.CurrentGlyph, Mode=OneWay}" />
                         <Button.Flyout>
-                            <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <RadioMenuFlyoutItem
-                                    Click="OnThemeSystemClicked"
-                                    GroupName="AppTheme"
-                                    IsChecked="{x:Bind Theme.IsSystem, Mode=OneWay}"
-                                    Text="跟随系统">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE770;" />
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                                <RadioMenuFlyoutItem
-                                    Click="OnThemeLightClicked"
-                                    GroupName="AppTheme"
-                                    IsChecked="{x:Bind Theme.IsLight, Mode=OneWay}"
-                                    Text="浅色">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE706;" />
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                                <RadioMenuFlyoutItem
-                                    Click="OnThemeDarkClicked"
-                                    GroupName="AppTheme"
-                                    IsChecked="{x:Bind Theme.IsDark, Mode=OneWay}"
-                                    Text="深色">
-                                    <RadioMenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE708;" />
-                                    </RadioMenuFlyoutItem.Icon>
-                                </RadioMenuFlyoutItem>
-                            </MenuFlyout>
+                            <Flyout Opening="OnThemeFlyoutOpening" Placement="Bottom">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                        <Setter Property="Padding" Value="6" />
+                                        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <!-- 竖排单选列表：仅以背景表示选中，隐藏圆点、勾选和强调线。 -->
+                                <ListView
+                                    x:Name="ThemeOptions"
+                                    MinWidth="0"
+                                    HorizontalAlignment="Left"
+                                    SelectionMode="Single"
+                                    ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollMode="Disabled"
+                                    AutomationProperties.Name="主题">
+                                    <ListView.Resources>
+                                        <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                                        <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+                                    </ListView.Resources>
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                            <Setter Property="MinWidth" Value="0" />
+                                            <Setter Property="Padding" Value="10,8" />
+                                            <Setter Property="Margin" Value="0,2" />
+                                            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListViewItem x:Name="SystemThemeOption" AutomationProperties.Name="跟随系统">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon
+                                                Width="20"
+                                                Height="20"
+                                                FontSize="{StaticResource SizeIconSm}"
+                                                Glyph="&#xE770;" />
+                                            <TextBlock VerticalAlignment="Center" Text="跟随系统" />
+                                        </StackPanel>
+                                    </ListViewItem>
+                                    <ListViewItem x:Name="LightThemeOption" AutomationProperties.Name="浅色">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon
+                                                Width="20"
+                                                Height="20"
+                                                FontSize="{StaticResource SizeIconSm}"
+                                                Glyph="&#xE706;" />
+                                            <TextBlock VerticalAlignment="Center" Text="浅色" />
+                                        </StackPanel>
+                                    </ListViewItem>
+                                    <ListViewItem x:Name="DarkThemeOption" AutomationProperties.Name="深色">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon
+                                                Width="20"
+                                                Height="20"
+                                                FontSize="{StaticResource SizeIconSm}"
+                                                Glyph="&#xE708;" />
+                                            <TextBlock VerticalAlignment="Center" Text="深色" />
+                                        </StackPanel>
+                                    </ListViewItem>
+                                </ListView>
+                            </Flyout>
                         </Button.Flyout>
                     </Button>
                     <Border

@@ -29,7 +29,7 @@
 
     <!-- 列表行 -->
     <x:Double x:Key="SizeRowHeight">64</x:Double>
-    <x:Double x:Key="SizeRowOrdinalColumn">40</x:Double>
+    <x:Double x:Key="SizeRowOrdinalColumn">32</x:Double>
     <x:Double x:Key="SizeRowDurationColumn">40</x:Double>
 
     <!-- 封面。列表行与播放条共用 Row 这一档 -->
@@ -85,8 +85,8 @@
     <!-- 图标列宽。系统默认 40（16 图标 + 24 留白），收到 24 让文字更靠近图标 -->
     <x:Double x:Key="NavigationViewIconBoxWidth">24</x:Double>
 
-    <!-- 项的外边距：左右 8 对齐参照物的 mx-2；上下 2 使相邻项间距为 4 -->
-    <Thickness x:Key="NavigationViewItemButtonMargin">8,2</Thickness>
+    <!-- 使用原生的左右 4px 边距，紧凑侧栏下背景不会越界裁切；上下项间距仍为 4px -->
+    <Thickness x:Key="NavigationViewItemButtonMargin">4,2</Thickness>
 
     <!-- 项自身不描边（选中态用底色表示，不用边框） -->
     <Thickness x:Key="NavigationViewItemBorderThickness">0</Thickness>
@@ -122,7 +122,12 @@
 
     <!-- 间距 -->
     <Thickness x:Key="SpacePagePadding">24,16</Thickness>
-    <Thickness x:Key="SpaceRowPadding">8,0</Thickness>
+    <!-- 曲目页靠近侧栏；保留右侧与上下的原有留白 -->
+    <Thickness x:Key="SpaceTrackPagePadding">12,16,24,16</Thickness>
+    <!-- 行悬浮背景内侧单独留 16px，时间不会贴住背景圆角 -->
+    <Thickness x:Key="SpaceRowPadding">4,0,16,0</Thickness>
+    <!-- 内容在浮动纵向滚动条内侧结束；左侧保持紧凑，不随滚动条显隐跳动 -->
+    <Thickness x:Key="SpaceVerticalScrollContentPadding">0,0,24,0</Thickness>
     <x:Double x:Key="SpaceSection">12</x:Double>
     <x:Double x:Key="SpaceRow">8</x:Double>
 

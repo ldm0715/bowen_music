@@ -9,9 +9,9 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 using Windows.UI;
-using Microsoft.UI.Xaml.Media;
 
 namespace Bodian.WinUI;
 
@@ -95,6 +95,10 @@ public sealed partial class MainWindow : Window
 
         InitializeComponent();
 
+        // 先同步保存的档位，再订阅选择事件，避免初始化时把设置改成第一个选项。
+        SyncThemeSelection();
+        ThemeOptions.SelectionChanged += OnThemeSelectionChanged;
+
         // 曲目列表靠这个知道「哪一行在播」。
         //
         // ★ 为什么走 App 资源而不是给 6 个页面各传一份：TrackListView 是 XAML 实例化的，
@@ -164,14 +168,26 @@ public sealed partial class MainWindow : Window
         titleBar.ButtonPressedForegroundColor = foreground;
     }
 
-    // 三个档位各一个处理函数。用 RadioMenuFlyoutItem 自带的 Click 而不是把命令绑到
-    // CommandParameter 上：后者要传枚举，绕一层字符串解析或转换器，反而更绕。
+    private void OnThemeFlyoutOpening(object sender, object args) => SyncThemeSelection();
 
-    private void OnThemeSystemClicked(object sender, RoutedEventArgs e) => Theme.Select(AppTheme.System);
+    private void SyncThemeSelection() => ThemeOptions.SelectedItem = Theme.Current switch
+    {
+        AppTheme.Light => LightThemeOption,
+        AppTheme.Dark => DarkThemeOption,
+        _ => SystemThemeOption,
+    };
 
-    private void OnThemeLightClicked(object sender, RoutedEventArgs e) => Theme.Select(AppTheme.Light);
+    private void OnThemeSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (ThemeOptions.SelectedItem is not ListViewItem selected)
+        {
+            return;
+        }
 
-    private void OnThemeDarkClicked(object sender, RoutedEventArgs e) => Theme.Select(AppTheme.Dark);
+        Theme.Select(selected == LightThemeOption
+            ? AppTheme.Light
+            : selected == DarkThemeOption ? AppTheme.Dark : AppTheme.System);
+    }
 
     /// <summary>
     /// 首次运行（或记录不可用）时的默认窗口尺寸，单位是**逻辑像素**。
@@ -339,7 +355,7 @@ public sealed partial class MainWindow : Window
     /// 回登录页，<b>并把侧栏与搜索框整个藏起来</b>。
     /// </summary>
     /// <remarks>
-    /// 登录页是整页的，侧栏留在旁边会露出上一个账号的歌单名 —— 那既是错的信息，
+    /// 登录宿主显示居中弹窗；侧栏留在旁边会露出上一个账号的歌单名 —— 那既是错的信息，
     /// 也是不该在未登录状态出现的信息。搜索框同理：未登录时搜出来也播不了。
     /// </remarks>
     private void ShowLogin()

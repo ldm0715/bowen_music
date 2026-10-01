@@ -134,6 +134,14 @@
                  选中态不在这里：曲目列表是 SelectionMode=None，高亮由 TrackRow.IsCurrent 自己画。 -->
             <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#0D000000" />
             <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="#14000000" />
+
+            <!-- 单选主题列表仅使用背景表示选中，与侧栏使用同一套状态色。 -->
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#1A000000" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#24000000" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2E000000" />
+
+            <!-- 主题弹层深浅色均为 80% 不透明度，以同样比例透出窗口内的氛围背景。 -->
+            <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#CCFAFAFA" />
         </ResourceDictionary>
 
         <!-- ══ 深色 ══════════════════════════════════════════════════════════ -->
@@ -222,6 +230,14 @@
 
             <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#0DFFFFFF" />
             <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="#14FFFFFF" />
+
+            <!-- 单选主题列表仅使用背景表示选中，与侧栏使用同一套状态色。 -->
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#1AFFFFFF" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#24FFFFFF" />
+            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2EFFFFFF" />
+
+            <!-- 主题弹层深浅色均为 80% 不透明度，以同样比例透出窗口内的氛围背景。 -->
+            <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#CC202020" />
         </ResourceDictionary>
 
         <!-- ══ 高对比度 ══════════════════════════════════════════════════════ -->
@@ -234,6 +250,7 @@
             <Color x:Key="BrandAccent">{ThemeResource SystemColorHighlightColor}</Color>
             <Color x:Key="BrandAccentOnSurface">{ThemeResource SystemColorHighlightColor}</Color>
             <Color x:Key="BrandOnAccent">{ThemeResource SystemColorHighlightTextColor}</Color>
+            <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="{ThemeResource SystemColorWindowColor}" />
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>

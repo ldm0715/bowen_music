@@ -23,6 +23,11 @@
         <Setter Property="RowSpacing" Value="{StaticResource SpaceSection}" />
     </Style>
 
+    <!-- 曲目列表页：减少侧栏与列表之间的留白，沿用其余页面骨架。 -->
+    <Style x:Key="BodianTrackPageRoot" TargetType="Grid" BasedOn="{StaticResource BodianPageRoot}">
+        <Setter Property="Padding" Value="{StaticResource SpaceTrackPagePadding}" />
+    </Style>
+
     <!-- 页面标题 -->
     <Style x:Key="BodianPageTitle" TargetType="TextBlock" BasedOn="{StaticResource TitleTextBlockStyle}" />
 
