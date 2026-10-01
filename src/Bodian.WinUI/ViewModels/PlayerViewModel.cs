@@ -63,6 +63,17 @@ public sealed partial class PlayerViewModel : ObservableObject
     public partial ImageSource? CoverImage { get; set; }
 
     /// <summary>
+    /// 当前封面的**原始地址**。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="CoverImage"/> 是两回事：那个是给界面直接显示的 <c>BitmapImage</c>，
+    /// 而氛围背景要拿地址自己去解码取色 —— 从 <c>ImageSource</c> 里拿不回地址。
+    /// 取色那一步会把它改写成 <c>.jpg</c> 小图，见 <c>CoverPaletteLoader</c>。
+    /// </remarks>
+    [ObservableProperty]
+    public partial Uri? CurrentCoverUri { get; set; }
+
+    /// <summary>
     /// 付费标识（<c>VIP</c> / <c>付费</c> / 空）。**只是展示** ——
     /// 能不能播由服务端的 checkRight 裁决，不看这个。
     /// </summary>
@@ -78,6 +89,23 @@ public sealed partial class PlayerViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsPlaying { get; set; }
+
+    /// <summary>
+    /// 当前曲目的 <c>musicId</c>。曲目列表用它决定哪一行显示「正在播放」。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>这是「正在播放」的唯一权威来源。</b> 页面 ViewModel 上那个同名的 <c>CurrentTrack</c>
+    /// 语义是「本页最后被点播的曲目」—— <b>自动下一首不会更新它，被拒绝的曲目也会写进去</b>，
+    /// 拿它做高亮会在自动切歌时停在原地。
+    /// </para>
+    /// <para>
+    /// 播不成的曲目也照样赋值：用户得看见「刚才点的是这一首、它正在播不了」，
+    /// 这与播放条的行为一致（播放条在被拒时同样会显示曲目信息）。
+    /// </para>
+    /// </remarks>
+    [ObservableProperty]
+    public partial long? CurrentTrackId { get; set; }
 
     /// <summary>当前放的是试听片段。</summary>
     [ObservableProperty]
@@ -203,6 +231,7 @@ public sealed partial class PlayerViewModel : ObservableObject
     private void OnStarted(object? sender, PlaybackStartedEventArgs e)
     {
         HasTrack = true;
+        CurrentTrackId = e.Track.Id;
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
@@ -222,6 +251,7 @@ public sealed partial class PlayerViewModel : ObservableObject
     private void OnBlocked(object? sender, PlaybackBlockedEventArgs e)
     {
         HasTrack = true;
+        CurrentTrackId = e.Track.Id;
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
@@ -277,6 +307,9 @@ public sealed partial class PlayerViewModel : ObservableObject
 
         // BitmapImage 自己异步加载；地址失效时图是空的，不影响布局。
         CoverImage = track.CoverImage is { } cover ? new BitmapImage(cover) : null;
+
+        // 氛围背景靠这个自己去解码取色。
+        CurrentCoverUri = track.CoverImage;
 
         PayLabel = track.RequiresVip ? "VIP"
             : track.RequiresPurchase ? "付费"

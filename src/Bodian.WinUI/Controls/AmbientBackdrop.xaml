@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.AmbientBackdrop"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    HorizontalAlignment="Stretch"
+    VerticalAlignment="Stretch"
+    HorizontalContentAlignment="Stretch"
+    VerticalContentAlignment="Stretch"
+    IsHitTestVisible="False">
+
+    <!--
+        氛围背景：三团柔和的光晕，缓慢漂移，颜色取自当前封面。
+
+        ★ 画刷（位置、半径、色阶）**全部在代码里建**，见 AmbientBackdrop.xaml.cs。
+          不在 XAML 里留一份「默认色」—— 两份几何参数必然不同步，
+          而且运行期改画刷的 GradientStops 不一定能让它失效重绘（实测踩过：
+          矩形会渲染成平色块，看起来就是「三个矩形」）。
+          整个换掉 Fill 是唯一能确保重绘的做法。
+
+        ★ 只动 RenderTransform 与 Opacity —— 这两个有合成器线程的独立动画通道，
+          不进 UI 线程，所以这是常驻全屏层而空闲时 CPU 占用为 0。
+          绝不要动画画刷属性（那是 dependent animation，全屏尺寸下会掉帧）。
+
+        ★ 不需要高斯模糊。渐变色阶本身就是柔和过渡，观感与 CSS blur(40px) 等价，
+          同时省掉了 Win2D / Composition 的互操作风险。
+
+        ★ 每层都是**窗口大小**（Stretch），不能是固定尺寸 + 负 margin 溢出窗口 ——
+          溢出窗口的大元素，分块光栅化的网格锚点与窗口对不齐，缩放时会露出旧分块。
+    -->
+
+    <UserControl.Resources>
+        <!--
+            三个团的周期互质（70s / 88s / 110s），肉眼看不到循环接缝。
+            往返漂移（AutoReverse）而不是线性环绕，避免生硬的折返。
+
+            ★ Duration 是「时:分:秒」，秒位必须在 0-59。写 "0:0:70" 想表达 70 秒是错的 ——
+              编译期不报，运行期抛 XamlParseException，应用直接打不开。70 秒要写 "0:1:10"。
+        -->
+        <Storyboard x:Name="DriftA" AutoReverse="True" RepeatBehavior="Forever">
+            <DoubleAnimation
+                Storyboard.TargetName="TfA"
+                Storyboard.TargetProperty="TranslateX"
+                From="-70" To="90" Duration="0:1:10" />
+            <DoubleAnimation
+                Storyboard.TargetName="TfA"
+                Storyboard.TargetProperty="TranslateY"
+                From="-40" To="60" Duration="0:1:35" />
+        </Storyboard>
+
+        <Storyboard x:Name="DriftB" AutoReverse="True" RepeatBehavior="Forever">
+            <DoubleAnimation
+                Storyboard.TargetName="TfB"
+                Storyboard.TargetProperty="TranslateX"
+                From="80" To="-70" Duration="0:1:28" />
+            <DoubleAnimation
+                Storyboard.TargetName="TfB"
+                Storyboard.TargetProperty="TranslateY"
+                From="50" To="-60" Duration="0:1:16" />
+        </Storyboard>
+
+        <Storyboard x:Name="DriftC" AutoReverse="True" RepeatBehavior="Forever">
+            <DoubleAnimation
+                Storyboard.TargetName="TfC"
+                Storyboard.TargetProperty="TranslateX"
+                From="-60" To="70" Duration="0:1:50" />
+            <DoubleAnimation
+                Storyboard.TargetName="TfC"
+                Storyboard.TargetProperty="TranslateY"
+                From="60" To="-40" Duration="0:1:44" />
+        </Storyboard>
+    </UserControl.Resources>
+
+    <!-- 整体强度分浅色深色两档，见 Theme.xaml 的 AmbientOpacity -->
+    <Grid
+        HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch"
+        Opacity="{ThemeResource AmbientOpacity}">
+
+        <Rectangle x:Name="BlobA" RenderTransformOrigin="0.5,0.5">
+            <Rectangle.RenderTransform>
+                <CompositeTransform x:Name="TfA" />
+            </Rectangle.RenderTransform>
+        </Rectangle>
+
+        <Rectangle x:Name="BlobB" RenderTransformOrigin="0.5,0.5">
+            <Rectangle.RenderTransform>
+                <CompositeTransform x:Name="TfB" />
+            </Rectangle.RenderTransform>
+        </Rectangle>
+
+        <Rectangle x:Name="BlobC" RenderTransformOrigin="0.5,0.5">
+            <Rectangle.RenderTransform>
+                <CompositeTransform x:Name="TfC" />
+            </Rectangle.RenderTransform>
+        </Rectangle>
+
+    </Grid>
+</UserControl>
