@@ -21,6 +21,15 @@ public static class AppPaths
     /// <summary>会话凭据文件（DPAPI 加密）。<b>必须与探针共用同一个文件。</b></summary>
     public static string CredentialFile => Path.Combine(LocalAppData, "session.dat");
 
+    /// <summary>
+    /// 「最近播放」的本地记录（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与官方客户端的历史不互通</b>：官方存在自己的 SQLite（<c>songDB.db</c>）里，
+    /// 本项目不读别人的库。所以这份历史从本客户端第一次播放开始积累。
+    /// </remarks>
+    public static string PlayHistoryFile => Path.Combine(LocalAppData, "history.json");
+
     /// <summary>日志目录。</summary>
     public static string LogDirectory => Path.Combine(LocalAppData, "logs");
 }

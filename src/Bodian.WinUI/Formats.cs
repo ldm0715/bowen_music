@@ -70,6 +70,9 @@ public static class Formats
     public static string Quality(IReadOnlyList<AudioQuality> qualities) =>
         qualities.Count == 0 ? "" : Describe(qualities[0]);
 
+    /// <summary>专辑条目右侧的曲目数。0 时留空 —— 「0 首」在列表里只是噪音。</summary>
+    public static string AlbumCount(int count) => count > 0 ? $"{count} 首" : "";
+
     /// <summary>
     /// 付费标识文案。
     /// </summary>

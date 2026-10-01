@@ -1,10 +1,12 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Bodian.Core.Api.Dto;
 using Bodian.Core.Api.Dto.Requests;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Lyrics;
 using Bodian.Core.Models;
+using Bodian.Core.Models.Home;
 using Bodian.Core.Models.Lyrics;
 using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
@@ -268,6 +270,749 @@ public sealed class BodianApi : IBodianApi
         return new PlaybackResolution.Playable(source);
     }
 
+    // ── 曲库 ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 账号歌单（自建与「我喜欢」）在 <c>musicList</c> 里的 <c>source</c> 取值。
+    /// </summary>
+    /// <remarks>
+    /// 文档 2.2：<c>source</c> 取 1–6，默认 4（公开集合）；自建歌单与「我喜欢」**都是 5**。
+    /// 两者共用同一个值，所以取曲目时不必先判断歌单是哪种。
+    /// </remarks>
+    private const int AccountPlaylistSource = 5;
+
+    public async Task<IReadOnlyList<Playlist>> GetCreatedPlaylistsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.PlaylistUserCreate,
+                Query = [UidPair()],
+                Signed = true,
+            },
+            BodianJsonContext.Default.PlaylistListPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        var playlists = envelope.Data?.PlayLists?.Select(MapPlaylist).ToArray() ?? [];
+
+        _logger.LogInformation("自建歌单 {Count} 个", playlists.Length);
+
+        return playlists;
+    }
+
+    public async Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
+    {
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.PlaylistFond,
+                Query = [UidPair()],
+                Signed = true,
+            },
+            BodianJsonContext.Default.PlaylistDto,
+            cancellationToken).ConfigureAwait(false);
+
+        // 账号没有红心歌单时对象里没有 id（文档 2.3），按「没有这个歌单」返回 null。
+        return envelope.Data is { Id: > 0 } dto ? MapPlaylist(dto) : null;
+    }
+
+    public async Task<PagedResult<Track>> GetPlaylistTracksAsync(
+        long playlistId,
+        int source,
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+        EnsurePlaylistId(playlistId);
+        RequireAuthenticated();
+
+        var sourceText = source.ToString(CultureInfo.InvariantCulture);
+
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var query = new List<KeyValuePair<string, string>>(paging)
+                {
+                    new("source", sourceText),
+                };
+
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = Endpoints.PlaylistTracks(playlistId),
+                        Query = query,
+                        Signed = true,
+                    },
+                    BodianJsonContext.Default.PlaylistTracksPayload,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                var items = payload?.List?.Select(MapTrack).ToArray() ?? [];
+
+                _logger.LogInformation(
+                    "歌单 {PlaylistId} 返回 {Count} 首（offset={Offset}）",
+                    playlistId,
+                    items.Length,
+                    cursor.Offset);
+
+                return new PagedResult<Track>(items, cursor.Offset, cursor.PageSize, payload?.Total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    // ── 专辑 ────────────────────────────────────────────────────────────────
+
+    public async Task<Album?> GetAlbumAsync(long albumId, CancellationToken cancellationToken = default)
+    {
+        if (albumId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(albumId), albumId, "albumId 必须是正数");
+        }
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.AlbumDetail(albumId),
+                Query = [],
+                Signed = false,
+            },
+            BodianJsonContext.Default.AlbumInfoPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        return envelope.Data?.AlbumInfo is { } dto ? MapAlbum(dto) : null;
+    }
+
+    public async Task<PagedResult<Track>> GetAlbumTracksAsync(
+        long albumId,
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        if (albumId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(albumId), albumId, "albumId 必须是正数");
+        }
+
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = Endpoints.AlbumTracks(albumId),
+                        Query = new List<KeyValuePair<string, string>>(paging),
+                        Signed = false,
+                    },
+                    BodianJsonContext.Default.AlbumTracksPayload,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                var items = payload?.ResultList?.Select(MapTrack).ToArray() ?? [];
+
+                _logger.LogInformation(
+                    "专辑 {AlbumId} 返回 {Count} 首（offset={Offset}）",
+                    albumId,
+                    items.Length,
+                    cursor.Offset);
+
+                return new PagedResult<Track>(items, cursor.Offset, cursor.PageSize, payload?.Total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<PagedResult<Album>> GetMusicLibraryAlbumsAsync(
+        string pTypeId,
+        string cTypeId,
+        MusicLibSort sort,
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pTypeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cTypeId);
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        var sortValue = sort.ToRequestValue();
+
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var query = new List<KeyValuePair<string, string>>(paging)
+                {
+                    new("pTypeId", pTypeId),
+                    new("cTypeId", cTypeId),
+
+                    // ★ 字符串 "1"/"2"，不是数字。传错的话服务端回 200 + 空 data。
+                    new("sort", sortValue),
+                };
+
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = Endpoints.MusicLibraryAlbums,
+                        Query = query,
+
+                        // GET（参数走 query）。POST + JSON body 会 500。
+                        Signed = false,
+                    },
+                    BodianJsonContext.Default.MusicLibraryAlbumsPayload,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                var items = payload?.List?.Select(MapAlbum).ToArray() ?? [];
+
+                _logger.LogInformation(
+                    "乐库 {PType}/{CType}（sort={Sort}）返回 {Count} 张专辑（offset={Offset}）",
+                    pTypeId,
+                    cTypeId,
+                    sortValue,
+                    items.Length,
+                    cursor.Offset);
+
+                return new PagedResult<Album>(items, cursor.Offset, cursor.PageSize, payload?.Total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    // ── 乐库（MusicLib）─────────────────────────────────────────────────────
+
+    public async Task<IReadOnlyList<MusicCategoryGroup>> GetMusicLibraryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                // 无参数；实测桌面请求头即可（不像 albums 那样必须移动端头）。
+                Path = Endpoints.MusicLibraryNavigation,
+                Query = [],
+                Signed = false,
+            },
+            BodianJsonContext.Default.MusicLibraryNavDtoArray,
+            cancellationToken).ConfigureAwait(false);
+
+        var groups = envelope.Data?
+            .Where(dto => !string.IsNullOrWhiteSpace(dto.PTypeName))
+            .Select(dto => new MusicCategoryGroup(
+                dto.Id ?? "",
+                dto.PTypeName!,
+                // internalTitle 里带换行（形如 "POP\nMUSIC"），界面上要压成一行。
+                (dto.ExternalTitle ?? dto.InternalTitle ?? "").ReplaceLineEndings(" ").Trim(),
+                dto.LongDesc ?? "",
+                ToHttpUri(dto.CoverPic),
+                dto.AlbumTotal,
+                [.. (dto.ChildList ?? [])
+                    .Where(child => !string.IsNullOrWhiteSpace(child.Name))
+                    .Select(child => new MusicCategoryChild(
+                        child.Id ?? "",
+                        child.Name!,
+                        child.LongDescTitle ?? "",
+                        child.LongDesc ?? "",
+                        child.AlbumVo is { } album ? MapAlbum(album) : null))]))
+            .ToArray() ?? [];
+
+        _logger.LogInformation(
+            "乐库 {Groups} 个大类、共 {Children} 个子类",
+            groups.Length,
+            groups.Sum(group => group.Children.Count));
+
+        return groups;
+    }
+
+    // ── 乐库（分类歌单）──────────────────────────────────────────────────────
+
+    public async Task<IReadOnlyList<CategoryGroup>> GetCategoriesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                // 无参数、不要求登录（实测匿名即可）。
+                Path = Endpoints.CategoryList,
+                Query = [],
+                Signed = false,
+            },
+            BodianJsonContext.Default.CategoryListPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        var groups = envelope.Data?.Categories?
+            .Where(dto => !string.IsNullOrWhiteSpace(dto.Name))
+            .Select(dto => new CategoryGroup(
+                dto.Name!,
+                [.. (dto.SubCategories ?? [])
+                    .Where(sub => sub.Id > 0 && !string.IsNullOrWhiteSpace(sub.Name))
+                    .Select(sub => new MusicCategory(sub.Id, sub.Name!))]))
+            .Where(group => group.SubCategories.Count > 0)
+            .ToArray() ?? [];
+
+        _logger.LogInformation(
+            "乐库 {Groups} 组分类、共 {Categories} 个子分类",
+            groups.Length,
+            groups.Sum(group => group.SubCategories.Count));
+
+        return groups;
+    }
+
+    public async Task<PagedResult<Playlist>> GetCategoryPlaylistsAsync(
+        long categoryId,
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        if (categoryId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(categoryId), categoryId, "categoryId 必须是正数");
+        }
+
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = Endpoints.CategoryPlaylists(categoryId),
+                        Query = new List<KeyValuePair<string, string>>(paging),
+                        Signed = false,
+
+                        // 这一族复用的是歌单列表的信封 DTO，与收藏歌单同一个。
+                    },
+                    BodianJsonContext.Default.PlaylistListPayload,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                var items = payload?.PlayLists?.Select(MapPlaylist).ToArray() ?? [];
+
+                _logger.LogInformation(
+                    "乐库分类 {CategoryId} 返回 {Count} 个歌单（offset={Offset}）",
+                    categoryId,
+                    items.Length,
+                    cursor.Offset);
+
+                return new PagedResult<Playlist>(items, cursor.Offset, cursor.PageSize, payload?.Total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    // ── 排行榜 ──────────────────────────────────────────────────────────────
+
+    public async Task<IReadOnlyList<BangSection>> GetBangSectionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                // 无参数、不要求登录（实测匿名即可）。
+                Path = Endpoints.HomeBangNew,
+                Query = [],
+                Signed = false,
+            },
+            BodianJsonContext.Default.BangSectionDtoArray,
+            cancellationToken).ConfigureAwait(false);
+
+        var sections = envelope.Data?
+            .Select(dto => new BangSection(
+                dto.ModuleName ?? "",
+
+                // 「H5榜单」那组里的条目没有 id（是外部 H5 链接），取不了曲目，滤掉。
+                [.. (dto.BangList ?? [])
+                    .Where(bang => bang.Id > 0 && !string.IsNullOrWhiteSpace(bang.Name))
+                    .Select(MapBang)]))
+            .Where(section => section.Bangs.Count > 0)
+            .ToArray() ?? [];
+
+        _logger.LogInformation(
+            "排行榜 {Sections} 组、共 {Bangs} 个榜",
+            sections.Length,
+            sections.Sum(section => section.Bangs.Count));
+
+        return sections;
+    }
+
+    public async Task<PagedResult<Track>> GetBangTracksAsync(
+        long bangId,
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        if (bangId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bangId), bangId, "bangId 必须是正数");
+        }
+
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = Endpoints.BangMusics(bangId),
+                        Query = new List<KeyValuePair<string, string>>(paging),
+                        Signed = false,
+                    },
+                    BodianJsonContext.Default.BangMusicsPayload,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                var items = payload?.Musics?.Select(MapTrack).ToArray() ?? [];
+
+                return new PagedResult<Track>(items, cursor.Offset, cursor.PageSize, payload?.Total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static Bang MapBang(BangDto dto) => new()
+    {
+        Id = dto.Id,
+        Name = dto.Name ?? "",
+        CoverImage = ToHttpUri(dto.Pic),
+        UpdateText = dto.PubStr ?? "",
+        PreviewTracks = [.. (dto.Musics ?? []).Select(MapTrack)],
+    };
+
+    public async Task<AiPlaylist?> GetAiPlaylistAsync(
+        int index,
+        string passRecName,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(passRecName);
+
+        if (index < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index), index, "index 不能是负数");
+        }
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.AiPlaylistDetail,
+                Query =
+                [
+                    new KeyValuePair<string, string>(
+                        "index",
+                        index.ToString(CultureInfo.InvariantCulture)),
+
+                    // 空串也要带：格式化串两端都有这两个参数，实测空串能正常拿到
+                    // 「个性化歌单」的歌单。
+                    new KeyValuePair<string, string>("passRecName", passRecName),
+                ],
+                Signed = false,
+            },
+            BodianJsonContext.Default.AiPlaylistPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        if (envelope.Data is not { } payload)
+        {
+            return null;
+        }
+
+        var tracks = payload.MusicList?.Select(MapTrack).ToArray() ?? [];
+
+        _logger.LogInformation(
+            "AI 歌单 index={Index}（{Title}）{Count} 首",
+            index,
+            payload.Title,
+            tracks.Length);
+
+        return new AiPlaylist(
+            payload.Title ?? "",
+            payload.SubTitle ?? "",
+            payload.BigTitle ?? "",
+            tracks);
+    }
+
+    // ── 发现页 ──────────────────────────────────────────────────────────────
+
+    public async Task<IReadOnlyList<HomeModule>> GetHomeModulesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                // 这个端点**无参数**，也不必签名（实测匿名即可）。
+                Path = Endpoints.HomeIndex,
+                Query = [],
+                Signed = false,
+            },
+            BodianJsonContext.Default.HomeIndexPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        var modules = envelope.Data?.ModuleList?
+            .Select(dto => new HomeModule(dto.Id, dto.Type, dto.Name ?? "", dto.DelayMs))
+            .ToArray() ?? [];
+
+        _logger.LogInformation(
+            "发现页布局 {Count} 个模块，其中可渲染 {Supported} 个",
+            modules.Length,
+            modules.Count(module => module.IsSupported));
+
+        return modules;
+    }
+
+    public async Task<HomeFeed?> GetHomeModuleAsync(
+        HomeModule module,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(module);
+
+        if (!module.IsSupported)
+        {
+            return null;
+        }
+
+        var query = new List<KeyValuePair<string, string>>
+        {
+            new("moduleId", module.Id.ToString(CultureInfo.InvariantCulture)),
+        };
+
+        // ★ 按 type 挑解析类型：songList 这个键在 type 4/11 里是曲目分组、
+        //   在 type 5 里是歌单卡片，同一个键两种形状，一个 DTO 接不了。
+        var request = new BodianRequest
+        {
+            Path = Endpoints.HomeModule,
+            Query = query,
+            Signed = false,
+        };
+
+        var feed = module.Type switch
+        {
+            5 => await ReadPlaylistCardsAsync(request, cancellationToken).ConfigureAwait(false),
+            4 or 11 => await ReadSongGroupsAsync(request, module.Type, cancellationToken).ConfigureAwait(false),
+            3 or 10 => await ReadMusicListAsync(request, cancellationToken).ConfigureAwait(false),
+            _ => null,
+        };
+
+        _logger.LogInformation(
+            "发现页模块 {Id}（{Name}，type={Type}）解析出 {Sections} 组",
+            module.Id,
+            module.Name,
+            module.Type,
+            feed?.Sections.Count ?? 0);
+
+        return feed;
+    }
+
+    private async Task<HomeFeed?> ReadMusicListAsync(BodianRequest request, CancellationToken cancellationToken)
+    {
+        var payload = (await _transport.SendAsync(
+            request, BodianJsonContext.Default.HomeMusicListPayload, cancellationToken).ConfigureAwait(false)).Data;
+
+        var tracks = payload?.MusicList?.Select(MapTrack).ToArray() ?? [];
+
+        return Build(payload?.ModuleName, tracks.Length == 0 ? [] : [new HomeSection("", null, ToCards(tracks))]);
+    }
+
+    /// <summary>
+    /// 曲目分组（type 4 / 11）。
+    /// </summary>
+    /// <param name="moduleType">
+    /// 用它决定分组的 <c>id</c> 是不是 AI 歌单序号。
+    /// <b>不能靠「id 大于 0」判断</b>：type 11 的分组压根没有 id 字段、反序列化后是 0，
+    /// 而 <c>index=0</c> 恰好是合法的 AI 序号 —— 那样 type 11 的分组点进去会打开「潮趣日推」。
+    /// </param>
+    private async Task<HomeFeed?> ReadSongGroupsAsync(
+        BodianRequest request,
+        int moduleType,
+        CancellationToken cancellationToken)
+    {
+        var payload = (await _transport.SendAsync(
+            request, BodianJsonContext.Default.HomeSongGroupsPayload, cancellationToken).ConfigureAwait(false)).Data;
+
+        // 「个性化歌单」（type 4）与「你的主题歌单」（type 11）的分组都能点开成完整歌单。
+        var openable = moduleType is 4 or 11;
+
+        var sections = payload?.SongList?
+            .Select((group, position) => (group, position))
+            .Where(pair => pair.group.Songs is { Length: > 0 })
+            .Select(pair => new HomeSection(
+                pair.group.Name ?? "",
+                null,
+                ToCards([.. pair.group.Songs!.Select(MapTrack)]),
+
+                // ★ index 用**位置**，不是分组自带的 id：
+                //   type 11 压根没有 id 字段（反序列化后是 0），而 type 4 的 id
+                //   在实测样本里就是位置。passRecName 只有 type 11 有。
+                openable
+                    ? new AiPlaylistRef(pair.position, pair.group.PassRecName ?? "")
+                    : null))
+            .ToArray() ?? [];
+
+        return Build(payload?.ModuleName, sections);
+    }
+
+    private async Task<HomeFeed?> ReadPlaylistCardsAsync(BodianRequest request, CancellationToken cancellationToken)
+    {
+        var payload = (await _transport.SendAsync(
+            request, BodianJsonContext.Default.HomePlaylistCardsPayload, cancellationToken).ConfigureAwait(false)).Data;
+
+        var playlists = payload?.SongList?.Select(MapPlaylist).ToArray() ?? [];
+
+        var cards = playlists.Select(playlist => new HomeCard
+        {
+            Title = playlist.Name,
+            Subtitle = playlist.MusicCount > 0 ? $"{playlist.MusicCount} 首" : "",
+            CoverImage = playlist.CoverImage,
+
+            // 实测发现的歌单是公开集合（sourceType 4），点它要按那个 source 取曲目。
+            Playlist = playlist,
+        }).ToArray();
+
+        return Build(payload?.ModuleName, cards.Length == 0 ? [] : [new HomeSection("", null, cards)]);
+    }
+
+    /// <summary>把「每组若干曲目」统一成卡片。</summary>
+    private static HomeCard[] ToCards(IReadOnlyList<Track> tracks) =>
+        [.. tracks.Select(track => new HomeCard
+        {
+            Title = track.Title,
+            Subtitle = track.ArtistText,
+            CoverImage = track.CoverImage,
+            Track = track,
+        })];
+
+    /// <summary>一组都没有时返回 <c>null</c> —— 那表示「这个模块这次没有内容」，不是空标题。</summary>
+    private static HomeFeed? Build(string? title, HomeSection[] sections) =>
+        sections.Length == 0 ? null : new HomeFeed(title ?? "", sections);
+
+    // ── 已购与收藏 ──────────────────────────────────────────────────────────
+
+    public async Task<PagedResult<Track>> GetPurchasedSinglesAsync(
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+        RequireAuthenticated();
+
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = Endpoints.PurchasedSingles,
+                        Query = new List<KeyValuePair<string, string>>(paging),
+                        Signed = true,
+                    },
+                    BodianJsonContext.Default.PurchasedSinglesPayload,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                var items = payload?.MusicList?.Select(MapTrack).ToArray() ?? [];
+
+                _logger.LogInformation(
+                    "已购单曲返回 {Count} 首（offset={Offset}）",
+                    items.Length,
+                    cursor.Offset);
+
+                return new PagedResult<Track>(items, cursor.Offset, cursor.PageSize, payload?.Total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<PagedResult<Album>> GetPurchasedAlbumsAsync(
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+        RequireAuthenticated();
+
+        return await FetchAlbumsAsync(
+            Endpoints.PurchasedAlbums,
+            new List<KeyValuePair<string, string>>(),
+            cursor,
+            BodianJsonContext.Default.PurchasedAlbumsPayload,
+            payload => payload.AlbumList,
+            payload => payload.Total,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 收藏的专辑用的 <c>source</c>：<b>4 = 收藏歌单</b>。
+    /// </summary>
+    /// <remarks>
+    /// 按用户实测：移动端收藏歌单接口的内容与官方桌面端「收藏专辑」的效果一致，
+    /// 所以本项目用这一条，官方桌面端自己那条（<c>service/collect/6/list</c>）已弃用 ——
+    /// 它对本项目在测的账号返回 200 但 <c>data</c> 是空对象。
+    /// </remarks>
+    private const int CollectedAlbumsSource = 4;
+
+    public async Task<PagedResult<Album>> GetCollectedAlbumsAsync(
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        var uid = UidPair().Value;
+
+        return await FetchAlbumsAsync(
+            Endpoints.CollectList(CollectedAlbumsSource),
+            [
+                new KeyValuePair<string, string>("userId", uid),
+                new KeyValuePair<string, string>("fromUid", uid),
+            ],
+            cursor,
+            BodianJsonContext.Default.CollectedAlbumsPayload,
+            payload => payload.PlayLists,
+            payload => payload.Total,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 两个专辑列表接口的共同流程。
+    /// </summary>
+    /// <remarks>
+    /// <b>总数键由调用方传进来</b>，因为这一族不统一：已购是 <c>size</c>、收藏是 <c>total</c>。
+    /// 抽公共基类字段会在遇到另一种键时静默变成 0 —— 而那正是「翻页永远停在第一页」的原因。
+    /// </remarks>
+    private async Task<PagedResult<Album>> FetchAlbumsAsync<TPayload>(
+        string path,
+        List<KeyValuePair<string, string>> extraQuery,
+        PagedCursor cursor,
+        JsonTypeInfo<TPayload> typeInfo,
+        Func<TPayload, AlbumDto[]?> select,
+        Func<TPayload, int> selectTotal,
+        CancellationToken cancellationToken)
+        where TPayload : class
+    {
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var query = new List<KeyValuePair<string, string>>(paging);
+                query.AddRange(extraQuery);
+
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = path,
+                        Query = query,
+                        Signed = true,
+                    },
+                    typeInfo,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                var items = payload is null ? [] : select(payload)?.Select(MapAlbum).ToArray() ?? [];
+                var total = payload is null ? (int?)null : selectTotal(payload);
+
+                _logger.LogInformation(
+                    "{Path} 返回 {Count} 个专辑（offset={Offset}）",
+                    path,
+                    items.Length,
+                    cursor.Offset);
+
+                return new PagedResult<Album>(items, cursor.Offset, cursor.PageSize, total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<string> GetLyricAsync(
         long musicId,
         int lrcx,
@@ -340,6 +1085,77 @@ public sealed class BodianApi : IBodianApi
                 ? new TrackLyricInfo(lrc.Lrc == 1, lrc.Lrcx == 1)
                 : null,
         };
+    }
+
+    private static Album MapAlbum(AlbumDto dto) => new()
+    {
+        // 两种形状的主键不同（albumId / id），由 DTO 自己挑，调用方不必关心。
+        Id = dto.EffectiveId,
+
+        // 名字缺失也要给个能显示的东西：列表里一行空白比「(未命名专辑)」更难排查。
+        Name = string.IsNullOrWhiteSpace(dto.Name) ? "(未命名专辑)" : dto.Name,
+
+        ArtistText = dto.EffectiveArtist ?? "",
+        CoverImage = ToHttpUri(dto.Pic),
+        MusicCount = dto.MusicCount,
+        ArtistCover = ToHttpUri(dto.ArtistPic),
+        ReleaseDate = dto.ShowTime ?? "",
+        Description = dto.Info ?? "",
+    };
+
+    private static Playlist MapPlaylist(PlaylistDto dto) => new()
+    {
+        Id = dto.Id,
+
+        // 名字缺失也要给个能显示的东西：侧栏上一行空白比「(未命名歌单)」更难排查。
+        Name = string.IsNullOrWhiteSpace(dto.Name) ? "(未命名歌单)" : dto.Name,
+
+        MusicCount = dto.MusicCount,
+        CoverImage = ToHttpUri(dto.Pic),
+
+        // ★ 服务端给什么就存什么，**不做归一化**。
+        //   实测发现页里的歌单 sourceType 是 13，不是文档说的公开集合默认值 4 ——
+        //   自作主张改写成 4 会让取曲目时填错 source，而服务端对不上的值只回空、不报错，
+        //   表现就是「点进去是空歌单」，极难查。
+        //   字段缺失时留 0，由调用方决定怎么办（账号歌单那边本来就知道自己是 5，不靠它）。
+        SourceType = dto.SourceType,
+    };
+
+    /// <summary>
+    /// 账号类查询的 <c>userId</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>未登录时直接抛，不返回空列表。</b> 曲库接口在匿名会话下没有意义，
+    /// 返回空会让「侧栏一片空白」看起来像服务端没数据，而真正的原因是没有会话。
+    /// </remarks>
+    private KeyValuePair<string, string> UidPair()
+    {
+        RequireAuthenticated();
+        return new("userId", _session.Uid);
+    }
+
+    /// <summary>
+    /// 曲库接口的前置条件。
+    /// </summary>
+    /// <remarks>
+    /// <b>取曲目<b>不发</b> <c>userId</c> 参数</b>（那个端点的参数只有 <c>source/pn/rn</c>，
+    /// 多加一个未经验证的键有风险），但登录校验一样要做：<c>source=5</c> 是账号歌单，
+    /// 匿名会话下服务端只会回空，界面看起来像「这个歌单是空的」。
+    /// </remarks>
+    private void RequireAuthenticated()
+    {
+        if (!_session.IsAuthenticated)
+        {
+            throw new InvalidOperationException("曲库接口需要登录后才能调用。");
+        }
+    }
+
+    private static void EnsurePlaylistId(long playlistId)
+    {
+        if (playlistId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playlistId), playlistId, "playlistId 必须是正数");
+        }
     }
 
     private static string JoinArtists(TrackArtistDto[]? artists) =>

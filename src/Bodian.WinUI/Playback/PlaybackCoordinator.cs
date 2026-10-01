@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -21,18 +22,22 @@ public sealed class PlaybackCoordinator
 {
     private readonly IBodianApi _api;
     private readonly IPlaybackService _engine;
+    private readonly IPlayHistoryStore _history;
     private readonly ILogger<PlaybackCoordinator> _logger;
 
     public PlaybackCoordinator(
         IBodianApi api,
         IPlaybackService engine,
+        IPlayHistoryStore history,
         ILogger<PlaybackCoordinator>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(engine);
+        ArgumentNullException.ThrowIfNull(history);
 
         _api = api;
         _engine = engine;
+        _history = history;
         _logger = logger ?? NullLogger<PlaybackCoordinator>.Instance;
 
         _engine.Ended += OnEngineEnded;
@@ -182,6 +187,36 @@ public sealed class PlaybackCoordinator
         CurrentTrack = track;
 
         Started?.Invoke(this, new PlaybackStartedEventArgs(track, policy, source));
+
+        RecordHistory(track);
+    }
+
+    /// <summary>
+    /// 记一次播放历史。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>写在 <see cref="Started"/> 之后而不是 <see cref="PlayFromAsync"/> 里</b>：
+    /// 被拒绝的曲目根本没播过，不该进历史；而试听（<c>status=3</c>）确实播了，该进。
+    /// 那个分界正是这个事件的语义。
+    /// </para>
+    /// <para>
+    /// <b>不 await。</b> 记录历史是一次本地文件写入，让它挡住起播没有道理；
+    /// 失败也只影响「最近播放」一页，所以这里自己吞掉异常并记日志。
+    /// </para>
+    /// </remarks>
+    private void RecordHistory(Track track) => _ = RecordHistoryAsync(track);
+
+    private async Task RecordHistoryAsync(Track track)
+    {
+        try
+        {
+            await _history.RecordAsync(track).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "写播放历史失败：{Title}", track.Title);
+        }
     }
 
     private void OnEngineEnded(object? sender, EventArgs e)

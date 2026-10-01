@@ -5,32 +5,188 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="波点音乐">
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <!--
+        外壳 = 侧栏 + 内容区 + 常驻播放条。
 
-        <!--
-            页面由 INavigationService 直接赋值 Content，不走 Frame.Navigate。
-            **用 ContentControl 而不是 Frame**：返回时要把「原来那个页面实例」挂回去
-            （重建 SearchPage 会把搜索结果全丢掉），而 Frame.Content 不接受重复挂载同一个实例。
+        ★ 播放条放在 NavigationView 的 Content 里、而不是窗口底部通栏 ——
+          这样侧栏天然从顶到底（官方桌面端也是这个形态：left_menu + right_content + player_bar）。
 
-            ★ 两个 ContentAlignment 必须显式写 Stretch。ContentControl 的默认是 Left/Top，
-            而 Frame 的默认模板是拉伸 —— 少写这两行，能收缩的页面（歌词列表有 TextWrapping）
-            就会缩成一条靠在左上角，看起来像块侧边栏。
-        -->
-        <ContentControl
-            x:Name="PageHost"
-            Grid.Row="0"
-            HorizontalContentAlignment="Stretch"
-            VerticalContentAlignment="Stretch" />
+        ★ IsBackButtonVisible=Collapsed：返回栈是自己的（INavigationService），
+          详情页自带返回入口。交给 NavigationView 会多出一个不受控的按钮。
 
-        <!-- 播放条常驻，不随页面切换重建 -->
-        <ContentControl
-            x:Name="PlayerHost"
-            Grid.Row="1"
-            HorizontalContentAlignment="Stretch"
-            VerticalContentAlignment="Stretch" />
-    </Grid>
+        ★ 用 ItemInvoked 而不是 SelectionChanged：SelectionChanged 在我们自己
+          同步高亮时也会触发，会和导航互相打架。ItemInvoked 只在用户点击时触发。
+    -->
+    <NavigationView
+        x:Name="Nav"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        ItemInvoked="OnItemInvoked"
+        PaneDisplayMode="Left">
+
+        <NavigationView.MenuItems>
+            <NavigationViewItem
+                x:Name="DiscoverItem"
+                Content="发现"
+                Tag="discover">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Library" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem
+                x:Name="BangsItem"
+                Content="排行榜"
+                Tag="bangs">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Sort" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem
+                x:Name="LibraryItem"
+                Content="乐库"
+                Tag="library">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="List" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItemHeader Content="我的音乐" />
+
+            <NavigationViewItem
+                x:Name="FavoritesItem"
+                Content="我喜欢的"
+                Tag="favorites">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Favorite" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem
+                x:Name="RecentItem"
+                Content="最近播放"
+                Tag="recent">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Clock" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem
+                x:Name="PurchasedItem"
+                Content="已购音乐"
+                Tag="purchased">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Shop" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem
+                x:Name="CollectedAlbumsItem"
+                Content="收藏的专辑"
+                Tag="collected-albums">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Audio" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <!-- 这一行是「创建的歌单」那一段的锚点：动态项在它后面追加 -->
+            <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
+        </NavigationView.MenuItems>
+
+        <NavigationView.PaneFooter>
+            <!-- 账号卡片。属性是 OneWay 的：侧栏在登录之前就构造好了，OneTime 会永远停在空白 -->
+            <Grid
+                Padding="8,8,8,12"
+                ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    Grid.Column="0"
+                    Width="32"
+                    Height="32"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="16">
+                    <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
+                </Border>
+
+                <StackPanel
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Spacing="2">
+                    <TextBlock
+                        Text="{x:Bind Account.AccountText, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+
+                    <!-- 会员徽标只是展示：播放权限一律以服务端 checkRight 为准 -->
+                    <Border
+                        Padding="5,0"
+                        HorizontalAlignment="Left"
+                        Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                        CornerRadius="3"
+                        Visibility="{x:Bind Account.IsVip, Mode=OneWay}">
+                        <TextBlock FontSize="11" Text="VIP" />
+                    </Border>
+                </StackPanel>
+
+                <Button
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Command="{x:Bind Account.SignOutCommand}"
+                    Content="退出"
+                    ToolTipService.ToolTip="清除本机保存的会话，回到扫码登录" />
+            </Grid>
+        </NavigationView.PaneFooter>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--
+                搜索入口。**常驻在内容区顶部，不放侧栏**（决策见 docs/library-sidebar.md §0），
+                也不放搜索页里 —— 两处各放一个框会出现「框里是 A、结果是 B」。
+
+                未登录时整条藏起来（与侧栏一起），见 MainWindow.ShowLogin。
+            -->
+            <Grid
+                x:Name="SearchBarHost"
+                Grid.Row="0"
+                Padding="24,16,24,0"
+                Visibility="Collapsed">
+                <AutoSuggestBox
+                    x:Name="SearchBox"
+                    PlaceholderText="搜索歌曲、歌手"
+                    QueryIcon="Find"
+                    QuerySubmitted="OnSearchQuerySubmitted"
+                    Text="{x:Bind Search.Keyword, Mode=TwoWay}" />
+            </Grid>
+
+            <!--
+                页面由 INavigationService 直接赋值 Content，不走 Frame.Navigate。
+
+                ★ 两个 ContentAlignment 必须显式写 Stretch。ContentControl 的默认是 Left/Top，
+                  少写这两行，能收缩的页面（列表有 TextWrapping）会缩成一条靠在左上角。
+            -->
+            <ContentControl
+                x:Name="PageHost"
+                Grid.Row="1"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch" />
+
+            <!-- 播放条常驻，不随页面切换重建 -->
+            <ContentControl
+                x:Name="PlayerHost"
+                Grid.Row="2"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch" />
+        </Grid>
+    </NavigationView>
 </Window>

@@ -7,8 +7,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Bodian.WinUI.ViewModels;
 
@@ -16,13 +14,23 @@ namespace Bodian.WinUI.ViewModels;
 /// 搜索页。
 /// </summary>
 /// <remarks>
+/// <para>
 /// 队列来源就是这里的结果列表：点第 N 行 → 整页入队并从第 N 首开始，
-/// 所以「下一首」在页内有效。自动翻页拉取留到 P7。
+/// 所以「下一首」在页内有效。自动翻页拉取留到后续。
+/// </para>
+/// <para>
+/// <b>它是单例</b>，因为它同时服务两个地方：内容区顶部那个常驻搜索框（关键词）与
+/// 搜索页（结果）。两者必须是同一个实例，否则框里输了词、页上却没有结果。
+/// 顺带的好处是搜索结果不会因为页面重建而丢。
+/// </para>
+/// <para>
+/// <b>账号信息（昵称/头像/会员/退出登录）不在这里</b>，已经挪到侧栏底部的
+/// <see cref="AccountViewModel"/> —— 那些信息在搜索页上只在搜索页可见，而侧栏是常驻的。
+/// </para>
 /// </remarks>
 public sealed partial class SearchViewModel : ObservableObject
 {
     private readonly IBodianApi _api;
-    private readonly IBodianLogin _login;
     private readonly PlaybackCoordinator _coordinator;
     private readonly ILogger<SearchViewModel> _logger;
 
@@ -30,47 +38,16 @@ public sealed partial class SearchViewModel : ObservableObject
 
     public SearchViewModel(
         IBodianApi api,
-        IBodianLogin login,
         PlaybackCoordinator coordinator,
         ILogger<SearchViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
-        ArgumentNullException.ThrowIfNull(login);
         ArgumentNullException.ThrowIfNull(coordinator);
 
         _api = api;
-        _login = login;
         _coordinator = coordinator;
         _logger = logger ?? NullLogger<SearchViewModel>.Instance;
     }
-
-    /// <summary>账号显示名。没有昵称就退回 uid。</summary>
-    public string AccountText => _login.Nickname ?? _login.Account?.Uid ?? "已登录";
-
-    /// <summary>账号头像。没有（或老凭据文件里没存）时为 <c>null</c>，界面显示占位。</summary>
-    public ImageSource? Avatar
-    {
-        get
-        {
-            var uri = _login.Account?.Avatar;
-
-            // BitmapImage 会自己异步加载；地址失效时图是空的，不影响布局。
-            return uri is null ? null : new BitmapImage(uri);
-        }
-    }
-
-    /// <summary>是否会员。**只用于展示**，播放权限一律以服务端 checkRight 为准。</summary>
-    public bool IsVip => _login.Account?.IsVip == true;
-
-    /// <summary>
-    /// 退出登录。
-    /// </summary>
-    /// <remarks>
-    /// 这里只管清会话，跳转由宿主负责 —— 登出会让 <c>IBodianLogin.AccountChanged</c> 触发，
-    /// 主窗口收到后把页面切回登录页。不在这里重复导航，避免两处同时切页。
-    /// </remarks>
-    [RelayCommand]
-    private void SignOut() => _login.SignOut();
 
     public ObservableCollection<Track> Results { get; } = [];
 
@@ -84,7 +61,7 @@ public sealed partial class SearchViewModel : ObservableObject
     public partial bool HasMore { get; set; }
 
     [ObservableProperty]
-    public partial string StatusText { get; set; } = "输入关键词开始搜索";
+    public partial string StatusText { get; set; } = "在顶部的搜索框里输入关键词";
 
     [ObservableProperty]
     public partial Track? CurrentTrack { get; set; }
@@ -189,6 +166,6 @@ public sealed partial class SearchViewModel : ObservableObject
 
         StatusText = Results.Count == 0
             ? "没有找到结果"
-            : $"找到 {Results.Count} 首{(HasMore ? "（还有更多）" : "")}";
+            : $"「{keyword}」找到 {Results.Count} 首{(HasMore ? "（还有更多）" : "")}";
     }
 }

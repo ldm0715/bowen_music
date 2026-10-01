@@ -43,6 +43,11 @@ public sealed partial class LoginPage : Page
         ViewModel.Deactivate();
     }
 
-    /// <summary>登录成功。用 Reset 而不是 Navigate：登录页不该还能退回去。</summary>
-    private void OnLoggedIn(object? sender, EventArgs e) => _navigation.Reset<SearchPage>();
+    /// <summary>登录成功后落在「我喜欢的」——侧栏六个入口里唯一全链路实测验证过的一页。</summary>
+    /// <remarks>
+    /// 用 <c>NavigateRoot</c> 而不是 <c>Navigate</c>：登录页不该还能退回去，
+    /// 而换根本来就会清空历史。侧栏的数据由主窗口在 <c>AccountChanged</c> 里拉，
+    /// 两处分工 —— 这里只管去哪一页。
+    /// </remarks>
+    private void OnLoggedIn(object? sender, EventArgs e) => _navigation.NavigateRoot<FavoritesPage>();
 }

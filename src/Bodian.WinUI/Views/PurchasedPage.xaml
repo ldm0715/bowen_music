@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bodian.WinUI.Views.PurchasedPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls">
+
+    <!--
+        上下两节：已购单曲 / 已购专辑。两个列表等高、各自滚动。
+
+        ★ 不做成页签：页签要维护一套选中状态，而这种「两节都不长」的内容并排放着更省事，
+          用户也不用先点一下才知道另一边有什么。
+    -->
+    <Grid Padding="24,16" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="已购音乐" />
+
+        <!-- ── 已购单曲 ─────────────────────────────────────────────────── -->
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                <TextBlock VerticalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" Text="单曲" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.Singles.StatusText, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <Button
+                Grid.Column="1"
+                Command="{x:Bind ViewModel.Singles.LoadMoreCommand}"
+                Content="加载更多"
+                Visibility="{x:Bind ViewModel.Singles.HasMore, Mode=OneWay}" />
+        </Grid>
+
+        <controls:TrackListView
+            Grid.Row="2"
+            ItemsSource="{x:Bind ViewModel.Singles.Items}"
+            TrackInvoked="OnTrackInvoked" />
+
+        <!-- ── 已购专辑 ─────────────────────────────────────────────────── -->
+        <Grid Grid.Row="3" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                <TextBlock VerticalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" Text="专辑" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <Button
+                Grid.Column="1"
+                Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+                Content="加载更多"
+                Visibility="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}" />
+        </Grid>
+
+        <controls:AlbumListView
+            Grid.Row="4"
+            AlbumInvoked="OnAlbumInvoked"
+            ItemsSource="{x:Bind ViewModel.Albums.Items}" />
+    </Grid>
+</Page>

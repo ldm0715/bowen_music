@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bodian.WinUI.Views.CollectedAlbumsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls">
+
+    <Grid Padding="24,16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="2">
+            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="收藏的专辑" />
+
+            <!-- 这段文案会把「没有收藏」和「查询没成功」两种可能都说出来，见 ViewModel -->
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <controls:AlbumListView
+            Grid.Row="1"
+            AlbumInvoked="OnAlbumInvoked"
+            ItemsSource="{x:Bind ViewModel.Albums.Items}" />
+
+        <Grid Grid.Row="2" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <ProgressRing
+                Grid.Column="0"
+                Width="16"
+                Height="16"
+                HorizontalAlignment="Left"
+                IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" />
+
+            <Button
+                Grid.Column="1"
+                Command="{x:Bind ViewModel.Albums.ReloadCommand}"
+                Content="重新加载" />
+
+            <Button
+                Grid.Column="2"
+                Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+                Content="加载更多"
+                Visibility="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</Page>
