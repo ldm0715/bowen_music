@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    页面骨架的共享样式。
+
+    背景：十三个页面各自写了一遍 <Grid Padding="24,16" RowSpacing="12"> + 三行结构 +
+    16px 的 ProgressRing，光「16」就重复了十二次。改一处要改十三处。
+
+    这里只收敛**尺寸与外观**，不动页面的行列结构 —— 各页的组合本来就不一样
+    （发现页只有「加载更多」，我喜欢的页有「重新加载」+「加载更多」），
+    抽成控件反而要开一堆可见性属性孔。
+
+    ★ 这些 Style 的目标类型是 Grid / TextBlock / ProgressRing，不是 Control。
+      WinUI 的 Style 可以作用于任意 FrameworkElement（通过 FrameworkElement.Style），
+      只要 Setter 里的属性在目标类型上存在即可。构建能过就说明这一点成立。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 页面根容器：统一的页边距与行间距 -->
+    <Style x:Key="BodianPageRoot" TargetType="Grid">
+        <Setter Property="Padding" Value="{StaticResource SpacePagePadding}" />
+        <Setter Property="RowSpacing" Value="{StaticResource SpaceSection}" />
+    </Style>
+
+    <!-- 页面标题 -->
+    <Style x:Key="BodianPageTitle" TargetType="TextBlock" BasedOn="{StaticResource TitleTextBlockStyle}" />
+
+    <!-- 标题旁的次级说明（「4 组、共 20 个榜」这类） -->
+    <Style x:Key="BodianPageStatus" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- 页脚里那个转圈的进度环 -->
+    <Style x:Key="BodianPageBusyRing" TargetType="ProgressRing">
+        <Setter Property="Width" Value="{StaticResource SizeProgressRing}" />
+        <Setter Property="Height" Value="{StaticResource SizeProgressRing}" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
+    <!-- 页脚那一行（进度环 + 重新加载 + 加载更多） -->
+    <Style x:Key="BodianPageFooter" TargetType="Grid">
+        <Setter Property="ColumnSpacing" Value="{StaticResource SpaceSection}" />
+    </Style>
+
+</ResourceDictionary>

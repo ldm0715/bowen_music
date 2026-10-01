@@ -70,6 +70,16 @@ public partial class App : Application
         builder.Services.AddSingleton<IPlayHistoryStore>(sp => new JsonPlayHistoryStore(
             clock: sp.GetRequiredService<TimeProvider>(),
             logger: sp.GetRequiredService<ILogger<JsonPlayHistoryStore>>()));
+
+        // 外观设置同样是明文 JSON。构造参数里有个可选的路径，同样用显式工厂。
+        // 它在主窗口构造时被同步读一次 —— 主题必须在第一帧之前定下来，否则会闪一下系统主题。
+        builder.Services.AddSingleton<IThemeSettingsStore>(sp => new JsonThemeSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonThemeSettingsStore>>()));
+
+        // 窗口位置记忆。单独一个文件（window.json）—— 几何是「这台机器」的事，
+        // 而外观偏好是「这个人」的事，不混在一起。
+        builder.Services.AddSingleton<IWindowPlacementStore>(sp => new JsonWindowPlacementStore(
+            logger: sp.GetRequiredService<ILogger<JsonWindowPlacementStore>>()));
         builder.Services.AddSingleton<BodianSession>();
         // ★ 必须显式声明成 HttpMessageHandler。
         //   CreateHandler 返回的是 SocketsHttpHandler 这个**具体类型**，不写泛型参数就会按它注册，
@@ -111,6 +121,7 @@ public partial class App : Application
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
         builder.Services.AddSingleton<SearchViewModel>();
+        builder.Services.AddSingleton<ThemeViewModel>();
         builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddTransient<LoginPage>();
         builder.Services.AddTransient<SearchPage>();
@@ -216,6 +227,11 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         MainWindow window;
+
+        // 日志工厂也放进 App 资源：XAML 实例化的控件（构造函数必须无参）拿不到 DI 容器，
+        // 这是它们唯一能拿到 logger 的通道。目前用它的有氛围背景层。
+        // 曲目列表用的是同一个通道拿 PlayerViewModel，见 MainWindow 里的说明。
+        Resources["BodianLoggerFactory"] = _host.Services.GetRequiredService<ILoggerFactory>();
 
         try
         {
