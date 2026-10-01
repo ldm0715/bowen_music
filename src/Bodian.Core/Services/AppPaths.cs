@@ -30,6 +30,24 @@ public static class AppPaths
     /// </remarks>
     public static string PlayHistoryFile => Path.Combine(LocalAppData, "history.json");
 
+    /// <summary>
+    /// 界面设置（明文 JSON，目前只有外观一项）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与探针无关</b>：探针是控制台程序，没有界面，不读写这个文件。
+    /// 它与 <c>devid.txt</c> / <c>session.dat</c> 不同，不受「必须与探针共用」那条约束。
+    /// </remarks>
+    public static string SettingsFile => Path.Combine(LocalAppData, "settings.json");
+
+    /// <summary>
+    /// 上次关闭时的窗口位置与大小（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>刻意与 <see cref="SettingsFile"/> 分开</b>：窗口几何是「这台机器」的事，
+    /// 而外观偏好是「这个人」的事。混在一个文件里，以后想同步外观就得先把它摘出去。
+    /// </remarks>
+    public static string WindowFile => Path.Combine(LocalAppData, "window.json");
+
     /// <summary>日志目录。</summary>
     public static string LogDirectory => Path.Combine(LocalAppData, "logs");
 }
