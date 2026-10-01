@@ -11,16 +11,8 @@
         <conv:BoolToVisibilityConverter x:Key="NotBoolToVisibility" Invert="True" />
     </UserControl.Resources>
 
-    <!--
-        播放条是通栏的，压在侧栏与内容区之下。给它一层比侧栏更强的底 + 一条顶部细线，
-        让它「浮」在内容之上 —— 否则与上面的页面糊成一片，看不出这是常驻控制条。
-
-        底仍是半透明的，氛围渐变照样透得上来。
-    -->
-    <Border
-        Background="{ThemeResource SurfaceRaisedBrush}"
-        BorderBrush="{ThemeResource SurfaceStrokeBrush}"
-        BorderThickness="0,1,0,0">
+    <!-- 播放条与页面共用同一层氛围渐变，不再叠底色或顶部细线。 -->
+    <Border Background="Transparent">
 
         <!--
             三栏分区：左=曲目信息，中=传输控制 + 进度（占满剩余宽度），右=音质与音量。

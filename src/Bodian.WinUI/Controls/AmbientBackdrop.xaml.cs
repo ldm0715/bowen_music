@@ -1,13 +1,13 @@
 using System.ComponentModel;
+using System.Numerics;
 using Bodian.Core.Media;
 using Bodian.WinUI.Media;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Shapes;
-using Windows.Foundation;
+using Microsoft.UI.Xaml.Hosting;
 
 namespace Bodian.WinUI.Controls;
 
@@ -15,78 +15,46 @@ namespace Bodian.WinUI.Controls;
 /// 氛围背景：三团缓慢漂移的柔和光晕，颜色取自当前封面。
 /// </summary>
 /// <remarks>
-/// <para>
-/// <b>常驻全屏层，所以性能是要点。</b> 三个 Storyboard 只驱动
-/// <c>CompositeTransform</c> 的位移，走的是合成器线程的独立动画通道，
-/// 不进 UI 线程 —— 空闲时 CPU 占用为 0。
-/// </para>
-/// <para>
-/// <b>暂停/恢复是必须的。</b> <c>Loaded</c> 在控件重新挂载时会再次触发，
-/// 不设防就会重复 <c>Begin</c>，表现为漂移速度翻倍。
-/// </para>
-/// <para>
-/// <b>画刷全部在这里现造，不在 XAML 里留一份。</b> 运行期改已有画刷的
-/// <c>GradientStops</c> <b>不一定能让它失效重绘</b> —— 实测的表现是三个矩形
-/// 渲染成平色块、看不出是渐变。整个换掉 <c>Fill</c> 才稳妥，
-/// 顺带把几何参数收到一处，不会和 XAML 里那份不同步。
-/// </para>
-/// <para>
-/// <b>颜色的来源</b>：<c>Application.Current.Resources</c> 里的 <c>"BodianNowPlaying"</c>
-/// 与 <c>"BodianLoggerFactory"</c>（由宿主放进 App 资源）。本控件是 XAML 实例化的，
-/// 构造函数必须无参，拿不到 DI 容器 —— 这是唯一能拿到它们的通道。
-/// </para>
+/// 每个 Composition 光晕覆盖完整椭圆，透明外沿随它一起移动。
+/// 不能把大半径渐变画在窗口大小的矩形里再平移：矩形边缘仍有颜色，
+/// 一旦移入窗口就会显出硬边。窗口裁剪只放在不移动的容器上。
+/// 尺寸与圆心相对容器设置，缩放窗口时由合成器同步；漂移也在合成器上运行。
 /// </remarks>
 public sealed partial class AmbientBackdrop : UserControl
 {
-    /// <summary>
-    /// 三团的圆心与半径，都是相对窗口的比例。
-    /// </summary>
-    /// <remarks>
-    /// <b>圆心要避开播放条</b>（占窗口底部约 y&gt;0.82，且自己有底色）：
-    /// 圆心落在那儿等于整团被盖掉。所以最低的圆心放在 y=0.72。
-    /// <para>
-    /// 半径放到 0.9 以上是为了**全屏覆盖** —— 任何一个角落都要落在至少一个团的
-    /// 有效范围内，否则边角会衰减到没有颜色，看起来像「没铺满」。
-    /// </para>
-    /// </remarks>
-    private static readonly (double CenterX, double CenterY, double RadiusX, double RadiusY)[] BlobGeometry =
+    // 三团合起来覆盖窗口；每团只覆盖局部，留出色差与明暗过渡。数值都是窗口比例。
+    private static readonly (float CenterX, float CenterY, float RadiusX, float RadiusY)[] BlobGeometry =
     [
-        (0.20, 0.22, 0.95, 1.25),
-        (0.80, 0.38, 0.95, 1.25),
-        (0.48, 0.72, 0.90, 1.20),
+        (0.12f, 0.10f, 0.66f, 0.86f),
+        (0.92f, 0.32f, 0.68f, 0.90f),
+        (0.48f, 0.84f, 0.72f, 0.78f),
     ];
 
-    /// <summary>
-    /// 每个色团三个色阶的偏移与透明度。
-    /// </summary>
-    /// <remarks>
-    /// <b>最外那圈必须是 0（全透明）。</b> 不是 0 的话色团边界会显出一条硬边 ——
-    /// 渐变到不了零，看起来就是一块有棱角的色斑。
-    /// </remarks>
-    private static readonly double[] StopOffsets = [0, 0.60, 1.0];
+    private static readonly (float FromX, float ToX, int SecondsX, float FromY, float ToY, int SecondsY)[] BlobDrift =
+    [
+        (-70, 90, 70, -40, 60, 95),
+        (80, -70, 88, 50, -60, 76),
+        (-60, 70, 110, 60, -40, 104),
+    ];
 
-    private static readonly byte[] StopAlphas = [0x80, 0x47, 0x00];
+    private static readonly float[] StopOffsets = [0, 0.25f, 0.55f, 0.82f, 1.0f];
+    private static readonly byte[] StopAlphas = [0xD0, 0xAC, 0x64, 0x24, 0x00];
 
-    private readonly Rectangle[] _blobs;
+    private readonly List<SpriteVisual> _blobs = [];
     private readonly CoverPaletteLoader _loader;
 
-    private bool _running;
+    private IReadOnlyList<RgbColor> _palette = ColorPalette.DefaultAmbient;
+    private ContainerVisual? _root;
     private PlayerViewModel? _player;
+    private int _paletteRequest;
 
     public AmbientBackdrop()
     {
         InitializeComponent();
 
-        _blobs = [BlobA, BlobB, BlobC];
-
         _loader = new CoverPaletteLoader(
             (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory)
                 ?.CreateLogger<CoverPaletteLoader>());
-
-        // 先把兜底配色铺上，避免开场那一下背景是空的。
-        // 种子用中灰而不是 default（那是纯黑）—— 灰色会让 ColorPalette 退回品牌色相，
-        // 而亮度取自种子，纯黑会得到一个偏暗的兜底色。
-        ApplyPalette(ColorPalette.Ambient(new RgbColor(128, 128, 128)));
 
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -94,49 +62,84 @@ public sealed partial class AmbientBackdrop : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (_running)
+        if (_root is not null)
         {
             return;
         }
 
-        _running = true;
+        var compositor = ElementCompositionPreview.GetElementVisual(Host).Compositor;
+        _root = compositor.CreateContainerVisual();
+        _root.RelativeSizeAdjustment = Vector2.One;
+        _root.Clip = compositor.CreateInsetClip();
+        ElementCompositionPreview.SetElementChildVisual(Host, _root);
 
-        DriftA.Begin();
-        DriftB.Begin();
-        DriftC.Begin();
+        for (var i = 0; i < BlobGeometry.Length; i++)
+        {
+            var geometry = BlobGeometry[i];
+            var blob = compositor.CreateSpriteVisual();
+            blob.AnchorPoint = new Vector2(0.5f, 0.5f);
+            blob.RelativeOffsetAdjustment = new Vector3(geometry.CenterX, geometry.CenterY, 0);
+            blob.RelativeSizeAdjustment = new Vector2(geometry.RadiusX * 2, geometry.RadiusY * 2);
+            blob.Brush = BuildBrush(compositor, _palette[i]);
+            _root.Children.InsertAtTop(blob);
+            _blobs.Add(blob);
+
+            var drift = BlobDrift[i];
+            StartDrift(blob, "Offset.X", drift.FromX, drift.ToX, drift.SecondsX);
+            StartDrift(blob, "Offset.Y", drift.FromY, drift.ToY, drift.SecondsY);
+        }
 
         HookPlayer();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        if (!_running)
-        {
-            return;
-        }
-
-        _running = false;
-
-        DriftA.Stop();
-        DriftB.Stop();
-        DriftC.Stop();
+        _paletteRequest++;
 
         if (_player is not null)
         {
             _player.PropertyChanged -= OnPlayerChanged;
             _player = null;
         }
+
+        if (_root is null)
+        {
+            return;
+        }
+
+        ElementCompositionPreview.SetElementChildVisual(Host, null);
+        _root.Children.RemoveAll();
+
+        foreach (var blob in _blobs)
+        {
+            blob.StopAnimation("Offset.X");
+            blob.StopAnimation("Offset.Y");
+
+            if (blob.Brush is CompositionRadialGradientBrush brush)
+            {
+                blob.Brush = null;
+                foreach (var stop in brush.ColorStops)
+                {
+                    stop.Dispose();
+                }
+
+                brush.Dispose();
+            }
+            blob.Dispose();
+        }
+
+        _blobs.Clear();
+        _root.Clip.Dispose();
+        _root.Dispose();
+        _root = null;
     }
 
     private void HookPlayer()
     {
-        if (_player is null)
+        if (_player is null && Application.Current.Resources["BodianNowPlaying"] is PlayerViewModel player)
         {
-            if (Application.Current.Resources["BodianNowPlaying"] is PlayerViewModel player)
-            {
-                _player = player;
-                _player.PropertyChanged += OnPlayerChanged;
-            }
+            _player = player;
+            _player.PropertyChanged += OnPlayerChanged;
         }
 
         Refresh();
@@ -150,26 +153,26 @@ public sealed partial class AmbientBackdrop : UserControl
         }
     }
 
-    /// <summary>
-    /// 按当前封面重取颜色。
-    /// </summary>
-    /// <remarks>
-    /// <b>取色是异步的，所以要挡竞态。</b> 连着切两首时，前一首的解码可能后完成，
-    /// 结果是把旧歌的颜色刷上去。完成后再比对一次曲目 id，对不上就丢弃。
-    /// </remarks>
     private async void Refresh()
     {
-        if (_player is null)
+        var player = _player;
+        if (player is null)
         {
             return;
         }
 
-        var trackId = _player.CurrentTrackId ?? 0;
-        var palette = await _loader.LoadAsync(trackId, _player.CurrentCoverUri);
+        var request = ++_paletteRequest;
+        var trackId = player.CurrentTrackId ?? 0;
+        var coverUri = player.CurrentCoverUri;
+        var palette = await _loader.LoadAsync(trackId, coverUri);
 
-        if ((_player.CurrentTrackId ?? 0) != trackId)
+        // 控件卸载、切歌或封面变化后，不再应用此前的异步结果。
+        if (request != _paletteRequest
+            || _root is null
+            || !ReferenceEquals(_player, player)
+            || (player.CurrentTrackId ?? 0) != trackId
+            || player.CurrentCoverUri != coverUri)
         {
-            // 取色期间又切歌了，这次的结果作废 —— 后一次调用会自己刷新。
             return;
         }
 
@@ -178,34 +181,45 @@ public sealed partial class AmbientBackdrop : UserControl
 
     private void ApplyPalette(IReadOnlyList<RgbColor> palette)
     {
-        for (var i = 0; i < _blobs.Length; i++)
+        _palette = palette;
+        for (var i = 0; i < _blobs.Count; i++)
         {
-            _blobs[i].Fill = BuildBrush(palette[i], BlobGeometry[i]);
+            var brush = (CompositionRadialGradientBrush)_blobs[i].Brush;
+            for (var j = 0; j < StopAlphas.Length; j++)
+            {
+                brush.ColorStops[j].Color = CoverPaletteLoader.ToColor(palette[i], StopAlphas[j]);
+            }
         }
     }
 
-    private static RadialGradientBrush BuildBrush(
-        RgbColor color,
-        (double CenterX, double CenterY, double RadiusX, double RadiusY) geometry)
+    private static CompositionRadialGradientBrush BuildBrush(Compositor compositor, RgbColor color)
     {
-        var brush = new RadialGradientBrush
-        {
-            MappingMode = BrushMappingMode.RelativeToBoundingBox,
-            Center = new Point(geometry.CenterX, geometry.CenterY),
-            RadiusX = geometry.RadiusX,
-            RadiusY = geometry.RadiusY,
-            SpreadMethod = GradientSpreadMethod.Pad,
-        };
+        var brush = compositor.CreateRadialGradientBrush();
+        brush.MappingMode = CompositionMappingMode.Relative;
+        brush.EllipseCenter = new Vector2(0.5f, 0.5f);
+        brush.EllipseRadius = new Vector2(0.5f, 0.5f);
+        brush.GradientOriginOffset = Vector2.Zero;
+        brush.ExtendMode = CompositionGradientExtendMode.Clamp;
 
         for (var i = 0; i < StopOffsets.Length; i++)
         {
-            brush.GradientStops.Add(new GradientStop
-            {
-                Offset = StopOffsets[i],
-                Color = CoverPaletteLoader.ToColor(color, StopAlphas[i]),
-            });
+            brush.ColorStops.Add(compositor.CreateColorGradientStop(
+                StopOffsets[i], CoverPaletteLoader.ToColor(color, StopAlphas[i])));
         }
 
         return brush;
+    }
+
+    private static void StartDrift(SpriteVisual blob, string property, float from, float to, int seconds)
+    {
+        var compositor = blob.Compositor;
+        using var easing = compositor.CreateCubicBezierEasingFunction(new Vector2(0.42f, 0), new Vector2(0.58f, 1));
+        using var animation = compositor.CreateScalarKeyFrameAnimation();
+        animation.InsertKeyFrame(0, from);
+        animation.InsertKeyFrame(1, to, easing);
+        animation.Duration = TimeSpan.FromSeconds(seconds);
+        animation.Direction = AnimationDirection.Alternate;
+        animation.IterationBehavior = AnimationIterationBehavior.Forever;
+        blob.StartAnimation(property, animation);
     }
 }

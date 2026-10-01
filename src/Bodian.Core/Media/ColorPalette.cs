@@ -1,7 +1,7 @@
 namespace Bodian.Core.Media;
 
 /// <summary>
-/// 从一个主色派生出一组**和谐**的氛围色。
+/// 从封面主色派生鲜明的氛围色；无色相时使用默认网格配色。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,10 +16,15 @@ namespace Bodian.Core.Media;
 /// </remarks>
 public static class ColorPalette
 {
-    /// <summary>品牌薄荷绿 <c>#00F3B0</c> 的色相。主色太灰时退回它。</summary>
-    private const double BrandHue = 163.5;
+    /// <summary>无封面或灰阶封面使用的青绿、亮蓝与紫色网格渐变。</summary>
+    public static IReadOnlyList<RgbColor> DefaultAmbient { get; } = Array.AsReadOnly<RgbColor>(
+    [
+        new(24, 224, 182),
+        new(55, 144, 255),
+        new(161, 88, 255),
+    ]);
 
-    /// <summary>主色饱和度低于这个值就认为「它其实是灰的」，改用品牌色相。</summary>
+    /// <summary>主色饱和度低于这个值就认为「它其实是灰的」，使用默认网格配色。</summary>
     private const double DesaturatedThreshold = 0.15;
 
     /// <summary>派生的三团色相的偏移量（度）。</summary>
@@ -32,20 +37,21 @@ public static class ColorPalette
     /// 派生三团氛围色。
     /// </summary>
     /// <param name="seed">主色，来自 <see cref="ColorQuantizer.Dominant"/>。</param>
-    /// <returns>顺序固定为「偏冷 → 原色 → 偏暖」，调用方按位取用。</returns>
+    /// <returns>彩色封面返回主色的三个同族色；灰阶封面返回默认青绿、亮蓝与紫色。</returns>
     public static IReadOnlyList<RgbColor> Ambient(RgbColor seed)
     {
         var (hue, saturation, value) = ToHsv(seed);
 
         // 灰阶（或接近灰）的封面没有可用的色相 —— 硬把饱和度拉起来会得到一个凭空的颜色。
-        // 退回品牌色相，至少观感是「有意的」而不是「随机冒出一个红」。
+        // 使用默认网格配色，不强行给中灰补饱和度，否则背景容易变成灰青色。
         if (saturation < DesaturatedThreshold)
         {
-            hue = BrandHue;
+            return DefaultAmbient;
         }
 
-        // 派生的颜色是要当背景光晕用的，太淡看不见、太浓会压过内容。
-        saturation = Math.Clamp(Math.Max(saturation, 0.34), 0.34, 0.82);
+        // 光晕会再叠透明度；原始色保持鲜明，避免暗封面或低饱和封面退化成灰色底。
+        saturation = Math.Clamp(saturation, 0.60, 0.88);
+        value = Math.Clamp(value, 0.78, 0.94);
 
         var result = new RgbColor[HueOffsets.Length];
 

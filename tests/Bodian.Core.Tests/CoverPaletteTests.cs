@@ -119,20 +119,36 @@ public sealed class CoverPaletteTests
         Assert.Equal(3, colors.Distinct().Count());
     }
 
-    /// <summary>
-    /// 灰阶封面没有可用色相，应该退回品牌色相（薄荷绿），而不是凭空冒出一个红。
-    /// </summary>
-    [Fact]
-    public void Ambient_GreySeed_FallsBackToBrandHue()
+    /// <summary>灰阶封面没有色相，使用明确的默认配色，不再生成灰青色背景。</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(128)]
+    [InlineData(255)]
+    public void Ambient_GreySeed_FallsBackToDefaultPalette(byte grey)
     {
-        var colors = ColorPalette.Ambient(new RgbColor(128, 128, 128));
+        var colors = ColorPalette.Ambient(new RgbColor(grey, grey, grey));
 
-        // 品牌色相 163.5° 落在绿青区间 —— 绿色分量应当是三者里最大的。
-        var middle = colors[1];
+        Assert.Equal(ColorPalette.DefaultAmbient, colors);
+        Assert.Equal(3, colors.Distinct().Count());
+    }
 
-        Assert.True(
-            middle.G > middle.R && middle.G > middle.B,
-            $"灰阶封面应退回品牌色相（偏绿），实际得到 {middle}");
+    /// <summary>暗色和低饱和封面也应产生可辨认的彩色光晕。</summary>
+    [Theory]
+    [InlineData(8, 16, 24)]
+    [InlineData(150, 170, 185)]
+    [InlineData(30, 10, 12)]
+    public void Ambient_DarkAndMutedSeeds_PreserveVisibleChroma(byte r, byte g, byte b)
+    {
+        var colors = ColorPalette.Ambient(new RgbColor(r, g, b));
+
+        Assert.All(colors, color =>
+        {
+            var brightest = Math.Max(color.R, Math.Max(color.G, color.B));
+            var darkest = Math.Min(color.R, Math.Min(color.G, color.B));
+
+            Assert.True(brightest >= 160, $"光晕原始色太暗：{color}");
+            Assert.True(brightest - darkest >= 80, $"光晕原始色接近灰色：{color}");
+        });
     }
 
     [Fact]

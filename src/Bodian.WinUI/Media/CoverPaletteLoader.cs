@@ -28,9 +28,6 @@ public sealed class CoverPaletteLoader
     /// <summary>缓存上限。超了就整体清空 —— 封面颜色不值得为它做 LRU。</summary>
     private const int CacheLimit = 256;
 
-    /// <summary>没有封面时的种子色。是灰的，所以 <see cref="ColorPalette.Ambient"/> 会退回品牌色相。</summary>
-    private static readonly RgbColor FallbackSeed = new(128, 128, 128);
-
     private readonly Dictionary<long, IReadOnlyList<RgbColor>> _cache = [];
     private readonly ILogger<CoverPaletteLoader> _logger;
 
@@ -40,7 +37,7 @@ public sealed class CoverPaletteLoader
         => _logger = logger ?? NullLogger<CoverPaletteLoader>.Instance;
 
     /// <summary>
-    /// 取某一首的颜色。<b>永远不会抛</b> —— 失败时退回品牌色相的默认配色。
+    /// 取某一首的颜色。<b>永远不会抛</b> —— 失败时退回默认网格配色。
     /// </summary>
     /// <remarks>
     /// <b>切歌竞态要自己挡。</b> 连着切两首时，前一首的解码可能后完成，
@@ -85,9 +82,9 @@ public sealed class CoverPaletteLoader
 
         if (url is null)
         {
-            _logger.LogDebug("没有封面地址，氛围色退回品牌色相");
+            _logger.LogDebug("没有封面地址，氛围色退回默认网格配色");
 
-            return ColorPalette.Ambient(FallbackSeed);
+            return ColorPalette.DefaultAmbient;
         }
 
         try
@@ -122,7 +119,12 @@ public sealed class CoverPaletteLoader
 
             return dominant is { } seed
                 ? ColorPalette.Ambient(seed)
-                : ColorPalette.Ambient(FallbackSeed);
+                : ColorPalette.DefaultAmbient;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 新封面请求取代了本次请求；控件会丢弃过期结果，取消不应进入 async void 异常通道。
+            return ColorPalette.DefaultAmbient;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -131,9 +133,9 @@ public sealed class CoverPaletteLoader
             // ★ 一定要记日志。**静默失败会让这个功能看起来「没生效」而不是「出错了」** ——
             //   实测踩过：win10 上 Win2D 解不了 webp，异常被吞掉，界面只是颜色不变，
             //   完全看不出是解码失败。
-            _logger.LogWarning(ex, "氛围取色失败，退回品牌色相。地址 {Url}", url);
+            _logger.LogWarning(ex, "氛围取色失败，退回默认网格配色。地址 {Url}", url);
 
-            return ColorPalette.Ambient(FallbackSeed);
+            return ColorPalette.DefaultAmbient;
         }
     }
 

@@ -88,25 +88,8 @@
             -->
             <SolidColorBrush x:Key="AppSurfaceBrush" Color="#FFFAFAFA" />
 
-            <!-- 氛围渐变层的整体强度。浅色底上色团要收敛，否则整页发花 -->
-            <x:Double x:Key="AmbientOpacity">0.35</x:Double>
-
-            <!--
-                ── 层级分离 ──
-
-                侧栏与播放条不能都是「完全透明地透出背景」，那样会糊成一片、没有前后关系。
-                给它们各自一层极淡的底：侧栏略微「陷下去」，播放条略微「浮起来」。
-
-                都保持半透明，氛围渐变仍然透得上来 —— 分层不等于遮住背景。
-
-                ★ 定义必须排在下面那几个 StaticResource 别名之前：StaticResource 不允许前向引用。
-            -->
-            <!--
-                40% 白。**不要写成 #E6FFFFFF（90%）** —— 那基本是实心白，会把氛围渐变整个盖掉，
-                播放条变成一条死白带。分层靠的是「比周围亮一点」，不是「盖住周围」。
-            -->
-            <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#66FFFFFF" />
-            <SolidColorBrush x:Key="SurfaceStrokeBrush" Color="#14000000" />
+            <!-- 浅色用清晰的彩色光晕；局部衰减保留文字区域的明暗层次 -->
+            <x:Double x:Key="AmbientOpacity">0.55</x:Double>
 
             <!--
                 ★ 侧栏与内容区一律**全透明**，让氛围渐变连续地流过去。
@@ -211,12 +194,8 @@
             <!-- 窗口底色。理由见浅色一段的说明 -->
             <SolidColorBrush x:Key="AppSurfaceBrush" Color="#FF121212" />
 
-            <!-- 深色底上色团要更亮才看得出来，所以比浅色高一档 -->
-            <x:Double x:Key="AmbientOpacity">0.55</x:Double>
-
-            <!-- 18% 白。深色下比浅色更收敛，否则会把深底上的色团洗白。理由见浅色一段 -->
-            <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#2EFFFFFF" />
-            <SolidColorBrush x:Key="SurfaceStrokeBrush" Color="#1AFFFFFF" />
+            <!-- 深色稍提高强度，让颜色保持鲜明；基底仍由 AppSurfaceBrush 控制 -->
+            <x:Double x:Key="AmbientOpacity">0.62</x:Double>
 
             <!-- 侧栏与内容区全透明。理由见浅色一段 -->
             <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="Transparent" />
