@@ -50,6 +50,14 @@ public sealed partial class ThemeViewModel : ObservableObject
         _ => "跟随系统",
     };
 
+    /// <summary>标题栏当前主题图标：显示器、太阳或月亮。</summary>
+    public string CurrentGlyph => Current switch
+    {
+        AppTheme.Light => "\uE706",
+        AppTheme.Dark => "\uE708",
+        _ => "\uE770",
+    };
+
     public bool IsSystem => Current == AppTheme.System;
 
     public bool IsLight => Current == AppTheme.Light;
@@ -76,6 +84,7 @@ public sealed partial class ThemeViewModel : ObservableObject
         OnPropertyChanged(nameof(Current));
         OnPropertyChanged(nameof(RequestedTheme));
         OnPropertyChanged(nameof(CurrentLabel));
+        OnPropertyChanged(nameof(CurrentGlyph));
         OnPropertyChanged(nameof(IsSystem));
         OnPropertyChanged(nameof(IsLight));
         OnPropertyChanged(nameof(IsDark));

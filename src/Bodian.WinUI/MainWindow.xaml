@@ -7,7 +7,7 @@
     Title="波点音乐">
 
     <!--
-        外壳 = 侧栏 + 内容区（第 0 行）+ 通栏播放条（第 1 行）。
+        外壳 = 自定义标题栏（第 0 行）+ 侧栏 / 内容区（第 1 行）+ 通栏播放条（第 2 行）。
 
         ★ 播放条**通栏**，横跨整个窗口宽度，所以侧栏不再到窗口底部。
           这是刻意改的：早先的做法是把播放条塞进 NavigationView 的 Content，
@@ -33,26 +33,196 @@
         ★ 不能用 Application.RequestedTheme：那个只能在窗口创建之前设，
           运行期改会抛异常。所以运行期切换只能走元素级。
     -->
-    <Grid RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+    <Grid x:Name="ShellRoot" RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
         <Grid.RowDefinitions>
-            <!-- 上：侧栏 + 内容区 -->
+            <!-- 顶部：原生自定义标题栏，复用原系统标题栏区域 -->
+            <RowDefinition Height="Auto" />
+            <!-- 中间：侧栏 + 内容区，顶边齐平 -->
             <RowDefinition Height="*" />
             <!-- 下：播放条。**通栏**，横跨侧栏与内容区 -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!--
-            底色层与氛围渐变层都要**跨两行**：只铺第 0 行的话，播放条那一带会露出纯色，
+            底色层与氛围渐变层都要**跨三行**：只铺内容区的话，播放条那一带会露出纯色，
             与上面的渐变之间出现一条硬边。
         -->
-        <Border Grid.RowSpan="2" Background="{ThemeResource AppSurfaceBrush}" />
-        <controls:AmbientBackdrop Grid.RowSpan="2" />
+        <Border Grid.RowSpan="3" Background="{ThemeResource AppSurfaceBrush}" />
+        <controls:AmbientBackdrop Grid.RowSpan="3" />
+
+        <!--
+            原生 TitleBar 负责拖动区与交互控件避让，系统 caption 按钮仍由 Windows 管理。
+            左上角预留与展开侧栏等宽的 Logo 区域；收起按钮留在下方 NavigationView。
+            高度与原生 Tall caption 一致，搜索框、账号、主题和窗口按钮沿同一中心线。
+        -->
+        <TitleBar
+            x:Name="AppTitleBar"
+            Grid.Row="0"
+            Height="{StaticResource SizeTopBar}"
+            Background="Transparent"
+            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+            AutomationProperties.Name="波点音乐标题栏">
+            <TitleBar.Resources>
+                <x:Double x:Key="TitleBarCompactHeight">48</x:Double>
+                <x:Double x:Key="TitleBarExpandedHeight">48</x:Double>
+                <x:Double x:Key="TitleBarLeftPaddingWidth">0</x:Double>
+                <x:Double x:Key="TitleBarLeftHeaderPaddingWidth">0</x:Double>
+                <Thickness x:Key="TitleBarCompactContentMargin">0</Thickness>
+                <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
+            </TitleBar.Resources>
+            <TitleBar.LeftHeader>
+                <!-- 暂无图案：保留 Logo 插槽，后续可在此挂载设计好的资源。 -->
+                <Border
+                    x:Name="LogoHost"
+                    Width="{StaticResource SizeSidebarWidth}"
+                    Height="32"
+                    Padding="24,0"
+                    IsHitTestVisible="False" />
+            </TitleBar.LeftHeader>
+            <TitleBar.Content>
+                <!-- 搜索宽度随可用空间收缩，并限制最大宽度以保留标题栏留白。 -->
+                <Grid x:Name="SearchBarHost" Margin="24,0,24,0" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MaxWidth="400" />
+                    </Grid.ColumnDefinitions>
+                    <AutoSuggestBox
+                        x:Name="SearchBox"
+                        MinWidth="0"
+                        VerticalAlignment="Center"
+                        PlaceholderText="搜索歌曲、歌手"
+                        QueryIcon="Find"
+                        QuerySubmitted="OnSearchQuerySubmitted"
+                        Text="{x:Bind Search.Keyword, Mode=TwoWay}"
+                        AutomationProperties.Name="搜索歌曲、歌手" />
+                </Grid>
+            </TitleBar.Content>
+            <TitleBar.RightHeader>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button
+                        x:Name="AccountButton"
+                        Visibility="Collapsed"
+                        AutomationProperties.Name="账号"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
+                        VerticalAlignment="Center"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTipService.ToolTip="{x:Bind Account.AccountText, Mode=OneWay}">
+                        <Border
+                            Width="24"
+                            Height="24"
+                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                            CornerRadius="12">
+                            <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
+                        </Border>
+
+                        <Button.Flyout>
+                            <!-- 右对齐：顶栏在窗口右上角，默认居中会往左偏出去 -->
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel MinWidth="200" Spacing="12">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Border
+                                            Width="32"
+                                            Height="32"
+                                            VerticalAlignment="Center"
+                                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                            CornerRadius="16">
+                                            <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
+                                        </Border>
+
+                                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock
+                                                Text="{x:Bind Account.AccountText, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis" />
+
+                                            <!-- 会员徽标只是展示：播放权限一律以服务端 checkRight 为准 -->
+                                            <Border
+                                                Padding="5,0"
+                                                HorizontalAlignment="Left"
+                                                Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+                                                CornerRadius="3"
+                                                Visibility="{x:Bind Account.IsVip, Mode=OneWay}">
+                                                <TextBlock FontSize="11" Text="VIP" />
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <Button
+                                        HorizontalAlignment="Stretch"
+                                        Command="{x:Bind Account.SignOutCommand}"
+                                        Content="退出登录"
+                                        ToolTipService.ToolTip="清除本机保存的会话，回到扫码登录" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button
+                        x:Name="ThemeButton"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTipService.ToolTip="{x:Bind Theme.CurrentLabel, Mode=OneWay}"
+                        AutomationProperties.Name="切换主题">
+                        <FontIcon
+                            FontSize="{StaticResource SizeIconSm}"
+                            Glyph="{x:Bind Theme.CurrentGlyph, Mode=OneWay}" />
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <RadioMenuFlyoutItem
+                                    Click="OnThemeSystemClicked"
+                                    GroupName="AppTheme"
+                                    IsChecked="{x:Bind Theme.IsSystem, Mode=OneWay}"
+                                    Text="跟随系统">
+                                    <RadioMenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE770;" />
+                                    </RadioMenuFlyoutItem.Icon>
+                                </RadioMenuFlyoutItem>
+                                <RadioMenuFlyoutItem
+                                    Click="OnThemeLightClicked"
+                                    GroupName="AppTheme"
+                                    IsChecked="{x:Bind Theme.IsLight, Mode=OneWay}"
+                                    Text="浅色">
+                                    <RadioMenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE706;" />
+                                    </RadioMenuFlyoutItem.Icon>
+                                </RadioMenuFlyoutItem>
+                                <RadioMenuFlyoutItem
+                                    Click="OnThemeDarkClicked"
+                                    GroupName="AppTheme"
+                                    IsChecked="{x:Bind Theme.IsDark, Mode=OneWay}"
+                                    Text="深色">
+                                    <RadioMenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE708;" />
+                                    </RadioMenuFlyoutItem.Icon>
+                                </RadioMenuFlyoutItem>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Border
+                        Width="1"
+                        Height="16"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                </StackPanel>
+            </TitleBar.RightHeader>
+        </TitleBar>
 
         <NavigationView
             x:Name="Nav"
-            Grid.Row="0"
+            Grid.Row="1"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
+            IsTitleBarAutoPaddingEnabled="False"
             ItemInvoked="OnItemInvoked"
             OpenPaneLength="{StaticResource SizeSidebarWidth}"
             PaneDisplayMode="Left">
@@ -127,161 +297,11 @@
             <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
         </NavigationView.MenuItems>
 
-        <!--
-            侧栏底部**不再放账号卡片**。账号入口移到了内容区顶栏（主题按钮右边），
-            见下面 SearchBarHost 里的头像按钮 —— 那里常驻可见，而且不占侧栏的纵向空间。
-        -->
-
-        <Grid>
-            <!-- 只剩两行：顶栏 + 页面。播放条已经移到根 Grid 的通栏那一行 -->
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-
-            <!--
-                搜索入口。**常驻在内容区顶部，不放侧栏**（决策见 docs/library-sidebar.md §0），
-                也不放搜索页里 —— 两处各放一个框会出现「框里是 A、结果是 B」。
-
-                未登录时整条藏起来（与侧栏一起），见 MainWindow.ShowLogin。
-            -->
-            <Grid
-                x:Name="SearchBarHost"
-                Grid.Row="0"
-                Padding="24,16,24,16"
-                ColumnSpacing="12"
-                Visibility="Collapsed">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <AutoSuggestBox
-                    x:Name="SearchBox"
-                    Grid.Column="0"
-                    PlaceholderText="搜索歌曲、歌手"
-                    QueryIcon="Find"
-                    QuerySubmitted="OnSearchQuerySubmitted"
-                    Text="{x:Bind Search.Keyword, Mode=TwoWay}" />
-
-                <!--
-                    外观切换。放在顶栏右侧，Step 4 做自定义标题栏时这里会自然变成标题栏的一部分。
-
-                    ★ 用 RadioMenuFlyoutItem 而不是自绘三选一：它自带 GroupName 的互斥语义
-                      与选中标记，不用自己维护选中态。
-                    ★ 未登录时整条顶栏是 Collapsed 的，所以登录页上切不了外观 ——
-                      但设置是持久化的，登录页本身会跟随已保存的档位。
-                -->
-                <Button
-                    Grid.Column="1"
-                    VerticalAlignment="Center"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    ToolTipService.ToolTip="{x:Bind Theme.CurrentLabel, Mode=OneWay}">
-                    <FontIcon
-                        FontSize="16"
-                        Glyph="&#xE706;" />
-                    <Button.Flyout>
-                        <MenuFlyout>
-                            <RadioMenuFlyoutItem
-                                Click="OnThemeSystemClicked"
-                                GroupName="AppTheme"
-                                IsChecked="{x:Bind Theme.IsSystem, Mode=OneWay}"
-                                Text="跟随系统" />
-                            <RadioMenuFlyoutItem
-                                Click="OnThemeLightClicked"
-                                GroupName="AppTheme"
-                                IsChecked="{x:Bind Theme.IsLight, Mode=OneWay}"
-                                Text="浅色" />
-                            <RadioMenuFlyoutItem
-                                Click="OnThemeDarkClicked"
-                                GroupName="AppTheme"
-                                IsChecked="{x:Bind Theme.IsDark, Mode=OneWay}"
-                                Text="深色" />
-                        </MenuFlyout>
-                    </Button.Flyout>
-                </Button>
-
-                <!--
-                    账号入口。从侧栏底部的账号卡片挪过来的 —— 那里占侧栏的纵向空间，
-                    而顶栏右侧本来就是「放全局入口」的位置。
-
-                    ★ 点它弹出面板，里面有账号信息与退出登录。
-                    ★ 属性必须是 OneWay：顶栏在主窗口构造时就建好了，那时还没有会话，
-                      OneTime 会永远停在空白（这是侧栏卡片踩过的同一个坑）。
-                -->
-                <Button
-                    Grid.Column="2"
-                    Width="{StaticResource SizeRoundButton}"
-                    Height="{StaticResource SizeRoundButton}"
-                    MinWidth="0"
-                    Padding="0"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    ToolTipService.ToolTip="{x:Bind Account.AccountText, Mode=OneWay}">
-                    <Border
-                        Width="24"
-                        Height="24"
-                        Background="{ThemeResource ControlFillColorDefaultBrush}"
-                        CornerRadius="12">
-                        <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
-                    </Border>
-
-                    <Button.Flyout>
-                        <!-- 右对齐：顶栏在窗口右上角，默认居中会往左偏出去 -->
-                        <Flyout Placement="BottomEdgeAlignedRight">
-                            <StackPanel MinWidth="200" Spacing="12">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <Border
-                                        Width="32"
-                                        Height="32"
-                                        VerticalAlignment="Center"
-                                        Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                        CornerRadius="16">
-                                        <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
-                                    </Border>
-
-                                    <StackPanel VerticalAlignment="Center" Spacing="2">
-                                        <TextBlock
-                                            Text="{x:Bind Account.AccountText, Mode=OneWay}"
-                                            TextTrimming="CharacterEllipsis" />
-
-                                        <!-- 会员徽标只是展示：播放权限一律以服务端 checkRight 为准 -->
-                                        <Border
-                                            Padding="5,0"
-                                            HorizontalAlignment="Left"
-                                            Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
-                                            CornerRadius="3"
-                                            Visibility="{x:Bind Account.IsVip, Mode=OneWay}">
-                                            <TextBlock FontSize="11" Text="VIP" />
-                                        </Border>
-                                    </StackPanel>
-                                </StackPanel>
-
-                                <Button
-                                    HorizontalAlignment="Stretch"
-                                    Command="{x:Bind Account.SignOutCommand}"
-                                    Content="退出登录"
-                                    ToolTipService.ToolTip="清除本机保存的会话，回到扫码登录" />
-                            </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
-            </Grid>
-
-            <!--
-                页面由 INavigationService 直接赋值 Content，不走 Frame.Navigate。
-
-                ★ 两个 ContentAlignment 必须显式写 Stretch。ContentControl 的默认是 Left/Top，
-                  少写这两行，能收缩的页面（列表有 TextWrapping）会缩成一条靠在左上角。
-            -->
-            <ContentControl
-                x:Name="PageHost"
-                Grid.Row="1"
-                HorizontalContentAlignment="Stretch"
-                VerticalContentAlignment="Stretch" />
-        </Grid>
+        <!-- 页面宿主与侧栏从同一行开始；搜索入口统一放在上方标题栏。 -->
+        <ContentControl
+            x:Name="PageHost"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch" />
         </NavigationView>
 
         <!--
@@ -291,7 +311,7 @@
         -->
         <ContentControl
             x:Name="PlayerHost"
-            Grid.Row="1"
+            Grid.Row="2"
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch" />
     </Grid>

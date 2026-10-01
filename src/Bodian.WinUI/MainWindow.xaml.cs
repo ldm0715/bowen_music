@@ -10,11 +10,13 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Graphics;
+using Windows.UI;
+using Microsoft.UI.Xaml.Media;
 
 namespace Bodian.WinUI;
 
 /// <summary>
-/// 主窗口，也就是外壳：左边侧栏、右边内容区、底部常驻播放条。
+/// 主窗口外壳：顶部自定义标题栏、左侧导航、右侧内容区、底部常驻播放条。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -102,6 +104,7 @@ public sealed partial class MainWindow : Window
         Application.Current.Resources["BodianNowPlaying"] = playerViewModel;
 
         ApplyWindowPlacement();
+        ConfigureTitleBar();
         Closed += (_, _) => SaveWindowPlacement();
 
         _navigation.Attach(PageHost);
@@ -116,14 +119,50 @@ public sealed partial class MainWindow : Window
     /// <summary>给 <c>x:Bind</c> 用。</summary>
     public PlayerViewModel Player { get; }
 
-    /// <summary>侧栏底部账号卡片的数据源。</summary>
+    /// <summary>标题栏账号入口的数据源。</summary>
     public AccountViewModel Account { get; }
 
     /// <summary>顶部搜索框的数据源。<b>与搜索页是同一个实例</b>，所以框里的词与结果永远一致。</summary>
     public SearchViewModel Search { get; }
 
-    /// <summary>外观切换。绑在根 <c>NavigationView</c> 的 <c>RequestedTheme</c> 上。</summary>
+    /// <summary>外观切换。绑在根 <c>Grid</c> 的 <c>RequestedTheme</c> 上。</summary>
     public ThemeViewModel Theme { get; }
+
+    /// <summary>替换系统标题栏；不改变窗口的尺寸、位置或保存的窗口矩形。</summary>
+    private void ConfigureTitleBar()
+    {
+        ExtendsContentIntoTitleBar = true;
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        SetTitleBar(AppTitleBar);
+
+        ShellRoot.ActualThemeChanged += (_, _) => UpdateCaptionButtonColors();
+        AppTitleBar.RegisterPropertyChangedCallback(Control.ForegroundProperty, (_, _) => UpdateCaptionButtonColors());
+        UpdateCaptionButtonColors();
+    }
+
+    /// <summary>原生窗口按钮共用透明背景，并随实际主题更新前景色。</summary>
+    private void UpdateCaptionButtonColors()
+    {
+        var titleBar = AppWindow.TitleBar;
+        var isDark = ShellRoot.ActualTheme == ElementTheme.Dark;
+        var foreground = AppTitleBar.Foreground is SolidColorBrush brush
+            ? brush.Color
+            : isDark ? Colors.White : Colors.Black;
+        var hoverBackground = isDark
+            ? Color.FromArgb(24, 255, 255, 255)
+            : Color.FromArgb(16, 0, 0, 0);
+
+        titleBar.ButtonBackgroundColor = Colors.Transparent;
+        titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        titleBar.ButtonForegroundColor = foreground;
+        titleBar.ButtonInactiveForegroundColor = isDark
+            ? Color.FromArgb(153, 255, 255, 255)
+            : Color.FromArgb(153, 0, 0, 0);
+        titleBar.ButtonHoverBackgroundColor = hoverBackground;
+        titleBar.ButtonHoverForegroundColor = foreground;
+        titleBar.ButtonPressedBackgroundColor = hoverBackground;
+        titleBar.ButtonPressedForegroundColor = foreground;
+    }
 
     // 三个档位各一个处理函数。用 RadioMenuFlyoutItem 自带的 Click 而不是把命令绑到
     // CommandParameter 上：后者要传枚举，绕一层字符串解析或转换器，反而更绕。
@@ -307,14 +346,16 @@ public sealed partial class MainWindow : Window
     {
         Nav.IsPaneVisible = false;
         SearchBarHost.Visibility = Visibility.Collapsed;
+        AccountButton.Visibility = Visibility.Collapsed;
         _navigation.Reset<LoginPage>();
     }
 
-    /// <summary>登录之后把侧栏与搜索框放出来。</summary>
+    /// <summary>登录之后显示侧栏、标题栏搜索框与账号入口。</summary>
     private void ShowShell()
     {
         Nav.IsPaneVisible = true;
         SearchBarHost.Visibility = Visibility.Visible;
+        AccountButton.Visibility = Visibility.Visible;
     }
 
     private async Task LoadSidebarAsync()
