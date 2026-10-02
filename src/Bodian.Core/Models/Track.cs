@@ -72,4 +72,8 @@ public sealed record Track
     /// <c>GetLyricsAsync</c> 的兜底策略走（先逐字、空了再逐行）。
     /// </remarks>
     public TrackLyricInfo? Lyrics { get; init; }
+
+    /// <summary>评论总数。部分曲目列表未提供时为 null，不能当成零评论。</summary>
+    public long? CommentCount { get; init; }
+
 }

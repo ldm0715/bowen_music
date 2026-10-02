@@ -257,6 +257,14 @@ internal static class Endpoints
     /// </summary>
     public const string Collect = "service/collect";
 
+    // ── 歌曲评论（android 请求头，读取、发布与点赞使用 v3）────────────────────────
+
+    public const string SongCommentsRecommended = "comments/v3/hot";
+    public const string SongCommentsLatest = "comments/v3/new";
+    public const string SongCommentReplies = "comments/v3/replies";
+    public const string SongCommentPublish = "comments/v3/publish";
+    public const string SongCommentLike = "comments/v3/like";
+
     // ── 歌词站（另一个域，不走 /api 前缀、不签名）────────────────────────────
 
     public const string LyricHost = "https://mlyric.kuwo.cn";

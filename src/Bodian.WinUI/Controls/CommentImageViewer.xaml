@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="Bodian.WinUI.Controls.CommentImageViewer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="ImageViewerButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Foreground" Value="{ThemeResource CommentSecondaryTextBrush}" />
+        </Style>
+    </UserControl.Resources>
+    <Grid Background="{ThemeResource CommentPanelBackgroundBrush}" CornerRadius="16" Padding="16" RowSpacing="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <StackPanel Spacing="6">
+                <TextBlock Text="评论图片" Foreground="{ThemeResource CommentPrimaryTextBrush}" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock x:Name="PanHintText" Text="双击或点击 + 放大图片" FontSize="12" TextWrapping="Wrap"
+                    Foreground="{ThemeResource CommentSecondaryTextBrush}" />
+            </StackPanel>
+            <Button x:Name="ImageCloseButton" Grid.Column="1" Click="OnCloseClick" Style="{StaticResource ImageViewerButtonStyle}"
+                VerticalAlignment="Top" AutomationProperties.Name="关闭大图" ToolTipService.ToolTip="返回评论 (Esc)">
+                <FontIcon Glyph="&#xE711;" FontSize="12" />
+            </Button>
+        </Grid>
+        <Grid x:Name="ImageViewport" Grid.Row="1" Background="{ThemeResource CommentImageBackgroundBrush}" CornerRadius="10"
+            SizeChanged="OnViewportSizeChanged" ManipulationMode="TranslateX,TranslateY,Scale"
+            PointerPressed="OnViewportPointerPressed" PointerMoved="OnViewportPointerMoved"
+            PointerReleased="OnViewportPointerReleased" PointerCanceled="OnViewportPointerReleased"
+            PointerCaptureLost="OnViewportPointerCaptureLost" PointerWheelChanged="OnViewportPointerWheelChanged"
+            DoubleTapped="OnImageDoubleTapped" ManipulationDelta="OnViewportManipulationDelta">
+            <Grid.Clip><RectangleGeometry x:Name="ImageViewportClip" /></Grid.Clip>
+            <Canvas IsHitTestVisible="False">
+                <Image x:Name="FullImage" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top"
+                    ImageOpened="OnImageOpened" ImageFailed="OnImageFailed" AutomationProperties.Name="评论原始图片" />
+            </Canvas>
+            <StackPanel x:Name="LoadingState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                <ProgressRing x:Name="ImageProgress" Width="26" Height="26" />
+                <TextBlock Text="正在加载原图" FontSize="13" Foreground="{ThemeResource CommentSecondaryTextBrush}" />
+            </StackPanel>
+            <StackPanel x:Name="ErrorState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" Visibility="Collapsed">
+                <TextBlock Text="图片暂时无法加载" Foreground="{ThemeResource CommentErrorBrush}" FontSize="14" />
+                <Button Content="重试" Click="OnRetryClick" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+        <Border Grid.Row="2" Padding="0,10,0,0" BorderBrush="{ThemeResource CommentSeparatorBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Button Click="OnZoomOut" Style="{StaticResource ImageViewerButtonStyle}"
+                    AutomationProperties.Name="缩小图片" ToolTipService.ToolTip="缩小">
+                    <FontIcon Glyph="&#xE738;" FontSize="12" />
+                </Button>
+                <TextBlock x:Name="ZoomText" Text="100%" Width="44" FontSize="12" Foreground="{ThemeResource CommentSecondaryTextBrush}"
+                    VerticalAlignment="Center" TextAlignment="Center" />
+                <Button Click="OnZoomIn" Style="{StaticResource ImageViewerButtonStyle}"
+                    AutomationProperties.Name="放大图片" ToolTipService.ToolTip="放大">
+                    <FontIcon Glyph="&#xE710;" FontSize="12" />
+                </Button>
+                <Button Content="适应" Click="OnFitClick" MinWidth="48" Height="32" Padding="10,4" CornerRadius="8"
+                    Foreground="{ThemeResource CommentSecondaryTextBrush}" AutomationProperties.Name="图片适应评论面板" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

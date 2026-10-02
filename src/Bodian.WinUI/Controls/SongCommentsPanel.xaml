@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="Bodian.WinUI.Controls.SongCommentsPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:vm="using:Bodian.WinUI.ViewModels"
+    xmlns:local="using:Bodian.WinUI"
+    IsTabStop="False">
+    <UserControl.Resources>
+        <Style x:Key="CommentIconButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Foreground" Value="{ThemeResource CommentSecondaryTextBrush}" />
+        </Style>
+        <Style x:Key="CommentSortButtonStyle" TargetType="ToggleButton">
+            <Setter Property="MinWidth" Value="72" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="14,4" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{ThemeResource CommentSecondaryTextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#FF00F3B0" />
+        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#FF00D9A0" />
+        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#FF00BE8C" />
+        <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#FF002019" />
+        <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#FF002019" />
+        <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#FF002019" />
+        <DataTemplate x:Key="CommentRowTemplate" x:DataType="vm:SongCommentRow">
+            <Border Padding="0,14,0,16" BorderBrush="{ThemeResource CommentSeparatorBrush}" BorderThickness="0,0,0,1">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <PersonPicture Width="36" Height="36" VerticalAlignment="Top"
+                        DisplayName="{x:Bind Nickname, Mode=OneWay}" ProfilePicture="{x:Bind local:Formats.CoverSource(AvatarUri), Mode=OneWay}" />
+                    <StackPanel Grid.Column="1" Spacing="8">
+                        <TextBlock Text="{x:Bind Nickname, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
+                            Foreground="{ThemeResource CommentAuthorTextBrush}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{x:Bind ReplyCaption, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource CommentAccentBrush}"
+                            Visibility="{x:Bind local:Formats.Visible(HasReplyCaption), Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind Content, Mode=OneWay}" FontSize="14" LineHeight="23"
+                            Foreground="{ThemeResource CommentPrimaryTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        <Button Command="{x:Bind ImageCommand}" HorizontalAlignment="Left" Padding="0" BorderThickness="0"
+                            Background="{ThemeResource CommentRaisedSurfaceBrush}" CornerRadius="8" AutomationProperties.Name="放大评论图片"
+                            ToolTipService.ToolTip="点击查看大图"
+                            Visibility="{x:Bind local:Formats.CommentImageVisibility(ImageUri), Mode=OneWay}">
+                            <Image Source="{x:Bind local:Formats.CoverSource(ImageUri), Mode=OneWay}" MaxWidth="240" MaxHeight="160"
+                                Stretch="Uniform" />
+                        </Button>
+                        <TextBlock Text="{x:Bind local:Formats.CommentMetadata(PublishTime, Location), Mode=OneWay}"
+                            FontSize="11" Foreground="{ThemeResource CommentTertiaryTextBrush}" TextTrimming="CharacterEllipsis" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <HyperlinkButton Content="{x:Bind ReplyActionText, Mode=OneWay}" Command="{x:Bind ReplyCommand}"
+                                    Padding="0,4" FontSize="12" Foreground="{ThemeResource CommentSecondaryTextBrush}" />
+                                <HyperlinkButton Content="查看" Command="{x:Bind DetailCommand}" Padding="0,4" FontSize="12"
+                                    Foreground="{ThemeResource CommentSecondaryTextBrush}" Visibility="{x:Bind local:Formats.CommentDetailVisibility(IsReply, ReplyCount), Mode=OneWay}" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Command="{x:Bind LikeCommand}" Padding="8,4" MinWidth="48"
+                                MinHeight="28" Background="Transparent" BorderThickness="0" CornerRadius="7"
+                                AutomationProperties.Name="{x:Bind LikeActionText, Mode=OneWay}"
+                                ToolTipService.ToolTip="{x:Bind LikeActionText, Mode=OneWay}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Grid Width="15" Height="15">
+                                        <Path Data="M 8,10 L 10.5,3 C 10.8,2.1 11.7,1.8 12.4,2.4 C 13.7,3.5 14,4.8 13.7,6.1 L 12.8,10 L 18.1,10 C 19.4,10 20.3,11.2 20,12.4 L 18.7,18.6 C 18.5,19.5 17.8,20 16.9,20 L 8,20 Z M 2,10 L 5.5,10 L 5.5,20 L 2,20 Z" Stretch="Uniform"
+                                            Fill="Transparent" Stroke="{ThemeResource CommentSecondaryTextBrush}" StrokeThickness="1.5"
+                                            Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsLiked), Mode=OneWay}" />
+                                        <Path Data="M 8,10 L 10.5,3 C 10.8,2.1 11.7,1.8 12.4,2.4 C 13.7,3.5 14,4.8 13.7,6.1 L 12.8,10 L 18.1,10 C 19.4,10 20.3,11.2 20,12.4 L 18.7,18.6 C 18.5,19.5 17.8,20 16.9,20 L 8,20 Z M 2,10 L 5.5,10 L 5.5,20 L 2,20 Z" Stretch="Uniform"
+                                            Fill="{ThemeResource CommentAccentBrush}" Stroke="{ThemeResource CommentAccentBrush}" StrokeThickness="1"
+                                            Visibility="{x:Bind local:Formats.Visible(IsLiked), Mode=OneWay}" />
+                                    </Grid>
+                                    <TextBlock Text="{x:Bind local:Formats.CommentCount(LikeCount), Mode=OneWay}" FontSize="12"
+                                        Foreground="{ThemeResource CommentSecondaryTextBrush}" />
+                                    <ProgressRing Width="12" Height="12" IsActive="{x:Bind IsLiking, Mode=OneWay}"
+                                        Visibility="{x:Bind local:Formats.Visible(IsLiking), Mode=OneWay}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+    <Grid Padding="20,20,16,16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid ColumnSpacing="12" Margin="0,0,4,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button x:Name="ThreadBackButton" Command="{x:Bind ViewModel.CloseThreadCommand}"
+                        Style="{StaticResource CommentIconButtonStyle}" AutomationProperties.Name="返回评论列表"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.IsThreadOpen), Mode=OneWay}">
+                        <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                    </Button>
+                    <TextBlock Text="{x:Bind ViewModel.PanelTitle, Mode=OneWay}" FontSize="21" FontWeight="SemiBold" Foreground="{ThemeResource CommentPrimaryTextBrush}" />
+                    <TextBlock Text="{x:Bind ViewModel.TotalText, Mode=OneWay}" FontSize="12"
+                        Foreground="{ThemeResource CommentSecondaryTextBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{x:Bind ViewModel.SongTitle, Mode=OneWay}" FontSize="12"
+                    Foreground="{ThemeResource CommentSecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Spacing="4">
+                <Button Command="{x:Bind ViewModel.RefreshCommand}" Style="{StaticResource CommentIconButtonStyle}"
+                    AutomationProperties.Name="刷新评论" ToolTipService.ToolTip="刷新">
+                    <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                </Button>
+                <Button x:Name="CloseButton" Click="OnCloseClick" Style="{StaticResource CommentIconButtonStyle}"
+                    AutomationProperties.Name="关闭评论" ToolTipService.ToolTip="关闭评论 (Esc)">
+                    <FontIcon Glyph="&#xE711;" FontSize="12" />
+                </Button>
+            </StackPanel>
+        </Grid>
+        <Border Grid.Row="1" HorizontalAlignment="Left" Background="{ThemeResource CommentRaisedSurfaceBrush}" CornerRadius="10" Padding="3"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsListOpen), Mode=OneWay}">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <ToggleButton x:Name="RecommendedButton" Content="推荐" Click="OnRecommendedClick"
+                    IsChecked="{x:Bind ViewModel.IsRecommended, Mode=OneWay}"
+                    Style="{StaticResource CommentSortButtonStyle}" AutomationProperties.Name="推荐评论" />
+                <ToggleButton x:Name="LatestButton" Content="最新" Click="OnLatestClick"
+                    IsChecked="{x:Bind ViewModel.IsLatest, Mode=OneWay}"
+                    Style="{StaticResource CommentSortButtonStyle}" AutomationProperties.Name="最新评论" />
+            </StackPanel>
+        </Border>
+        <Grid Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsListOpen), Mode=OneWay}">
+            <controls:VirtualizedListView x:Name="CommentsList" ItemsSource="{x:Bind ViewModel.Items}"
+                SelectionMode="None" IsItemClickEnabled="False" IsTabStop="False" Padding="0,0,8,0"
+                ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="歌曲评论列表"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.HasItems), Mode=OneWay}">
+                <controls:VirtualizedListView.ItemsPanel>
+                    <ItemsPanelTemplate><ItemsStackPanel CacheLength="0.5" /></ItemsPanelTemplate>
+                </controls:VirtualizedListView.ItemsPanel>
+                <controls:VirtualizedListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="IsTabStop" Value="False" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                    </Style>
+                </controls:VirtualizedListView.ItemContainerStyle>
+                <controls:VirtualizedListView.ItemTemplate>
+                    <StaticResource ResourceKey="CommentRowTemplate" />
+                </controls:VirtualizedListView.ItemTemplate>
+                <controls:VirtualizedListView.Footer>
+                    <StackPanel Spacing="10" Padding="0,18,0,12" HorizontalAlignment="Center" MaxWidth="300">
+                        <ProgressRing Width="20" Height="20" IsActive="{x:Bind ViewModel.IsLoadingMore, Mode=OneWay}"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsLoadingMore), Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" FontSize="12"
+                            Foreground="{ThemeResource CommentErrorBrush}" TextWrapping="Wrap" TextAlignment="Center"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowMoreError), Mode=OneWay}" />
+                        <Button Content="重试" Command="{x:Bind ViewModel.RetryCommand}" HorizontalAlignment="Center"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowMoreError), Mode=OneWay}" />
+                        <Button Content="加载更多" Command="{x:Bind ViewModel.LoadMoreCommand}" HorizontalAlignment="Center"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowLoadMore), Mode=OneWay}" />
+                        <TextBlock Text="已经看完全部评论" FontSize="12" Foreground="{ThemeResource CommentTertiaryTextBrush}"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowEnd), Mode=OneWay}" />
+                    </StackPanel>
+                </controls:VirtualizedListView.Footer>
+            </controls:VirtualizedListView>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.IsInitialLoading), Mode=OneWay}">
+                <ProgressRing Width="26" Height="26" IsActive="{x:Bind ViewModel.IsInitialLoading, Mode=OneWay}" />
+                <TextBlock Text="正在加载评论" FontSize="13" Foreground="{ThemeResource CommentSecondaryTextBrush}" />
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.IsEmpty), Mode=OneWay}">
+                <FontIcon Glyph="&#xE90A;" FontSize="30" Foreground="{ThemeResource CommentPlaceholderBrush}" />
+                <TextBlock Text="还没有评论" FontSize="16" Foreground="{ThemeResource CommentPrimaryTextBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="先听听这首歌吧" FontSize="12" Foreground="{ThemeResource CommentSecondaryTextBrush}" HorizontalAlignment="Center" />
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" MaxWidth="280"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowInitialError), Mode=OneWay}">
+                <FontIcon Glyph="&#xE8CD;" FontSize="28" Foreground="{ThemeResource CommentSecondaryTextBrush}" />
+                <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" FontSize="13"
+                    Foreground="{ThemeResource CommentErrorBrush}" TextWrapping="Wrap" TextAlignment="Center" />
+                <Button Content="重试" Command="{x:Bind ViewModel.RetryCommand}" HorizontalAlignment="Center"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowInitialRetry), Mode=OneWay}" />
+            </StackPanel>
+        </Grid>
+        <controls:VirtualizedListView x:Name="RepliesList" Grid.Row="2" ItemsSource="{x:Bind ViewModel.Replies}"
+            SelectionMode="None" IsItemClickEnabled="False" IsTabStop="False" Padding="0,0,8,0"
+            ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="评论详情与回复"
+            ItemTemplate="{StaticResource CommentRowTemplate}"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsThreadOpen), Mode=OneWay}">
+            <controls:VirtualizedListView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsStackPanel CacheLength="0.5" /></ItemsPanelTemplate>
+            </controls:VirtualizedListView.ItemsPanel>
+            <controls:VirtualizedListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="IsTabStop" Value="False" />
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                </Style>
+            </controls:VirtualizedListView.ItemContainerStyle>
+            <controls:VirtualizedListView.Header>
+                <StackPanel Spacing="14">
+                    <ContentControl Content="{x:Bind ViewModel.SelectedRoot, Mode=OneWay}"
+                        ContentTemplate="{StaticResource CommentRowTemplate}" HorizontalContentAlignment="Stretch" />
+                    <TextBlock Text="{x:Bind local:Formats.CommentReplyHeading(ViewModel.ReplyTotal), Mode=OneWay}"
+                        FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource CommentSecondaryTextBrush}" Margin="0,0,0,4" />
+                </StackPanel>
+            </controls:VirtualizedListView.Header>
+            <controls:VirtualizedListView.Footer>
+                <StackPanel Spacing="12" Padding="0,18,0,14" HorizontalAlignment="Center" MaxWidth="280">
+                    <ProgressRing Width="22" Height="22" IsActive="{x:Bind ViewModel.IsRepliesLoading, Mode=OneWay}"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.IsRepliesLoading), Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind ViewModel.RepliesError, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource CommentErrorBrush}"
+                        TextWrapping="Wrap" TextAlignment="Center"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.RepliesLoadFailed), Mode=OneWay}" />
+                    <Button Content="重试" Command="{x:Bind ViewModel.RetryRepliesCommand}" HorizontalAlignment="Center"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.RepliesLoadFailed), Mode=OneWay}" />
+                    <TextBlock Text="还没有回复，聊聊你的想法吧" FontSize="12" Foreground="{ThemeResource CommentSecondaryTextBrush}"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowRepliesEmpty), Mode=OneWay}" />
+                    <Button Content="加载更多回复" Command="{x:Bind ViewModel.LoadMoreRepliesCommand}" HorizontalAlignment="Center"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowMoreReplies), Mode=OneWay}" />
+                    <TextBlock Text="已经看完全部回复" FontSize="12" Foreground="{ThemeResource CommentTertiaryTextBrush}"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowRepliesEnd), Mode=OneWay}" />
+                </StackPanel>
+            </controls:VirtualizedListView.Footer>
+        </controls:VirtualizedListView>
+        <Border Grid.Row="3" BorderBrush="{ThemeResource CommentBorderBrush}" BorderThickness="0,1,0,0" Padding="0,12,4,0">
+            <StackPanel Spacing="10">
+                <Grid ColumnSpacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.HasReplyTarget), Mode=OneWay}">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind ViewModel.ReplyTargetText, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource CommentAccentBrush}"
+                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Command="{x:Bind ViewModel.ClearReplyTargetCommand}"
+                        Style="{StaticResource CommentIconButtonStyle}" AutomationProperties.Name="取消指定回复对象">
+                        <FontIcon Glyph="&#xE711;" FontSize="10" />
+                    </Button>
+                </Grid>
+                <TextBox x:Name="CommentEditor" Text="{x:Bind ViewModel.DraftText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000"
+                    Height="76" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    IsEnabled="{x:Bind ViewModel.IsComposerEnabled, Mode=OneWay}"
+                    PlaceholderText="{x:Bind ViewModel.ComposerPlaceholder, Mode=OneWay}"
+                    Background="{ThemeResource CommentRaisedSurfaceBrush}" Foreground="{ThemeResource CommentPrimaryTextBrush}" BorderBrush="{ThemeResource CommentEditorBorderBrush}" CornerRadius="10"
+                    Padding="12,9" FontSize="13" AutomationProperties.Name="评论输入框" KeyDown="OnEditorKeyDown" />
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+                        <CheckBox Content="匿名" IsChecked="{x:Bind ViewModel.IsAnonymous, Mode=TwoWay}"
+                            IsEnabled="{x:Bind ViewModel.IsComposerEnabled, Mode=OneWay}" FontSize="12" MinWidth="0" />
+                        <TextBlock Text="{x:Bind ViewModel.DraftCount, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource CommentTertiaryTextBrush}"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="{x:Bind ViewModel.PublishLabel, Mode=OneWay}" Command="{x:Bind ViewModel.PublishCommand}"
+                        Style="{StaticResource AccentButtonStyle}" CornerRadius="8" Padding="14,6" FontSize="12"
+                        ToolTipService.ToolTip="发送 (Ctrl+Enter)" />
+                </Grid>
+                <Grid Visibility="{x:Bind local:Formats.Visible(ViewModel.HasFeedback), Mode=OneWay}">
+                    <TextBlock Text="{x:Bind ViewModel.Feedback, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
+                        Foreground="{ThemeResource CommentSecondaryTextBrush}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.FeedbackIsError), Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind ViewModel.Feedback, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
+                        Foreground="{ThemeResource CommentErrorBrush}"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.FeedbackIsError), Mode=OneWay}" />
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -130,6 +130,7 @@ public partial class App : Application
         builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddTransient<LoginPage>();
         builder.Services.AddTransient<SearchPage>();
+        builder.Services.AddTransient<SongCommentsViewModel>();
         builder.Services.AddTransient<LyricsPage>();
         builder.Services.AddTransient<FavoritesViewModel>();
         builder.Services.AddTransient<FavoritesPage>();

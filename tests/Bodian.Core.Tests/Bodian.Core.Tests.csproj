@@ -16,6 +16,7 @@
     <!-- 脱敏测试要用 LoggerFactory.Create 搭一个内层工厂；
          它在这个包里，而不在 Core 引用的 Abstractions 里。 -->
     <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="xunit.v3" />
     <!-- 保留它给 VS 测试资源管理器；dotnet test 仍按 global.json 走 MTP -->
     <PackageReference Include="xunit.runner.visualstudio" />
@@ -29,6 +30,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bodian.Core\Bodian.Core.csproj" />
+    <!-- 评论 ViewModel 不依赖 WinUI，链接源文件验证请求取消和迟到响应，不加载 UI 运行时。 -->
+    <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentsViewModel.cs" Link="ViewModels\SongCommentsViewModel.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentRow.cs" Link="ViewModels\SongCommentRow.cs" />
   </ItemGroup>
 
   <!-- ★ 编译期注入仓库根，测试靠它定位 fixtures/。不靠遍历输出目录，也不拷贝 fixture -->

@@ -120,7 +120,8 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
             request.JsonBody,
             request.AcceptedCodes,
             dataTypeInfo,
-            cancellationToken);
+            cancellationToken,
+            platform: request.Platform);
     }
 
     /// <summary>歌词站在另一个域，不走 <c>/api</c> 前缀、不签名、不带身份 query。</summary>
@@ -149,7 +150,8 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
         string? body,
         IReadOnlyCollection<BodianErrorCode> acceptedCodes,
         JsonTypeInfo<T> dataTypeInfo,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? platform = null)
     {
         var safeUrl = SafeUrl.From(url);
         var revision = _session.Revision;
@@ -164,7 +166,8 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
         }
 
         // 只挂一次：TryAddWithoutValidation 对同名头是追加，调两次会发出重复头。
-        BodianHeaders.Apply(request, _options, _device, _session);
+        var headerOptions = platform is null ? _options : _options with { Platform = platform };
+        BodianHeaders.Apply(request, headerOptions, _device, _session);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_options.RequestTimeout);

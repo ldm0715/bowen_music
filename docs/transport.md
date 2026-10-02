@@ -541,11 +541,11 @@ internal sealed class AudioUrlDto
 | `LoginResultDto` 及子对象 | ✅ | 有 fixture（部分字段被脱敏，见 5.3） |
 | `LyricContentDto` | ✅ | 只做「一次 Base64」这一层 |
 | `PlaylistDto` 及列表 payload | ⏭ P7 | **没有歌单 fixture**，做了无法验证 |
-| **评论 DTO** | ⏭ P8 | **接口已解**（2026-10-02，见 `bodian-api-reference.md` 3.1 节），但 **`fixtures/` 里仍然没有评论样本** —— 先跑一次 `comments/v3/new` 存 fixture 再动手写 DTO |
+| **评论 DTO** | ✅ P8 | 2026-10-02：v3 列表／回复 payload 与发布／点赞 body 已实现，公开 GET 样本见 `fixtures/comments-*.json`；写请求使用离线替身验证，真实写操作由用户手测。详见 `comments-ui.md` |
 | 下载 DTO | ⏭ P9 | 已定论不引入 `download/{info,config,callback}` 三个接口 |
 | 歌词解析器与统一模型 | ⏭ P4 | P1 只做入口与系数解码（第 6 节） |
 
-> **在 `Dto/` 目录留一句显式说明**：评论、歌单、下载 DTO 是**有意不写**的（无 fixture），不是遗漏。否则后来者会照 `bodian-api-reference.md` 的字段名凭记忆补全。
+> 这是 P1 的 DTO 取舍记录。评论响应 DTO 已在 P8 用真实 GET 样本补齐；发布与点赞请求来自完整的静态调用链。尚未验证或接入的类型继续在 `Dto/README.md` 标明，不能凭字段名补全。
 
 另外 `LrcInfoDto` 的属性 P1 可以先留，但**消费逻辑**（用它决定请求 `lrcx=1` 还是 `0`）留 P4。
 

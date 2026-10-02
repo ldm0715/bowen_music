@@ -22,7 +22,7 @@
 
 | 缺的类型 | 为什么 | 什么时候补 |
 | --- | --- | --- |
-| **评论** `comments/v2/*`、`comments/v3/*` | **`fixtures/` 里没有任何评论样本。** 文档 3.1 节有参数名与路径，但**没有响应体**——照着写就是凭记忆断言，且无法验证。另外 P8 仍阻塞在移动端签名上（`ver ≥ 3.5` 才强制校验） | P8，拿到真实响应之后 |
+| **评论删除** `comments/v2/del` | 参数来自反编译，删除尚未接入；真实写端点均留给用户手动验证 | 后续接入 |
 | **歌单** `PlaylistDto` 及各家列表 payload | 没有歌单 fixture | P7 |
 | **下载** `service/music/download/{info,config}` | 已定论本项目不引入这三个接口（用 `audioUrl` 即可），见 `bodian-api-reference.md` 3.2 节 | 不补 |
 | `searchTag.jumpInfo` | 实测是空对象 `{}`，语义未知 | 有语义时再补 |
@@ -47,3 +47,7 @@
   `payInfo.refrain_*` 是**毫秒**。所以属性名一律带 `Seconds` / `Ms` 后缀，让单位错配在调用点显形。
 - **`audios[].bitrate` 与 `.size` 都是字符串**，`size` 还带单位（`"52.83Mb"`，`zp` 档是占位串 `"zpMb"`）；
   **`audios[]` 的顺序不按档位高低排**（实测首元素是 `bcms`、`ff` 排第六），选档必须按 `level` 查表。
+
+## 评论响应与请求 DTO（2026-10-02）
+
+`SongCommentsPayload` 对照匿名 GET 捕获的 `fixtures/comments-new-118990.json`、`comments-hot-118990.json` 实现。样本只保留公开展示字段，不包含请求凭据或额外的 `userInfo` 信息。列表使用 `plat: android`、`ver: 1.1.7`，无需签名，固定 `rn=30`。回复 DTO 同时对照 `comments-replies-867666.json`，兼容嵌套 `userInfo`。发布与点赞请求 DTO 依据歌曲界面的完整离线调用链实现，点赞使用 `comments/v3/like` 的 `op=1/2`，回复额外带 `parentId`。自动测试仅用离线替身，真实发布／回复、点赞／取消已由用户手测；助手没有发送这些写请求。`TrackDto.Comment` 为可空数值，字段缺失不误报零评论，供播放页角标消费。

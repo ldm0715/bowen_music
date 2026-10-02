@@ -26,6 +26,22 @@
               - 文字轨道：浅底上的文字与图标，压暗到 5.13:1，过 WCAG AA
         -->
         <ResourceDictionary x:Key="Light">
+
+            <!-- 评论抽屉、回复详情与原图查看：实色背景保证文字可读。 -->
+            <SolidColorBrush x:Key="CommentPanelBackgroundBrush" Color="#FFFAFBFD" />
+            <SolidColorBrush x:Key="CommentRaisedSurfaceBrush" Color="#FFF0F3F7" />
+            <SolidColorBrush x:Key="CommentBorderBrush" Color="#FFD1D9E6" />
+            <SolidColorBrush x:Key="CommentSeparatorBrush" Color="#FFE1E6EF" />
+            <SolidColorBrush x:Key="CommentPrimaryTextBrush" Color="#FF18212F" />
+            <SolidColorBrush x:Key="CommentSecondaryTextBrush" Color="#FF4E5B6F" />
+            <SolidColorBrush x:Key="CommentTertiaryTextBrush" Color="#FF637086" />
+            <SolidColorBrush x:Key="CommentAuthorTextBrush" Color="#FF34445B" />
+            <SolidColorBrush x:Key="CommentAccentBrush" Color="#FF007A57" />
+            <SolidColorBrush x:Key="CommentErrorBrush" Color="#FFAA3030" />
+            <SolidColorBrush x:Key="CommentPlaceholderBrush" Color="#FF68778D" />
+            <SolidColorBrush x:Key="CommentImageBackgroundBrush" Color="#FFF6F8FC" />
+            <SolidColorBrush x:Key="CommentEditorBorderBrush" Color="#FFB7C2D3" />
+
             <Color x:Key="BrandAccent">#FF00F3B0</Color>
             <Color x:Key="BrandAccentOnSurface">#FF007A57</Color>
             <Color x:Key="BrandOnAccent">#FF002019</Color>
@@ -151,6 +167,22 @@
             「强调填充之上的前景」两套相同，因为填充色本身没变。
         -->
         <ResourceDictionary x:Key="Dark">
+
+            <!-- 评论抽屉、回复详情与原图查看：实色背景保证文字可读。 -->
+            <SolidColorBrush x:Key="CommentPanelBackgroundBrush" Color="#FF171D29" />
+            <SolidColorBrush x:Key="CommentRaisedSurfaceBrush" Color="#FF222A39" />
+            <SolidColorBrush x:Key="CommentBorderBrush" Color="#FF333D50" />
+            <SolidColorBrush x:Key="CommentSeparatorBrush" Color="#FF2A3242" />
+            <SolidColorBrush x:Key="CommentPrimaryTextBrush" Color="#FFF1F4FA" />
+            <SolidColorBrush x:Key="CommentSecondaryTextBrush" Color="#FFAFB9CC" />
+            <SolidColorBrush x:Key="CommentTertiaryTextBrush" Color="#FF9EABC1" />
+            <SolidColorBrush x:Key="CommentAuthorTextBrush" Color="#FFC3CDDE" />
+            <SolidColorBrush x:Key="CommentAccentBrush" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="CommentErrorBrush" Color="#FFE6B3AC" />
+            <SolidColorBrush x:Key="CommentPlaceholderBrush" Color="#FF75849D" />
+            <SolidColorBrush x:Key="CommentImageBackgroundBrush" Color="#FF111722" />
+            <SolidColorBrush x:Key="CommentEditorBorderBrush" Color="#FF3D4960" />
+
             <Color x:Key="BrandAccent">#FF00F3B0</Color>
             <Color x:Key="BrandAccentOnSurface">#FF00F3B0</Color>
             <Color x:Key="BrandOnAccent">#FF002019</Color>
@@ -247,6 +279,22 @@
             这一节必须有：缺了的话，只在主题字典里定义的自定义键在高对比度下会解析失败。
         -->
         <ResourceDictionary x:Key="HighContrast">
+
+            <!-- 评论控件在高对比度下使用系统配色。 -->
+            <SolidColorBrush x:Key="CommentPanelBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CommentRaisedSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CommentBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentSeparatorBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentPrimaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentSecondaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentTertiaryTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentAuthorTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="CommentErrorBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentPlaceholderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CommentImageBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CommentEditorBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+
             <Color x:Key="BrandAccent">{ThemeResource SystemColorHighlightColor}</Color>
             <Color x:Key="BrandAccentOnSurface">{ThemeResource SystemColorHighlightColor}</Color>
             <Color x:Key="BrandOnAccent">{ThemeResource SystemColorHighlightTextColor}</Color>

@@ -2,8 +2,8 @@
 
 非官方第三方桌面客户端，目标平台 Windows 10 / 11。
 
-> **当前状态（2026-10-02）：P0–P5、P7 代码完成，604 个核心测试通过。**
-> 已支持登录、综合与分类搜索、热榜与本地搜索历史、播放、SMTC、曲库与歌单；
+> **当前状态（2026-10-02）：P0–P5、P7 与 P8 评论主流程完成，677 个离线测试通过。**
+> 已支持登录、综合与分类搜索、热榜与本地搜索历史、播放、SMTC、曲库与歌单、评论与回复；
 > 搜索默认分段显示综合结果，“更多”进入分类 tab，入口面板与主题浮窗使用相同的半透明背景。
 > 搜索框左侧统一提供返回按钮（间距 8 DIP），支持逐级返回；歌词页保留原来的 ↓ 收起按钮。
 > 搜索说明见 [`docs/search.md`](docs/search.md)。歌词界面已替换为参考 LyciaMusic 的全窗口沉浸设计，
@@ -11,6 +11,7 @@
 > 并加入通栏进度条、真实音频频谱、水面封面倒影，以及普通窗口和全屏统一的操作栏自动收起。
 > 窗口、动态绘制、导航和图片加载已按 120 fps 目标优化，验证范围与实际限制见
 > [`docs/performance.md`](docs/performance.md)；歌词交互说明见 [`docs/fullscreen-lyrics.md`](docs/fullscreen-lyrics.md)。
+> 评论界面支持主题、数量角标、面板内图片缩放／拖动、文字发布和点赞，见 [`docs/comments-ui.md`](docs/comments-ui.md)。
 > 进度见 [`docs/roadmap.md`](docs/roadmap.md)，待办见 [`docs/backlog.md`](docs/backlog.md)。
 > P6 桌面悬浮歌词及其 P1.5 透明窗口验证仍未完成。
 
@@ -53,6 +54,7 @@
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`search.md`](docs/search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
+| [`comments-ui.md`](docs/comments-ui.md) | 评论入口与角标、列表与回复、发布和点赞、主题与图片查看、接口约束及验证 |
 | [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |

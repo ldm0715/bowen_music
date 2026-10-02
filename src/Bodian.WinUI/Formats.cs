@@ -140,6 +140,17 @@ public static class Formats
     /// </remarks>
     public static ImageSource? CoverSource(Uri? uri) => CoverImageCache.Get(uri, 256);
 
+    public static Visibility CommentImageVisibility(Uri? uri) => Visible(uri is not null);
+    public static Visibility CommentRepliesVisibility(long count) => Visible(count > 0);
+    public static string CommentCount(long count) => count.ToString("N0", CultureInfo.CurrentCulture);
+    public static string CommentReplies(long count) => $"{CommentCount(count)} 条回复";
+    public static string CommentMetadata(string time, string location) => string.IsNullOrWhiteSpace(location)
+        ? time : string.IsNullOrWhiteSpace(time) ? $"IP 属地：{location}" : $"{time} · {location}";
+
+    public static Visibility CommentDetailVisibility(bool reply, long replyCount) => Visible(!reply && replyCount > 0);
+    public static string CommentReplyHeading(long count) => $"全部回复 · {count:N0}";
+    public static Visibility VisibleWhenFalse(bool value) => Visible(!value);
+
     private static string Describe(AudioQuality quality) => quality switch
     {
         AudioQuality.Lossless => "无损",

@@ -20,6 +20,9 @@ public sealed record BodianRequest
 
     public BodianHttpVerb Verb { get; init; } = BodianHttpVerb.Get;
 
+    /// <summary>此请求的 plat 头覆盖值；移动端专属的评论列表使用 android。</summary>
+    public string? Platform { get; init; }
+
     /// <summary>业务参数。<c>uid</c> / <c>token</c> / <c>timestamp</c> / <c>sign</c> 由传输层补。</summary>
     public IReadOnlyList<KeyValuePair<string, string>> Query { get; init; } = [];
 

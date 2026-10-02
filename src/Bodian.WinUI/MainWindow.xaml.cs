@@ -176,6 +176,9 @@ public sealed partial class MainWindow : Window
     /// <summary>外观切换。绑在根 <c>Grid</c> 的 <c>RequestedTheme</c> 上。</summary>
     public ThemeViewModel Theme { get; }
 
+    // Window.Content 是外层 ResponsiveViewport；实际应用主题设置在 ShellRoot。
+    internal FrameworkElement ThemeRoot => ShellRoot;
+
     /// <summary>替换系统标题栏；不改变窗口的尺寸、位置或保存的窗口矩形。</summary>
     private void ConfigureTitleBar()
     {

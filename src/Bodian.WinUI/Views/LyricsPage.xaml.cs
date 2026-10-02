@@ -23,8 +23,10 @@ namespace Bodian.WinUI.Views;
 public sealed partial class LyricsPage : Page, INavigationAware
 {
     private readonly MainWindow _window;
+    private FrameworkElement? _themeRoot;
     private readonly LyricsCanvasView _canvas;
     private readonly AudioSpectrumView _spectrum;
+    private readonly SongCommentsPanel _commentsPanel;
     private readonly DispatcherQueueTimer _chromeTimer;
     private readonly DispatcherQueueTimer _pointerTimer;
     private readonly DispatcherQueueTimer _layoutTimer;
@@ -49,13 +51,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private double _progressPointerX;
 
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
-        LyricsViewModel lyrics)
+        LyricsViewModel lyrics, SongCommentsViewModel comments)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(spectrum);
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
+        ArgumentNullException.ThrowIfNull(comments);
         _window = window;
         _logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
@@ -63,7 +66,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _spectrum = spectrum;
         Player = player;
         Lyrics = lyrics;
+        Comments = comments;
         InitializeComponent();
+        _commentsPanel = new SongCommentsPanel(comments);
+        _commentsPanel.CloseRequested += (_, _) => CloseComments();
+        CommentsHost.Content = _commentsPanel;
+        ElementCompositionPreview.SetIsTranslationEnabled(CommentsPane, true);
         CanvasHost.Content = canvas;
         SpectrumHost.Content = spectrum;
         canvas.BrowsingChanged += (_, _) => FollowButton.Visibility = canvas.IsBrowsing ? Visibility.Visible : Visibility.Collapsed;
@@ -112,12 +120,17 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     public PlayerViewModel Player { get; }
     public LyricsViewModel Lyrics { get; }
+    public SongCommentsViewModel Comments { get; }
     public string PlayPauseGlyph(bool playing) => playing ? "\uE769" : "\uE768";
     public string SongHeading(string title, string artist)
         => string.IsNullOrWhiteSpace(artist) ? title : $"{title} - {artist}";
 
     public void OnNavigatedTo()
     {
+        _themeRoot = _window.ThemeRoot;
+        _themeRoot.ActualThemeChanged += OnAppThemeChanged;
+        SyncCommentsTheme();
+        if (Player.CurrentTrackId is > 0) _ = Comments.LoadBadgeAsync(Player.CurrentTrackId.Value);
         _window.VisibilityChanged += OnWindowVisibilityChanged;
         _window.RenderingStateChanged += OnWindowRenderingStateChanged;
         _window.AppWindow.Changed += OnAppWindowChanged;
@@ -136,6 +149,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     public void OnNavigatedFrom()
     {
+        if (_themeRoot is not null) _themeRoot.ActualThemeChanged -= OnAppThemeChanged;
+        _themeRoot = null;
+        CloseComments(restoreFocus: false);
+        Comments.CancelBadgeRequest();
         _chromeTimer.Stop();
         _pointerTimer.Stop();
         _layoutTimer.Stop();
@@ -221,7 +238,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ReflectionView.Height = size * 0.55;
         Canvas.SetTop(ReflectionView, size + 2);
         _canvas.SetFontSize(Math.Max(ActualHeight * 0.05, ActualWidth * 0.025));
-        VolumeDeck.Visibility = ActualWidth < 900 ? Visibility.Collapsed : Visibility.Visible;
+        VolumeControls.Visibility = ActualWidth < 900 ? Visibility.Collapsed : Visibility.Visible;
+        CommentsPane.Width = Math.Max(0, Math.Min(420, ActualWidth - 32));
         UpdateChromeInsets();
         UpdateCoverScale();
     }
@@ -229,7 +247,18 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void OnPlayerChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(PlayerViewModel.IsPlaying)) UpdateCoverScale();
-        if (args.PropertyName == nameof(PlayerViewModel.CurrentTrackId)) ShowChrome();
+        if (args.PropertyName == nameof(PlayerViewModel.CurrentTrackId))
+        {
+            ShowChrome();
+            if (Player.CurrentTrackId is > 0) _ = Comments.LoadBadgeAsync(Player.CurrentTrackId.Value);
+            else Comments.CancelBadgeRequest();
+            if (Comments.IsOpen)
+            {
+                if (Player.CurrentTrackId is > 0) _ = Comments.ShowAsync(Player.CurrentTrackId.Value, Player.Title);
+                else CloseComments();
+            }
+        }
+        if (args.PropertyName == nameof(PlayerViewModel.Title) && Comments.IsOpen) Comments.SongTitle = Player.Title;
     }
 
     private void UpdateCoverScale()
@@ -355,7 +384,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void ScheduleChromeHide()
     {
         _chromeTimer.Stop();
-        if (!Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || !_chromeVisible || _pointerOverChrome
+        if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || !_chromeVisible || _pointerOverChrome
             || _progressSeeking || _keyboardSeeking || _volumeSeeking || HasChromeKeyboardFocus()) return;
         _chromeTimer.Start();
     }
@@ -369,7 +398,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void HideChrome()
     {
-        if (!Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || _pointerOverChrome
+        if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || _pointerOverChrome
             || _progressSeeking || _keyboardSeeking || _volumeSeeking || HasChromeKeyboardFocus())
             return;
         SetChromeVisibility(false);
@@ -414,6 +443,65 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ScheduleChromeHide();
     }
 
+    private void OnAppThemeChanged(FrameworkElement sender, object args) => SyncCommentsTheme();
+
+    private void SyncCommentsTheme()
+    {
+        // 歌词舞台固定深色，评论控件应跟随主窗口的实际主题，包含“跟随系统”。
+        var theme = _window.ThemeRoot.ActualTheme;
+        CommentsPane.RequestedTheme = theme;
+        _commentsPanel.RequestedTheme = theme;
+        CommentsImageViewer.RequestedTheme = theme;
+    }
+
+    private async void OnCommentsClick(object sender, RoutedEventArgs args)
+    {
+        if (Comments.IsOpen)
+        {
+            CloseComments();
+            return;
+        }
+        if (Player.CurrentTrackId is not > 0) return;
+        var loading = Comments.ShowAsync(Player.CurrentTrackId.Value, Player.Title);
+        ProgressTimePopup.IsOpen = false;
+        CommentsIcon.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 243, 176));
+        ShowChrome();
+        _chromeTimer.Stop();
+        // Translation 独立于 XAML 布局，只给抽屉一个轻微的滑入动画。
+        var visual = ElementCompositionPreview.GetElementVisual(CommentsPane);
+        using var slide = visual.Compositor.CreateScalarKeyFrameAnimation();
+        slide.InsertKeyFrame(0, 28);
+        slide.InsertKeyFrame(1, 0);
+        slide.Duration = TimeSpan.FromMilliseconds(220);
+        visual.StartAnimation("Translation.X", slide);
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (Comments.IsOpen) _commentsPanel.FocusCloseButton();
+        });
+        await loading;
+    }
+
+    private void CloseComments(bool restoreFocus = true)
+    {
+        var wasOpen = Comments.IsOpen;
+        Comments.Close();
+        CommentsIcon.ClearValue(IconElement.ForegroundProperty);
+        if (wasOpen && restoreFocus) CommentsButton.Focus(FocusState.Keyboard);
+        ScheduleChromeHide();
+    }
+
+    private void OnCommentsDismissTapped(object sender, TappedRoutedEventArgs args)
+    {
+        CloseComments();
+        args.Handled = true;
+    }
+
+    private void OnImageCloseRequested(object? sender, EventArgs args)
+    {
+        Comments.CloseImage();
+        _commentsPanel.FocusCloseButton();
+    }
+
     private void OnBackClick(object sender, RoutedEventArgs args) => _window.GoBack();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
     private async Task ToggleFullscreenAsync()
@@ -434,12 +522,15 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private async void OnEscapeInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
+        if (Comments.IsImageOpen) { Comments.CloseImage(); _commentsPanel.FocusCloseButton(); return; }
+        if (Comments.IsThreadOpen) { Comments.CloseThread(); _commentsPanel.FocusCloseButton(); return; }
+        if (Comments.IsOpen) { CloseComments(); return; }
         if (_window.IsLyricsFullscreen) await ToggleFullscreenAsync();
         else _window.GoBack();
     }
     private void OnPlayPauseInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (PositionSlider.FocusState == FocusState.Keyboard || VolumeSlider.FocusState == FocusState.Keyboard) return;
+        if (Comments.IsOpen || PositionSlider.FocusState == FocusState.Keyboard || VolumeSlider.FocusState == FocusState.Keyboard) return;
         Player.TogglePlayPauseCommand.Execute(null);
         ShowChrome();
         args.Handled = true;

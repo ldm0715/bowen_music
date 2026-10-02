@@ -141,7 +141,7 @@ internal sealed class TrackDto
 
     [JsonPropertyName("share")] public long Share { get; init; }
 
-    [JsonPropertyName("comment")] public long Comment { get; init; }
+    [JsonPropertyName("comment")] public long? Comment { get; init; }
 
     [JsonPropertyName("lrcUpdateTime")] public string? LrcUpdateTime { get; init; }
 

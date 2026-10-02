@@ -146,8 +146,25 @@
                     <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
                 </StackPanel>
                 <StackPanel x:Name="VolumeDeck" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
-                    <FontIcon Glyph="{x:Bind Player.VolumeGlyph, Mode=OneWay}" FontSize="16" Foreground="#99FFFFFF" />
-                    <Slider x:Name="VolumeSlider" Width="96" MinWidth="0" Maximum="100" Value="{x:Bind Player.Volume, Mode=TwoWay}" AutomationProperties.Name="音量" />
+                    <Button x:Name="CommentsButton" Width="58" Click="OnCommentsClick" Style="{StaticResource LyricsChromeButtonStyle}"
+                        IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                        AutomationProperties.Name="{x:Bind Comments.BadgeAutomationName, Mode=OneWay}"
+                        ToolTipService.ToolTip="{x:Bind Comments.BadgeAutomationName, Mode=OneWay}">
+                        <Grid Width="54" Height="36">
+                            <FontIcon x:Name="CommentsIcon" Glyph="&#xE90A;" FontSize="19" HorizontalAlignment="Left" Margin="6,5,0,0" />
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,0,0"
+                                MinWidth="16" MaxWidth="42" Padding="4,1" CornerRadius="7"
+                                Background="#FF202632" BorderBrush="#35FFFFFF" BorderThickness="1"
+                                Visibility="{x:Bind local:Formats.Visible(Comments.HasBadgeCount), Mode=OneWay}">
+                                <TextBlock Text="{x:Bind Comments.BadgeText, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
+                                    Foreground="#FFF1F4FA" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </Border>
+                        </Grid>
+                    </Button>
+                    <StackPanel x:Name="VolumeControls" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                        <FontIcon Glyph="{x:Bind Player.VolumeGlyph, Mode=OneWay}" FontSize="16" Foreground="#99FFFFFF" />
+                        <Slider x:Name="VolumeSlider" Width="96" MinWidth="0" Maximum="100" Value="{x:Bind Player.Volume, Mode=TwoWay}" AutomationProperties.Name="音量" />
+                    </StackPanel>
                 </StackPanel>
                 <TextBlock Grid.Row="1" Text="{x:Bind Player.Notice, Mode=OneWay}" FontSize="12"
                     Foreground="#BCFFFFFF" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -181,6 +198,21 @@
                     <x:Double x:Key="SliderInnerThumbHeight">10</x:Double>
                 </Slider.Resources>
             </Slider>
+        </Grid>
+        <!-- 实色面板保证封面颜色和动态背景不会透过正文；空白区点击收起。 -->
+        <Grid x:Name="CommentsOverlay" Margin="0,72,0,94"
+            Visibility="{x:Bind local:Formats.Visible(Comments.IsOpen), Mode=OneWay}">
+            <Rectangle Fill="Transparent" Tapped="OnCommentsDismissTapped" />
+            <Border x:Name="CommentsPane" Width="420" HorizontalAlignment="Right" Margin="12,0,20,12"
+                Background="{ThemeResource CommentPanelBackgroundBrush}" BorderBrush="{ThemeResource CommentBorderBrush}" BorderThickness="1" CornerRadius="16">
+                <Grid>
+                    <ContentControl x:Name="CommentsHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                    <!-- 原图查看仅覆盖整个评论面板，保留列表位置和回复上下文。 -->
+                    <controls:CommentImageViewer x:Name="CommentsImageViewer" ImageUri="{x:Bind Comments.PreviewImageUri, Mode=OneWay}"
+                        Visibility="{x:Bind local:Formats.Visible(Comments.IsImageOpen), Mode=OneWay}"
+                        CloseRequested="OnImageCloseRequested" />
+                </Grid>
+            </Border>
         </Grid>
         <Popup x:Name="ProgressTimePopup" IsHitTestVisible="False">
             <Border x:Name="ProgressTimeBubble" Padding="9,5" Background="#EF191B22" CornerRadius="7"

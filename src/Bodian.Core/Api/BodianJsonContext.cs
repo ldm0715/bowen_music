@@ -25,6 +25,10 @@ namespace Bodian.Core.Api;
     //   在 service/music/info 里是字符串、在 search/music/list 里是数字。
     //   没有它，跑第二个接口时会抛 JsonException。
     NumberHandling = JsonNumberHandling.AllowReadingFromString)]
+[JsonSerializable(typeof(System.Text.Json.JsonElement))]
+[JsonSerializable(typeof(PublishSongCommentBody))]
+[JsonSerializable(typeof(SongCommentLikeBody))]
+[JsonSerializable(typeof(SongCommentsPayload))]
 [JsonSerializable(typeof(TrackDto))]
 [JsonSerializable(typeof(SearchListPayload))]
 [JsonSerializable(typeof(SearchPayload<AlbumDto>), TypeInfoPropertyName = "SearchAlbumsPayload")]

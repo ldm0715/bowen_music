@@ -111,6 +111,14 @@ public sealed class LyricRepositoryTests
     /// <summary>只数调用次数的最小门面；其余成员不该被用到。</summary>
     private sealed class CountingApi : IBodianApi
     {
+        public Task<SongCommentPage> GetSongCommentRepliesAsync(long musicId, long parentId, int page = 1,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<long?> PublishSongCommentAsync(long musicId, string content, long parentId = 0, long replyId = 0,
+            bool anonymous = false, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task SetSongCommentLikeAsync(long musicId, long commentId, bool liked, long parentId = 0,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<SongCommentPage> GetSongCommentsAsync(long musicId, SongCommentSort sort, int page = 1,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<SearchResultSection>> SearchComprehensiveAsync(string keyword, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResult<Album>> SearchAlbumsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResult<Playlist>> SearchPlaylistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();

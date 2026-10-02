@@ -1171,6 +1171,7 @@ public sealed class BodianApi : IBodianApi
         {
             Id = dto.Id,
             Title = dto.Name ?? dto.SongName ?? "(未知曲目)",
+            CommentCount = dto.Comment is { } count ? Math.Max(0, count) : null,
             ArtistText = dto.Artist ?? JoinArtists(dto.Artists),
             Artists = dto.Artists?.Select(a => new TrackArtist(a.Id, a.Name ?? "", ToHttpUri(a.Pic))).ToArray() ?? [],
             AlbumName = dto.Album,
@@ -1269,6 +1270,162 @@ public sealed class BodianApi : IBodianApi
 
     private static KeyValuePair<string, string> MusicIdPair(long musicId) =>
         new("musicId", musicId.ToString(CultureInfo.InvariantCulture));
+
+    public async Task<SongCommentPage> GetSongCommentsAsync(long musicId, SongCommentSort sort, int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCommentMusicId(musicId);
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+        var path = sort switch
+        {
+            SongCommentSort.Recommended => Endpoints.SongCommentsRecommended,
+            SongCommentSort.Latest => Endpoints.SongCommentsLatest,
+            _ => throw new ArgumentOutOfRangeException(nameof(sort)),
+        };
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = path,
+            Platform = "android",
+            Signed = false,
+            Query =
+            [
+                new("moduleType", "2"),
+                new("moduleId", musicId.ToString(CultureInfo.InvariantCulture)),
+                new("pn", page.ToString(CultureInfo.InvariantCulture)),
+                new("rn", "30"),
+            ],
+        }, BodianJsonContext.Default.SongCommentsPayload, cancellationToken).ConfigureAwait(false);
+        // 缺失 data 不能冒充「没有评论」，否则协议错误会静默隐藏。
+        var payload = envelope.Data ?? throw new JsonException("评论响应缺少 data。");
+        return MapComments(payload);
+    }
+
+    public async Task<SongCommentPage> GetSongCommentRepliesAsync(long musicId, long parentId, int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCommentMusicId(musicId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(parentId);
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = Endpoints.SongCommentReplies,
+            Platform = "android",
+            Query =
+            [
+                new("moduleType", "2"),
+                new("moduleId", musicId.ToString(CultureInfo.InvariantCulture)),
+                new("parentId", parentId.ToString(CultureInfo.InvariantCulture)),
+                new("pn", page.ToString(CultureInfo.InvariantCulture)),
+                new("rn", "30"),
+            ],
+        }, BodianJsonContext.Default.SongCommentsPayload, cancellationToken).ConfigureAwait(false);
+        return MapComments(envelope.Data ?? throw new JsonException("回复响应缺少 data。"));
+    }
+
+    public async Task<long?> PublishSongCommentAsync(long musicId, string content, long parentId = 0, long replyId = 0,
+        bool anonymous = false, CancellationToken cancellationToken = default)
+    {
+        EnsureCommentMusicId(musicId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(content);
+        ArgumentOutOfRangeException.ThrowIfNegative(parentId);
+        ArgumentOutOfRangeException.ThrowIfNegative(replyId);
+        if (replyId > 0 && parentId == 0) throw new ArgumentException("回复需要所属主评论 id。", nameof(parentId));
+        RequireAuthenticated();
+        var revision = _session.Revision;
+        var body = new PublishSongCommentBody
+        {
+            MusicId = musicId,
+            UserId = long.Parse(_session.Uid, CultureInfo.InvariantCulture),
+            Content = content.Trim(),
+            ParentId = parentId > 0 ? parentId : null,
+            ReplyId = replyId > 0 ? replyId : null,
+            Anonymous = anonymous ? 1 : 0,
+        };
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = Endpoints.SongCommentPublish,
+            Platform = "android",
+            Verb = BodianHttpVerb.Post,
+            JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.PublishSongCommentBody),
+        }, BodianJsonContext.Default.JsonElement, cancellationToken).ConfigureAwait(false);
+        var id = ReadPublishedCommentId(envelope.Data);
+        _logger.LogInformation("评论发布请求已受理：歌曲 {MusicId}，主评论 {ParentId}，回复目标 {ReplyId}，评论 id {CommentId}，业务码 {Code}，reqId {RequestId}",
+            musicId, parentId, replyId, id, envelope.Code, envelope.RequestId);
+        if (revision != _session.Revision) throw new InvalidOperationException("登录状态已改变，请重新检查评论。");
+        return id;
+    }
+
+    public async Task SetSongCommentLikeAsync(long musicId, long commentId, bool liked, long parentId = 0,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCommentMusicId(musicId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(commentId);
+        ArgumentOutOfRangeException.ThrowIfNegative(parentId);
+        RequireAuthenticated();
+        var revision = _session.Revision;
+        var body = new SongCommentLikeBody
+        {
+            MusicId = musicId,
+            CommentId = commentId,
+            UserId = long.Parse(_session.Uid, CultureInfo.InvariantCulture),
+            Operation = liked ? 1 : 2,
+            ParentId = parentId > 0 ? parentId : null,
+        };
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = Endpoints.SongCommentLike,
+            Platform = "android",
+            Verb = BodianHttpVerb.Post,
+            JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.SongCommentLikeBody),
+        }, BodianJsonContext.Default.JsonElement, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("评论 {Operation} 请求已受理：歌曲 {MusicId}，评论 {CommentId}，主评论 {ParentId}，接口 {Path}，moduleType {ModuleType}，op {Op}，业务码 {Code}，reqId {RequestId}",
+            liked ? "点赞" : "取消点赞", musicId, commentId, parentId, Endpoints.SongCommentLike,
+            body.ModuleType, body.Operation, envelope.Code, envelope.RequestId);
+        if (revision != _session.Revision) throw new InvalidOperationException("登录状态已改变，请重新检查点赞状态。");
+    }
+
+    private static long? ReadPublishedCommentId(JsonElement data)
+    {
+        if (data.ValueKind == JsonValueKind.Number && data.TryGetInt64(out var number)) return number > 0 ? number : null;
+        if (data.ValueKind == JsonValueKind.String && long.TryParse(data.GetString(), out var textId)) return textId > 0 ? textId : null;
+        if (data.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var key in new[] { "id", "commentId" })
+                if (data.TryGetProperty(key, out var value) && ReadPublishedCommentId(value) is { } id) return id;
+        }
+        return null;
+    }
+
+    private static SongCommentPage MapComments(SongCommentsPayload payload)
+    {
+        var items = (payload.Comments ?? []).Where(dto => dto.Id > 0).Select(dto => new SongComment
+        {
+            Id = dto.Id,
+            UserId = dto.UserId,
+            ParentId = dto.ParentId ?? 0,
+            ReplyId = dto.ReplyId ?? 0,
+            ReplyNickname = dto.ReplyUserInfo?.Nickname ?? "",
+            Nickname = dto.Anonymous != 0 ? "匿名听友" : FirstNonEmpty(dto.Nickname, dto.UserInfo?.Nickname, "听友"),
+            AvatarUri = dto.Anonymous != 0 ? null : ToHttpUri(FirstNonEmpty(dto.Avatar, dto.UserInfo?.Avatar)),
+            Content = dto.Content ?? "",
+            ImageUri = ToHttpUri(dto.Image),
+            PublishTime = FirstNonEmpty(dto.PublishTime, dto.CreateTime),
+            Location = FirstNonEmpty(dto.City, dto.Province, dto.UserInfo?.City),
+            LikeCount = Math.Max(0, dto.LikeCount),
+            ReplyCount = Math.Max(0, dto.ReplyCount),
+            IsLiked = dto.Like != 0,
+        }).ToArray();
+        return new SongCommentPage(items, Math.Max(0, payload.TotalCount), payload.More);
+    }
+
+    private static string FirstNonEmpty(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "";
+
+    private static void EnsureCommentMusicId(long musicId)
+    {
+        EnsureMusicId(musicId);
+        // 评论服务的 moduleId 只接受 Java Integer；部分音源的长 id 不能查询评论。
+        if (musicId > int.MaxValue) throw new NotSupportedException("这首歌的音源暂不支持评论。");
+    }
 
     private static void EnsureMusicId(long musicId)
     {

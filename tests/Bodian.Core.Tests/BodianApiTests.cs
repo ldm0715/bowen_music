@@ -147,6 +147,7 @@ public sealed class BodianApiTests : IDisposable
         Assert.NotNull(track);
         Assert.Equal(228908, track.Id);
         Assert.False(string.IsNullOrWhiteSpace(track.ArtistText));
+        Assert.Equal(30149, track.CommentCount);
     }
 
     /// <summary>id 非法时**零请求**就报错，不要把坏 id 发出去。</summary>

@@ -323,4 +323,20 @@ public interface IBodianApi
     /// </para>
     /// </remarks>
     Task<LyricDocument> GetLyricsAsync(Track track, CancellationToken cancellationToken = default);
+
+    /// <summary>读取歌曲评论。页码从 1 开始，固定每页 30 条以避开 hot 的 rn 缺陷。</summary>
+    Task<SongCommentPage> GetSongCommentsAsync(long musicId, SongCommentSort sort, int page = 1,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>读取一条主评论的回复；页码从 1 开始。</summary>
+    Task<SongCommentPage> GetSongCommentRepliesAsync(long musicId, long parentId, int page = 1,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>发送文字评论或回复。返回服务端提供的评论 id（可能未提供）；需读取列表确认。</summary>
+    Task<long?> PublishSongCommentAsync(long musicId, string content, long parentId = 0, long replyId = 0,
+        bool anonymous = false, CancellationToken cancellationToken = default);
+
+    /// <summary>v3 点赞或取消点赞（op=1/2）；回复的 parentId 为所属主评论 id。</summary>
+    Task SetSongCommentLikeAsync(long musicId, long commentId, bool liked, long parentId = 0,
+        CancellationToken cancellationToken = default);
 }
