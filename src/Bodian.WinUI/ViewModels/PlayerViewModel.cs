@@ -1,11 +1,11 @@
 using Bodian.Core.Models;
+using Bodian.WinUI.Media;
 using Bodian.WinUI.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Bodian.WinUI.ViewModels;
 
@@ -306,7 +306,7 @@ public sealed partial class PlayerViewModel : ObservableObject
         AlbumText = track.AlbumName ?? "";
 
         // BitmapImage 自己异步加载；地址失效时图是空的，不影响布局。
-        CoverImage = track.CoverImage is { } cover ? new BitmapImage(cover) : null;
+        CoverImage = CoverImageCache.Get(track.CoverImage, 1024);
 
         // 氛围背景靠这个自己去解码取色。
         CurrentCoverUri = track.CoverImage;

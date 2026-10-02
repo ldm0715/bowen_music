@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Bodian.Core.Api;
 using Bodian.Core.Models;
 using Bodian.Core.Services.Abstractions;
@@ -5,6 +8,7 @@ using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -55,18 +59,25 @@ public sealed partial class MainWindow : Window
     private readonly IBodianLogin _login;
     private readonly SidebarViewModel _sidebar;
     private readonly IWindowPlacementStore _placement;
+    private readonly WindowRenderActivity _renderActivity;
     private readonly Func<Playlist, int, PlaylistDetailPage> _playlistDetailFactory;
 
     /// <summary>侧栏里为「创建的歌单」动态加进去的项。重新加载时要先摘掉它们。</summary>
     private readonly List<NavigationViewItem> _playlistItems = [];
-    private AppWindowPresenter? _lyricsRestorePresenter;
+    private OverlappedPresenter? _lyricsRestorePresenter;
+    private NativeMethods.WindowPlacement _lyricsRestorePlacement;
+    private nint _lyricsRestoreStyle;
+    private bool _lyricsFullscreen;
+    private bool _closed;
     private FrameworkElement? _lyricsTitleBar;
     private bool _lyricsVisible;
+    private bool _isChangingLyricsPresenter;
     private bool _isNavigatingBack;
     private bool _lyricsChromeVisible = true;
     private OverlappedPresenter? _hiddenCaptionPresenter;
     private bool _captionRestoreBorder;
     private bool _captionRestoreTitleBar;
+    private (bool Dark, Color Foreground)? _captionPalette;
 
     public MainWindow(
         INavigationService navigation,
@@ -130,7 +141,19 @@ public sealed partial class MainWindow : Window
 
         ApplyWindowPlacement();
         ConfigureTitleBar();
-        Closed += (_, _) => SaveWindowPlacement();
+        _renderActivity = new WindowRenderActivity(WinRT.Interop.WindowNative.GetWindowHandle(this), DispatcherQueue,
+            Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory);
+        _renderActivity.Changed += (_, _) => RenderingStateChanged?.Invoke(this, EventArgs.Empty);
+        _renderActivity.InteractionChanged += (_, _) =>
+        {
+            WindowViewport.IsInteractive = _renderActivity.IsInteractive;
+            if (!_renderActivity.IsInteractive)
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (!IsMinimized && !_lyricsVisible) AppTitleBar.RecomputeDragRegions();
+                });
+        };
+        Closed += (_, _) => { _closed = true; _renderActivity.Dispose(); SaveWindowPlacement(); };
 
         _navigation.Attach(PageHost, page => page is LyricsPage ? ImmersiveHost : PageHost);
         _navigation.Navigated += OnNavigated;
@@ -158,6 +181,7 @@ public sealed partial class MainWindow : Window
     {
         ExtendsContentIntoTitleBar = true;
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        AppTitleBar.AutoRefreshDragRegions = false;
         SetTitleBar(AppTitleBar);
 
         ShellRoot.ActualThemeChanged += (_, _) => UpdateCaptionButtonColors();
@@ -173,6 +197,8 @@ public sealed partial class MainWindow : Window
         var foreground = _lyricsVisible ? Colors.White : AppTitleBar.Foreground is SolidColorBrush brush
             ? brush.Color
             : isDark ? Colors.White : Colors.Black;
+        if (_captionPalette is { } palette && palette.Dark == isDark && palette.Foreground == foreground) return;
+        _captionPalette = (isDark, foreground);
         var hoverBackground = isDark
             ? Color.FromArgb(24, 255, 255, 255)
             : Color.FromArgb(16, 0, 0, 0);
@@ -295,7 +321,7 @@ public sealed partial class MainWindow : Window
     /// </remarks>
     private void SaveWindowPlacement()
     {
-        if (AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+        if (IsLyricsFullscreen)
         {
             return;
         }
@@ -457,6 +483,7 @@ public sealed partial class MainWindow : Window
 
     public void GoBack()
     {
+        if (_isChangingLyricsPresenter) return;
         if (!_navigation.CanGoBack) return;
 
         _isNavigatingBack = true;
@@ -619,7 +646,13 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    public bool IsLyricsFullscreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
+    public event EventHandler? RenderingStateChanged;
+    public bool IsRenderingSuspended => _renderActivity.IsSuspended;
+    public bool IsMinimized => _renderActivity.IsMinimized;
+
+    internal bool IsChangingLyricsPresenter => _isChangingLyricsPresenter;
+
+    public bool IsLyricsFullscreen => _lyricsFullscreen;
 
     public void EnterLyrics(FrameworkElement titleBar)
     {
@@ -628,6 +661,7 @@ public sealed partial class MainWindow : Window
         _lyricsChromeVisible = true;
         _lyricsTitleBar = titleBar;
         DismissSearchUi();
+        ShellBackdrop.Visibility = Visibility.Collapsed;
         AppTitleBar.Visibility = Visibility.Collapsed;
         Nav.Visibility = Visibility.Collapsed;
         PlayerHost.Visibility = Visibility.Collapsed;
@@ -636,29 +670,82 @@ public sealed partial class MainWindow : Window
         UpdateCaptionButtonColors();
     }
 
-    public void ToggleLyricsFullscreen()
+    public async Task ToggleLyricsFullscreenAsync()
     {
-        RestoreNativeCaption();
-        if (IsLyricsFullscreen)
+        if (_isChangingLyricsPresenter) return;
+        var performanceStart = Stopwatch.GetTimestamp();
+        var performanceLogger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory)?.CreateLogger<MainWindow>();
+        var performanceEnabled = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
+        _isChangingLyricsPresenter = true;
+        _renderActivity.BeginTransition();
+        if (performanceEnabled) performanceLogger?.LogInformation("全屏阶段：暂停绘制 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(performanceStart).TotalMilliseconds);
+        try
         {
-            RestoreLyricsPresenter();
+            RestoreNativeCaption();
+            if (performanceEnabled) performanceLogger?.LogInformation("全屏阶段：恢复按钮累计 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(performanceStart).TotalMilliseconds);
+            if (IsLyricsFullscreen)
+            {
+                await RestoreLyricsPresenterAsync();
+            }
+            else
+            {
+                if (AppWindow.Presenter is not OverlappedPresenter presenter) return;
+                var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                var placement = new NativeMethods.WindowPlacement { Length = (uint)Marshal.SizeOf<NativeMethods.WindowPlacement>() };
+                if (!NativeMethods.GetWindowPlacement(handle, ref placement))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "无法保存全屏前的窗口位置");
+                _lyricsRestorePresenter = presenter;
+                _lyricsRestorePlacement = placement;
+                _lyricsRestoreStyle = NativeMethods.GetWindowLongPtr(handle, -16);
+                var bounds = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).OuterBounds;
+                _lyricsFullscreen = true;
+                SetTitleBar(null);
+                // 一次样式写入 + 一次位置提交，避免逐个 Presenter 属性触发同步窗口变化。
+                var style = _lyricsRestoreStyle;
+                await Task.Run(() =>
+                {
+                    NativeMethods.SetWindowLongPtr(handle, -16, (nint)((long)style & ~(0x00C00000L | 0x00040000L | 0x01000000L)));
+                    if (!NativeMethods.SetWindowPos(handle, 0, bounds.X, bounds.Y, bounds.Width, bounds.Height, 0x0034))
+                        throw new Win32Exception(Marshal.GetLastWin32Error(), "无法进入显示器全屏");
+                });
+            }
         }
-        else
+        finally
         {
-            _lyricsRestorePresenter = AppWindow.Presenter;
-            SetTitleBar(null);
-            AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+            _isChangingLyricsPresenter = false;
+            if (!_closed) _renderActivity.EndTransition();
+            if (performanceEnabled) performanceLogger?.LogInformation("全屏阶段：切换窗口累计 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(performanceStart).TotalMilliseconds);
         }
+    }
+
+    private async Task RestoreLyricsPresenterAsync()
+    {
+        if (_lyricsRestorePresenter is null) return;
+        _lyricsFullscreen = false;
+        var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var style = _lyricsRestoreStyle;
+        var placement = _lyricsRestorePlacement;
+        await Task.Run(() => RestoreLyricsWindow(handle, style, placement));
+        _lyricsRestorePresenter = null;
+        if (!_closed) SetTitleBar(_lyricsTitleBar);
     }
 
     private void RestoreLyricsPresenter()
     {
-        if (_lyricsRestorePresenter is { } presenter)
-        {
-            AppWindow.SetPresenter(presenter);
-            _lyricsRestorePresenter = null;
-            SetTitleBar(_lyricsTitleBar);
-        }
+        if (_lyricsRestorePresenter is null) return;
+        _lyricsFullscreen = false;
+        RestoreLyricsWindow(WinRT.Interop.WindowNative.GetWindowHandle(this), _lyricsRestoreStyle, _lyricsRestorePlacement);
+        _lyricsRestorePresenter = null;
+        SetTitleBar(_lyricsTitleBar);
+    }
+
+    private static void RestoreLyricsWindow(nint handle, nint style, NativeMethods.WindowPlacement placement)
+    {
+        NativeMethods.SetWindowLongPtr(handle, -16, style);
+        if (!NativeMethods.SetWindowPlacement(handle, ref placement))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "无法恢复全屏前的窗口位置");
+        if (!NativeMethods.SetWindowPos(handle, 0, 0, 0, 0, 0, 0x0037))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "无法恢复窗口边框");
     }
 
     public void ExitLyrics()
@@ -669,6 +756,7 @@ public sealed partial class MainWindow : Window
         _lyricsChromeVisible = true;
         _lyricsTitleBar = null;
         ImmersiveHost.Visibility = Visibility.Collapsed;
+        ShellBackdrop.Visibility = Visibility.Visible;
         AppTitleBar.Visibility = Visibility.Visible;
         Nav.Visibility = Visibility.Visible;
         PlayerHost.Visibility = Visibility.Visible;
@@ -678,8 +766,9 @@ public sealed partial class MainWindow : Window
 
     public void SetLyricsChromeVisible(bool visible)
     {
-        if (_lyricsChromeVisible == visible) return;
+        if (IsMinimized || _lyricsChromeVisible == visible) return;
         _lyricsChromeVisible = visible;
+        if (IsLyricsFullscreen) return;
         if (visible)
         {
             RestoreNativeCaption();
@@ -701,7 +790,14 @@ public sealed partial class MainWindow : Window
         _hiddenCaptionPresenter = null;
     }
 
-    private void OnNavigated(object? sender, Page page) => SyncSelection();
+    private void OnNavigated(object? sender, Page page)
+    {
+        SyncSelection();
+        if (!_lyricsVisible) DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_lyricsVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
+        });
+    }
 
     /// <summary>
     /// 把侧栏高亮同步到当前**根页**。

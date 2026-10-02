@@ -54,6 +54,7 @@ public sealed partial class DiscoverViewModel : ObservableObject
 
     /// <summary>已经取到内容的模块，按服务端给的顺序。</summary>
     public ObservableCollection<HomeFeed> Feeds { get; } = [];
+    public ObservableCollection<object> Rows { get; } = [];
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
@@ -93,6 +94,7 @@ public sealed partial class DiscoverViewModel : ObservableObject
         _layoutLoaded = false;
         _consumed = 0;
         Feeds.Clear();
+        Rows.Clear();
 
         await LoadLayoutAsync(cancellationToken).ConfigureAwait(true);
     }
@@ -151,6 +153,8 @@ public sealed partial class DiscoverViewModel : ObservableObject
                     if (await _api.GetHomeModuleAsync(module, cancellationToken).ConfigureAwait(true) is { } feed)
                     {
                         Feeds.Add(feed);
+                        Rows.Add(new ListSectionHeader { Title = feed.Title });
+                        foreach (var section in feed.Sections) Rows.Add(section);
                     }
                 }
                 catch (Exception ex)

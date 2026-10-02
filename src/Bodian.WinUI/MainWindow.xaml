@@ -34,6 +34,7 @@
         ★ 不能用 Application.RequestedTheme：那个只能在窗口创建之前设，
           运行期改会抛异常。所以运行期切换只能走元素级。
     -->
+    <controls:ResponsiveViewport x:Name="WindowViewport">
     <Grid x:Name="ShellRoot" RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
         <Grid.RowDefinitions>
             <!-- 顶部：原生自定义标题栏，复用原系统标题栏区域 -->
@@ -49,7 +50,7 @@
             与上面的渐变之间出现一条硬边。
         -->
         <Border Grid.RowSpan="3" Background="{ThemeResource AppSurfaceBrush}" />
-        <controls:AmbientBackdrop Grid.RowSpan="3" />
+        <controls:AmbientBackdrop x:Name="ShellBackdrop" Grid.RowSpan="3" />
 
         <!--
             原生 TitleBar 负责拖动区与交互控件避让，系统 caption 按钮仍由 Windows 管理。
@@ -442,4 +443,5 @@
             </ScrollViewer>
         </Border>
     </Grid>
+    </controls:ResponsiveViewport>
 </Window>

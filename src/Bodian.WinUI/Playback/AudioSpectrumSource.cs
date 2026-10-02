@@ -9,26 +9,59 @@ namespace Bodian.WinUI.Playback;
 public sealed class AudioSpectrumSource(ILogger<AudioSpectrumSource> logger) : IDisposable
 {
     private readonly object _gate = new();
-    private WasapiLoopbackCapture? _capture;
-    private AudioSpectrumAnalyzer? _analyzer;
-    private long _lastSamples;
-    private int _channels;
+    private bool _requested;
+    private bool _workerRunning;
+    private bool _disposed;
+    private CaptureSession? _capture;
+    private SpectrumFrame? _frame;
 
-    public void Start()
+    // WASAPI 初始化和 Dispose（内部 Join 采集线程）只在同一个后台工作循环里执行。
+    // UI 只修改期望状态，快速最小化/恢复也不会并发启动和释放同一采集器。
+    public void Start() => SetRequested(true);
+    public void Stop() => SetRequested(false);
+
+    private void SetRequested(bool requested)
     {
-        if (_capture is not null) return;
-        try
+        lock (_gate)
         {
-            var capture = new WasapiLoopbackCapture();
-            var format = capture.WaveFormat;
-            capture.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(format.SampleRate, format.Channels);
-            _channels = format.Channels;
+            if (_disposed && requested) return;
+            _requested = requested;
+            if (!requested) Volatile.Write(ref _frame, null);
+            if (_workerRunning || requested == (Volatile.Read(ref _capture) is not null)) return;
+            _workerRunning = true;
+            _ = Task.Run(ReconcileCapture);
+        }
+    }
+
+    private void ReconcileCapture()
+    {
+        while (true)
+        {
+            bool requested;
             lock (_gate)
             {
-                _analyzer = new AudioSpectrumAnalyzer(format.SampleRate);
-                _lastSamples = 0;
-                _capture = capture;
+                requested = _requested;
+                if (requested == (_capture is not null))
+                {
+                    _workerRunning = false;
+                    return;
+                }
             }
+            if (requested) StartCapture();
+            else StopCapture();
+        }
+    }
+
+    private void StartCapture()
+    {
+        WasapiLoopbackCapture? capture = null;
+        try
+        {
+            capture = new WasapiLoopbackCapture();
+            var format = capture.WaveFormat;
+            capture.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(format.SampleRate, format.Channels);
+            var session = new CaptureSession(capture, new AudioSpectrumAnalyzer(format.SampleRate), format.Channels);
+            Volatile.Write(ref _capture, session);
             capture.DataAvailable += OnDataAvailable;
             capture.RecordingStopped += OnRecordingStopped;
             capture.StartRecording();
@@ -36,20 +69,22 @@ public sealed class AudioSpectrumSource(ILogger<AudioSpectrumSource> logger) : I
         }
         catch (Exception exception)
         {
-            Stop();
+            Volatile.Write(ref _capture, null);
+            if (capture is not null) ReleaseCapture(capture);
+            lock (_gate) _requested = false;
             logger.LogWarning(exception, "歌词频谱采样不可用");
         }
     }
 
     private void OnDataAvailable(object? sender, WaveInEventArgs args)
     {
-        lock (_gate)
-        {
-            if (!ReferenceEquals(sender, _capture) || _analyzer is null) return;
-            var samples = MemoryMarshal.Cast<byte, float>(args.Buffer.AsSpan(0, args.BytesRecorded));
-            _analyzer.Append(samples, _channels);
-            _lastSamples = Stopwatch.GetTimestamp();
-        }
+        var session = Volatile.Read(ref _capture);
+        if (session is null || !ReferenceEquals(sender, session.Capture)) return;
+        var samples = MemoryMarshal.Cast<byte, float>(args.Buffer.AsSpan(0, args.BytesRecorded));
+        session.Analyzer.Append(samples, session.Channels);
+        var levels = new float[AudioSpectrumAnalyzer.BandCount];
+        session.Analyzer.CopyLevels(levels);
+        Volatile.Write(ref _frame, new SpectrumFrame(session, levels, Stopwatch.GetTimestamp()));
     }
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs args)
@@ -59,30 +94,35 @@ public sealed class AudioSpectrumSource(ILogger<AudioSpectrumSource> logger) : I
 
     public void CopyLevels(Span<float> destination)
     {
-        lock (_gate)
-        {
-            if (_analyzer is null || _lastSamples == 0 || Stopwatch.GetElapsedTime(_lastSamples).TotalMilliseconds > 250)
-                destination.Clear();
-            else
-                _analyzer.CopyLevels(destination);
-        }
+        var frame = Volatile.Read(ref _frame);
+        if (frame is null || !ReferenceEquals(frame.Session, Volatile.Read(ref _capture))
+            || Stopwatch.GetElapsedTime(frame.Timestamp).TotalMilliseconds > 250)
+            destination.Clear();
+        else
+            frame.Levels.AsSpan().CopyTo(destination);
     }
 
-    public void Stop()
+    private void StopCapture()
     {
-        WasapiLoopbackCapture? capture;
-        lock (_gate)
-        {
-            capture = _capture;
-            _capture = null;
-            _analyzer = null;
-            _lastSamples = 0;
-        }
-        if (capture is null) return;
+        var session = Interlocked.Exchange(ref _capture, null);
+        Volatile.Write(ref _frame, null);
+        if (session is not null) ReleaseCapture(session.Capture);
+    }
+
+    private void ReleaseCapture(WasapiLoopbackCapture capture)
+    {
         capture.DataAvailable -= OnDataAvailable;
         capture.RecordingStopped -= OnRecordingStopped;
-        capture.Dispose();
+        try { capture.Dispose(); }
+        catch (Exception exception) { logger.LogWarning(exception, "释放歌词频谱采集器失败"); }
     }
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        lock (_gate) _disposed = true;
+        Stop();
+    }
+
+    private sealed record CaptureSession(WasapiLoopbackCapture Capture, AudioSpectrumAnalyzer Analyzer, int Channels);
+    private sealed record SpectrumFrame(CaptureSession Session, float[] Levels, long Timestamp);
 }

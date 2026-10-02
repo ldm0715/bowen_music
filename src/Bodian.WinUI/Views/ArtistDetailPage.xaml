@@ -23,9 +23,9 @@
             <PivotItem Header="专辑">
                 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                     <TextBlock Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}" Margin="0,8" />
-                    <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Albums.Items}" IsItemClickEnabled="True" ItemClick="OnAlbumClick" SelectionMode="None">
-                        <ListView.ItemTemplate><DataTemplate x:DataType="models:Album"><StackPanel Orientation="Horizontal" Spacing="16" Padding="4,8"><Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" /><StackPanel VerticalAlignment="Center"><TextBlock Text="{x:Bind Name}" /><TextBlock Text="{x:Bind ReleaseDate}" /></StackPanel></StackPanel></DataTemplate></ListView.ItemTemplate>
-                    </ListView>
+                    <controls:VirtualizedListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Albums.Items}" IsItemClickEnabled="True" ItemClick="OnAlbumClick" SelectionMode="None">
+                        <controls:VirtualizedListView.ItemTemplate><DataTemplate x:DataType="models:Album"><StackPanel Orientation="Horizontal" Spacing="16" Padding="4,8"><Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" /><StackPanel VerticalAlignment="Center"><TextBlock Text="{x:Bind Name}" /><TextBlock Text="{x:Bind ReleaseDate}" /></StackPanel></StackPanel></DataTemplate></controls:VirtualizedListView.ItemTemplate>
+                    </controls:VirtualizedListView>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12"><ProgressRing IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" Style="{StaticResource BodianPageBusyRing}" /><Button Content="重新加载" Command="{x:Bind ViewModel.Albums.ReloadCommand}" /><Button Content="加载更多" Command="{x:Bind ViewModel.Albums.LoadMoreCommand}" Visibility="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}" /></StackPanel>
                 </Grid>
             </PivotItem>

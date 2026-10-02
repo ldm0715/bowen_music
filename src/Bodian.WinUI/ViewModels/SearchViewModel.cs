@@ -40,12 +40,39 @@ public sealed partial class SearchViewModel : ObservableObject
     }
 
     public ObservableCollection<SearchResultSection> OverviewSections { get; } = [];
+    public ObservableCollection<object> OverviewItems { get; } = [];
     public ObservableCollection<Track> Results { get; } = [];
     public ObservableCollection<Playlist> Playlists { get; } = [];
     public ObservableCollection<Album> Albums { get; } = [];
     public ObservableCollection<Artist> Artists { get; } = [];
     public ObservableCollection<SearchHotWord> HotWords { get; } = [];
     public ObservableCollection<string> SearchHistory { get; } = [];
+
+    // 仅由显式启动的本机性能场景使用，不请求搜索 API，也不写搜索历史。
+    internal void PopulatePerformanceSample(int count)
+    {
+        _searchCancellation?.Cancel();
+        _resettingCategory = true;
+        try
+        {
+            Keyword = "列表性能样本";
+            SelectedCategory = 1;
+            HasSearch = true;
+            HasMore = false;
+            Results.Clear();
+            for (var i = 0; i < count; i++)
+                Results.Add(new Track
+                {
+                    Id = -(i + 1L), Title = $"性能样本 {i + 1} · 一首较长的曲目名称",
+                    ArtistText = "歌手 A / 歌手 B", AlbumName = "性能验证专辑",
+                    Duration = TimeSpan.FromSeconds(180 + i % 120),
+                    AvailableQualities = [AudioQuality.Lossless, AudioQuality.High, AudioQuality.Standard],
+                    RequiresVip = i % 3 == 0,
+                });
+            StatusText = $"本机性能场景：{count:N0} 首，无网络搜索请求";
+        }
+        finally { _resettingCategory = false; }
+    }
 
     [ObservableProperty] public partial string Keyword { get; set; } = "";
     [ObservableProperty] public partial int SelectedCategory { get; set; }
@@ -152,6 +179,7 @@ public sealed partial class SearchViewModel : ObservableObject
         _searchCancellation = cancellation;
         ClearSuggestions();
         OverviewSections.Clear();
+        OverviewItems.Clear();
         Results.Clear(); Playlists.Clear(); Albums.Clear(); Artists.Clear();
         HasMore = false;
         CurrentTrack = null;
@@ -174,7 +202,16 @@ public sealed partial class SearchViewModel : ObservableObject
             {
                 var sections = await _api.SearchComprehensiveAsync(keyword, cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
-                foreach (var section in sections) OverviewSections.Add(section);
+                foreach (var section in sections)
+                {
+                    OverviewSections.Add(section);
+                    OverviewItems.Add(new ListSectionHeader { Title = section.Title, Category = section.Category });
+                    for (var i = 0; i < section.Tracks.Count; i++)
+                        OverviewItems.Add(new TrackRow { Source = section.Tracks[i], Ordinal = i + 1 });
+                    foreach (var item in section.Playlists) OverviewItems.Add(item);
+                    foreach (var item in section.Albums) OverviewItems.Add(item);
+                    foreach (var item in section.Artists) OverviewItems.Add(item);
+                }
                 StatusText = sections.Count == 0 ? "没有找到结果" : $"「{keyword}」的综合搜索结果";
             }
             else await AppendNextPageAsync(keyword, category, cursor, cancellation.Token);

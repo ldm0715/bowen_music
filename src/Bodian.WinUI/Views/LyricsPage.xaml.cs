@@ -1,8 +1,11 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Numerics;
 using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -24,6 +27,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly AudioSpectrumView _spectrum;
     private readonly DispatcherQueueTimer _chromeTimer;
     private readonly DispatcherQueueTimer _pointerTimer;
+    private readonly DispatcherQueueTimer _layoutTimer;
+    private bool _layoutPending;
+    private bool? _coverPlaying;
+    private double _coverSize;
+    private bool? _fullscreen;
+    private readonly ILogger<LyricsPage> _logger;
     private readonly nint _windowHandle;
     private NativeMethods.NativePoint? _lastCursorPoint;
     private bool _keyboardInteractionActive;
@@ -48,6 +57,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
         _window = window;
+        _logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory
+            ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
         _canvas = canvas;
         _spectrum = spectrum;
         Player = player;
@@ -64,6 +75,15 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _pointerTimer = DispatcherQueue.CreateTimer();
         _pointerTimer.Interval = TimeSpan.FromMilliseconds(200);
         _pointerTimer.Tick += (_, _) => UpdatePointerLocation();
+        _layoutTimer = DispatcherQueue.CreateTimer();
+        _layoutTimer.Interval = TimeSpan.FromMilliseconds(120);
+        _layoutTimer.IsRepeating = false;
+        _layoutTimer.Tick += (_, _) =>
+        {
+            if (_window.IsRenderingSuspended) return;
+            _layoutPending = false;
+            UpdateLayoutSizing();
+        };
         AddHandler(KeyDownEvent, new KeyEventHandler(OnChromeKeyDown), true);
         AddHandler(PointerEnteredEvent, new PointerEventHandler(OnPointerActivity), true);
         AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerActivity), true);
@@ -99,6 +119,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public void OnNavigatedTo()
     {
         _window.VisibilityChanged += OnWindowVisibilityChanged;
+        _window.RenderingStateChanged += OnWindowRenderingStateChanged;
         _window.AppWindow.Changed += OnAppWindowChanged;
         Player.PropertyChanged += OnPlayerChanged;
         _pointerOverChrome = false;
@@ -117,8 +138,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         _chromeTimer.Stop();
         _pointerTimer.Stop();
+        _layoutTimer.Stop();
         ProgressTimePopup.IsOpen = false;
         _window.VisibilityChanged -= OnWindowVisibilityChanged;
+        _window.RenderingStateChanged -= OnWindowRenderingStateChanged;
         _window.AppWindow.Changed -= OnAppWindowChanged;
         Player.PropertyChanged -= OnPlayerChanged;
         _volumeSeeking = false;
@@ -133,7 +156,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         _windowVisible = args.Visible;
         UpdatePause();
-        if (args.Visible)
+        if (args.Visible && !_window.IsRenderingSuspended)
         {
             ShowChrome();
             _pointerTimer.Start();
@@ -147,17 +170,48 @@ public sealed partial class LyricsPage : Page, INavigationAware
         }
     }
 
+    private void OnWindowRenderingStateChanged(object? sender, EventArgs args)
+    {
+        if (_window.IsRenderingSuspended)
+        {
+            UpdatePause();
+            _chromeTimer.Stop();
+            _pointerTimer.Stop();
+            _layoutTimer.Stop();
+        }
+        else if (Lyrics.IsOpen && _windowVisible)
+        {
+            if (_layoutPending)
+            {
+                _layoutTimer.Stop();
+                _layoutPending = false;
+                UpdateLayoutSizing();
+            }
+            UpdatePause();
+            _pointerTimer.Start();
+            UpdatePointerLocation();
+            ScheduleChromeHide();
+        }
+        else UpdatePause();
+    }
+
     private void UpdatePause()
     {
-        _canvas.IsPaused = !Lyrics.IsOpen || !_windowVisible;
+        _canvas.IsPaused = !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended;
         _spectrum.IsPaused = _canvas.IsPaused;
         ReflectionView.IsPaused = _canvas.IsPaused;
+        BackdropView.IsPaused = _canvas.IsPaused;
     }
-    private void OnRootSizeChanged(object sender, SizeChangedEventArgs args) => UpdateLayoutSizing();
+    private void OnRootSizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        _layoutPending = true;
+        _layoutTimer.Stop();
+        if (!_window.IsRenderingSuspended) _layoutTimer.Start();
+    }
 
     private void UpdateLayoutSizing()
     {
-        if (ActualWidth <= 0 || ActualHeight <= 0) return;
+        if (_window.IsRenderingSuspended || ActualWidth <= 0 || ActualHeight <= 0) return;
         var availableHeight = Math.Max(140, MainStage.ActualHeight / 1.8);
         var size = Math.Max(140, Math.Min(Math.Min(ActualHeight * 0.45, ActualWidth * 0.4 - 84), availableHeight));
         size = Math.Min(size, 580);
@@ -180,6 +234,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void UpdateCoverScale()
     {
+        var size = CoverFrame.Width;
+        if (_coverPlaying == Player.IsPlaying && _coverSize == size) return;
+        _coverPlaying = Player.IsPlaying;
+        _coverSize = size;
         var visual = ElementCompositionPreview.GetElementVisual(CoverDeck);
         visual.CenterPoint = new Vector3((float)(CoverFrame.Width / 2), (float)(CoverFrame.Height / 2), 0);
         using var animation = visual.Compositor.CreateVector3KeyFrameAnimation();
@@ -201,21 +259,36 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
     {
-        if (args.DidPresenterChange) SyncFullscreen();
+        // 最小化也会触发 DidPresenterChange；此时不能重设标题栏模板和原生按钮。
+        // 异常不能穿过 AppWindow 的 COM 事件边界，否则窗口层会直接 FailFast。
+        if (_window.IsChangingLyricsPresenter || _window.IsMinimized || NativeMethods.IsIconic(_windowHandle)) return;
+        try
+        {
+            if (args.DidPresenterChange && _fullscreen != _window.IsLyricsFullscreen) SyncFullscreen();
+        }
+        catch (Exception exception) { _logger.LogError(exception, "同步歌词全屏状态失败"); }
     }
 
     private void SyncFullscreen()
     {
+        var start = Stopwatch.GetTimestamp();
+        _fullscreen = _window.IsLyricsFullscreen;
         FullscreenIcon.Glyph = _window.IsLyricsFullscreen ? "\uE73F" : "\uE740";
         ToolTipService.SetToolTip(FullscreenButton, _window.IsLyricsFullscreen ? "退出全屏 (F11)" : "进入全屏 (F11)");
         UpdateChromeInsets();
+        if (Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1")
+            _logger.LogInformation("全屏阶段：同步标题栏 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+        LyricsTitleBar.RecomputeDragRegions();
+        if (Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1")
+            _logger.LogInformation("全屏阶段：重算区域累计 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(start).TotalMilliseconds);
         ShowChrome();
     }
 
     private void UpdateChromeInsets()
     {
+        if (_window.IsMinimized || NativeMethods.IsIconic(_windowHandle)) return;
         var scale = XamlRoot?.RasterizationScale ?? 1;
-        var captionWidth = _window.IsLyricsFullscreen ? 0 : _window.AppWindow.TitleBar.RightInset / scale;
+        var captionWidth = _window.IsLyricsFullscreen ? 0 : Math.Max(0, _window.AppWindow.TitleBar.RightInset / scale);
         LyricsTitleBar.ApplyTemplate();
         if (FindTemplatePart<Grid>(LyricsTitleBar, "PART_LayoutRoot") is { ColumnDefinitions.Count: > 11 } layout)
             layout.ColumnDefinitions[11].Width = new GridLength(captionWidth);
@@ -234,7 +307,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void UpdatePointerLocation()
     {
-        if (!Lyrics.IsOpen || !_windowVisible || XamlRoot is null
+        if (!Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || XamlRoot is null
             || !NativeMethods.GetCursorPos(out var screenPoint)) return;
         if (_lastCursorPoint is { } previous && (previous.X != screenPoint.X || previous.Y != screenPoint.Y))
             _keyboardInteractionActive = false;
@@ -282,20 +355,21 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void ScheduleChromeHide()
     {
         _chromeTimer.Stop();
-        if (!Lyrics.IsOpen || !_windowVisible || !_chromeVisible || _pointerOverChrome
+        if (!Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || !_chromeVisible || _pointerOverChrome
             || _progressSeeking || _keyboardSeeking || _volumeSeeking || HasChromeKeyboardFocus()) return;
         _chromeTimer.Start();
     }
 
     private void ShowChrome()
     {
+        if (_window.IsMinimized) return;
         SetChromeVisibility(true);
         ScheduleChromeHide();
     }
 
     private void HideChrome()
     {
-        if (!Lyrics.IsOpen || !_windowVisible || _pointerOverChrome
+        if (!Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || _pointerOverChrome
             || _progressSeeking || _keyboardSeeking || _volumeSeeking || HasChromeKeyboardFocus())
             return;
         SetChromeVisibility(false);
@@ -342,15 +416,26 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void OnBackClick(object sender, RoutedEventArgs args) => _window.GoBack();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
-    private void ToggleFullscreen() { _window.ToggleLyricsFullscreen(); SyncFullscreen(); }
-    private void OnFullscreenClick(object sender, RoutedEventArgs args) => ToggleFullscreen();
-    private void OnFullscreenInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-    { ToggleFullscreen(); args.Handled = true; }
-    private void OnEscapeInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    private async Task ToggleFullscreenAsync()
     {
-        if (_window.IsLyricsFullscreen) ToggleFullscreen();
-        else _window.GoBack();
+        if (_window.IsChangingLyricsPresenter) return;
+        FullscreenButton.IsEnabled = false;
+        try
+        {
+            await _window.ToggleLyricsFullscreenAsync();
+            if (Lyrics.IsOpen) SyncFullscreen();
+        }
+        catch (Exception exception) { _logger.LogError(exception, "切换歌词全屏失败"); }
+        finally { FullscreenButton.IsEnabled = true; }
+    }
+    private async void OnFullscreenClick(object sender, RoutedEventArgs args) => await ToggleFullscreenAsync();
+    private async void OnFullscreenInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    { args.Handled = true; await ToggleFullscreenAsync(); }
+    private async void OnEscapeInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
         args.Handled = true;
+        if (_window.IsLyricsFullscreen) await ToggleFullscreenAsync();
+        else _window.GoBack();
     }
     private void OnPlayPauseInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {

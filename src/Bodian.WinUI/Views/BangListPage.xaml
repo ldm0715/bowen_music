@@ -5,21 +5,158 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Bodian.WinUI"
     xmlns:models="using:Bodian.Core.Models"
-    xmlns:vm="using:Bodian.WinUI.ViewModels">
+    xmlns:vm="using:Bodian.WinUI.ViewModels"
+    xmlns:controls="using:Bodian.WinUI.Controls">
 
-    <!--
-        排行榜。侧栏的一个根页。
+    <Page.Resources>
+        <DataTemplate x:Key="SectionHeaderTemplate" x:DataType="vm:ListSectionHeader">
+            <TextBlock Margin="4,20,0,10" Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Title}" />
+        </DataTemplate>
+        <DataTemplate x:Key="BangHeaderTemplate" x:DataType="vm:BangItemViewModel">
+            <Grid
+                Padding="4,6"
+                ColumnSpacing="10"
+                Background="Transparent"
+                Tag="{x:Bind}"
+                Tapped="OnHeaderTapped">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-        ★ 结构与发现页不同：这里是「组 → 榜 → 预览曲目」三层。
-          嵌套 ListView 会让内外滚动打架，所以外层 ListView（可虚拟化到「组」这一层），
-          内层用 ItemsControl（不滚动、按内容撑高）—— 因为内层已经被外层约束住了，
-          再套一层滚动容器只会出现两条滚动条。
+                <Border
+                    Grid.Column="0"
+                    Width="40"
+                    Height="40"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource RadiusSm}">
+                    <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                </Border>
 
-        ★ 榜里的曲目是**首页带来的预览**（实测 5 首），整页只要一次请求。
-          完整榜单（实测 100 首）按榜点进详情页取。
+                <StackPanel
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Spacing="2">
+                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind UpdateText}" />
+                </StackPanel>
 
-        ★ 名次由数据带着走（TrackRow.Ordinal），不靠控件算位置：ItemsControl 拿不到下标。
-    -->
+                <Button
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Click="OnMoreClick"
+                    Content="更多"
+                    Tag="{x:Bind}"
+                    Visibility="{x:Bind local:Formats.Visible(HasMore)}" />
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="PreviewTrackTemplate" x:DataType="vm:TrackRow">
+            <!--
+                行可点播。点行 → 这首歌所在的**那个榜**整体入队，
+                所以「下一首」在榜内有效（与搜索页同一套行为）。
+            -->
+            <Grid
+                Padding="4,5,16,5"
+                ColumnSpacing="10"
+                Background="Transparent"
+                PointerEntered="OnPreviewRowPointerEntered"
+                PointerExited="OnPreviewRowPointerExited"
+                Tag="{x:Bind}"
+                Tapped="OnTrackTapped">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 名次列三态互斥：正在播放 → 波普条；悬停 → 播放键；其余 → 名次 -->
+                <Grid Grid.Column="0">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind OrdinalText}"
+                        Visibility="{x:Bind IndexVisibility, Mode=OneWay}" />
+
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                        Glyph="&#xE768;"
+                        Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
+
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="2"
+                        Visibility="{x:Bind BarsVisibility, Mode=OneWay}">
+                        <Rectangle
+                            Width="3"
+                            Height="8"
+                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                            RadiusX="1.5"
+                            RadiusY="1.5" />
+                        <Rectangle
+                            Width="3"
+                            Height="12"
+                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                            RadiusX="1.5"
+                            RadiusY="1.5" />
+                        <Rectangle
+                            Width="3"
+                            Height="9"
+                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                            RadiusX="1.5"
+                            RadiusY="1.5" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- 封面。没有封面时留一块底色，行高不跳 -->
+                <Border
+                    Grid.Column="1"
+                    Width="36"
+                    Height="36"
+                    VerticalAlignment="Center"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="4">
+                    <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                </Border>
+
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Spacing="2">
+                    <TextBlock
+                        Text="{x:Bind Title}"
+                        TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ArtistText}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <TextBlock
+                    Grid.Column="3"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind DurationText}" />
+            </Grid>
+        </DataTemplate>
+        <controls:ResultTemplateSelector x:Key="RankTemplateSelector"
+            HeaderTemplate="{StaticResource SectionHeaderTemplate}" BangTemplate="{StaticResource BangHeaderTemplate}"
+            TrackTemplate="{StaticResource PreviewTrackTemplate}" />
+    </Page.Resources>
+    <!-- 单个滚动视口，虚拟化单位细到每个标题和预览行。 -->
     <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -36,197 +173,21 @@
                 TextTrimming="CharacterEllipsis" />
         </StackPanel>
 
-        <ListView
-            x:Name="SectionList"
-            Grid.Row="1"
+        <controls:VirtualizedListView x:Name="SectionList" Grid.Row="1" SelectionMode="None"
             Padding="{StaticResource SpaceVerticalScrollContentPadding}"
-            ItemsSource="{x:Bind ViewModel.Sections}"
-            SelectionMode="None"
-            ScrollViewer.VerticalScrollBarVisibility="Auto"
-            ScrollViewer.VerticalScrollMode="Enabled">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="Padding" Value="0,0,0,20" />
+            ItemsSource="{x:Bind ViewModel.Rows}" ItemTemplateSelector="{StaticResource RankTemplateSelector}"
+            ContainerContentChanging="OnContainerContentChanging"
+            ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.VerticalScrollMode="Enabled">
+            <controls:VirtualizedListView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsStackPanel CacheLength="0.5" /></ItemsPanelTemplate>
+            </controls:VirtualizedListView.ItemsPanel>
+            <controls:VirtualizedListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="Padding" Value="0" />
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 </Style>
-            </ListView.ItemContainerStyle>
-
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="vm:BangSectionViewModel">
-                    <StackPanel Spacing="10">
-                        <TextBlock
-                            Margin="4,0,0,0"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="{x:Bind Title}" />
-
-                        <ItemsControl ItemsSource="{x:Bind Bangs}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:BangItemViewModel">
-                                    <StackPanel Margin="0,0,0,14" Spacing="4">
-                                        <!--
-                                            榜头：封面 + 名字 + 更新时间 + 更多。
-                                            整行可点（不只「更多」）—— 那一行看起来就该可点，
-                                            只让按钮可点会让人以为坏了。
-                                        -->
-                                        <Grid
-                                            Padding="4,6"
-                                            ColumnSpacing="10"
-                                            Background="Transparent"
-                                            Tag="{x:Bind}"
-                                            Tapped="OnHeaderTapped">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Border
-                                                Grid.Column="0"
-                                                Width="40"
-                                                Height="40"
-                                                VerticalAlignment="Center"
-                                                Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                                CornerRadius="{StaticResource RadiusSm}">
-                                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                                            </Border>
-
-                                            <StackPanel
-                                                Grid.Column="1"
-                                                VerticalAlignment="Center"
-                                                Spacing="2">
-                                                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock
-                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                    Style="{StaticResource CaptionTextBlockStyle}"
-                                                    Text="{x:Bind UpdateText}" />
-                                            </StackPanel>
-
-                                            <Button
-                                                Grid.Column="2"
-                                                VerticalAlignment="Center"
-                                                Click="OnMoreClick"
-                                                Content="更多"
-                                                Tag="{x:Bind}"
-                                                Visibility="{x:Bind local:Formats.Visible(HasMore)}" />
-                                        </Grid>
-
-                                        <!--
-                                            预览行。数据是 TrackRow —— 与曲目列表共用同一套
-                                            「正在播放 / 悬停 / 名次」三态，所以这里也有波普条。
-
-                                            这一层不能换成 TrackListView：它内含 ListView，
-                                            嵌在分组里会和外层的滚动打架（外层 ListView 已经
-                                            滚动到「组」这一层了）。
-                                        -->
-                                        <ItemsControl ItemsSource="{x:Bind Tracks}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:TrackRow">
-                                                    <!--
-                                                        行可点播。点行 → 这首歌所在的**那个榜**整体入队，
-                                                        所以「下一首」在榜内有效（与搜索页同一套行为）。
-                                                    -->
-                                                    <Grid
-                                                        Padding="4,5,16,5"
-                                                        ColumnSpacing="10"
-                                                        Background="Transparent"
-                                                        PointerEntered="OnPreviewRowPointerEntered"
-                                                        PointerExited="OnPreviewRowPointerExited"
-                                                        Tag="{x:Bind}"
-                                                        Tapped="OnTrackTapped">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="30" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <!-- 名次列三态互斥：正在播放 → 波普条；悬停 → 播放键；其余 → 名次 -->
-                                                        <Grid Grid.Column="0">
-                                                            <TextBlock
-                                                                HorizontalAlignment="Center"
-                                                                VerticalAlignment="Center"
-                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                Text="{x:Bind OrdinalText}"
-                                                                Visibility="{x:Bind IndexVisibility, Mode=OneWay}" />
-
-                                                            <FontIcon
-                                                                HorizontalAlignment="Center"
-                                                                VerticalAlignment="Center"
-                                                                FontSize="12"
-                                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                                                                Glyph="&#xE768;"
-                                                                Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
-
-                                                            <StackPanel
-                                                                HorizontalAlignment="Center"
-                                                                VerticalAlignment="Center"
-                                                                Orientation="Horizontal"
-                                                                Spacing="2"
-                                                                Visibility="{x:Bind BarsVisibility, Mode=OneWay}">
-                                                                <Rectangle
-                                                                    Width="3"
-                                                                    Height="8"
-                                                                    Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                                                    RadiusX="1.5"
-                                                                    RadiusY="1.5" />
-                                                                <Rectangle
-                                                                    Width="3"
-                                                                    Height="12"
-                                                                    Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                                                    RadiusX="1.5"
-                                                                    RadiusY="1.5" />
-                                                                <Rectangle
-                                                                    Width="3"
-                                                                    Height="9"
-                                                                    Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                                                    RadiusX="1.5"
-                                                                    RadiusY="1.5" />
-                                                            </StackPanel>
-                                                        </Grid>
-
-                                                        <!-- 封面。没有封面时留一块底色，行高不跳 -->
-                                                        <Border
-                                                            Grid.Column="1"
-                                                            Width="36"
-                                                            Height="36"
-                                                            VerticalAlignment="Center"
-                                                            Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                                            CornerRadius="4">
-                                                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                                                        </Border>
-
-                                                        <StackPanel
-                                                            Grid.Column="2"
-                                                            VerticalAlignment="Center"
-                                                            Spacing="2">
-                                                            <TextBlock
-                                                                Text="{x:Bind Title}"
-                                                                TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock
-                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                                Text="{x:Bind ArtistText}"
-                                                                TextTrimming="CharacterEllipsis" />
-                                                        </StackPanel>
-
-                                                        <TextBlock
-                                                            Grid.Column="3"
-                                                            VerticalAlignment="Center"
-                                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                                            Text="{x:Bind DurationText}" />
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            </controls:VirtualizedListView.ItemContainerStyle>
+        </controls:VirtualizedListView>
 
         <ProgressRing
             Grid.Row="2"

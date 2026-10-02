@@ -19,6 +19,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private CanvasDevice? _creator;
     private LyricDocument _document = LyricDocument.Empty;
     private bool _layoutDirty = true;
+    private readonly LinkedList<CachedLayout> _layouts = new();
     private bool _maskDirty = true;
     private double _width, _height;
     private float _dpi = 96;
@@ -31,6 +32,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private double[] _scales = [];
     private double[] _scaleVelocities = [];
     private Rect[] _hitRects = [];
+    private double[] _centers = [];
     private CanvasLinearGradientBrush? _edgeBrush;
     private Color _played = Color.FromArgb(242, 255, 255, 255);
     private Color _unplayed = Color.FromArgb(80, 255, 255, 255);
@@ -137,7 +139,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         }
         CurrentIndex = current;
         _scroll.Update(now, seconds);
-        var centers = new double[snapshot.Count];
+        var centers = _centers;
         for (var index = 0; index < snapshot.Count; index++)
             centers[index] = snapshot.Tops[index] + snapshot.Lines[index].Height / 2 - _scroll.OffsetAt(index);
         _focusIndex = IsBrowsing
@@ -221,6 +223,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         var wordByWord = snapshot.Document.Kind == LyricKind.WordByWord;
         if (!rendered.ActivePrepared)
         {
+            if (wordByWord) _device!.LayoutEngine.PrepareGlyphs(_creator!, text, rendered);
+            else rendered.Layout.SetColor(0, rendered.CharBounds.Length, _played);
             foreach (var glyph in rendered.Glyphs)
             {
                 glyph.Brush = new CanvasLinearGradientBrush(_creator!, _played, _unplayed);
@@ -295,11 +299,31 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private bool EnsureLayout()
     {
         if (!_layoutDirty || _creator is null || _device is null || _width <= 0) return false;
-        _device.Snapshot?.Dispose();
-        _device.Snapshot = _device.LayoutEngine.Build(_creator, _document, Math.Max(1, _width - 28));
+        var key = new LayoutKey(_document, Math.Max(1, _width - 28), settings.BaseFontSize, _played, _unplayed);
+        var cached = _layouts.First;
+        while (cached is not null && cached.Value.Key != key) cached = cached.Next;
+        if (cached is not null)
+        {
+            _layouts.Remove(cached);
+            _layouts.AddFirst(cached);
+            _device.Snapshot = cached.Value.Snapshot;
+        }
+        else
+        {
+            var snapshot = _device.LayoutEngine.Build(_creator, _document, key.Width);
+            _layouts.AddFirst(new CachedLayout(key, snapshot));
+            _device.Snapshot = snapshot;
+            // 保留普通窗口、全屏和一个最近尺寸，反复切换无需重新排版整首歌。
+            if (_layouts.Count > 3 && _layouts.Last is { } oldest)
+            {
+                _layouts.RemoveLast();
+                oldest.Value.Snapshot.Dispose();
+            }
+        }
         _scales = new double[_device.Snapshot.Count];
         Array.Fill(_scales, settings.InactiveLineScale);
         _scaleVelocities = new double[_scales.Length];
+        _centers = new double[_scales.Length];
         _layoutDirty = false;
         _logger.LogInformation("全屏歌词排版：{Count} 行，字号 {FontSize:F1}，视口 {Width:F0}×{Height:F0}",
             _scales.Length, settings.BaseFontSize, _width, _height);
@@ -326,6 +350,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         _edgeBrush?.Dispose();
         _edgeBrush = null;
+        if (_device is not null) _device.Snapshot = null;
+        foreach (var cached in _layouts) cached.Snapshot.Dispose();
+        _layouts.Clear();
         _device?.Dispose();
         _device = null;
         _creator = null;
@@ -336,6 +363,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _focusIndex = -1;
         CurrentIndex = -1;
     }
+
+    private sealed record LayoutKey(LyricDocument Document, double Width, double FontSize, Color Played, Color Unplayed);
+    private sealed record CachedLayout(LayoutKey Key, LyricsLayoutSnapshot Snapshot);
 
     private static Color WithOpacity(Color color, double opacity)
         => Color.FromArgb((byte)Math.Clamp(color.A * opacity, 0, 255), color.R, color.G, color.B);

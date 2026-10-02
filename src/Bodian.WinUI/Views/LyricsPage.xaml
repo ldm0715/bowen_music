@@ -33,7 +33,7 @@
         <KeyboardAccelerator Key="Space" Invoked="OnPlayPauseInvoked" />
     </Page.KeyboardAccelerators>
     <Grid x:Name="LyricsRoot" Background="#0B1222" SizeChanged="OnRootSizeChanged">
-        <controls:LyricsBackdrop CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
+        <controls:LyricsBackdrop x:Name="BackdropView" CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
         <controls:AmbientBackdrop Opacity="0.18" />
         <Border IsHitTestVisible="False">
             <Border.Background>
@@ -50,7 +50,7 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="80" />
             </Grid.RowDefinitions>
-            <TitleBar x:Name="LyricsTitleBar" Height="48" VerticalAlignment="Top"
+            <TitleBar x:Name="LyricsTitleBar" AutoRefreshDragRegions="False" Height="48" VerticalAlignment="Top"
                 Background="Transparent" Foreground="#CCFFFFFF" AutomationProperties.Name="全屏歌词标题栏">
                 <TitleBar.Resources>
                     <x:Double x:Key="TitleBarCompactHeight">48</x:Double>

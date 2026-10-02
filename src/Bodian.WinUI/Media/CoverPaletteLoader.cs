@@ -46,34 +46,22 @@ public sealed class CoverPaletteLoader
     /// </remarks>
     public async Task<IReadOnlyList<RgbColor>> LoadAsync(long trackId, Uri? cover)
     {
-        if (_cache.TryGetValue(trackId, out var cached))
+        _cts?.Cancel();
+        if (_cache.TryGetValue(trackId, out var cached)) return cached;
+        using var cancellation = new CancellationTokenSource();
+        _cts = cancellation;
+        try
         {
-            return cached;
-        }
-
-        var previous = _cts;
-
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        previous?.Cancel();
-
-        var palette = await ExtractAsync(cover, token).ConfigureAwait(true);
-
-        if (token.IsCancellationRequested)
-        {
-            // 已经被更新的一次调用取代，结果作废（但仍然返回，调用方自己会比对曲目 id）。
+            var palette = await ExtractAsync(cover, cancellation.Token).ConfigureAwait(true);
+            if (cancellation.IsCancellationRequested) return palette;
+            if (_cache.Count >= CacheLimit) _cache.Clear();
+            _cache[trackId] = palette;
             return palette;
         }
-
-        if (_cache.Count >= CacheLimit)
+        finally
         {
-            _cache.Clear();
+            if (ReferenceEquals(_cts, cancellation)) _cts = null;
         }
-
-        _cache[trackId] = palette;
-
-        return palette;
     }
 
     private async Task<IReadOnlyList<RgbColor>> ExtractAsync(Uri? cover, CancellationToken token)
@@ -89,7 +77,8 @@ public sealed class CoverPaletteLoader
 
         try
         {
-            using var bitmap = await CanvasBitmap.LoadAsync(CanvasDevice.GetSharedDevice(), url);
+            using var bitmap = await CanvasBitmap.LoadAsync(CanvasDevice.GetSharedDevice(), url)
+                .AsTask(token).ConfigureAwait(false);
 
             token.ThrowIfCancellationRequested();
 

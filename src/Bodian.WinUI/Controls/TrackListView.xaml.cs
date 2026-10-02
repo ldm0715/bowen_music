@@ -119,11 +119,12 @@ public sealed partial class TrackListView : UserControl
             {
                 if (ToRow(item, Rows.Count + 1) is { } row)
                 {
+                    // 追加只初始化新行；每个 CollectionChanged 都扫描已加载的
+                    // 全部曲目会让分页开销随总结果数平方增长。
+                    row.IsCurrent = row.Source.Id == _nowPlaying?.CurrentTrackId;
                     Rows.Add(row);
                 }
             }
-
-            SyncCurrent();
 
             return;
         }
@@ -246,6 +247,11 @@ public sealed partial class TrackListView : UserControl
         {
             row.IsPointerOver = value;
         }
+    }
+
+    private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.InRecycleQueue && args.Item is TrackRow row) row.IsPointerOver = false;
     }
 
     private void OnItemClick(object sender, ItemClickEventArgs e)

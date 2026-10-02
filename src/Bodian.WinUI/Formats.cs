@@ -1,8 +1,8 @@
 using System.Globalization;
 using Bodian.Core.Models;
+using Bodian.WinUI.Media;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Bodian.WinUI;
 
@@ -138,7 +138,7 @@ public static class Formats
     /// 同样是为了绕开 <c>x:Bind</c> 的限制：<c>Uri</c> 不能直接绑到 <see cref="ImageSource"/>（WMC1121）。
     /// 返回 <c>null</c> 时 Image 是空的，外层 Border 的底色会露出来。
     /// </remarks>
-    public static ImageSource? CoverSource(Uri? uri) => uri is null ? null : new BitmapImage(uri);
+    public static ImageSource? CoverSource(Uri? uri) => CoverImageCache.Get(uri, 256);
 
     private static string Describe(AudioQuality quality) => quality switch
     {

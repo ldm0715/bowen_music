@@ -7,6 +7,7 @@ using Bodian.WinUI.Playback;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Graphics.DirectX;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.UI.Composition;
 using Microsoft.UI.Composition;
@@ -15,8 +16,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Hosting;
 using Windows.Foundation;
-using Microsoft.Graphics.DirectX;
-using Microsoft.UI.Xaml.Media;
 
 namespace Bodian.WinUI.Controls;
 
@@ -27,19 +26,16 @@ public sealed partial class LyricsCanvasView : UserControl
     private readonly ILogger<LyricsCanvasView> _logger;
     private readonly LyricsPlaybackClock _clock = new(TimeProvider.System);
     private readonly Stopwatch _animationClock = Stopwatch.StartNew();
-    private readonly LyricsRenderer _renderer;
+    private readonly ILoggerFactory _loggerFactory;
+    private LyricsRenderLoop? _renderLoop;
+    private XamlRoot? _subscribedRoot;
+    private double _fontSize = 40;
     private bool _loaded;
-    private bool _rendering;
     private bool _paused;
     private bool _broken;
     private CanvasDevice? _canvasDevice;
-    private CompositionGraphicsDevice? _graphicsDevice;
-    private CompositionDrawingSurface? _surface;
     private CompositionSurfaceBrush? _surfaceBrush;
     private SpriteVisual? _surfaceVisual;
-    private double _rasterizationScale = 1;
-    private double _surfaceWidth;
-    private double _surfaceHeight;
     private bool _browsing;
     private uint? _pressedPointer;
     private double _pressY;
@@ -47,13 +43,6 @@ public sealed partial class LyricsCanvasView : UserControl
     private int _pressedLine = -1;
     private bool _dragging;
     private bool _tapSuppressed;
-    private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
-    private long _statsStarted;
-    private int _statsFrames;
-    private double _statsDrawMilliseconds;
-    private double _statsMaxMilliseconds;
-    private double _statsMaxFrameInterval;
-    private long _previousDraw;
 
     public LyricsCanvasView(LyricsViewModel viewModel, IPlaybackService engine, ILoggerFactory? loggerFactory = null)
     {
@@ -63,7 +52,7 @@ public sealed partial class LyricsCanvasView : UserControl
         _viewModel = viewModel;
         _engine = engine;
         _logger = factory.CreateLogger<LyricsCanvasView>();
-        _renderer = new LyricsRenderer(LyricsRenderSettings.Default, factory.CreateLogger<LyricsRenderer>());
+        _loggerFactory = factory;
         InitializeComponent();
         Canvas.AddHandler(PointerWheelChangedEvent, new PointerEventHandler(OnPointerWheelChanged), true);
         Canvas.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), true);
@@ -84,13 +73,18 @@ public sealed partial class LyricsCanvasView : UserControl
         get => _paused;
         set
         {
+            if (_paused == value) return;
             _paused = value;
             UpdateRenderingSubscription();
         }
     }
 
-    public void SetFontSize(double fontSize) => _renderer.SetFontSize(fontSize);
-    public void ResumeFollowing() => _renderer.ResumeFollowing();
+    public void SetFontSize(double fontSize)
+    {
+        _fontSize = fontSize;
+        ResizeSurface();
+    }
+    public void ResumeFollowing() => _renderLoop?.Send(renderer => renderer.ResumeFollowing());
 
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
@@ -100,12 +94,11 @@ public sealed partial class LyricsCanvasView : UserControl
         _clock.SetDuration(_engine.Duration);
         _clock.Sync(_engine.Position, force: true);
         _clock.SetPlaying(_engine.State == PlaybackState.Playing);
-        _renderer.SetDocument(_viewModel.Document);
-        _renderer.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight);
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        XamlRoot.Changed += OnXamlRootChanged;
+        _subscribedRoot = XamlRoot;
+        if (_subscribedRoot is not null) _subscribedRoot.Changed += OnXamlRootChanged;
         Guarded(nameof(CreateSurface), CreateSurface);
         UpdateRenderingSubscription();
     }
@@ -118,121 +111,85 @@ public sealed partial class LyricsCanvasView : UserControl
         _engine.StateChanged -= OnStateChanged;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ResetPointerGesture();
-        XamlRoot.Changed -= OnXamlRootChanged;
+        if (_subscribedRoot is not null) _subscribedRoot.Changed -= OnXamlRootChanged;
+        _subscribedRoot = null;
         ReleaseSurface();
     }
 
     private void UpdateRenderingSubscription()
-    {
-        var shouldRender = _loaded && !_paused && !_broken;
-        if (_rendering == shouldRender) return;
-        _rendering = shouldRender;
-        if (shouldRender) CompositionTarget.Rendering += OnRendering;
-        else CompositionTarget.Rendering -= OnRendering;
-    }
+        => _renderLoop?.SetPaused(!_loaded || _paused || _broken);
 
     private void CreateSurface()
     {
-        _canvasDevice = CanvasDevice.GetSharedDevice();
+        // 与 CanvasControl 的共享设备隔离，后台歌词的长帧不占用 UI 绘图设备锁。
+        _canvasDevice = new CanvasDevice();
         _canvasDevice.DeviceLost += OnDeviceLost;
         var compositor = ElementCompositionPreview.GetElementVisual(Canvas).Compositor;
-        _graphicsDevice = CanvasComposition.CreateCompositionGraphicsDevice(compositor, _canvasDevice);
-        _rasterizationScale = XamlRoot.RasterizationScale;
-        _surfaceWidth = Math.Max(1, Math.Ceiling(Canvas.ActualWidth * _rasterizationScale));
-        _surfaceHeight = Math.Max(1, Math.Ceiling(Canvas.ActualHeight * _rasterizationScale));
-        _surface = _graphicsDevice.CreateDrawingSurface(new Size(_surfaceWidth, _surfaceHeight),
+        var graphicsDevice = CanvasComposition.CreateCompositionGraphicsDevice(compositor, _canvasDevice);
+        var surface = graphicsDevice.CreateDrawingSurface(new Size(1, 1),
             DirectXPixelFormat.B8G8R8A8UIntNormalized, DirectXAlphaMode.Premultiplied);
-        _surfaceBrush = compositor.CreateSurfaceBrush(_surface);
+        _surfaceBrush = compositor.CreateSurfaceBrush(surface);
         _surfaceBrush.Stretch = CompositionStretch.Fill;
         _surfaceVisual = compositor.CreateSpriteVisual();
         _surfaceVisual.RelativeSizeAdjustment = Vector2.One;
         _surfaceVisual.Brush = _surfaceBrush;
         ElementCompositionPreview.SetElementChildVisual(Canvas, _surfaceVisual);
-        _renderer.RebuildDeviceResources(_canvasDevice);
-        _renderer.SetDpi((float)(_rasterizationScale * 96));
-        _renderer.SetDocument(_viewModel.Document);
-        _renderer.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight);
+        var canvasDevice = _canvasDevice;
+        LyricsRenderLoop? loop = null;
+        loop = new LyricsRenderLoop(_canvasDevice, graphicsDevice, surface, _clock, _animationClock, _loggerFactory,
+            browsing => DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!ReferenceEquals(_renderLoop, loop)) return;
+                _browsing = browsing;
+                BrowsingChanged?.Invoke(this, EventArgs.Empty);
+            }),
+            () => DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!ReferenceEquals(_renderLoop, loop)) return;
+                _broken = true;
+                UpdateRenderingSubscription();
+            }),
+            () => DispatcherQueue.TryEnqueue(() =>
+            {
+                try { surface.Dispose(); graphicsDevice.Dispose(); canvasDevice.Dispose(); }
+                catch (Exception exception) { _logger.LogWarning(exception, "释放歌词合成资源失败"); }
+            }));
+        _renderLoop = loop;
+        loop.SetDocument(_viewModel.Document);
+        ResizeSurface();
+        loop.Start();
     }
 
     private void ReleaseSurface()
     {
         if (_canvasDevice is not null) _canvasDevice.DeviceLost -= OnDeviceLost;
+        var loop = _renderLoop;
+        _renderLoop = null;
+        loop?.Stop();
         ElementCompositionPreview.SetElementChildVisual(Canvas, null);
-        _renderer.Dispose();
         _surfaceVisual?.Dispose();
         _surfaceBrush?.Dispose();
-        _surface?.Dispose();
-        _graphicsDevice?.Dispose();
         _surfaceVisual = null;
         _surfaceBrush = null;
-        _surface = null;
-        _graphicsDevice = null;
         _canvasDevice = null;
+        _browsing = false;
     }
 
     private void OnDeviceLost(CanvasDevice sender, object args)
         => DispatcherQueue.TryEnqueue(() =>
         {
-            if (!_loaded) return;
+            if (!_loaded || !ReferenceEquals(sender, _canvasDevice)) return;
+            _broken = false;
             Guarded(nameof(OnDeviceLost), () => { ReleaseSurface(); CreateSurface(); });
+            UpdateRenderingSubscription();
         });
 
     private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => ResizeSurface();
 
     private void ResizeSurface()
     {
-        if (_surface is null || XamlRoot is null) return;
-        var scale = XamlRoot.RasterizationScale;
-        var width = Math.Max(1, Math.Ceiling(Canvas.ActualWidth * scale));
-        var height = Math.Max(1, Math.Ceiling(Canvas.ActualHeight * scale));
-        if (width != _surfaceWidth || height != _surfaceHeight)
-        {
-            CanvasComposition.Resize(_surface, new Size(width, height));
-            _surfaceWidth = width;
-            _surfaceHeight = height;
-        }
-        _rasterizationScale = scale;
-        _renderer.SetDpi((float)(scale * 96));
-        _renderer.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight);
-    }
-
-    private void OnRendering(object? sender, object args)
-        => Guarded(nameof(OnRendering), () =>
-        {
-            if (_surface is null || Canvas.ActualWidth <= 0 || Canvas.ActualHeight <= 0) return;
-            var drawStarted = Stopwatch.GetTimestamp();
-            _renderer.Update(_clock.Position, _animationClock.Elapsed, _clock.JumpCount);
-            using (var session = CanvasComposition.CreateDrawingSession(_surface,
-                new Rect(0, 0, _surfaceWidth, _surfaceHeight), (float)(_rasterizationScale * 96)))
-            {
-                session.Clear(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-                _renderer.Draw(session);
-            }
-            if (_diagnostics) RecordFrame(drawStarted);
-            if (_browsing != _renderer.IsBrowsing)
-            {
-                _browsing = _renderer.IsBrowsing;
-                BrowsingChanged?.Invoke(this, EventArgs.Empty);
-            }
-        });
-
-    private void RecordFrame(long drawStarted)
-    {
-        if (_statsStarted == 0) _statsStarted = drawStarted;
-        var elapsed = Stopwatch.GetElapsedTime(drawStarted).TotalMilliseconds;
-        _statsDrawMilliseconds += elapsed;
-        _statsMaxMilliseconds = Math.Max(_statsMaxMilliseconds, elapsed);
-        if (_previousDraw != 0)
-            _statsMaxFrameInterval = Math.Max(_statsMaxFrameInterval, Stopwatch.GetElapsedTime(_previousDraw, drawStarted).TotalMilliseconds);
-        _previousDraw = drawStarted;
-        _statsFrames++;
-        var window = Stopwatch.GetElapsedTime(_statsStarted).TotalSeconds;
-        if (window < 5) return;
-        _logger.LogInformation("歌词绘制统计：{Fps:F1} fps，平均绘制 {Average:F2} ms，最慢绘制 {Maximum:F2} ms，最大帧间隔 {Interval:F2} ms",
-            _statsFrames / window, _statsDrawMilliseconds / _statsFrames, _statsMaxMilliseconds, _statsMaxFrameInterval);
-        _statsStarted = _previousDraw = 0;
-        _statsFrames = 0;
-        _statsDrawMilliseconds = _statsMaxMilliseconds = _statsMaxFrameInterval = 0;
+        if (!_loaded || _renderLoop is null || XamlRoot is null) return;
+        _renderLoop.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight, XamlRoot.RasterizationScale, _fontSize);
     }
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs args) => ResizeSurface();
@@ -241,7 +198,9 @@ public sealed partial class LyricsCanvasView : UserControl
     {
         var properties = args.GetCurrentPoint(Canvas).Properties;
         if (properties.IsHorizontalMouseWheel || properties.MouseWheelDelta == 0) return;
-        _renderer.ScrollBy(-properties.MouseWheelDelta * 0.85, _animationClock.Elapsed);
+        var delta = -properties.MouseWheelDelta * 0.85;
+        var now = _animationClock.Elapsed;
+        _renderLoop?.Send(renderer => renderer.ScrollBy(delta, now));
         args.Handled = true;
     }
 
@@ -252,7 +211,7 @@ public sealed partial class LyricsCanvasView : UserControl
             && !point.Properties.IsLeftButtonPressed) return;
         _pressedPointer = args.Pointer.PointerId;
         _pressY = _lastPointerY = point.Position.Y;
-        _pressedLine = _renderer.LineIndexAt(point.Position.Y);
+        _pressedLine = _renderLoop?.LineIndexAt(point.Position.Y) ?? -1;
         _dragging = false;
         _tapSuppressed = false;
         Canvas.CapturePointer(args.Pointer);
@@ -262,19 +221,25 @@ public sealed partial class LyricsCanvasView : UserControl
     private void OnPointerMoved(object sender, PointerRoutedEventArgs args)
     {
         var point = args.GetCurrentPoint(Canvas);
-        _renderer.SetPointerY(point.Position.Y, _animationClock.Elapsed);
+        var pointerY = point.Position.Y;
+        var now = _animationClock.Elapsed;
+        _renderLoop?.Send(renderer => renderer.SetPointerY(pointerY, now));
         if (_pressedPointer != args.Pointer.PointerId) return;
         if (Math.Abs(point.Position.Y - _pressY) > 6) _dragging = _tapSuppressed = true;
         if (_dragging)
         {
-            _renderer.ScrollBy(_lastPointerY - point.Position.Y, _animationClock.Elapsed);
+            var delta = _lastPointerY - pointerY;
+            _renderLoop?.Send(renderer => renderer.ScrollBy(delta, now));
             args.Handled = true;
         }
         _lastPointerY = point.Position.Y;
     }
 
     private void OnPointerExited(object sender, PointerRoutedEventArgs args)
-        => _renderer.SetPointerY(null, _animationClock.Elapsed);
+    {
+        var now = _animationClock.Elapsed;
+        _renderLoop?.Send(renderer => renderer.SetPointerY(null, now));
+    }
 
     private void OnPointerReleased(object sender, PointerRoutedEventArgs args)
     {
@@ -287,13 +252,13 @@ public sealed partial class LyricsCanvasView : UserControl
     private async void OnTapped(object sender, TappedRoutedEventArgs args)
     {
         if (_tapSuppressed) return;
-        var line = _renderer.LineIndexAt(args.GetPosition(Canvas).Y);
+        var line = _renderLoop?.LineIndexAt(args.GetPosition(Canvas).Y) ?? -1;
         if (line < 0 || line >= _viewModel.Document.Lines.Count) return;
         args.Handled = true;
         var position = _viewModel.Document.Lines[line].Start;
         await _viewModel.SeekToLineCommand.ExecuteAsync(line);
         _clock.Sync(position, force: true);
-        _renderer.ResumeFollowing();
+        ResumeFollowing();
         _logger.LogInformation("歌词点击跳转：行 {Line}，时间 {Position:F2} 秒", line, position.TotalSeconds);
     }
 
@@ -319,7 +284,7 @@ public sealed partial class LyricsCanvasView : UserControl
         => _clock.SetPlaying(args.State == PlaybackState.Playing);
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(LyricsViewModel.Document)) _renderer.SetDocument(_viewModel.Document);
+        if (args.PropertyName == nameof(LyricsViewModel.Document)) _renderLoop?.SetDocument(_viewModel.Document);
     }
     private void Guarded(string callback, Action action)
     {

@@ -277,6 +277,7 @@ public partial class App : Application
         // 挪到线程池（MTA）要靠宿主单线程套间代理，没必要引入那层不确定性。
         // 代价只是一次很小的文件读写，失败了也只记日志。
         _host.Services.GetRequiredService<IStartMenuShortcutInstaller>().EnsureInstalled();
+        _ = PerformanceScenarios.RunAsync(_host.Services);
     }
 
     /// <summary>XAML 线程上的未处理异常。</summary>
@@ -310,10 +311,12 @@ public partial class App : Application
     {
         var logger = new LoggerConfiguration()
             .MinimumLevel.Information()
+            .Enrich.WithProperty("ProcessId", Environment.ProcessId)
             .WriteTo.File(
                 Path.Combine(AppPaths.LogDirectory, "bodian-.log"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7)
+                retainedFileCountLimit: 7,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [PID {ProcessId}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
         return new SerilogLoggerProvider(logger, dispose: true);

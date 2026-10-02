@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.Graphics.Canvas.UI;
@@ -16,6 +18,7 @@ public sealed class LyricsBackdrop : UserControl
     public static readonly DependencyProperty CoverUriProperty = DependencyProperty.Register(
         nameof(CoverUri), typeof(Uri), typeof(LyricsBackdrop), new PropertyMetadata(null, OnCoverChanged));
 
+    private const double SurfaceSize = 384;
     private readonly CanvasControl _canvas;
     private readonly DispatcherQueueTimer _fadeTimer;
     private readonly Stopwatch _fadeClock = new();
@@ -26,17 +29,24 @@ public sealed class LyricsBackdrop : UserControl
     private Uri? _requestedUri;
     private int _request;
     private bool _loaded;
+    private bool _paused;
     private double _fade = 1;
 
     public LyricsBackdrop()
     {
         IsHitTestVisible = false;
-        _canvas = new CanvasControl { ClearColor = Windows.UI.Color.FromArgb(0, 0, 0, 0) };
-        Content = _canvas;
+        // 模糊背景只需低分辨率缓存；窗口缩放交给合成器，避免每个 WM_SIZE
+        // 都分配一张窗口大小的 Win2D 表面并重跑模糊效果。
+        _canvas = new CanvasControl
+        {
+            Width = SurfaceSize, Height = SurfaceSize,
+            ClearColor = Windows.UI.Color.FromArgb(0, 0, 0, 0),
+        };
+        Content = new Viewbox { Child = _canvas, Stretch = Stretch.UniformToFill };
         _logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory)
             ?.CreateLogger<LyricsBackdrop>();
         _fadeTimer = DispatcherQueue.CreateTimer();
-        _fadeTimer.Interval = TimeSpan.FromMilliseconds(16);
+        _fadeTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / 120);
         _fadeTimer.Tick += OnFadeTick;
         _canvas.CreateResources += OnCreateResources;
         _canvas.Draw += OnDraw;
@@ -50,12 +60,30 @@ public sealed class LyricsBackdrop : UserControl
         set => SetValue(CoverUriProperty, value);
     }
 
+    public bool IsPaused
+    {
+        get => _paused;
+        set
+        {
+            if (_paused == value) return;
+            _paused = value;
+            if (value) _fadeTimer.Stop();
+            else if (_loaded)
+            {
+                if (_fade < 1) _fadeTimer.Start();
+                _canvas.Invalidate();
+            }
+        }
+    }
+
     private static void OnCoverChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
         => _ = ((LyricsBackdrop)sender).LoadCoverAsync();
 
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
         _loaded = true;
+        var visual = ElementCompositionPreview.GetElementVisual(this);
+        visual.Clip = visual.Compositor.CreateInsetClip();
         _canvas.Invalidate();
         _ = LoadCoverAsync();
     }
@@ -97,7 +125,7 @@ public sealed class LyricsBackdrop : UserControl
             _current = new CoverSurface(bitmap);
             _fade = 0;
             _fadeClock.Restart();
-            _fadeTimer.Start();
+            if (!_paused) _fadeTimer.Start();
             _canvas.Invalidate();
         }
         catch (Exception exception)
@@ -122,6 +150,7 @@ public sealed class LyricsBackdrop : UserControl
 
     private void OnDraw(CanvasControl sender, CanvasDrawEventArgs args)
     {
+        if (_paused) return;
         var session = args.DrawingSession;
         if (_previous is { } previous) DrawSurface(session, previous, 1 - _fade);
         if (_current is { } current) DrawSurface(session, current, _fade);
@@ -132,7 +161,8 @@ public sealed class LyricsBackdrop : UserControl
         if (opacity <= 0 || _canvas.ActualWidth <= 0 || _canvas.ActualHeight <= 0) return;
         var size = surface.Bitmap.Size;
         var scale = Math.Max(_canvas.ActualWidth / size.Width, _canvas.ActualHeight / size.Height) * 1.1;
-        surface.Blur.BlurAmount = (float)(52 / scale);
+        var displayScale = Math.Max(ActualWidth, ActualHeight) / SurfaceSize;
+        surface.Blur.BlurAmount = (float)(52 / (scale * Math.Max(0.1, displayScale)));
         var previousTransform = session.Transform;
         session.Transform = Matrix3x2.CreateScale((float)scale)
             * Matrix3x2.CreateTranslation((float)((_canvas.ActualWidth - size.Width * scale) / 2),

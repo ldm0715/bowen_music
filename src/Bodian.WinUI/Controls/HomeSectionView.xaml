@@ -3,13 +3,14 @@
     x:Class="Bodian.WinUI.Controls.HomeSectionView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI"
     xmlns:models="using:Bodian.Core.Models.Home">
 
     <!--
         发现页的一组卡片：可选的小标题 + 一排横向卡片。
 
-        ★ 横向列表用 ListView + 横向 StackPanel 而不是 GridView：
+        ★ 横向列表使用可回收的 ItemsStackPanel，不使用普通 StackPanel：
           GridView 会按宽度自动换行排成网格，而这里要的是一行横着滚。
           卡片的宽度写死（120），所以一行能放几张由容器宽度决定。
     -->
@@ -34,7 +35,7 @@
             Visibility="{x:Bind local:Formats.Visible(HasPlainTitle)}"
             TextTrimming="CharacterEllipsis" />
 
-        <ListView
+        <controls:VirtualizedListView
             IsItemClickEnabled="True"
             ItemClick="OnItemClick"
             ItemsSource="{x:Bind Section.Cards}"
@@ -42,13 +43,13 @@
             ScrollViewer.HorizontalScrollBarVisibility="Auto"
             ScrollViewer.HorizontalScrollMode="Enabled"
             ScrollViewer.VerticalScrollMode="Disabled">
-            <ListView.ItemsPanel>
+            <controls:VirtualizedListView.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <ItemsStackPanel Orientation="Horizontal" />
+                    <ItemsStackPanel Orientation="Horizontal" CacheLength="0.5" />
                 </ItemsPanelTemplate>
-            </ListView.ItemsPanel>
+            </controls:VirtualizedListView.ItemsPanel>
 
-            <ListView.ItemTemplate>
+            <controls:VirtualizedListView.ItemTemplate>
                 <DataTemplate x:DataType="models:HomeCard">
                     <StackPanel Width="116" Spacing="6">
                         <Border
@@ -72,7 +73,7 @@
                             TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            </controls:VirtualizedListView.ItemTemplate>
+        </controls:VirtualizedListView>
     </StackPanel>
 </UserControl>

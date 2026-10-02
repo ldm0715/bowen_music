@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bodian.Core.Threading;
 using HanumanInstitute.LibMpv;
 using HanumanInstitute.LibMpv.Core;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,7 @@ public sealed class LibMpvPlaybackService : IPlaybackService
     private static readonly TimeSpan PositionReportInterval = TimeSpan.FromMilliseconds(200);
 
     private readonly ILogger<LibMpvPlaybackService> _logger;
+    private readonly LatestValueDispatcher<PlaybackPositionChangedEventArgs> _positionEvents;
 
     /// <summary>
     /// UI 线程的 dispatcher。<b>首次播放时才取</b>，不在构造函数里取 ——
@@ -61,6 +63,11 @@ public sealed class LibMpvPlaybackService : IPlaybackService
     public LibMpvPlaybackService(ILogger<LibMpvPlaybackService>? logger = null)
     {
         _logger = logger ?? NullLogger<LibMpvPlaybackService>.Instance;
+        _positionEvents = new(action =>
+        {
+            if (_dispatcher is null || _dispatcher.HasThreadAccess) { action(); return true; }
+            return _dispatcher.TryEnqueue(DispatcherQueuePriority.Low, () => action());
+        }, position => { if (!_disposed) PositionChanged?.Invoke(this, position); });
     }
 
     public bool IsAvailable => _mpv is not null;
@@ -317,7 +324,8 @@ public sealed class LibMpvPlaybackService : IPlaybackService
 
         var duration = _duration;
 
-        Raise(() => PositionChanged?.Invoke(this, new PlaybackPositionChangedEventArgs(position, duration)));
+        if (!_positionEvents.Post(new PlaybackPositionChangedEventArgs(position, duration)))
+            _logger.LogWarning("播放进度无法投递回 UI 线程，已丢弃");
     }
 
     // ── 初始化 ──────────────────────────────────────────────────────────────

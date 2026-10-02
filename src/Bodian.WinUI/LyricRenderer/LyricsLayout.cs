@@ -95,9 +95,10 @@ internal sealed class LyricsLineLayout : IDisposable
     public int[] CharSyllable { get; }
 
     /// <summary>达到长音阈值的音节，各带一份独立排版。多数行是空的。</summary>
-    public LyricsLongSyllable[] LongSyllables { get; }
+    public LyricsLongSyllable[] LongSyllables { get; set; }
 
-    public LyricsGlyph[] Glyphs { get; init; } = [];
+    public LyricsGlyph[] Glyphs { get; set; } = [];
+    public bool GlyphsPrepared { get; set; }
     public CanvasCommandList? PlainImage { get; set; }
     public CanvasCommandList? FocusedImage { get; set; }
     public GaussianBlurEffect? Blur { get; set; }
@@ -126,8 +127,8 @@ internal sealed class LyricsLineLayout : IDisposable
 /// 一整份歌词的排版结果。换歌、换视口宽度、换设备时<b>整体重建</b>，不做增量失效。
 /// </summary>
 /// <remarks>
-/// 缓存粒度按「一首歌」封顶，不跨曲目 —— 一首 63 行的歌词全建也只是一次换歌时几十毫秒的代价，
-/// 换来的是每帧零查找。逐行做 LRU 在这里是纯粹的多余复杂度。
+/// 先测量所有行的高度，逐字区域和长音小排版在播放到对应行时准备。
+/// 渲染器按文档、字号和宽度保留最多三份快照，用于普通窗口与全屏切换。
 /// </remarks>
 internal sealed class LyricsLayoutSnapshot : IDisposable
 {
@@ -241,22 +242,25 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         var layout = new CanvasTextLayout(resourceCreator, text, format, width, maxHeight);
         var span = text.Length;
 
-        var charBounds = new Rect[span];
-        for (var i = 0; i < span; i++)
-        {
-            charBounds[i] = UnionOf(layout.GetCharacterRegions(i, 1));
-        }
+        // 首轮只排整行和测量高度。离屏行不查询每个字的区域、不创建长音小排版。
+        return new LyricsLineLayout(layout, new Rect[span], BuildSyllableMap(line, span), []);
+    }
 
-        var charSyllable = BuildSyllableMap(line, span);
-        var longSyllables = BuildLongSyllables(resourceCreator, line, charSyllable, charBounds);
-
+    public void PrepareGlyphs(ICanvasResourceCreator resourceCreator, LyricLine line, LyricsLineLayout rendered)
+    {
+        if (rendered.GlyphsPrepared) return;
+        var charBounds = rendered.CharBounds;
+        var charSyllable = rendered.CharSyllable;
+        var text = string.IsNullOrEmpty(line.Text) ? " " : line.Text;
         var glyphs = new List<LyricsGlyph>();
         var enumerator = StringInfo.GetTextElementEnumerator(text);
         while (enumerator.MoveNext())
         {
             var index = enumerator.ElementIndex;
             var length = enumerator.GetTextElement().Length;
-            var bounds = UnionOf(layout.GetCharacterRegions(index, length));
+            // 以文本元素查一次区域，避免旧路径按 UTF-16 下标和字形重复查询两遍。
+            var bounds = UnionOf(rendered.Layout.GetCharacterRegions(index, length));
+            for (var c = index; c < index + length; c++) charBounds[c] = bounds;
             glyphs.Add(new LyricsGlyph(index, length, charSyllable[index], bounds));
         }
         foreach (var group in glyphs.GroupBy(g => g.Syllable))
@@ -270,9 +274,12 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
                 offset += glyph.Bounds.Width;
             }
         }
+        var longSyllables = BuildLongSyllables(resourceCreator, line, charSyllable, charBounds);
         foreach (var syllable in longSyllables)
             syllable.Glyph = glyphs.First(glyph => glyph.Start == syllable.CharStart);
-        return new LyricsLineLayout(layout, charBounds, charSyllable, longSyllables) { Glyphs = [.. glyphs] };
+        rendered.Glyphs = [.. glyphs];
+        rendered.LongSyllables = longSyllables;
+        rendered.GlyphsPrepared = true;
     }
 
     /// <summary>

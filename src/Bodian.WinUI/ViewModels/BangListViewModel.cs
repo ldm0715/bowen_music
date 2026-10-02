@@ -120,6 +120,8 @@ public sealed partial class BangListViewModel : ObservableObject
     }
 
     public ObservableCollection<BangSectionViewModel> Sections { get; } = [];
+    // 标题、榜头与预览曲目各是一个可回收的条目，离屏榜单不创建 XAML 子树。
+    public ObservableCollection<object> Rows { get; } = [];
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
@@ -144,10 +146,17 @@ public sealed partial class BangListViewModel : ObservableObject
             var sections = await _api.GetBangSectionsAsync(cancellationToken).ConfigureAwait(true);
 
             Sections.Clear();
-
+            Rows.Clear();
             foreach (var section in sections)
             {
-                Sections.Add(new BangSectionViewModel(section));
+                var group = new BangSectionViewModel(section);
+                Sections.Add(group);
+                Rows.Add(new ListSectionHeader { Title = group.Title });
+                foreach (var bang in group.Bangs)
+                {
+                    Rows.Add(bang);
+                    foreach (var track in bang.Tracks) Rows.Add(track);
+                }
             }
 
             var bangs = Sections.Sum(section => section.Bangs.Count);

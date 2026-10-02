@@ -53,4 +53,66 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsIconic(nint window);
+
+    internal delegate nint SubclassProc(nint window, uint message, nuint wParam, nint lParam,
+        nuint subclassId, nuint referenceData);
+
+    [DllImport("comctl32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetWindowSubclass(nint window, SubclassProc callback, nuint subclassId, nuint referenceData);
+
+    [DllImport("comctl32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool RemoveWindowSubclass(nint window, SubclassProc callback, nuint subclassId);
+
+    [DllImport("comctl32.dll", ExactSpelling = true)]
+    internal static extern nint DefSubclassProc(nint window, uint message, nuint wParam, nint lParam);
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WindowPosition
+    {
+        internal nint Window;
+        internal nint InsertAfter;
+        internal int X, Y, Width, Height;
+        internal uint Flags;
+    }
+
+    [DllImport("user32.dll", EntryPoint = "DefWindowProcW", ExactSpelling = true)]
+    internal static extern nint DefWindowProc(nint window, uint message, nuint wParam, nint lParam);
+
+    [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
+    internal static extern nint SendMessage(nint window, uint message, nuint wParam, nint lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NativeRect { internal int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WindowPlacement
+    {
+        internal uint Length, Flags, ShowCommand;
+        internal NativePoint MinimumPosition, MaximumPosition;
+        internal NativeRect NormalPosition;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetWindowPlacement(nint window, ref WindowPlacement placement);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetWindowPlacement(nint window, ref WindowPlacement placement);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", ExactSpelling = true, SetLastError = true)]
+    internal static extern nint GetWindowLongPtr(nint window, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", ExactSpelling = true, SetLastError = true)]
+    internal static extern nint SetWindowLongPtr(nint window, int index, nint value);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y, int width, int height, uint flags);
+
 }

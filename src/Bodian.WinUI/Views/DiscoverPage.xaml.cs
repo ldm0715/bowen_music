@@ -67,7 +67,7 @@ public sealed partial class DiscoverPage : Page, INavigationAware
 
     private void OnFeedListLoaded(object sender, RoutedEventArgs e)
     {
-        FeedList.Loaded -= OnFeedListLoaded;
+        DetachScroll();
 
         _scroll = FindScrollViewer(FeedList);
 

@@ -3,6 +3,7 @@
     x:Class="Bodian.WinUI.Controls.TrackListView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI"
     xmlns:vm="using:Bodian.WinUI.ViewModels">
 
@@ -24,20 +25,24 @@
           序号列就不会在悬停时切换成播放键。
     -->
     <!-- Padding 作用在原生 ItemsPresenter 上，给时间列与滚动条之间留出独立空间。 -->
-    <ListView
+    <controls:VirtualizedListView
         Padding="{StaticResource SpaceVerticalScrollContentPadding}"
         IsItemClickEnabled="True"
         ItemClick="OnItemClick"
         ItemsSource="{x:Bind Rows}"
-        SelectionMode="None">
+        SelectionMode="None"
+        ContainerContentChanging="OnContainerContentChanging">
+        <controls:VirtualizedListView.ItemsPanel>
+            <ItemsPanelTemplate><ItemsStackPanel CacheLength="0.5" /></ItemsPanelTemplate>
+        </controls:VirtualizedListView.ItemsPanel>
         <!-- 行内自己保留播放区；移除原生容器的额外左右内边距，沿用原生完整模板。 -->
-        <ListView.ItemContainerStyle>
+        <controls:VirtualizedListView.ItemContainerStyle>
             <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
                 <Setter Property="Padding" Value="0" />
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             </Style>
-        </ListView.ItemContainerStyle>
-        <ListView.ItemTemplate>
+        </controls:VirtualizedListView.ItemContainerStyle>
+        <controls:VirtualizedListView.ItemTemplate>
             <DataTemplate x:DataType="vm:TrackRow">
                 <Grid
                     MinHeight="{StaticResource SizeRowHeight}"
@@ -176,6 +181,6 @@
                         Text="{x:Bind DurationText}" />
                 </Grid>
             </DataTemplate>
-        </ListView.ItemTemplate>
-    </ListView>
+        </controls:VirtualizedListView.ItemTemplate>
+    </controls:VirtualizedListView>
 </UserControl>

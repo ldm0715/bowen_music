@@ -4,8 +4,20 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bodian.WinUI.Controls"
-    xmlns:home="using:Bodian.Core.Models.Home">
+    xmlns:home="using:Bodian.Core.Models.Home"
+    xmlns:vm="using:Bodian.WinUI.ViewModels">
 
+    <Page.Resources>
+        <DataTemplate x:Key="DiscoverHeaderTemplate" x:DataType="vm:ListSectionHeader">
+            <TextBlock Margin="4,12,0,8" Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Title}" />
+        </DataTemplate>
+        <DataTemplate x:Key="DiscoverSectionTemplate" x:DataType="home:HomeSection">
+            <controls:HomeSectionView Margin="0,0,0,12" CardInvoked="OnCardInvoked" Section="{x:Bind}"
+                SectionInvoked="OnSectionInvoked" />
+        </DataTemplate>
+        <controls:ResultTemplateSelector x:Key="DiscoverTemplateSelector"
+            HeaderTemplate="{StaticResource DiscoverHeaderTemplate}" HomeSectionTemplate="{StaticResource DiscoverSectionTemplate}" />
+    </Page.Resources>
     <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -22,51 +34,18 @@
                 TextTrimming="CharacterEllipsis" />
         </StackPanel>
 
-        <!--
-            一个模块 = 一段（标题 + 若干组）。用 ListView 而不是 ScrollViewer + StackPanel：
-            滚动到底要靠 ListView 内部那个 ScrollViewer 的 ViewChanged 来触发懒加载。
-
-            ★ ScrollViewer 的附加属性必须写在 ListView 上，内部那个才会带上纵向滚动。
-        -->
-        <ListView
-            x:Name="FeedList"
-            Grid.Row="1"
-            Padding="{StaticResource SpaceVerticalScrollContentPadding}"
-            ItemsSource="{x:Bind ViewModel.Feeds}"
-            SelectionMode="None"
-            ScrollViewer.VerticalScrollBarVisibility="Auto"
-            ScrollViewer.VerticalScrollMode="Enabled">
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <!-- 模块之间靠内容自己的间距分开，容器不要内边距与选中效果 -->
-                    <Setter Property="Padding" Value="0,0,0,16" />
+        <!-- 模块标题与每个横向卡片区都是可回收的独立条目；不会实现整组离屏卡片。 -->
+        <controls:VirtualizedListView x:Name="FeedList" Grid.Row="1"
+            Padding="{StaticResource SpaceVerticalScrollContentPadding}" ItemsSource="{x:Bind ViewModel.Rows}"
+            ItemTemplateSelector="{StaticResource DiscoverTemplateSelector}" SelectionMode="None"
+            ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollMode="Enabled">
+            <controls:VirtualizedListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="Padding" Value="0" />
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 </Style>
-            </ListView.ItemContainerStyle>
-
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="home:HomeFeed">
-                    <StackPanel Spacing="10">
-                        <TextBlock
-                            Margin="4,0,0,0"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="{x:Bind Title}" />
-
-                        <ItemsControl ItemsSource="{x:Bind Sections}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="home:HomeSection">
-                                    <controls:HomeSectionView
-                                        Margin="0,0,0,12"
-                                        CardInvoked="OnCardInvoked"
-                                        Section="{x:Bind}"
-                                        SectionInvoked="OnSectionInvoked" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            </controls:VirtualizedListView.ItemContainerStyle>
+        </controls:VirtualizedListView>
 
         <Grid Grid.Row="2" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
