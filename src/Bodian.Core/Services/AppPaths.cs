@@ -30,6 +30,9 @@ public static class AppPaths
     /// </remarks>
     public static string PlayHistoryFile => Path.Combine(LocalAppData, "history.json");
 
+    /// <summary>搜索关键词历史（明文 JSON）。</summary>
+    public static string SearchHistoryFile => Path.Combine(LocalAppData, "search-history.json");
+
     /// <summary>
     /// 界面设置（明文 JSON，目前只有外观一项）。
     /// </summary>

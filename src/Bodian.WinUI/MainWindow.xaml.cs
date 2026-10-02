@@ -9,6 +9,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 using Windows.UI;
@@ -101,6 +102,18 @@ public sealed partial class MainWindow : Window
         Theme = theme;
 
         InitializeComponent();
+        SearchBox.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnSearchPointerPressed), true);
+        ShellRoot.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnShellPointerPressed), true);
+        ShellRoot.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnShellKeyDown), true);
+        ShellRoot.GotFocus += OnShellGotFocus;
+        ShellRoot.SizeChanged += (_, _) =>
+        {
+            if (SearchPanel.Visibility == Visibility.Visible) PositionSearchPanel();
+        };
+        Activated += (_, args) =>
+        {
+            if (args.WindowActivationState == WindowActivationState.Deactivated) DismissSearchUi();
+        };
 
         // 先同步保存的档位，再订阅选择事件，避免初始化时把设置改成第一个选项。
         SyncThemeSelection();
@@ -342,23 +355,101 @@ public sealed partial class MainWindow : Window
         _ = LoadSidebarAsync();
     }
 
-    /// <summary>
-    /// 顶部搜索框提交。
-    /// </summary>
-    /// <remarks>
-    /// <b>关键词以 <c>args.QueryText</c> 为准再赋一次</b>：<c>AutoSuggestBox.Text</c> 的
-    /// 双向绑定不保证每次按键都回写（<c>TextBox</c> 系列默认就不是 <c>PropertyChanged</c>），
-    /// 而按下回车就直接走这里。重复赋值是幂等的，代价可以忽略。
-    /// </remarks>
-    private void OnSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    private void OnSearchGotFocus(object sender, RoutedEventArgs args) => ShowSearchPanel();
+
+    private void OnSearchPointerPressed(object sender, PointerRoutedEventArgs args) => ShowSearchPanel();
+
+    private void ShowSearchPanel()
     {
-        Search.Keyword = args.QueryText;
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text) || SearchBarHost.Visibility != Visibility.Visible) return;
+        Search.ClearSuggestions();
+        SearchBox.IsSuggestionListOpen = false;
+        PositionSearchPanel();
+        // 不调用 Focus、不创建 light-dismiss 遮罩；输入继续留在搜索框。
+        SearchPanel.Visibility = Visibility.Visible;
+        _ = Search.EnsureHotWordsAsync();
+    }
 
-        if (!Search.SearchCommand.CanExecute(null))
+    private void PositionSearchPanel()
+    {
+        var anchor = SearchBox.TransformToVisual(ShellRoot).TransformPoint(new Windows.Foundation.Point(0, SearchBox.ActualHeight));
+        SearchPanel.Width = SearchBox.ActualWidth;
+        SearchPanel.MaxHeight = Math.Max(100, ShellRoot.ActualHeight - anchor.Y - 12);
+        SearchPanel.Margin = new Thickness(anchor.X, anchor.Y + 6, 0, 0);
+    }
+
+    private static bool IsWithin(DependencyObject? element, DependencyObject ancestor)
+    {
+        while (element is not null)
         {
-            return;
+            if (ReferenceEquals(element, ancestor)) return true;
+            element = VisualTreeHelper.GetParent(element);
         }
+        return false;
+    }
 
+    private void OnShellPointerPressed(object sender, PointerRoutedEventArgs args)
+    {
+        var source = args.OriginalSource as DependencyObject;
+        if (IsWithin(source, SearchBox) || IsWithin(source, SearchPanel)) return;
+        // 只关闭，不吞掉点击；侧栏、主题等控件仍响应这一次点击。
+        DismissSearchUi();
+    }
+
+    private void OnShellGotFocus(object sender, RoutedEventArgs args)
+    {
+        var focused = FocusManager.GetFocusedElement(ShellRoot.XamlRoot) as DependencyObject;
+        if (!IsWithin(focused, SearchBox) && !IsWithin(focused, SearchPanel)) DismissSearchUi();
+    }
+
+    private void OnShellKeyDown(object sender, KeyRoutedEventArgs args)
+    {
+        if (args.Key != Windows.System.VirtualKey.Escape) return;
+        if (SearchPanel.Visibility != Visibility.Visible && !SearchBox.IsSuggestionListOpen) return;
+        DismissSearchUi();
+        SearchBox.Focus(FocusState.Programmatic);
+        args.Handled = true;
+    }
+
+    private void DismissSearchUi()
+    {
+        SearchPanel.Visibility = Visibility.Collapsed;
+        Search.ClearSuggestions();
+        SearchBox.IsSuggestionListOpen = false;
+    }
+
+    private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+        Search.Keyword = sender.Text;
+        if (string.IsNullOrWhiteSpace(sender.Text)) ShowSearchPanel();
+        else
+        {
+            SearchPanel.Visibility = Visibility.Collapsed;
+            _ = Search.UpdateSuggestionsAsync(sender.Text);
+        }
+    }
+
+    private void OnSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args) =>
+        SubmitSearch(args.ChosenSuggestion as string ?? args.QueryText);
+
+    private void OnSearchHotWordsRetry(object sender, RoutedEventArgs args) => _ = Search.EnsureHotWordsAsync();
+
+    private void OnSearchHotWordClick(object sender, ItemClickEventArgs args)
+    {
+        if (args.ClickedItem is SearchHotWord word) SubmitSearch(word.Keyword);
+    }
+
+    private void OnSearchHistoryClick(object sender, ItemClickEventArgs args)
+    {
+        if (args.ClickedItem is string keyword) SubmitSearch(keyword);
+    }
+
+    private void SubmitSearch(string keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword)) return;
+        DismissSearchUi();
+        Search.Keyword = keyword.Trim();
         Search.SearchCommand.Execute(null);
         _navigation.NavigateRoot<SearchPage>();
     }
@@ -373,6 +464,8 @@ public sealed partial class MainWindow : Window
     private void ShowLogin()
     {
         Nav.IsPaneVisible = false;
+        SearchPanel.Visibility = Visibility.Collapsed;
+        Search.ClearSuggestions();
         SearchBarHost.Visibility = Visibility.Collapsed;
         AccountButton.Visibility = Visibility.Collapsed;
         _navigation.Reset<LoginPage>();

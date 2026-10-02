@@ -111,6 +111,15 @@ public sealed class LyricRepositoryTests
     /// <summary>只数调用次数的最小门面；其余成员不该被用到。</summary>
     private sealed class CountingApi : IBodianApi
     {
+        public Task<IReadOnlyList<SearchResultSection>> SearchComprehensiveAsync(string keyword, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Album>> SearchAlbumsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Playlist>> SearchPlaylistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Artist>> SearchArtistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<string>> GetSearchSuggestionsAsync(string keyword, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SearchHotWord>> GetSearchHotWordsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Track>> GetArtistTracksAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Album>> GetArtistAlbumsAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public int Calls { get; private set; }
 
         public Func<Track, LyricDocument> Responder { get; init; } = _ => LyricDocument.Empty;

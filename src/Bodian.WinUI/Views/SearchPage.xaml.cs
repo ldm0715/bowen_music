@@ -1,28 +1,49 @@
 using Bodian.Core.Models;
+using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml;
 
 namespace Bodian.WinUI.Views;
 
-/// <summary>
-/// 搜索页。侧栏不列它，入口是内容区顶部的常驻搜索框。
-/// </summary>
-/// <remarks>
-/// 页面本身不持有搜索状态 —— 关键词与结果都在单例的 <see cref="SearchViewModel"/> 上，
-/// 所以这一页重建（例如从歌词页返回）不会丢结果。
-/// </remarks>
-public sealed partial class SearchPage : Page
+public sealed partial class SearchPage : Page, INavigationAware
 {
-    public SearchPage(SearchViewModel viewModel)
+    private readonly INavigationService _navigation;
+    private readonly Func<Playlist, int, PlaylistDetailPage> _playlistFactory;
+    private readonly Func<Album, AlbumDetailPage> _albumFactory;
+    private readonly Func<Artist, ArtistDetailPage> _artistFactory;
+
+    public SearchPage(SearchViewModel viewModel, INavigationService navigation,
+        Func<Playlist, int, PlaylistDetailPage> playlistFactory, Func<Album, AlbumDetailPage> albumFactory,
+        Func<Artist, ArtistDetailPage> artistFactory)
     {
-        ArgumentNullException.ThrowIfNull(viewModel);
-
         ViewModel = viewModel;
-
+        _navigation = navigation;
+        _playlistFactory = playlistFactory;
+        _albumFactory = albumFactory;
+        _artistFactory = artistFactory;
         InitializeComponent();
     }
 
     public SearchViewModel ViewModel { get; }
+    public void OnNavigatedTo() { }
+    public void OnNavigatedFrom() => ViewModel.ClearSuggestions();
+    private void OnOverviewMoreClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: SearchResultCategory category }) ViewModel.OpenCategoryCommand.Execute(category);
+    }
 
     private void OnTrackInvoked(object? sender, Track track) => ViewModel.PlayCommand.Execute(track);
+    private void OnPlaylistClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is Playlist playlist) _navigation.Navigate(_playlistFactory(playlist, playlist.SourceType));
+    }
+    private void OnAlbumClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is Album album) _navigation.Navigate(_albumFactory(album));
+    }
+    private void OnArtistClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is Artist artist) _navigation.Navigate(_artistFactory(artist));
+    }
 }

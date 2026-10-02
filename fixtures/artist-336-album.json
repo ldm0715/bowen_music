@@ -1,0 +1,144 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "4becb36c37273f76d4df73f6b672e59a",
+  "data": {
+    "total": 51,
+    "rn": 5,
+    "resultList": [
+      {
+        "id": 87758985,
+        "albumId": 87758985,
+        "name": "太阳之子",
+        "pic": "http://img4.kuwo.cn/star/albumcover/500/s4s86/95/3059703046.jpg",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "artists": [
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          }
+        ],
+        "showtime": "2026-03-25",
+        "info": "",
+        "sourceType": 6,
+        "musicCount": 13,
+        "lastPlayTime": "",
+        "isshow": 0
+      },
+      {
+        "id": 80569629,
+        "albumId": 80569629,
+        "name": "恒星不忘 Forever Forever",
+        "pic": "http://img4.kuwo.cn/star/albumcover/500/s4s54/82/1778775391.jpg",
+        "artist": "周杰伦&言承旭&吴建豪&周渝民&五月天 阿信",
+        "artistId": 336,
+        "artists": [
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          },
+          {
+            "id": 856,
+            "name": "言承旭",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          },
+          {
+            "id": 402,
+            "name": "吴建豪",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          },
+          {
+            "id": 537,
+            "name": "周渝民",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          },
+          {
+            "id": 3113,
+            "name": "五月天 阿信",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          }
+        ],
+        "showtime": "2025-12-05",
+        "info": "",
+        "sourceType": 6,
+        "musicCount": 1,
+        "lastPlayTime": "",
+        "isshow": 0
+      },
+      {
+        "id": 69918657,
+        "albumId": 69918657,
+        "name": "即兴曲",
+        "pic": "http://img4.kuwo.cn/star/albumcover/500/s4s47/67/2873018311.jpg",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "artists": [
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          }
+        ],
+        "showtime": "2025-06-06",
+        "info": "",
+        "sourceType": 6,
+        "musicCount": 1,
+        "lastPlayTime": "",
+        "isshow": 0
+      },
+      {
+        "id": 63184186,
+        "albumId": 63184186,
+        "name": "Six Degrees",
+        "pic": "http://img4.kuwo.cn/star/albumcover/500/s4s43/80/4250381683.jpg",
+        "artist": "派伟俊&周杰伦",
+        "artistId": 263956,
+        "artists": [
+          {
+            "id": 263956,
+            "name": "派伟俊",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          },
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          }
+        ],
+        "showtime": "2025-01-10",
+        "info": "",
+        "sourceType": 6,
+        "musicCount": 1,
+        "lastPlayTime": "",
+        "isshow": 0
+      },
+      {
+        "id": 54928042,
+        "albumId": 54928042,
+        "name": "稻香 (Remix摇滚版)",
+        "pic": "http://img4.kuwo.cn/star/albumcover/500/s3s27/13/1815792074.jpg",
+        "artist": "周杰伦",
+        "artistId": 336,
+        "artists": [
+          {
+            "id": 336,
+            "name": "周杰伦",
+            "pic": "https://bodianimgcdn.kuwo.cn/pic/default_artist_pic.png"
+          }
+        ],
+        "showtime": "2024-07-03",
+        "info": "",
+        "sourceType": 6,
+        "musicCount": 1,
+        "lastPlayTime": "",
+        "isshow": 0
+      }
+    ],
+    "pn": 0
+  },
+  "profileId": "site",
+  "curTime": 1790906405395
+}

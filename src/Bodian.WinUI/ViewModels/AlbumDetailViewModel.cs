@@ -49,7 +49,8 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
             (cursor, token) => api.GetAlbumTracksAsync(album.Id, cursor, token),
             _logger,
             $"专辑「{album.Name}」",
-            "这张专辑暂时取不到曲目。");
+            "这张专辑暂时取不到曲目。",
+            Bodian.Core.Api.Paging.PagingConvention.ZeroBased);
     }
 
     /// <summary>列表页带过来的专辑（名字与封面已经是对的）。</summary>

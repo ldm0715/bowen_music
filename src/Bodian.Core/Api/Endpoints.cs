@@ -19,6 +19,14 @@ internal static class Endpoints
     public const string MusicInfo = "service/music/info";
 
     public const string SearchMusicList = "search/music/list";
+    public const string SearchComprehensive = "search/comprehensive/v2/list";
+    public const string SearchAlbumList = "search/album/list";
+    public const string SearchPlaylistList = "search/playlist/list";
+    public const string SearchArtistList = "search/artist/list";
+    public const string SearchTips = "search/tip/v2/list";
+    public const string SearchTopics = "search/topic/word/list";
+    public static string ArtistTracks(long id) => $"service/artist/music/{id}";
+    public static string ArtistAlbums(long id) => $"service/artist/album/{id}";
 
     /// <summary><b>GET 且必须带 JSON body，签名覆盖该 body。</b></summary>
     public const string CheckRight = "play/music/v2/checkRight";

@@ -2,8 +2,10 @@
 
 非官方第三方桌面客户端，目标平台 Windows 10 / 11。
 
-> **当前状态（2026-10-02）：P0–P5、P7 代码完成，564 个核心测试通过。**
-> 已支持登录、搜索、播放、SMTC、曲库与歌单；歌词界面已替换为参考 LyciaMusic 的全窗口沉浸设计，
+> **当前状态（2026-10-02）：P0–P5、P7 代码完成，590 个核心测试通过。**
+> 已支持登录、综合与分类搜索、热榜与本地搜索历史、播放、SMTC、曲库与歌单；
+> 搜索默认分段显示综合结果，“更多”进入分类 tab，入口面板与主题浮窗使用相同的半透明背景。
+> 搜索说明见 [`docs/search.md`](docs/search.md)。歌词界面已替换为参考 LyciaMusic 的全窗口沉浸设计，
 > 包含透明封面背景、逐字渐变、弹簧滚动、长音效果、滚动浏览和点击歌词跳转，
 > 并加入通栏进度条、真实音频频谱、水面封面倒影，以及普通窗口和全屏统一的操作栏自动收起。
 > 当前歌词效果已确认，进一步性能优化留到后续，说明见 [`docs/fullscreen-lyrics.md`](docs/fullscreen-lyrics.md)。
@@ -48,6 +50,7 @@
 | [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
+| [`search.md`](docs/search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
 | [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |

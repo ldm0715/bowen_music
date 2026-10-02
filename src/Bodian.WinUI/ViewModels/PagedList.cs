@@ -29,6 +29,7 @@ public sealed class PagedList<T> : ObservableObject
     private readonly Func<PagedCursor, CancellationToken, Task<PagedResult<T>>> _fetch;
     private readonly ILogger _logger;
     private readonly string _what;
+    private readonly PagingConvention _convention;
 
     private PagedCursor? _cursor;
     private bool _started;
@@ -43,7 +44,8 @@ public sealed class PagedList<T> : ObservableObject
         Func<PagedCursor, CancellationToken, Task<PagedResult<T>>> fetch,
         ILogger logger,
         string what,
-        string emptyText)
+        string emptyText,
+        PagingConvention? pagingConvention = null)
     {
         ArgumentNullException.ThrowIfNull(fetch);
         ArgumentNullException.ThrowIfNull(logger);
@@ -51,6 +53,7 @@ public sealed class PagedList<T> : ObservableObject
         _fetch = fetch;
         _logger = logger;
         _what = what;
+        _convention = pagingConvention ?? PagingConvention.OneBased;
         EmptyText = emptyText;
 
         // 手写命令而不是 [RelayCommand]：源生成器在泛型类上要额外折腾，这里两个命令不值得。
@@ -103,7 +106,7 @@ public sealed class PagedList<T> : ObservableObject
         IsBusy = true;
         HasMore = false;
         Items.Clear();
-        _cursor = new PagedCursor(PagingConvention.OneBased);
+        _cursor = new PagedCursor(_convention);
 
         try
         {

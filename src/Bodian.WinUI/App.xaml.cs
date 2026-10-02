@@ -120,7 +120,12 @@ public partial class App : Application
         builder.Services.AddSingleton<LyricsViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
+        builder.Services.AddSingleton<ISearchHistoryStore, JsonSearchHistoryStore>();
         builder.Services.AddSingleton<SearchViewModel>();
+        builder.Services.AddTransient<Func<Artist, ArtistDetailPage>>(sp => artist =>
+            new ArtistDetailPage(new ArtistDetailViewModel(
+                sp.GetRequiredService<IBodianApi>(), sp.GetRequiredService<PlaybackCoordinator>(), artist),
+                sp.GetRequiredService<INavigationService>(), sp.GetRequiredService<Func<Album, AlbumDetailPage>>()));
         builder.Services.AddSingleton<ThemeViewModel>();
         builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddTransient<LoginPage>();

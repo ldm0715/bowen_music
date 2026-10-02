@@ -62,7 +62,7 @@ public sealed class BodianApi : IBodianApi
                     {
                         Path = Endpoints.SearchMusicList,
                         Query = query,
-                        Signed = true,
+                        Signed = false,
                     },
                     BodianJsonContext.Default.SearchListPayload,
                     token).ConfigureAwait(false);
@@ -79,6 +79,110 @@ public sealed class BodianApi : IBodianApi
                 return new PagedResult<Track>(items, cursor.Offset, cursor.PageSize, payload?.Total);
             },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<SearchResultSection>> SearchComprehensiveAsync(string keyword, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyword);
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = Endpoints.SearchComprehensive,
+            Query = [new("keyword", keyword)],
+            Signed = false,
+        }, BodianJsonContext.Default.ComprehensiveSearchPayload, cancellationToken).ConfigureAwait(false);
+        var sections = new List<SearchResultSection>();
+        foreach (var section in envelope.Data?.Content ?? [])
+        {
+            if (section.Tracks is { Length: > 0 } tracks)
+                sections.Add(new() { Category = SearchResultCategory.Tracks, Tracks = tracks.Select(MapTrack).ToArray() });
+            if (section.Playlists is { Length: > 0 } playlists)
+                sections.Add(new() { Category = SearchResultCategory.Playlists, Playlists = playlists.Select(MapSearchPlaylist).ToArray() });
+            if (section.Albums is { Length: > 0 } albums)
+                sections.Add(new() { Category = SearchResultCategory.Albums, Albums = albums.Select(MapAlbum).ToArray() });
+            if (section.Artists is { Length: > 0 } artists)
+                sections.Add(new() { Category = SearchResultCategory.Artists, Artists = artists.Select(MapSearchArtist).ToArray() });
+        }
+        return sections;
+    }
+
+    private static Playlist MapSearchPlaylist(SearchPlaylistDto dto) => new()
+    {
+        Id = dto.Id, Name = dto.Name ?? "(未命名歌单)", CoverImage = ToHttpUri(dto.Pic),
+        MusicCount = dto.MusicCount, SourceType = dto.Source,
+    };
+
+    private static Artist MapSearchArtist(SearchArtistDto dto) => new()
+    {
+        Id = dto.Id, Name = dto.Name ?? "(未命名歌手)", CoverImage = ToHttpUri(dto.Pic),
+        SongCount = dto.SongCount, AlbumCount = dto.AlbumCount,
+    };
+
+    public Task<PagedResult<Album>> SearchAlbumsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) =>
+        SearchPageAsync(keyword, Endpoints.SearchAlbumList, cursor, BodianJsonContext.Default.SearchAlbumsPayload, MapAlbum, cancellationToken);
+
+    public Task<PagedResult<Playlist>> SearchPlaylistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) =>
+        SearchPageAsync(keyword, Endpoints.SearchPlaylistList, cursor, BodianJsonContext.Default.SearchPlaylistsPayload,
+            MapSearchPlaylist, cancellationToken);
+
+    public Task<PagedResult<Artist>> SearchArtistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) =>
+        SearchPageAsync(keyword, Endpoints.SearchArtistList, cursor, BodianJsonContext.Default.SearchArtistsPayload,
+            MapSearchArtist, cancellationToken);
+
+    public async Task<IReadOnlyList<string>> GetSearchSuggestionsAsync(string keyword, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyword);
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = Endpoints.SearchTips, Query = [new("keyword", keyword)], Signed = false,
+        }, BodianJsonContext.Default.SearchTipsPayload, cancellationToken).ConfigureAwait(false);
+        return envelope.Data?.ResultList?.Select(dto => dto.Word).OfType<string>()
+            .Where(word => !string.IsNullOrWhiteSpace(word)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? [];
+    }
+
+    public async Task<IReadOnlyList<SearchHotWord>> GetSearchHotWordsAsync(CancellationToken cancellationToken = default)
+    {
+        var envelope = await _transport.SendAsync(new BodianRequest { Path = Endpoints.SearchTopics, Signed = false },
+            BodianJsonContext.Default.SearchTopicsPayload, cancellationToken).ConfigureAwait(false);
+        return envelope.Data?.HotWords?.Where(dto => !string.IsNullOrWhiteSpace(dto.Keyword))
+            .OrderBy(dto => dto.Rank).Select(dto => new SearchHotWord(dto.Keyword!, dto.Rank)).ToArray() ?? [];
+    }
+
+    public Task<PagedResult<Track>> GetArtistTracksAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(artistId);
+        return FetchSearchPageAsync(Endpoints.ArtistTracks(artistId), [], cursor,
+            BodianJsonContext.Default.SearchListPayload, payload => payload.ResultList?.Select(MapTrack).ToArray() ?? [], payload => payload.Total, cancellationToken);
+    }
+
+    public Task<PagedResult<Album>> GetArtistAlbumsAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(artistId);
+        return FetchSearchPageAsync(Endpoints.ArtistAlbums(artistId), [], cursor,
+            BodianJsonContext.Default.SearchAlbumsPayload, payload => payload.ResultList?.Select(MapAlbum).ToArray() ?? [], payload => payload.Total, cancellationToken);
+    }
+
+    private Task<PagedResult<TModel>> SearchPageAsync<TDto, TModel>(string keyword, string path, PagedCursor cursor,
+        JsonTypeInfo<SearchPayload<TDto>> typeInfo, Func<TDto, TModel> map, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyword);
+        return FetchSearchPageAsync(path, [new("keyword", keyword)], cursor, typeInfo,
+            payload => payload.ResultList?.Select(map).ToArray() ?? [], payload => payload.Total, cancellationToken);
+    }
+
+    private Task<PagedResult<TModel>> FetchSearchPageAsync<TPayload, TModel>(string path,
+        IReadOnlyList<KeyValuePair<string, string>> query, PagedCursor cursor, JsonTypeInfo<TPayload> typeInfo,
+        Func<TPayload, TModel[]> items, Func<TPayload, int?> total, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+        return PagedList.FetchNextAsync(cursor, async (paging, token) =>
+        {
+            var envelope = await _transport.SendAsync(new BodianRequest
+            {
+                Path = path, Query = [.. paging, .. query], Signed = false,
+            }, typeInfo, token).ConfigureAwait(false);
+            return new PagedResult<TModel>(envelope.Data is { } data ? items(data) : [], cursor.Offset, cursor.PageSize,
+                envelope.Data is { } payload ? total(payload) : null);
+        }, cancellationToken);
     }
 
     public async Task<Track?> GetTrackAsync(long musicId, CancellationToken cancellationToken = default)

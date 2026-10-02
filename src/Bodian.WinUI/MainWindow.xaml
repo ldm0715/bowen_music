@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:models="using:Bodian.Core.Models"
     Title="波点音乐">
 
     <!--
@@ -89,11 +90,15 @@
                         x:Name="SearchBox"
                         MinWidth="0"
                         VerticalAlignment="Center"
-                        PlaceholderText="搜索歌曲、歌手"
+                        PlaceholderText="搜索单曲、歌单、专辑、歌手"
                         QueryIcon="Find"
                         QuerySubmitted="OnSearchQuerySubmitted"
+                        TextChanged="OnSearchTextChanged"
+                        GotFocus="OnSearchGotFocus"
+                        ItemsSource="{x:Bind Search.Suggestions, Mode=OneWay}"
                         Text="{x:Bind Search.Keyword, Mode=TwoWay}"
-                        AutomationProperties.Name="搜索歌曲、歌手" />
+                        AutomationProperties.Name="搜索单曲、歌单、专辑、歌手" />
+
                 </Grid>
             </TitleBar.Content>
             <TitleBar.RightHeader>
@@ -354,5 +359,64 @@
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch"
             Visibility="Collapsed" />
+        <!-- 非模态浮层：搜索框保留键盘焦点，外部指针事件继续交给原控件。 -->
+        <Border
+            x:Name="SearchPanel"
+            Grid.RowSpan="3"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Visibility="Collapsed"
+            Padding="6"
+            Background="{ThemeResource ThemeFlyoutBackground}"
+            BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMd}"
+            RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+            <ScrollViewer Margin="10" MaxHeight="500" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12">
+                    <HyperlinkButton
+                        Content="{x:Bind Search.HotWordsStatus, Mode=OneWay}"
+                        Click="OnSearchHotWordsRetry"
+                        HorizontalAlignment="Left"
+                        FontWeight="SemiBold"
+                        Padding="0" />
+                    <ListView
+                        MaxHeight="240"
+                        ItemsSource="{x:Bind Search.HotWords}"
+                        IsItemClickEnabled="True"
+                        ItemClick="OnSearchHotWordClick"
+                        SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:SearchHotWord">
+                                <Grid Padding="4,6" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind Rank}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind Keyword}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="搜索历史" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="清空" Command="{x:Bind Search.ClearSearchHistoryCommand}" />
+                    </Grid>
+                    <TextBlock Text="暂无搜索历史" Visibility="{x:Bind Search.HistoryIsEmpty, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <ListView
+                        MaxHeight="160"
+                        ItemsSource="{x:Bind Search.SearchHistory}"
+                        IsItemClickEnabled="True"
+                        ItemClick="OnSearchHistoryClick"
+                        SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{x:Bind}" Padding="4,6" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
     </Grid>
 </Window>

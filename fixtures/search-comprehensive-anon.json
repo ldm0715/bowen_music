@@ -1,0 +1,5827 @@
+{
+  "code": 200,
+  "data": {
+    "content": [
+      {
+        "musicpage": [
+          {
+            "FSONGNAME": "",
+            "album": "叶惠美",
+            "albumId": 1293,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s3s94/93/211513640.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s3s94/93/211513640.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "22.11Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "178.32Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "76.71Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "29.72Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "34.94Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "52.83Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.59Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "9.85Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.79Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.29Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.12Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.57Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 269,
+            "id": 228908,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.60297,
+              "lra": 3.71173,
+              "peak": 0.946442
+            },
+            "musicRid": "MUSIC_228908",
+            "mvduration": 317,
+            "name": "晴天",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 142843,
+              "refrain_start": 84346
+            },
+            "preOnline": false,
+            "releaseDate": "2003-07-31",
+            "searchTag": {
+              "bottom": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {
+                  "name": "热歌榜",
+                  "source": "16",
+                  "sourceType": 3
+                },
+                "name": "热歌榜第4名",
+                "type": 0
+              },
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "晴天",
+            "subtitle": "《左手上篮》动画片尾曲",
+            "vid": 8132306,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "我很忙",
+            "albumId": 12449,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/7/83/4087363627.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/7/83/4087363627.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.43Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "19.17Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "149.21Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "63.29Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "24.79Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "30.69Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "24.96Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.16Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.58Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.13Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.65Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.38Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 239,
+            "id": 324244,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.07008,
+              "lra": 5.40667,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_324244",
+            "mvduration": 243,
+            "name": "青花瓷",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 91395,
+              "refrain_start": 56949
+            },
+            "preOnline": false,
+            "releaseDate": "2007-11-02",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "青花瓷",
+            "subtitle": "",
+            "vid": 8116560,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4L|MV500|MV700|EXMP4|EXMP4L|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "十一月的萧邦",
+            "albumId": 14466,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s11/89/774616642.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s11/89/774616642.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.09Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "19.4Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "148.41Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "63.43Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "24.89Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "29.64Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "25.45Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.34Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.7Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "8.66Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.46Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.32Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 226,
+            "id": 118980,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -9.99575,
+              "lra": 2.96845,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_118980",
+            "mvduration": 231,
+            "name": "夜曲",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 112473,
+              "refrain_start": 68816
+            },
+            "preOnline": false,
+            "releaseDate": "2005-11-01",
+            "searchTag": {
+              "bottom": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {
+                  "name": "飙升榜",
+                  "source": "93",
+                  "sourceType": 3
+                },
+                "name": "飙升榜第88名",
+                "type": 0
+              },
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "夜曲",
+            "subtitle": "",
+            "vid": 8164146,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "魔杰座",
+            "albumId": 29218,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s0/93/1794217775.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s0/93/1794217775.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.0Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "18.61Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "146.33Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "63.06Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "24.53Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "29.64Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "24.81Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "4.9Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.41Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "8.53Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.41Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.31Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 223,
+            "id": 440613,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.62015,
+              "lra": 6.74309,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_440613",
+            "mvduration": 224,
+            "name": "稻香",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 77968,
+              "refrain_start": 53951
+            },
+            "preOnline": false,
+            "releaseDate": "2008-10-15",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "稻香",
+            "subtitle": "",
+            "vid": 8162870,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "十二新作",
+            "albumId": 264333,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s17/73/2187216026.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s17/73/2187216026.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.36Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "20.61Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "164.38Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "68.61Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "26.34Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "33.46Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "27.2Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "9.93Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.88Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.46Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.18Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.58Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 274,
+            "id": 3195905,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.4391,
+              "lra": 7.67552,
+              "peak": 0.999969
+            },
+            "musicRid": "MUSIC_3195905",
+            "mvduration": 275,
+            "name": "红尘客栈",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 107208,
+              "refrain_start": 66841
+            },
+            "preOnline": false,
+            "releaseDate": "2012-12-28",
+            "searchTag": {
+              "bottom": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {
+                  "name": "热歌榜",
+                  "source": "16",
+                  "sourceType": 3
+                },
+                "name": "热歌榜第6名",
+                "type": 0
+              },
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "红尘客栈",
+            "subtitle": "《财神客栈》电影主题曲",
+            "vid": 8115464,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "七里香",
+            "albumId": 4533,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s81/2/3200337129.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s81/2/3200337129.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "8.04Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "23.58Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "199.79Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "84.46Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "33.29Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "39.07Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "34.19Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "11.44Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.26Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "11.42Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.57Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.72Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 299,
+            "id": 94237,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -9.27673,
+              "lra": 7.30151,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_94237",
+            "mvduration": 302,
+            "name": "七里香",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 135203,
+              "refrain_start": 80683
+            },
+            "preOnline": false,
+            "releaseDate": "2004-08-03",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "七里香",
+            "subtitle": "",
+            "vid": 7884575,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "周杰伦的床边故事",
+            "albumId": 555949,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/64/39/3540704654.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/64/39/3540704654.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "5.79Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "17.93Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "139.03Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "59.34Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "23.4Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "26.89Mb"
+              },
+              {
+                "bitrate": "4000",
+                "format": "flac",
+                "level": "hr",
+                "size": "74.41Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "44.91Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "4.8Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "8.58Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.39Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "8.23Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.29Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.26Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 215,
+            "id": 7149583,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.98956,
+              "lra": 5.0262,
+              "peak": 0.997162
+            },
+            "musicRid": "MUSIC_7149583",
+            "mvduration": 215,
+            "name": "告白气球",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 85652,
+              "refrain_start": 64732
+            },
+            "preOnline": false,
+            "releaseDate": "2016-06-24",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "告白气球",
+            "subtitle": "",
+            "vid": 7747626,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "魔杰座",
+            "albumId": 29218,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s0/93/1794217775.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s0/93/1794217775.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.82Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "20.67Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "161.72Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "69.72Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "26.76Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "31.59Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "27.0Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.29Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.71Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.69Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.88Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.46Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 253,
+            "id": 440616,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.83418,
+              "lra": 5.23938,
+              "peak": 0.999969
+            },
+            "musicRid": "MUSIC_440616",
+            "mvduration": 266,
+            "name": "兰亭序",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 102199,
+              "refrain_start": 76592
+            },
+            "preOnline": false,
+            "releaseDate": "2008-10-15",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "兰亭序",
+            "subtitle": "",
+            "vid": 8162098,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "七里香",
+            "albumId": 4533,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s81/2/3200337129.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s81/2/3200337129.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.45Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "18.05Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "151.66Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "63.57Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "24.64Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "29.43Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "24.96Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "4.98Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "8.52Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.46Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.16Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.67Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.38Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 240,
+            "id": 94239,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -9.33768,
+              "lra": 8.79995,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_94239",
+            "mvduration": 265,
+            "name": "搁浅",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 94382,
+              "refrain_start": 60964
+            },
+            "preOnline": false,
+            "releaseDate": "2004-08-03",
+            "searchTag": {
+              "bottom": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {
+                  "name": "热歌榜",
+                  "source": "16",
+                  "sourceType": 3
+                },
+                "name": "热歌榜第21名",
+                "type": 0
+              },
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "搁浅",
+            "subtitle": "",
+            "vid": 8110555,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "魔杰座",
+            "albumId": 29218,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s0/93/1794217775.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s0/93/1794217775.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.11Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "22.0Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "170.01Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "72.49Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "28.33Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "33.92Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "28.3Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.5Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.76Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.1Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.04Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.53Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 264,
+            "id": 440615,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.31451,
+              "lra": 7.0817,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_440615",
+            "mvduration": 264,
+            "name": "花海",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 130535,
+              "refrain_start": 77137
+            },
+            "preOnline": false,
+            "releaseDate": "2008-10-15",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "花海",
+            "subtitle": "",
+            "vid": 8160114,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "十一月的萧邦",
+            "albumId": 14466,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s11/89/774616642.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s11/89/774616642.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.41Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "20.9Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "173.27Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "73.56Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "28.47Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "33.88Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "29.18Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.95Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.94Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.52Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.21Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.6Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 275,
+            "id": 118987,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -10.0949,
+              "lra": 10.1809,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_118987",
+            "mvduration": 283,
+            "name": "枫",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 135084,
+              "refrain_start": 75034
+            },
+            "preOnline": false,
+            "releaseDate": "2005-11-01",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "枫",
+            "subtitle": "",
+            "vid": 8071747,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "J III MP3 Player",
+            "albumId": 539848,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s67/21/834133816.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s67/21/834133816.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.91Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "22.73Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "197.79Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "84.69Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "33.1Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "37.13Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "58.79Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "6.43Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "11.02Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.2Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "11.23Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.49Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.71Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 294,
+            "id": 6871880,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -9.95785,
+              "lra": 2.91631,
+              "peak": 0.955139
+            },
+            "musicRid": "MUSIC_6871880",
+            "mvduration": 307,
+            "name": "一路向北",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 118669,
+              "refrain_start": 89974
+            },
+            "preOnline": false,
+            "releaseDate": "2005-06-24",
+            "searchTag": {
+              "bottom": {
+                "backColor": "FF3FE9DB",
+                "fontColor": "FF111316",
+                "jumpInfo": {},
+                "name": "《头文字D》电影插曲",
+                "type": 0
+              },
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "一路向北",
+            "subtitle": "《头文字D》电影插曲",
+            "vid": 10307377,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4HV|EXMP4L|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "我很忙",
+            "albumId": 12449,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/7/83/4087363627.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/7/83/4087363627.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.64Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "18.39Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "153.78Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "65.15Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "25.11Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "30.74Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "25.54Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "8.86Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.64Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.43Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.77Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.43Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 247,
+            "id": 324243,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.47414,
+              "lra": 9.26116,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_324243",
+            "mvduration": 247,
+            "name": "蒲公英的约定",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 115111,
+              "refrain_start": 84913
+            },
+            "preOnline": false,
+            "releaseDate": "2007-11-02",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "蒲公英的约定",
+            "subtitle": "",
+            "vid": 10307399,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4HV|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4HV",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "跨时代",
+            "albumId": 49449,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s90/63/3806481715.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s90/63/3806481715.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.08Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "21.17Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "163.56Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "68.98Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "26.74Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "33.18Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "27.04Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.87Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.05Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.02Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.52Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 263,
+            "id": 728677,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.43529,
+              "lra": 9.573,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_728677",
+            "mvduration": 266,
+            "name": "烟花易冷",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 111862,
+              "refrain_start": 61692
+            },
+            "preOnline": false,
+            "releaseDate": "2010-05-18",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "烟花易冷",
+            "subtitle": "",
+            "vid": 8073190,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4L|MV500|MV700|EXMP4|EXMP4L|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "范特西",
+            "albumId": 1287,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s36/70/1529234453.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s36/70/1529234453.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.29Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "20.11Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "169.12Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "68.3Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "27.03Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "31.08Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "27.83Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.59Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.72Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "8.94Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.58Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.36Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 234,
+            "id": 588552,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.91405,
+              "lra": 5.64161,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_588552",
+            "mvduration": 238,
+            "name": "爱在西元前",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 108880,
+              "refrain_start": 77606
+            },
+            "preOnline": false,
+            "releaseDate": "2001-09-20",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "爱在西元前",
+            "subtitle": "《丑女大翻身》电影|《丑女大翻身》电视剧片头曲",
+            "vid": 10307404,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4HV|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4HV",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "十一月的萧邦",
+            "albumId": 14466,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s11/89/774616642.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s11/89/774616642.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "8.04Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "25.22Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "196.57Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "85.31Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "33.34Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "38.0Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "34.55Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.39Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "11.42Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.57Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.74Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 299,
+            "id": 118990,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -10.1715,
+              "lra": 5.57012,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_118990",
+            "mvduration": 298,
+            "name": "发如雪",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 106784,
+              "refrain_start": 69867
+            },
+            "preOnline": false,
+            "releaseDate": "2005-11-01",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "发如雪",
+            "subtitle": "",
+            "vid": 8108454,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4L|MV500|MV700|EXMP4|EXMP4L|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "Jay",
+            "albumId": 1286,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s32/71/2716993423.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s32/71/2716993423.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.94Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "20.93Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "160.69Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "69.54Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "26.67Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "32.38Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "27.04Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.55Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.85Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.94Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.5Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 258,
+            "id": 215257,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.92478,
+              "lra": 10.2559,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_215257",
+            "mvduration": 262,
+            "name": "反方向的钟",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 125939,
+              "refrain_start": 86285
+            },
+            "preOnline": false,
+            "releaseDate": "2000-11-07",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "反方向的钟",
+            "subtitle": "《魔影紫光》电视剧",
+            "vid": 8125553,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4L|MV500|MV700|EXMP4|EXMP4L|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "魔杰座",
+            "albumId": 29218,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s0/93/1794217775.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s0/93/1794217775.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.9Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "19.64Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "159.28Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "67.7Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "26.09Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "31.78Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "25.83Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.13Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.66Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.8Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.92Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.48Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 256,
+            "id": 440623,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.16866,
+              "lra": 10.1669,
+              "peak": 0.999969
+            },
+            "musicRid": "MUSIC_440623",
+            "mvduration": 257,
+            "name": "说好的幸福呢",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 104743,
+              "refrain_start": 72998
+            },
+            "preOnline": false,
+            "releaseDate": "2008-10-15",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "说好的幸福呢",
+            "subtitle": "",
+            "vid": 8107655,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "太阳之子",
+            "albumId": 87758985,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s86/95/3059703046.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s86/95/3059703046.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.0Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "21.15Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "142.12Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "61.47Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "23.94Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "29.44Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "46.22Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.05Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "9.65Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.51Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "8.52Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.41Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.3Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 1,
+            "bodianPayAlbumOffline": 0,
+            "duration": 223,
+            "id": 550531860,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.73208,
+              "lra": 8.02976,
+              "peak": 0.921661
+            },
+            "musicRid": "MUSIC_550531860",
+            "mvduration": 0,
+            "name": "那天下雨了",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "1",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "111111111111",
+              "overseas_nplay": "111111111111",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 0,
+              "refrain_start": 0
+            },
+            "preOnline": false,
+            "releaseDate": "2026-03-25",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "数专",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "那天下雨了",
+            "subtitle": "",
+            "vid": 0,
+            "vidIsshow": 1,
+            "videoFmtCodes": "",
+            "videoType": 0
+          },
+          {
+            "FSONGNAME": "",
+            "album": "依然范特西",
+            "albumId": 9034,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/45/96/3463817628.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/45/96/3463817628.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.03Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "19.81Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "167.15Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "71.72Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "27.86Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "32.3Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "28.63Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "9.74Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.81Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.98Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.99Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.51Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 261,
+            "id": 138246,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.56608,
+              "lra": 5.65166,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_138246",
+            "mvduration": 304,
+            "name": "退后",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 111922,
+              "refrain_start": 79545
+            },
+            "preOnline": false,
+            "releaseDate": "2006-09-01",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ],
+              "top": {
+                "backColor": "2E73E6DC",
+                "fontColor": "FF3FE9DB",
+                "jumpInfo": {},
+                "name": "收藏10w+",
+                "type": 0
+              }
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "退后",
+            "subtitle": "",
+            "vid": 10307383,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4HV|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4HV",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "Peninsula Ironbox",
+            "album": "八度空间",
+            "albumId": 1290,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s35/17/1252973864.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s35/17/1252973864.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "8.58Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "26.99Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "208.04Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "87.93Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "34.95Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "41.44Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "34.93Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "7.12Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "12.5Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.61Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "12.19Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.88Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.84Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 319,
+            "id": 235498,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.75451,
+              "lra": 7.08092,
+              "peak": 0.972931
+            },
+            "musicRid": "MUSIC_235498",
+            "mvduration": 319,
+            "name": "半岛铁盒",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 137805,
+              "refrain_start": 74967
+            },
+            "preOnline": false,
+            "releaseDate": "2002-07-18",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "半岛铁盒",
+            "subtitle": "",
+            "vid": 8137757,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "十二新作",
+            "albumId": 264333,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s17/73/2187216026.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s17/73/2187216026.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.0Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "18.76Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "159.36Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "66.07Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "25.73Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "31.53Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "26.38Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.74Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.94Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.97Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.51Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 260,
+            "id": 3197116,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.23504,
+              "lra": 8.87646,
+              "peak": 0.999969
+            },
+            "musicRid": "MUSIC_3197116",
+            "mvduration": 259,
+            "name": "明明就",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 102074,
+              "refrain_start": 68261
+            },
+            "preOnline": false,
+            "releaseDate": "2012-12-28",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "明明就",
+            "subtitle": "",
+            "vid": 8133739,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "跨时代",
+            "albumId": 49449,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s90/63/3806481715.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s90/63/3806481715.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.6Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "20.87Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "173.25Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "72.84Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "28.05Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "34.27Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "28.51Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.84Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.98Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.79Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.32Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.63Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 282,
+            "id": 728675,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.41195,
+              "lra": 9.27004,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_728675",
+            "mvduration": 287,
+            "name": "说了再见",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 124799,
+              "refrain_start": 62047
+            },
+            "preOnline": false,
+            "releaseDate": "2010-05-18",
+            "searchTag": {
+              "bottom": {
+                "backColor": "FF3FE9DB",
+                "fontColor": "FF111316",
+                "jumpInfo": {},
+                "name": "《海洋天堂》电影主题曲",
+                "type": 0
+              },
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "说了再见",
+            "subtitle": "《海洋天堂》电影主题曲",
+            "vid": 8082437,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4L|MV500|MV700|EXMP4|EXMP4L|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "魔杰座",
+            "albumId": 29218,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s0/93/1794217775.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s0/93/1794217775.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "6.81Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "21.41Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "173.74Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "75.92Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "29.59Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "33.57Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "30.08Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.78Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "10.05Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.85Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "9.67Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "3.87Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.47Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 253,
+            "id": 440614,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.72465,
+              "lra": 4.13603,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_440614",
+            "mvduration": 253,
+            "name": "给我一首歌的时间",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 88750,
+              "refrain_start": 53279
+            },
+            "preOnline": false,
+            "releaseDate": "2008-10-15",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "给我一首歌的时间",
+            "subtitle": "",
+            "vid": 7836729,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MV500|MV700|EXMP4|EXMP4HV|EXMP4L|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "不能说的秘密 电影原声带",
+            "albumId": 44055,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s43/78/4150270702.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s43/78/4150270702.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.97Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "22.63Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "192.56Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "81.85Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "31.28Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "37.8Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "31.82Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "6.25Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.17Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "11.31Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.53Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.72Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 296,
+            "id": 392927,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.44501,
+              "lra": 11.185,
+              "peak": 0.999969
+            },
+            "musicRid": "MUSIC_392927",
+            "mvduration": 335,
+            "name": "不能说的秘密",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 124361,
+              "refrain_start": 64800
+            },
+            "preOnline": false,
+            "releaseDate": "2007-08-13",
+            "searchTag": {
+              "bottom": {
+                "backColor": "FF3FE9DB",
+                "fontColor": "FF111316",
+                "jumpInfo": {},
+                "name": "《不能说的秘密》电影主题曲",
+                "type": 0
+              },
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "不能说的秘密",
+            "subtitle": "《不能说的秘密》电影主题曲|《Secret》",
+            "vid": 7754636,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MV500|MV700|MP4L|EXMP4|EXMV500|EXMV700|EXMP4L",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "叶惠美",
+            "albumId": 1293,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s3s94/93/211513640.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s3s94/93/211513640.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "9.19Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "27.27Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "206.2Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "84.93Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "32.61Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "42.56Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "32.38Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "7.15Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.66Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "13.05Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "5.22Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.97Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 342,
+            "id": 238210,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.17214,
+              "lra": 10.3593,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_238210",
+            "mvduration": 362,
+            "name": "以父之名",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 197174,
+              "refrain_start": 152434
+            },
+            "preOnline": false,
+            "releaseDate": "2003-07-31",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "以父之名",
+            "subtitle": "",
+            "vid": 8119849,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|SMP4L|SMP4|SMP4HV|SMP4UL|SMP4BD|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXSMP4L|EXSMP4|EXSMP4HV|EXSMP4UL|EXSMP4BD",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "八度空间",
+            "albumId": 1290,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s35/17/1252973864.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s35/17/1252973864.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.3Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "22.47Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "169.48Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "73.23Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "28.85Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "34.26Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "28.6Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "5.78Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "10.27Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "2.91Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.37Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.15Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.56Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 271,
+            "id": 235497,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.2487,
+              "lra": 5.44238,
+              "peak": 0.972931
+            },
+            "musicRid": "MUSIC_235497",
+            "mvduration": 267,
+            "name": "暗号",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 94909,
+              "refrain_start": 62010
+            },
+            "preOnline": false,
+            "releaseDate": "2002-07-18",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "暗号",
+            "subtitle": "",
+            "vid": 10307414,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4HV|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4HV",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "哎呦，不错哦",
+            "albumId": 439471,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/47/63/494275386.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/47/63/494275386.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "8.0Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "24.2Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "187.3Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "78.14Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "30.51Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "37.63Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "30.7Mb"
+              },
+              {
+                "bitrate": "192",
+                "format": "ogg",
+                "level": "p",
+                "size": "6.34Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.25Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "11.35Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.54Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.73Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 297,
+            "id": 6187940,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -7.42839,
+              "lra": 8.46085,
+              "peak": 0.990173
+            },
+            "musicRid": "MUSIC_6187940",
+            "mvduration": 294,
+            "name": "手写的从前",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 116526,
+              "refrain_start": 73978
+            },
+            "preOnline": false,
+            "releaseDate": "2014-12-26",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "手写的从前",
+            "subtitle": "优酸乳为爱告白广告曲",
+            "vid": 8142234,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "范特西",
+            "albumId": 1287,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/s4s36/70/1529234453.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/s4s36/70/1529234453.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.28Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "21.57Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "182.41Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "75.97Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "30.01Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "34.51Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "30.82Mb"
+              },
+              {
+                "bitrate": "100",
+                "format": "ogg",
+                "level": "h",
+                "size": "3.1Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.34Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.14Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.58Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 270,
+            "id": 156522,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.46762,
+              "lra": 3.20215,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_156522",
+            "mvduration": 268,
+            "name": "简单爱",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 255974,
+              "refrain_start": 63132
+            },
+            "preOnline": false,
+            "releaseDate": "2001-09-20",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "简单爱",
+            "subtitle": "",
+            "vid": 10307387,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4HV|MP4L|MP4UL|MV500|MV700|SMP4L|SMP4HV|EXMP4|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700|EXSMP4L|EXSMP4HV",
+            "videoType": 7
+          },
+          {
+            "FSONGNAME": "",
+            "album": "依然范特西",
+            "albumId": 9034,
+            "albumPic": "https://img4.kuwo.cn/star/albumcover/700/45/96/3463817628.jpg",
+            "albumPic120": "https://img4.kuwo.cn/star/albumcover/120/45/96/3463817628.jpg",
+            "allArtistId": "336",
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg"
+              }
+            ],
+            "audios": [
+              {
+                "bitrate": "25000",
+                "format": "mmp4",
+                "level": "dtsx",
+                "size": "7.14Mb"
+              },
+              {
+                "bitrate": "22000",
+                "format": "mgg",
+                "level": "bcms",
+                "size": "22.55Mb"
+              },
+              {
+                "bitrate": "20900",
+                "format": "mflac",
+                "level": "zply",
+                "size": "173.87Mb"
+              },
+              {
+                "bitrate": "20501",
+                "format": "mflac",
+                "level": "zpga501",
+                "size": "74.5Mb"
+              },
+              {
+                "bitrate": "20201",
+                "format": "mflac",
+                "level": "zpga201",
+                "size": "28.91Mb"
+              },
+              {
+                "bitrate": "24000",
+                "format": "mgg",
+                "level": "zpga714",
+                "size": "34.7Mb"
+              },
+              {
+                "bitrate": "2000",
+                "format": "flac",
+                "level": "ff",
+                "size": "29.93Mb"
+              },
+              {
+                "bitrate": "300",
+                "format": "ogg",
+                "level": "p",
+                "size": "10.5Mb"
+              },
+              {
+                "bitrate": "320",
+                "format": "mp3",
+                "level": "p",
+                "size": "10.13Mb"
+              },
+              {
+                "bitrate": "128",
+                "format": "mp3",
+                "level": "h",
+                "size": "4.05Mb"
+              },
+              {
+                "bitrate": "48",
+                "format": "aac",
+                "level": "s",
+                "size": "1.54Mb"
+              },
+              {
+                "bitrate": "20000",
+                "format": "zp",
+                "level": "zp",
+                "size": "zpMb"
+              }
+            ],
+            "bodianPayAlbum": 0,
+            "bodianPayAlbumOffline": 0,
+            "duration": 265,
+            "id": 138243,
+            "isMv": 0,
+            "isNew": 0,
+            "isOriginal": 1,
+            "isRedSong": 0,
+            "isShowType": 0,
+            "mediaBasicInfo": {
+              "gain": -8.45796,
+              "lra": 2.18991,
+              "peak": 1
+            },
+            "musicRid": "MUSIC_138243",
+            "mvduration": 264,
+            "name": "听妈妈的话",
+            "online": 1,
+            "payInfo": {
+              "cannotDownload": 0,
+              "cannotOnlinePlay": 0,
+              "down": "1111",
+              "download": "1111",
+              "extendAttr": 0,
+              "feeType": {
+                "bodianAlbum": "0",
+                "song": "1",
+                "vip": "1"
+              },
+              "limitfree": 0,
+              "listen_fragment": "1",
+              "local_encrypt": "1",
+              "ndown": "111111111111",
+              "nplay": "111111111111",
+              "overseas_ndown": "0",
+              "overseas_nplay": "0",
+              "paytagindex": {
+                "AR501": 8,
+                "DB": 7,
+                "F": 3,
+                "H": 1,
+                "HR": 4,
+                "L": 0,
+                "S": 2,
+                "ZP": 6,
+                "ZPGA201": 9,
+                "ZPGA501": 10,
+                "ZPLY": 11
+              },
+              "paytype": 3,
+              "play": "1111",
+              "refrain_end": 92265,
+              "refrain_start": 51243
+            },
+            "preOnline": false,
+            "releaseDate": "2006-09-01",
+            "searchTag": {
+              "mid": [
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF111316",
+                  "jumpInfo": {},
+                  "name": "原唱",
+                  "type": 0
+                },
+                {
+                  "backColor": "FF3FE9DB",
+                  "fontColor": "FF3FE9DB",
+                  "jumpInfo": {},
+                  "name": "无损",
+                  "type": 1
+                }
+              ]
+            },
+            "showAd": 1,
+            "showButton": 1,
+            "songName": "听妈妈的话",
+            "subtitle": "《周游记》",
+            "vid": 8150680,
+            "vidIsshow": 0,
+            "videoFmtCodes": "MP4|MP4BD|MP4HV|MP4L|MP4UL|MV500|MV700|EXMP4|EXMP4BD|EXMP4HV|EXMP4L|EXMP4UL|EXMV500|EXMV700",
+            "videoType": 7
+          }
+        ],
+        "total": 3262
+      },
+      {
+        "songlistpage": [
+          {
+            "creator_id": 300685,
+            "creator_name": "第一天",
+            "hitcontent": "",
+            "id": 2867496601,
+            "musicnum": 177,
+            "name": "终于等到周杰伦，说好不哭你今天哭了吗？",
+            "pic": "http://img1.kwcdn.kuwo.cn/star/userpl2015/81/23/1568684821020_182253281_700.jpg",
+            "playnum": 5657374,
+            "sltype": "1",
+            "source": 4
+          },
+          {
+            "creator_id": 231526,
+            "creator_name": "孤寂之趣",
+            "hitcontent": "",
+            "id": 2615213677,
+            "musicnum": 65,
+            "name": "『经典』追溯心中回忆“周杰伦”",
+            "pic": "http://img1.kwcdn.kuwo.cn/star/userpl2015/84/93/1542827157996_150401784_150.jpg",
+            "playnum": 3012910,
+            "sltype": "1",
+            "source": 4
+          },
+          {
+            "creator_id": 127662201,
+            "creator_name": "念姚",
+            "hitcontent": "",
+            "id": 3358370056,
+            "musicnum": 182,
+            "name": "周杰伦丨追随心中久久不去念念不忘，回忆",
+            "pic": "http://img1.kuwo.cn/star/userpl2015/5/75/1653733628864_541111305_700.jpg",
+            "playnum": 2869643,
+            "sltype": "1",
+            "source": 4
+          },
+          {
+            "creator_id": 307278,
+            "creator_name": "韩火锅",
+            "hitcontent": "",
+            "id": 1612996867,
+            "musicnum": 164,
+            "name": "【Jay】寻找那些年的周杰伦（大合集）",
+            "pic": "http://img1.kwcdn.kuwo.cn/star/userpl2015/98/62/1544805981734_225637298_150.jpg",
+            "playnum": 2354597,
+            "sltype": "1",
+            "source": 4
+          },
+          {
+            "creator_id": 66707416,
+            "creator_name": "24",
+            "hitcontent": "",
+            "id": 3145546528,
+            "musicnum": 47,
+            "name": "【周杰伦】Jay Chou是多少人的青春.",
+            "pic": "http://img1.kwcdn.kuwo.cn/star/userpl2015/98/90/1612354480236_508611798_700.jpg",
+            "playnum": 1732192,
+            "sltype": "1",
+            "source": 4
+          }
+        ],
+        "total": 143
+      },
+      {
+        "artistpage": [
+          {
+            "albumNum": 49,
+            "artistId": 336,
+            "name": "周杰伦",
+            "pic": "https://img2.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg",
+            "songNum": 1750
+          },
+          {
+            "albumNum": 35,
+            "artistId": 9088,
+            "name": "Lara梁心颐",
+            "pic": "https://img2.kuwo.cn/star/starheads/120/58/34/249546260.jpg",
+            "songNum": 208
+          },
+          {
+            "albumNum": 2,
+            "artistId": 90082,
+            "name": "潘儿",
+            "pic": "https://img1.kuwo.cn/star/starheads/120/s4s54/14/4175099840.jpg",
+            "songNum": 17
+          }
+        ],
+        "total": 54
+      },
+      {
+        "albumpage": [
+          {
+            "albumId": 87758985,
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "http://img3.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "http://img4.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg"
+              }
+            ],
+            "id": 87758985,
+            "info": "万众期盼！雨过天晴\n太阳之子以音乐能量的光芒照耀全球！\n周杰伦JAY CHOU\n暌违近四年最新创作专辑\n太阳之子\nChildren of the Sun\n\n太阳，所到之处即带来光，随性挥洒无与伦比的音乐创意\n太阳之子带领我们探索正能量的跃动，领略音乐最抽象的艺术激荡\n\n周杰伦暌违近四年以12首全新创作歌曲及特别收录给歌迷的礼物「圣诞星」\n集结成全新专辑《太阳之子》\n周杰伦用音乐唤醒每个人心中的趋光性！\n太阳之子行经之路，如云隙透光突破云层\n光束的变化万千，一如他的音乐创作能量的无与伦比\n带给大地温暖的抚慰、炙热的梦想、魔幻的节奏、跃动的旋律\n12首创作宛如画框中一幅幅变化万千的音乐\n以崭新的声线，描绘出心中灿烂多变的阳光\n\n「太阳之子」是「歌神」张学友对周杰伦的昵称与认证。这个称号源于2023年5月周杰伦在香港举行《嘉年华》演唱会期间，虽遇到狂风暴雨，但只要开唱雨就会停，张学友特地送上印有「太阳之子」的芒果及手写卡片，幽默认证周杰伦的幸运如同「太阳之子」。周杰伦自己也感动表示自己「心里出太阳了」，并打趣说「太阳之子」这个称号他拿走了。\n\n离2022年发行上一张专辑〈最伟大的作品〉至2026年，在这近四年的时间里，周杰伦放慢生活步调、慢慢写进音乐里，慢慢酝酿歌词、慢慢筹备ＭＶ，宛如创作脑中奇思异想旅程的12幅画作，有庞大到以古典名画融合现代电影感的巨幅印象派油画；到轻巧诙谐挥洒的抽象画、以地名命名的以景写情的随笔素描、工笔勾勒声韵的中国风、狂放的歌德风摇滚、浪漫的异国情调、温柔静谧抒情的插画风格；在熟悉的周式风格音乐底蕴上，增添了令人惊艳的新颖调色。\n独一无二、无法复制的太阳之子音乐光魔法\n唱出12道照亮黑暗的聚光，无论是光与暗的拼斗，或是生命中的闪光时刻\n每一首歌的光线直视各种情感暗面，宛如经历「光的正能量」沉浸式体验\n\n以歌词勾勒故事情节＆情感对白、以旋律挥洒灵感光线、以编曲构图裱框\n描绘出周杰伦脑中源源不绝的宏大硬核叙事、随性异国写意、轻愁微甜抒情\n\n\n【豪华特制实体专辑装帧】\n\n这次收录12首新歌＋1首彩蛋歌，是一张重磅实体专辑，外盒是欧风古典雕花窗，专辑封面的标准字和外框烫金，营造出「太阳」的闪耀光芒；打开雕花窗外盒后，里面以信封形式的封套包覆了「无框画」封面以及小画板，呈现这次「名画」与「裱褙创作」的专辑概念；里面放置一本线圈装订内页歌词本，以及周杰伦在MV中的精彩写真，CD片还制作成迷你黑胶唱片的模样，让〈太阳之子〉实体专辑极具巧思。\n这不仅是一张实体专辑，更希望具有收藏感，如同这次专辑的穿梭古今、名画，希望这13首充满电影感与戏剧感的音乐作品不只是音乐，而是一种对艺术的感受与体会，能真挚传递到歌迷手中。\n\n【曲目介绍】\n\n ////名画悬疑史诗光////\n1、太阳之子 Children of the Sun  4’57”\n词 Lyricist：方文山 Vincent Fang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：黄雨勋 Yanis Huang @Yanis Music\n\n『谁弹奏着灰黑协奏曲 蒙娜丽莎微笑着哭泣 救赎来临前始终不语』\n\n同名主打〈太阳之子〉这首歌，就是整张专辑中最巨幅的作品。\n这首歌最与众不同、最特别的地方是周杰伦的脑海里先有了「古典名画＋超酷枪战」的冲突创意，交由知名ＭＶ导演廖人帅撰写ＭＶ脚本，因为周杰伦一直非常热爱艺术，一开始先出了一个功课给导演，就是一、要有很多名画，二、要有很酷的枪战在里面，所以在只有初版DEMO的情况下，导演先发展完成剧本，由周杰伦饰演一名警探，穿梭在各名画场景之中追捕吸血鬼。ＭＶ拍摄制作与音乐创作制作同步进行，拍摄完毕后，方文山再根据ＭＶ初剪画面写词，为这支ＭＶ以文字描述出影像里深埋的核心概念，创下前所未有的创作方式！ＭＶ里致敬三十幅名画，根据剧情走向，画作选择神秘感重、强调光影的人物肖像、或是画风强烈大众熟悉的名画，运用这些名画，变成一个一个ＭＶ分镜，巧妙串连起来又不违和的融入整个剧情中。导演以「真人」演出名画里的人物，加上细腻的化妆、美术、道具、灯光、特效等环节逼近百分百还原画作场景；在选角部分特别在各地寻找出跟名画人物长相非常相近的人，近30几位真人演员饰演，让名画「活」起来，仿佛周杰伦警探掉入了名画的时空里，追捕吸血鬼！\n\n这次动画团队是全世界前三强、在新西兰的好莱坞御用动画团队Wētā Workshop公司，曾做过「阿凡达」、「魔戒」、「猩球崛起」、「怪奇物语」第五季；Wētā Workshop公司让真人演出的名画与名画之间转换更流畅；ＭＶ制作费逼近一亿元台币，从2023年12月开会，2025年1月巴黎教堂开拍后，进入后制、2025年4月拍台湾搭景部分，继续后制、2026年3月中才完成，耗时2年3个月的时间，超强团队与破天荒的制作费与漫长的制作时程，也堪称创下华语乐坛ＭＶ新天花板！\n\n在音乐上周杰伦这次以符合剧情的情绪，用比较狂野略带嘶吼感的唱腔，以及方文山针对ＭＶ剧情故事将这些名画作、画家名，画中意境，重新以文字赋予精神面的层次，让这首歌充满了正能量，传达出ＭＶ最后的这句文案：\nWithin every heart lies a dark side, one must choose to live with or vanquish it.\n\n ////黑色电影意象 ////\n2、西西里 Sicily  3’49”\n词 Lyricist：方文山 Vincent Fang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：黄雨勋 Yanis Huang @Yanis Music\n\n『海风刮过了 无人的街道  西西里的夜色 谁在那祷告』\n\n以阴郁氛围的大编制古典弦乐与拟佛朗明哥风格吉他营造出宿命感的孤寂画风，描绘出意大利的黑手党故乡「西西里」。\n歌曲充满了黑色电影的既视感与意象，方文山的歌词宛如「黑帮文学」，充满考究与隐喻，值得细细品味。「柠檬树的香气」点出了黑手党的罪恶即是从柠檬开始的；歌词以景色来推进歌曲情节：『柠檬树的香气掩盖不了弥漫在人群中的火药味道』；用视觉与嗅觉的冲突来营造紧张气氛『私下的正义在夜里维持秩序／未干的血还有那烟硝味／关于荣耀我转身拒绝再写』隐喻黑手党文化与暴力美学：『子弹穿越有时比誓言 更直接』：酒窖的红酒隐喻呛声叹息后的血色街道、庄园落叶是事过境迁的苍凉。歌词中提到的「佩尔古萨湖」在西西里是个结合了自然生态和神话故事的重要景点，在这湖边道离别，更增添了这首歌的幽微神秘感的余韵。\n\n音乐勾勒出整首歌西西里夜色的明暗反差；港边的灯火在打暗号、雨后冲刷了烟硝味，是分镜；副歌歌词则是情节对白；故事以歌词第一句谁在夜色里祷告开始，最后结束在「没有名字的季节」是角色荣耀过后，消逝在无名的时光之中；无论是打暗号的灯火、或是枪的火光，黑色荣耀的余光，最终都会随着岁月消逝。\n\n ////错过的纯爱雨渍画 ////\n3、那天下雨了 The Day It Rained  3’43”\n词 Lyricist：周杰伦 Jay Chou\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：林迈可 Michael Lin (VIP MUSIC)\n\n『雪白的天空等待彩虹出现  你我的遇见是谁许的愿』\n\n周杰伦作词作曲的周氏抒情歌「那天下雨了」，是一幅周式纯爱风水彩插画，被雨滴晕染开的水彩颜色，就像年少的暧昧朦胧，错过了就成了未来的浪漫遗憾。\n「你经过花就开，离开雨就来」是这段相遇与错过最美的描绘，原本期待这段相遇是雨后放晴的太阳，带来的是梦幻彩虹的恋曲，但终究是回不去那个下雨天，成了未竟的爱。 \n\n周杰伦以娓娓道来的方式演唱，以第一人称声音演出这幅以六张插画组成的故事：「现在式偶遇的男女对望」、「男人内心的浪漫幻想」、「学生时期女孩剪下男孩毕业纪念册的照片」、「学生时期的书店女孩借书给男孩」、「学生时期女孩为男孩撑伞」、「现在式的女孩老家三人身影」，那些被男孩遗忘的温柔，现在已经太迟。即使是首写遗憾的歌，旋律却美得令人晕眩，纯爱在岁月的滤镜下，在生命的轨迹里即使错过了爱，也未尝不是一种浪漫？\n\n ////多情中国风工笔画 ////\n4、湘女多情 The Girl from Hunan  3’58”\n词 Lyricist：方文山 Vincent Fang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：黄雨勋 Yanis Huang @Yanis Music\n\n『湘女多情 暮色已落地 檐下满园鸟啼 妳却倚窗锁眉不语』\n\n场景是中国古代的湖南（湘），古人总说湘女多情，倚着窗台等待爱情，暮色照映出心中的思念无处安放，满园鸟啼热闹非凡，更凸显出湘女内心的孤单。\n「湘女多情」该词典故源自娥皇、女英寻夫的《楚辞·九歌》传说，象征坚贞的爱情与对理想的追求，方文山以此为主题，细腻地揉出中国古典与现代的委婉难言的愁绪，只能以景写意。歌词运用了大量的对比，例如：热闹的戏曲／沉默的人、凋落的花／铺满的爱，表达「执着」与「守候」两大主题。整首歌像一幅古代工笔画般，将湘女的惆怅思念之情、戏曲班和鸟的热闹喧哗、落花缤纷的浪漫，加上暮色渲染，成为一幅情长卷轴。\n\n ////逞强的洒脱喷漆画 ////\n5、谁稀罕 Who Cares 4’22” \n词 Lyricist：周杰伦 Jay Chou\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：派伟俊 Patrick Brasca、吕尚霖 LuuX\n\n『我知道我并没有他好  你说给我的爱会晚一点才到』\n\n这是一个又逞强又悲屈的现代失恋喷漆画。歌词以「讲反话」表达在爱情关系里的逞强独白，画中陷在三人关系中的配角泄愤式的在每个曾经一起走过的爱情场景里用喷漆写上「谁稀罕」三个字。苦等着那个晚一点到的爱，到最后却依然不是被偏爱的那个，即使这个拥抱总会适时出现，却依然敌不过另外一个人给予的那种童话般、轰轰烈烈的爱，呐喊过后也只能感叹「爱上你是我自找」。\n\n英式抒情摇滚风格的伤情歌，毫不留情直击人心的歌词和副歌旋律，是周式情歌里最令人折服的情歌魄力，爱就爱了、痛就喊痛，保留给自己的爱情自尊就是那句「谁稀罕」，很潇洒却也令人心疼！\n歌曲一开头就破题以副歌开场，情绪直接拉高拉满，不留余地攻陷内心最脆弱的地方，这也是周氏情歌最难以抵抗的魔力！这首歌像犀利的红外线，照出爱情最卑微的暗处。需要情绪出口的人准备好一起唱「谁稀罕」！！\n\n ////浪漫极光印象派 ////\n6、七月的极光 Aurora in July  2’47”\n词 Lyricist：方文山 Vincent Fang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：派伟俊 Patrick Brasca、MaxAidan\n\n『夕阳落在加油站的玻璃上   我们把冒险的地图都带上』\n\n夕阳时刻是这趟追极光旅程的倒数开始，开车迎向爱情最极致的浪漫高光时刻。当太阳落下之时，极光的绚烂会更鲜明，更特别的是在七月竟然会出现粉色极光，以此为歌名，更增添了这首歌的超现实与梦幻程度，像一幅印象派画风油画，在七月里描绘出来、在生命中留下独特的浪漫感动。\n\n这首由派伟俊和MaxAidan编曲，是一首充满超现实梦核感氛围的情歌，将这首爱情冒险，变成了梦幻的流光闪烁、在怀里发呆的幸福旅途；以电子合成器烘托周杰伦的独特唱腔，让这首情歌宛如爱情公路电影般，碎拍的节奏与chill流动感无违和的交缠着像是这段旅途中爱情依存陪伴。方文山的歌词，是一场浪漫的爱情壮游：「爱上妳不意外  像我对妳的依赖」，沉溺在这场七月的极光之中，感受彼此的光与温度。\n即使当太阳下山了，夜幕低垂时，在七月的极光之中，拥抱爱情等于拥有整个宇宙。\n\n ////恋恋南欧风情油画 ////\n7、爱琴海 Aegean Sea  3’34”\n词 Lyricist：刘畊宏 Will Liu\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：派伟俊 Patrick Brasca、蒋希谦 Johnpiz\n『透明的瓶 闪烁着光 却装不进你心里向往的地方』\n这不是一首关于重逢的歌，而是一首关于「看着你走远」的风景画。\n歌曲是描画浓郁希腊圣托里尼风情的蓝白色写实风景画，画中以爱琴海沿岸的蓝白色房、伊亚的教堂是故事的背景。如果《西西里》是黑色的宿命，那么《爱琴海》就是一种寄托在美景里「透明的哀伤」。所以周杰伦以一种略带慵懒、像是在海风中自言自语的口吻，唱出了刘畊宏笔下那种关于「错过」的视觉残留记忆。歌词里没有声嘶力竭的挽留，只有在脑中不断回带的风景：从海风推开的窗，到伊亚阶梯上的影子，到处都是思念的足迹，难以抹灭，触景伤情。\n「瓶里的沙」是一种灵魂隐喻，我们都试图用某种仪式，留住当初的爱情信仰与纪念，但当主角寄情的「贝壳」回头望，海洋（现实）早已将那些细碎的温柔一次又一次地冲散遗忘。\nRap 部分的节奏感，像是海浪拍打礁石的规律节奏，也像是主角在心底不断回荡的碎念：「傻傻的留住当初的那信仰」。这首歌最残酷的温柔在于，它承认了思念在很远的地方，而我们只能在过去的长廊里，闻着那阵早已消散的发香。\n\n ////永恒的爱型雕塑////\n8、Ｉ Do 3’36”\n词 Lyricist：方文山 Vincent Fang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：周杰伦 Jay Chou、派伟俊 Patrick Brasca、吕尚霖 LuuX\n\n『Baby 想像你在未来的画面  早遇见 我们一定提早相恋』\n如果《爱琴海》是看着风景远去，那么《I Do》就是「让风景变成永恒」，是对爱情最真挚的誓约。这是周杰伦最深情真挚的抒情曲风——以电吉他开场，随后加入温暖的摇滚堆叠、环绕拥抱，最后在充满幸福感的坚定鼓点中走向这场见证爱情的高潮情绪。方文山以「坚定的承诺」、「无名指」。从海边的初见到红毯上的誓言，这首歌完成了一场关于爱情的命定与承诺，婚礼是见证爱情的仪式感，无名指是戴上誓言的约定，从你和我变成了「我们」，这场相遇透过「ＩDo」，成为彼此最忠贞而浪漫的一句话。\n\n「无名指上的永远」与「领带上的温柔」，被周杰伦唱成了一部每个坠入爱情后，相爱的两个人愿意全身心交付给彼此的一部永恒爱情史。\n当旋律停在「幸福停靠的地方」，我们才发现，所有的等待与错过，都是为了能在对的时间，遇见一份能真心对待一生的爱情，一起成为最美的模样。当彼此和对方说出「Ｉ Do」就是爱情的高光时刻！\n「在我的生命中 感谢有妳的出现／妳的无名指上有我承诺的永远」，听完这首歌，心里会涌出一股感动绽放，告诉自己：「还是要相信爱情」！如果身边出现了那位值得守候一生的人，请勇敢说出：「I Do.」\n\n ////硬核摇滚叙事彩绘玻璃 ////\n9、圣徒 Saint  2 ’55”\n词 Lyricist：黄俊郎 A-Lang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：派伟俊 Patrick Brasca\n\n『不屈是彩绘玻璃的光辉　迎向阳光色彩最为浓烈』\n\n这是一首将艺术与音乐视为信仰的作品，以圣徒之名，将音乐纹满整个世界，在追求艺术的路上，怀抱着使命感，脚步从未停止，以旋律跟上岁月同行，在时代不断更迭的路程，不当懦弱的落叶，一年四季无论春夏秋冬变化，骨子里的「刚强」永远不被影响。这是创作者给予自我内心最强大的信心喊话。\n黄俊郎以远方黎明、镜头慢慢拉近到麦田、穹顶、石墙、身处大自然领略「文思泉涌般的我　写下那完美    老天给予智慧」对于宇宙的灵感提供，期许自己写出大师之作，才能问心无愧。这是「创作圣徒」表现出高信仰的表征。\n\n即使遇到骤雨，也不会让自己创作能量（桔梗）消亡，夜莺如灵感穿梭林，在这个创作之旅的同路人一写下属于灵感的「仲夏夜的诗篇」。\n\n歌声捎来力量　唱出希望　用本领凿光　 笑语驱散忧伤　解开迷惘　我指引方向\n困境的斗士不沮丧  胆怯的内心更坚强  带领迷途的星芒　大声的欢唱　曙光就在前方\n\n这段歌词是整张专辑最充满正能量的文字，在漫长无止尽的创作之路，歌声能为黑暗的阻碍凿光，引领大众一起欢唱；最后一段不断重复地大合唱着：跟着唱！和音唱着「哈雷路亚」，仿佛群众们跟随这股充满力量的歌声，隐喻圣徒们的高声欢呼鼓舞！\n\n编曲以HIP HOP与史诗感的营造出「圣徒」感，加上以枪支上膛的音效声，隐喻「战斗」感，营造出圣徒的内心处在迎战自我的一种坚毅与专注，这是一首艺术家对自我价值最惊心动魄、义无反顾的信心喊话、自我宣言！听这首歌，仿佛脑门被音符、歌词、节奏重重一击！敲醒了内心沉睡的创作魂，跟着这道光，寻找属于自我的那个充满才华的自我，尽情发挥它，成为圣徒的一员吧！\n\n ////鬼灵精怪放克蜡笔画 ////\n10、女儿殿下 My Daughter, Your Highness  3’44” \n词 Lyricist：周杰伦 Jay Chou\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：黄雨勋 Yanis Huang @Yanis Music\nO.S.：Jay’s daughter\n\n『疯疯癫癫 Hey 风度翩翩 Hey 陪我家公主玩变化万千 Hey』\n\n这首充满鬼灵精怪、俏皮疯癫的放克风格将女儿称之为「女儿殿下」，将这位女儿殿下的喜怒哀乐，情绪变化无常、无厘头，转化成趣味又生活化的歌词、以及穿插超萌的小女孩口白，巧妙加入歌曲的轻快节奏之中，后段又转化成又是撒娇、无辜、又突然崩溃的小女孩口气，让人觉得又好气又可爱，与周杰伦慵懒率性形成强烈对比，把生活中突发的各种亲子互动以充满音乐性的放克曲风活灵活现的描绘出来！\n\n疯疯癫癫还是风度翩翩？真的是每一个亲子之间最饶富趣味的日常，突然间理智线断掉，下一妙又甜蜜想念，黄雨勋大师的编曲更让这首歌完全跳脱「亲子感」，精彩的间奏爵士钢琴的灵动感，充满了鬼灵精怪、完全将生活感用音乐提升到艺术层面！\n「我疯了吗！」非常适用于对付这位难搞又可爱的「公主殿下」时，在内心的呐喊，但是又要耐着性子哄着、疼着，这就是最温馨欢乐的音乐转化！\n\n \n ////十九世纪混现代的淘金版画 ////\n11、淘金小镇 Gold Rush Town  4’10”\n词 Lyricist：方文山 Vincent Fang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：周杰伦 Jay Chou、派伟俊 Patrick Brasca、吕尚霖 LuuX\n\n方文山以宛如电影脚本的歌词，搭配周杰伦的曲，谱写出一部关于淘金小镇的故事。整首歌宛如电影般的蒙太奇，第一段歌词以充满西部开拓感的描写出时空环境，以「口哨声」、「酒馆敲杯声」、「马蹄铁」与「穿马刺的鞋跟」这些声音来营造出一种不安、躁动且充满野性的氛围；写 幽暗的「矿坑」、摇晃的「煤油灯」对比「金河」与「闪着光的眼」，运用了文字明暗对比强化了淘金者在绝望与希望之间挣扎的心境。「有人筛选泥土却筛选出孤独」点出了人性亮点，到底我们汲汲营营的淘出的是金或者可能一无所获，但是「踩在坚硬的路不服也不喊苦」，也代表着顽强，也是一种生命里的「金」。\n周杰伦以一种豪爽潇洒的态度，诠释这个高维度视角的人生体悟，既充满了娱乐性更充满了他独有的音乐哲学。就像创作一部十九世纪电影或画作一样，投射在自我内心时，「轻轻的戴上，静静的欣赏」和「狂欢」、「呐喊」的强烈对比，其实就是追寻梦想的过程，这种只属于自己一个人的胜利，梦想就是我们想淘的金，不管如何，只要继续唱着歌，趁着月色，有酒喝就喝得爽快！\n\n ////舒适悠闲的民谣素描////\n12、乡间的路  Country Road  3’22”\n词 Lyricist：方文山 Vincent Fang\n曲 Composer：周杰伦 Jay Chou\n制作人 Producer：周杰伦 Jay Chou\n编曲 Arrangement：派伟俊 Patrick Brasca、蒋希谦 Johnpiz\n\n这首歌结合了乡村的清新、民谣的悠扬，以及饶舌的舒适悠闲，带着这种悠闲，一起上路感受这一路带有复古滤镜的公路短片，捕捉青春的纯粹爱恋与遗憾。\n方文山为这首歌描述的故事，一样先以儿时的树、小木屋、谷仓、草堆、货卡...这些视觉景象，将我们从喧嚣的都市带往静谧的乡间。沿途风景宛如一幅幅水彩画、淡妆、一卡车的玫瑰花，还能闻到牧草香、花香；午后微风在耳鬓吹拂着，描绘出乡间的路途中快要满溢出来的幸福感觉！\n周杰伦以旋律加中段的饶舌、再到后段大合唱，带动了心中最初的悸动、翻涌了回忆、浪漫、幸福、香气、混杂在一起的那些过往，与现在交错重叠的心情。青春这条乡间的路上，是一层又一层的颜料涂抹、涂掉再画上的过程，从未消逝过，心里的话，就藏在这些树梢、飘荡的花瓣里，希望能够传递的心情，即使世界不断变动，这些纯粹的初心，变成了一幅画、一首歌，永远吟唱着。",
+            "musicCount": 13,
+            "name": "太阳之子",
+            "pic": "https://img2.kuwo.cn/star/albumcover/240/s4s86/95/3059703046.jpg",
+            "showtime": "2026-03-25"
+          },
+          {
+            "albumId": 80569629,
+            "artist": "周杰伦&言承旭&吴建豪&周渝民&五月天 阿信",
+            "artistId": 336,
+            "artistPic": "http://img3.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "http://img4.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg"
+              }
+            ],
+            "id": 80569629,
+            "info": "回应你的愿望，\n把不可能，变成正在发生的此刻！\n\n宇宙级最强恒星阵容梦幻合体 ——\n周杰伦 ╳ 言承旭 ╳ 吴建豪 ╳ 周渝民 ╳ 五月天 阿信\n\n【 恒星不忘 ✦ Forever Forever 】\n周杰伦作曲｜五月天 阿信作词\n神级阵容  世纪级联手\n携手写下前所未见的传奇新篇章\n\n别来无恙，无论你走到哪，\n也要在同一片天空下发光；\n是一眼瞬间的默契，\n是信念里成长的乐章。\nForever, forever——\n\n五道闪耀光芒，穿透黑夜，绽放恒星不忘。\n\n▍恒星不忘 ✦ Forever Forever \n\n词｜五月天 阿信\n曲｜周杰伦\n作词协力｜黄婷\n\nForever Forever \n无论你走到哪  \n也要在同一片天空下发光\nForever Forever\n把徬徨的心都点亮\n拥抱彼此的模样\n永恒回忆就像恒星不忘\n\n流星划过喧扰穹苍\n可曾回应谁的愿望 \n我已走到儿时的远方\n却遗失了自己的模样\n\n梦想逐渐增加重量\n我们是否不再幻想\n用尽整个青春去荒唐\n也用整个人生去飞翔\n\nForever Forever \n无论你走到哪  \n也要在同一片天空下发光\nForever Forever\n把徬徨的心都点亮\n拥抱彼此的模样\n永恒回忆就像恒星不忘\n\n庆幸这场别来无恙\n沉默里藏着太多话\n岁月从不放过谁脸庞\n却也在心中留下宝藏\n\n烟火再次绽放辉煌\n失落瞳孔倒映希望\n每当前路风横雨又狂\n让我再陪你展开翅膀\n\nForever Forever \n无论你走到哪  \n也要在同一片天空下发光\nForever Forever\n把徬徨的心都点亮\n拥抱彼此的模样\n永恒回忆就像恒星不忘\n\nForever Forever \n无论你走到哪  \n也要在同一片天空下发光\nForever Forever\n把徬徨的心都点亮\n重回最好的时光\n永恒回忆就像恒星不忘",
+            "musicCount": 1,
+            "name": "恒星不忘 Forever Forever",
+            "pic": "https://img2.kuwo.cn/star/albumcover/240/s4s54/82/1778775391.jpg",
+            "showtime": "2025-12-05"
+          },
+          {
+            "albumId": 29593612,
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "http://img3.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "http://img4.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg"
+              }
+            ],
+            "id": 29593612,
+            "info": "当一件伟大的作品被创作出来时\n艺术家并不会知道\n自己成就了一整个艺术时代\n\n终于等到\n周杰伦JAY CHOU\n最伟大的作品Greatest Works Of Art\n「床边故事」还在耳边萦绕\n6年之后\n最伟大的作品\n即将问世！\n\n\n周杰伦睽违六年惊喜之作！\n专辑封面远赴「天空之城」法国圣米歇尔山实地取景，壮阔入镜\n亲自飞往世界各地执导ＭＶ\n足迹遍及巴黎莎玛丽丹La Samaritaine、\n澳洲粉色沙滩、异国沙漠公路、古巴\n将脑中的奇思狂想变成一幅幅画面！\n\n创作\n是一场没有终点的  壮游\n将沿途偶遇的每一段\n那些错过的烟火\n与带不走的风景\n以音乐融合文学绘画\n各式记忆的笔触\n成文成画再成歌\n亦成为生命此刻\n最伟大的作品\n\n睽违六年，终于等到周杰伦发新专辑「最伟大的作品」，共收录12首，包含1首钢琴演奏Intro、以及「最伟大的作品」等6首新歌，加5首已经曝光的单曲：「等你下课」、「不爱我就拉倒」、「Mojito」、「我是如此相信」、「说好不哭」 (with 五月天阿信)。\n\n音乐\n是他欣赏世界的角度\n是他旅行生命的思路\n是他喜爱艺术的笔触\n\n将古典画风一转变摇滚嘻哈、中国风弥漫R&B气息、抒情中交融时代情怀与崭新感受；无论是摇滚、嘻哈、古典、流行、中国风…，各种音乐风格信手捻来随性所至，将文学、艺术故事元素巧思入词，以为再熟悉不过的周杰伦式曲风，却在转角处听见新风景、抬头看见灿烂烟火的惊喜。\n\n首波发布专辑同名单曲「最伟大的作品」，融合文学与艺术主题，向世界上伟大的艺术家致敬；而众聆听者，即将跟着时空旅人周杰伦的眼睛与耳朵，阅览徐志摩的诗文、玛格丽特、达利、梵高、莫奈的创作心灵、古风鱼雁的情怀、触景动心的抒情；无论是哪瞬烟火的灿烂、或是从不曾见过的风景，在这些歌里，彷佛都如临其境，跟随着周杰伦一起在创作的路上壮游世界！\n\n\n歌曲介绍\n1、Intro\n一段琴声从时空缝隙里流泄而出\n跟随着乐音\n开始这段时空之旅……\n\n这段钢琴曲是电影中「不能说的秘密」曲目「琴房」的变奏版，电影中主角因为弹奏「琴房」的旋律回到过去，而这次在「最伟大的作品」ＭＶ中，周杰伦在巴黎的一架古董钢琴前弹奏这段「琴房」变奏版，回到了1920年；而此刻我们也即将跟着这段琴声，一起展开时空之旅！\n\n\n2、最伟大的作品\n词：黄俊郎、谢迪  曲：周杰伦  导演：周杰伦\n\nMV是融合绘画、文学、音乐、影像的当代艺术表现形式\n化身时空旅人遇见1920的\n玛格丽特、达利、常玉、莫奈、徐志摩\n让最伟大的作品正在发生中！\n宛如巨幅画作，酝酿筹备多时，工程浩大的影像拍摄、音乐制作、精雕歌词，成就了这首向许多伟大艺术家致敬的这首「最伟大的作品」。\n周杰伦想透过音乐将绘画、文学等艺术结合在一起，因此在ＭＶ里面呈现了许多周杰伦的狂想；在现代的某个夜晚，来到巴黎历史悠久的莎玛丽丹百货公司弹奏钢琴时，突然瞬移到1920年，遇到了玛格丽特、达利、常玉、莫奈、徐志摩，周杰伦以魔术与艺术家们幽默互动，让大师们有了新的创作灵感，这些伟大的艺术作品流传至今。\n\n周杰伦擅长将许多曲风融合、形成独特的「周式曲风」，「最伟大的作品」曲风就巧妙优雅地融合了古典、嘻哈、饶舌与流行；而最特别的是，这首歌是先拍好了ＭＶ，再请作词人根据ＭＶ剧情内容填词，歌词除了写到ＭＶ中出现的玛格丽特、达利、常玉、莫奈、徐志摩之外，还将梵高、蒙克入词；而「翡冷翠的夜话」、「巴黎的鳞爪」是徐志摩的文学著作……，整首歌词非常考究地藉由时空旅人将艺术家与其作品精神串连，而透过这支「最伟大的作品」音乐录像带，周杰伦将绘画、文学、音乐、影像，融合成为一种专属于周杰伦式的当代艺术表现形式。\n\nＭＶ以时空旅人的概念发想，更加了许多巧思，因为弹奏钢琴而回到1920年代穿越时空的构想；还有特别邀请郎朗参与MV演出，和周杰伦来一段斗琴，MV尾声，当周杰伦回到现实中，郎朗再度出现时，不禁令人怀疑他也是时空旅人？而郎朗是和周杰伦一样从现代回到过去的时空旅人？还是跟着周杰伦一起从1920年来了现代呢？允人很大的想象空间。\n\n「最伟大的作品」ＭＶ后制更出动3组人马同步进行，台北2组Team、北京1组Team，值得一提的是北京由得过11座奥斯卡金像奖「数字王国」执行后制特效。\n\n3、还在流浪\n词：方文山  曲：周杰伦  导演：周杰伦\n\n复古电影感情歌 异国小镇的恋恋风尘\n\n当你收到信 我还在流浪\n亲爱的  你现在怎么样\n\n时光之旅来到了一个遗存在辽阔荒野中，曾经繁荣过、如今萧条的小镇。\n这首歌的创作来源，是周杰伦在工作时，偶然发现一个空旷的地方，竟然有个老城镇，当地还有居民居住，前两段主歌歌词描述的场景，都是周杰伦跟方文山口述他亲眼所见，老书摊和啤酒罐散落在地、老旧的车站、空旷的车厢、锈斑的墙、步调缓慢的小镇，散发出一种繁荣过后的萧瑟感，很像老电影画面一样迷人；方文山觉得这个场景很适合以「流浪」为主题写成歌词，描述发生在这个空旷旧小镇中，一个跟爱情有关的故事。故事叙述一位到处流浪，扩展视野的旅人，无论到哪，都会寄信给那个心中牵挂的她，「当你收到信我还在流浪」，即使距离遥远，两人的心依然心系一线，离开是为了回到彼此身旁。\n\n\n4、说好不哭 with 五月天阿信 Mayday Ashin\n词：方文山  曲：周杰伦\n\nJay式心疼情歌重磅回归\n方文山「以词说戏」走心之作\n\n你的限时动态是我的过去式\n我的限时动态是你的未来式\n彼此的时间\n停格在分手时的那句「说好不哭」\n\n「说好不哭」是一首关于「成全」与「约定」的情歌，以钢琴缓缓诉说这段凄美绝伦的爱情故事，整首歌以钢琴为主故事线、弦乐编织出抒情场景，营造出一种爱情电影的氛围；歌词以男生的第一人称，娓娓道来这段爱情的心情转折与故事情节；几句简短的歌词，将男女之间因为太替对方着想而牺牲这段爱情的细腻心思表达得丝丝入扣、令人容易产生共鸣与带入感；每段爱情都有各自的委屈与无奈，即使走向分手，还是要「说好不哭」，微笑面对。\n\n歌曲一开始就唱着「没有了联络」，「放不下的人是我」；女生总是护着男生，比起自己的悲伤，更在意别人怎么看男生的，即使分手了也让朋友觉得不是男生的错；为了成全男生的梦想，女生微笑放手，说好不哭让男生走；而失去联络之后，男生却依然不时听见女生的消息。当初分手，说好不哭，笑着离开，但是此刻的微笑比眼泪更令人心疼，更心疼的是，都过了多久，还在找理由等着男生。\n有一种爱情是宁愿牺牲也不愿造成对方的负担\n有一种爱情是明明心疼却什么事都无法为她做\n\n周杰伦彷佛是以一种说话的感觉，轻轻地唱出这段爱情故事；以「声音演出」好像鼓起勇气对女生说出自己来不及说的抱歉，以及当初没说出口的挽留；像是女孩听着男生的留言，陷入了回忆、脸上微笑瓦解，再也无法做到当初承诺的「说好不哭」…\n\n\n5、红颜如霜\n词：方文山  曲：周杰伦  导演：周杰伦\n\n必成经典Jay式中国风 \n融入R&B、京剧唱腔的中国风新感受！\n\n周杰伦中国风系列再添一首必传经典！由方文山填词，以梨园名剧「凤求凰」为主题，写成此首「红颜如霜」，分隔两地思念的两人，无法见面只能透过信件往返寄托情意，却只收到一句「甚安勿念」，思念彷佛结了层霜，无人问暖，而鱼雁不再往返，独自惆怅凄凉。\n\n芦苇花开岁已寒 若霜又降路遥漫长\n墙外是谁在吟唱  凤求凰\n\n这首歌以古筝拉开序幕，将R&B巧妙融入中国风里，唱到歌词「凤求凰」时又吊着嗓子唱，宛如一部声音古装电影，加入了现代感的新诠释，彷佛穿梭时空的旅人，来到了古时窗前，见到了两个透过书信、望景伤情的情人，度过岁月流转，见证一段情感的流逝如霜，凝结过往。\n\n\n6、不爱我就拉倒\n周杰伦＋弹头共同创作 英式摇滚情歌\n浓烈口感的Espresso\n\n周杰伦尽管工作满档，还是不忘写歌创作录音，总是在令人意想不到的地方写歌，这首「不爱我就拉倒」，就是在演唱会后台准备梳化时，听见弹头讲电话时说了一句：「不要就拉倒啊！」，杰伦觉得「拉倒」？！很久没听到这句话了，于是灵感一触即发，演出完就跟乐手老师借了一把吉他，要弹头到他房间一起写歌，一直写到凌晨5点才完成这首歌。\n在爱情路上跌倒\n安全帽也保护不了头脑\n再厚的外套也抵挡不了爱情寒流来袭\n不爱了就拉倒\n只要你幸福就好\n\n这首歌词是由周杰伦和弹头一起创作，歌词以这句弹头电话里的一句话：「不要就拉倒」延伸出一个情节：在寒流来袭的夜，男人骑着机车准备接女友，但是女友反应冷淡、男人还是献殷勤的为她戴好安全帽、骑上车的时候拉着她冰冷的双手放进自己口袋取暖；一路上两人无语，面对不想被套牢的女人，男人也感受到彼此的感情温度已经降至冰点，内心不段挣扎吶喊：「难道别人的怀抱比我温暖吗？！」即使如此，还是希望帅气的面对，不爱就拉倒，只要你幸福就好。\n\n周杰伦以一把吉他写出一首走心的旋律，由io乐团团长Hans陈思翰编曲，整首歌曲以迷离忧郁的钢琴前奏展开这场爱情征途，寒流来袭，眼前是迷雾，是凄冷的雨，还是泪？两人之间的气氛比你冰冷的双手还冷，当一切都变了，再厚的外套口袋也无法让它变暖，安全帽也保护不了逝去的爱情。\n英式摇滚基底的电吉他冲刷出失速的爱情；爱已失控，不爱了就拉倒，不强求，急速重拍不断重击心脏，一路向前，脑中画面却不段闪回过去回忆；间奏一段钢琴与鼓的交织狂飙，表现出内心的混乱思绪、不安、纠结；最后还是帅气的唱出一句「不爱我就拉倒」，展现出最后的一丝自尊与细腻体贴，「只要你幸福就好」。\n\n\n7、MOJITO\n最新拉丁嘻哈沁脾情歌\n一起恋上古巴的微醺浪漫\n\n在古巴的海滩，点一杯大文豪海明威最爱的Mojito\n和周杰伦一起品尝异国恋情般的微醺特调\n阅读整个夏季的浪漫！\n\n用音乐环游世界的他，带领大家来到充满音乐、舞蹈的迷幻之城「古巴」，以古巴最著名的鸡尾酒「Mojito」为名而写的这首情歌，一如古巴这个城市以它独有的建筑风景，写成一封封献给天空的情书，「Mojito」就是献给每一对来自世界各地的恋人，最浪漫的特调。\n\n「Mojito」是一种传统的古巴鸡尾酒，更是大文豪海明威的最爱，如缪斯女神般存在的Mojito，黄俊郎以此酒为主题，为周杰伦这首充满古巴风情、带着轻快的节奏、随兴摇摆曲风的创作，写出一种遇见爱情时，令人神往的浪漫情调；来到一个第一次到访的异国城市，心头涌上一种「旧城市里的新恋情」的激荡，是每个旅人的心情，彷佛前世就来过一般既视感与命运感，让旧城更添一种神秘向往。\n周杰伦以最信手捻来的迷人旋律、以浓郁摇曳的拉丁曲风搭配慵懒不羁的嘻哈，领着好友群，穿着异国情调清爽的夏衫，开着鲜艳复古的老爷车随性捕捉古巴景致；更在ＭＶ里跳着轻快萨尔萨（Salsa）的舞步，让人不自觉跟着摇摆，心也跟着一起私奔到连海明威都流连忘返的古巴！\n\n8、错过的烟火\n词：方文山  曲：周杰伦  导演：周杰伦\n\n荒漠抒情摇滚曲风  错过你寂寞一路狂飙\n我还在漂泊  妳是错过的烟火\n空旷的沙漠  只剩下回忆经过\n\n这首歌以Band Sound加上电子合成器营造出流动的高温热气，呈现出旷野荒漠中速度感与辽阔感的摇滚与抒情。驰骋的跑车伴着激昂的鼓点、不断向前驰骋、到底是要一路向你？还是远离你？风沙过后才知道错过什么，没有你的世界，车外是荒芜的沙漠，而心里，是比沙漠更寂寥的地方。\n\n\n9、等你下课\n文青疗愈系暗恋情歌「等你下课」\n努力考上跟你喜欢的人一样的学校\n顺理成章「等你下课」！\n\n这首充满文青风疗愈感的「等你下课」，来自周杰伦发想的一个故事，想象一个年轻人暗恋一个女孩，懊悔自己没有好好念书，跟她考上同一个大学；为了等她下课，在女孩住处附近租房、默默守候着她；弹着琴写情书，只想把自己的心意想办法传达给她，却一直找不到时机与方式，只能每天等着，等你下课。\n\n「等你下课」除了有宛如「不能说的秘密」的校园浪漫，更多了些文青情怀、暖心陪伴；这首歌周杰伦邀请和自己一起成长的录音师好友-杨瑞代一起合唱，也是两人继「爱的飞行日记」之后再度合唱；他觉得杨瑞代独特的嗓音有种文青感，增加了情歌的气氛，更像是好友陪伴着自己暗恋的心情一样，倾听着这些藏在心里，说不出口的爱恋心情。\n\n MV更再次与插画家合作，绘制歌词版ＭＶ，散发浓浓的文青感；以往周杰伦的ＭＶ都是华丽风格与气势磅礡，这次为了贴近歌曲的气氛，特别请插画家根据歌词故事情节，描绘出一幅幅画，可以看到插画版的杰伦，在树下弹着吉他，遥望着前方带着耳机的女孩，猜想着女孩听什么歌？许多问题想要知道，却只能默默地望着。\n「等你下课」歌词版ＭＶ的插画描述歌曲中的故事，周杰伦开玩笑说：「这首歌其实是要鼓励歌迷，努力考上跟你喜欢的人一样的学校！」\n\n\n10、粉色海洋\n词：方文山  曲：周杰伦  导演：周杰伦\n\n夏日POP混搭HIP HOP、Rap  超梦幻「兜风」曲风\n\n粉色海洋 闪着夕阳 那心动的时间被你拉长\n甜蜜果香 浓郁着愿望 幸福就在有你的地方\n\n海鸥声、海浪声、编曲中加入尤克里里轻快节奏，一起跟着音乐去兜风！从蓝色船屋、长木板路、到粉色沙滩、袋鼠岛上，这段旅途为了告白而准备、因为你的微笑欣赏世界的角度变得又粉又甜；幸福就在有你的地方！\n\n\n11、倒影\n词：方文山  曲：周杰伦  导演：周杰伦\nR&B法式抒情曲风 \n\n妳的  倒影  是我  带不走的风景\n就像  居无  定所  的云还在旅行\n\n这首Jay式中版抒情歌，真挚深情的旋律，由方文山填词，将法国的葡萄庄园、地窖橡木桶、油画颜料散落的阁楼、欧洲中古世纪石板路等写入歌词中，「画框的妳」、「妳的倒影」像是从中古世纪矗立至今的圣米歇尔山、古城堡、被停格的回忆，是带不走的风景，云还在旅行，而某一部份的自己，会永远留在那个只有你的记忆里。\n\n\n12、我是如此相信\n周杰伦「我是如此相信」MV 助威电影「天火」\n\n乐坛天王周杰伦为昆凌主演的新片「天火」写歌并演唱主题曲「我是如此相信」，随着电影上映，粉丝在电影院里透过大屏幕及震撼的音响环境，已抢先听到这首气势磅礴的歌曲！歌曲搭配电影幕后画面的同时，也带给粉丝满满的震撼！周杰伦说：「写一首好听的歌用不了太久，只要有感觉就行。」动听的旋律及优美的歌词来自周杰伦与方文山的黄金词曲组合，同时包办演唱的周杰伦，也为这首歌拍摄MV，助威昆凌主演的电影「天火」不遗余力。\n\n为了切合电影「天火」的氛围，拍摄MV的片厂用喷画及沙土打造出一片荒漠，周杰伦与乐手们犹如置身灾难即将来临的现场，看似处于绝望之中却仍然充满希望，歌词：「我是如此相信，在背后支撑的是你，一直与我并肩而行，仰望等太阳升起，听见鸟群回来的声音。」表达了在面对灾难时，不畏艰难、不放弃的信念！方文山写的歌词充份呈现了电影的画面感，歌名「我是如此相信」是整首歌最重要的精神，鼓励大家以坚定的意志，相信希望永远在下一秒！",
+            "musicCount": 12,
+            "name": "最伟大的作品",
+            "pic": "https://img2.kuwo.cn/star/albumcover/240/s4s14/55/4227772595.jpg",
+            "showtime": "2022-07-15"
+          },
+          {
+            "albumId": 69918657,
+            "artist": "周杰伦",
+            "artistId": 336,
+            "artistPic": "http://img3.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg",
+            "artists": [
+              {
+                "id": 336,
+                "name": "周杰伦",
+                "pic": "http://img4.kuwo.cn/star/starheads/120/s4s56/58/291211030.jpg"
+              }
+            ],
+            "id": 69918657,
+            "info": "置身Beatles录音室　周杰伦一气呵成创作「即兴曲」     乐坛天王周杰伦创作出许多脍炙人口的畅销歌曲，灵光乍现的瞬间，每每留下经典隽永的作品！这段造访英国「艾比路」录音室的内容是周杰伦在录制实境节目「周游记」时的精彩邂逅，全球最知名的录音室-英国伦敦「艾比路」录音室(Abbey Road Studios)，这里孕育出传奇乐团「披头士」乐团(The Beatles)的无数经典歌曲。当时周杰伦一进入这间拥有90多年历史的殿堂级录音室，就不禁想要在这伟大的录音室创作一首曲子，就在这偌大的录音室弹奏起来，优美的旋律在周杰伦的指间流泻，时间仿佛瞬间凝结，一曲弹奏完毕让在场所有人都为之惊艳！赞叹实在太好听！连英国录音师都说Jay Chou的曲子让他有「飘浮」的感觉！而周杰伦是一气呵成地弹奏整首曲子！在录制节目的同时，录音室也同步录下了他弹奏的这段旋律。周杰伦说：「有时候去到一个环境就会有一个氛围，写歌就是需要灵感。都去到了Beatles的录音室，不来一首即兴钢琴创作怎么行？」",
+            "musicCount": 1,
+            "name": "即兴曲",
+            "pic": "https://img2.kuwo.cn/star/albumcover/240/s4s47/67/2873018311.jpg",
+            "showtime": "2025-06-06"
+          },
+          {
+            "albumId": 63184186,
+            "artist": "派伟俊&周杰伦",
+            "artistId": 263956,
+            "artistPic": "http://img2.kuwo.cn/star/starheads/120/s4s72/4/3973692400.jpg",
+            "artists": [
+              {
+                "id": 263956,
+                "name": "派伟俊",
+                "pic": "http://img4.kuwo.cn/star/starheads/120/s4s72/4/3973692400.jpg"
+              }
+            ],
+            "id": 63184186,
+            "info": "2025 只循环播放这首情歌！\n\n潮流创作才子＆亚洲流行天王\n派伟俊 Patrick Brasca x 周杰伦 Jay Chou\nSix Degrees\n命定浪漫 R&B\n\n“世界这么大，我们之间就相隔了六个人，\n能不能让其他人都成过客，只有你留下？”\n\n2025年第一首命定浪漫R&B〈Six Degrees〉，由派伟俊作曲，周杰伦、派伟俊填词、合唱的这首情歌，两大音乐才子串起穿越时空恒久远的爱情观，无论在哪个世代、世界的哪个角落，「爱情」将两个陌生人变情人的过程，本身就是一种奇迹，而这个奇迹需要的正是命中注定的浪漫精神！\n\n以 「Six Degrees of Separation 六度分隔理论」描绘对于天降爱情的命定与奇迹，副歌歌词中写到 “Six degrees, my baby. The world is oh so vast, can you stay while they pass?”，这段作词者原意表达：「世界这么大，我们之间就相隔了六个人，能不能让其他人都成过客，只有你留下？」\n\n每个人都有命中注定的恋情，在辽阔流逝的时空之河，爱情推着我们找到彼此，让那个唯一而独特的人，成为世界上最特别的存在。即使现在还没遇见，我在这里等你，直到我们相遇。在追求速食爱情的时代里，2025年唱这首情歌，就是「浪漫MAX」！\n\n「周氏浪漫」加上「派氏情歌」以生命日常切入爱情观点，营造出浪漫氛围，将抒情R&B以简单的吉他和弦、双人声交织，营造出惬意却隽永的听感，爱情不就是这样吗？每个小日常都能成为彼此的永恒，传达这首歌想表达的情感连结，温柔而深刻。\n\n关于两人的相遇 有一种理论\n〈 Six Degrees of Separation 六度分隔理论 〉：世界上互不相识的两个人，只需要透过六个中间人就能产生连结。而相知是一种宿命，相守却是一种承诺。\n\n关于相爱的决定 有一种花语 \n黑色玫瑰代表你是我的，承诺永恒且独一无二的爱。",
+            "musicCount": 1,
+            "name": "Six Degrees",
+            "pic": "https://img2.kuwo.cn/star/albumcover/240/s4s43/80/4250381683.jpg",
+            "showtime": "2025-01-10"
+          }
+        ],
+        "total": 103
+      }
+    ]
+  }
+}
