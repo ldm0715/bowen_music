@@ -541,7 +541,7 @@ internal sealed class AudioUrlDto
 | `LoginResultDto` 及子对象 | ✅ | 有 fixture（部分字段被脱敏，见 5.3） |
 | `LyricContentDto` | ✅ | 只做「一次 Base64」这一层 |
 | `PlaylistDto` 及列表 payload | ⏭ P7 | **没有歌单 fixture**，做了无法验证 |
-| **评论 DTO** | ⏭ P8 | **`fixtures/` 里没有任何评论样本**，凭文档字段名硬写就是凭记忆断言；且 P8 仍阻塞在移动端签名上 |
+| **评论 DTO** | ⏭ P8 | **接口已解**（2026-10-02，见 `bodian-api-reference.md` 3.1 节），但 **`fixtures/` 里仍然没有评论样本** —— 先跑一次 `comments/v3/new` 存 fixture 再动手写 DTO |
 | 下载 DTO | ⏭ P9 | 已定论不引入 `download/{info,config,callback}` 三个接口 |
 | 歌词解析器与统一模型 | ⏭ P4 | P1 只做入口与系数解码（第 6 节） |
 
