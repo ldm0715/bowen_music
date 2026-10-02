@@ -40,8 +40,6 @@ public sealed partial class LibraryCategoryPage : Page
 
     public LibraryCategoryViewModel ViewModel { get; }
 
-    private void OnBackClick(object sender, RoutedEventArgs e) => _navigation.GoBack();
-
     /// <summary>切排序。选中的是新的那个才是真变化，重拉由 ViewModel 的 partial 方法负责。</summary>
     private void OnSortChanged(object sender, RoutedEventArgs e)
     {

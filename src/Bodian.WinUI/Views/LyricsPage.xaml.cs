@@ -19,7 +19,6 @@ namespace Bodian.WinUI.Views;
 
 public sealed partial class LyricsPage : Page, INavigationAware
 {
-    private readonly INavigationService _navigation;
     private readonly MainWindow _window;
     private readonly LyricsCanvasView _canvas;
     private readonly AudioSpectrumView _spectrum;
@@ -41,18 +40,16 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private double _progressPointerX;
 
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
-        LyricsViewModel lyrics, INavigationService navigation)
+        LyricsViewModel lyrics)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(spectrum);
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
-        ArgumentNullException.ThrowIfNull(navigation);
         _window = window;
         _canvas = canvas;
         _spectrum = spectrum;
-        _navigation = navigation;
         Player = player;
         Lyrics = lyrics;
         InitializeComponent();
@@ -343,7 +340,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ScheduleChromeHide();
     }
 
-    private void OnBackClick(object sender, RoutedEventArgs args) => _navigation.GoBack();
+    private void OnBackClick(object sender, RoutedEventArgs args) => _window.GoBack();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
     private void ToggleFullscreen() { _window.ToggleLyricsFullscreen(); SyncFullscreen(); }
     private void OnFullscreenClick(object sender, RoutedEventArgs args) => ToggleFullscreen();
@@ -352,7 +349,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void OnEscapeInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         if (_window.IsLyricsFullscreen) ToggleFullscreen();
-        else _navigation.GoBack();
+        else _window.GoBack();
         args.Handled = true;
     }
     private void OnPlayPauseInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)

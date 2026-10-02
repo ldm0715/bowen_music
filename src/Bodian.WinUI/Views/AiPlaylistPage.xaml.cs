@@ -14,15 +14,11 @@ namespace Bodian.WinUI.Views;
 /// </remarks>
 public sealed partial class AiPlaylistPage : Page, INavigationAware
 {
-    private readonly INavigationService _navigation;
-
-    public AiPlaylistPage(AiPlaylistViewModel viewModel, INavigationService navigation)
+    public AiPlaylistPage(AiPlaylistViewModel viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
-        ArgumentNullException.ThrowIfNull(navigation);
 
         ViewModel = viewModel;
-        _navigation = navigation;
 
         InitializeComponent();
     }
@@ -39,8 +35,6 @@ public sealed partial class AiPlaylistPage : Page, INavigationAware
     /// <summary>大字标题有没有内容。给 <c>x:Bind</c> 用，直接返回 <see cref="Visibility"/>。</summary>
     private Visibility HasBigTitle =>
         string.IsNullOrWhiteSpace(ViewModel.BigTitle) ? Visibility.Collapsed : Visibility.Visible;
-
-    private void OnBackClick(object sender, RoutedEventArgs e) => _navigation.GoBack();
 
     private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
 }

@@ -27,7 +27,6 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <Border
@@ -52,11 +51,6 @@
                     Text="{x:Bind local:Formats.AlbumCount(ViewModel.Group.AlbumCount)}" />
             </StackPanel>
 
-            <Button
-                Grid.Column="2"
-                VerticalAlignment="Top"
-                Click="OnBackClick"
-                Content="返回" />
         </Grid>
 
         <!-- ── 子类 ─────────────────────────────────────────────────────── -->

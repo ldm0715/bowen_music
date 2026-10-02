@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Bodian.WinUI.Services;
@@ -61,7 +62,7 @@ public interface INavigationIdentity
 /// 「换内容 + 通知页面」。那是为了让侧栏语义能单测。
 /// </para>
 /// </remarks>
-public interface INavigationService
+public interface INavigationService : INotifyPropertyChanged
 {
     /// <summary>由宿主窗口在构造后调一次，把承载页面用的 <see cref="ContentControl"/> 交进来。</summary>
     void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null);
@@ -101,7 +102,7 @@ public interface INavigationService
     /// </summary>
     void Reset<TPage>() where TPage : Page;
 
-    /// <summary>还能不能返回。</summary>
+    /// <summary>还能不能返回。导航状态更新时通过 <see cref="INotifyPropertyChanged"/> 通知绑定。</summary>
     bool CanGoBack { get; }
 
     /// <summary>当前页。</summary>

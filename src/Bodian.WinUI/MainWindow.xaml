@@ -16,7 +16,7 @@
           与用户对播放器的预期不符 —— 现在按 Spotify / Apple Music 的形态来。
 
         ★ IsBackButtonVisible=Collapsed：返回栈是自己的（INavigationService），
-          详情页自带返回入口。交给 NavigationView 会多出一个不受控的按钮。
+          返回入口统一放在搜索框左侧。交给 NavigationView 会多出一个不受控的按钮。
 
         ★ 用 ItemInvoked 而不是 SelectionChanged：SelectionChanged 在我们自己
           同步高亮时也会触发，会和导航互相打架。ItemInvoked 只在用户点击时触发。
@@ -82,12 +82,35 @@
             </TitleBar.LeftHeader>
             <TitleBar.Content>
                 <!-- 搜索宽度随可用空间收缩，并限制最大宽度以保留标题栏留白。 -->
-                <Grid x:Name="SearchBarHost" Margin="24,0,24,0" Visibility="Collapsed">
+                <Grid x:Name="SearchBarHost" Margin="24,0,24,0" ColumnSpacing="8" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" MaxWidth="400" />
                     </Grid.ColumnDefinitions>
+                    <ContentControl
+                        x:Name="BackButtonHost"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
+                        VerticalAlignment="Center"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch">
+                        <Button
+                            x:Name="BackButton"
+                            Style="{StaticResource SubtleButtonStyle}"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            CornerRadius="8"
+                            IsEnabled="{x:Bind _navigation.CanGoBack, Mode=OneWay}"
+                            Click="OnBackClick"
+                            AutomationProperties.Name="返回上一级"
+                            ToolTipService.ToolTip="返回上一级">
+                            <FontIcon Glyph="&#xE72B;" FontSize="16" IsTextScaleFactorEnabled="False" />
+                        </Button>
+                    </ContentControl>
                     <AutoSuggestBox
                         x:Name="SearchBox"
+                        Grid.Column="1"
                         MinWidth="0"
                         VerticalAlignment="Center"
                         PlaceholderText="搜索单曲、歌单、专辑、歌手"

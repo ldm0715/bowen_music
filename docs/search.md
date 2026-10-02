@@ -5,7 +5,8 @@
 ## 入口与悬浮面板
 
 搜索入口位于主窗口标题栏的 `AutoSuggestBox`，未登录时随外壳隐藏。
-聚焦或点击空搜索框会显示热榜与历史面板，保持当前页面和搜索框的键盘焦点。
+点击空搜索框或通过键盘切入会显示热榜与历史面板，保持当前页面和搜索框的键盘焦点。
+`GotFocus` 只响应当前仍在搜索框内的 `FocusState.Keyboard`；程序分配的焦点不会展开面板。
 输入非空关键词时收起面板，改为展示原生联想列表；联想请求有 250ms 防抖，更新输入会取消上一请求。
 回车、搜索按钮、联想词、热榜词与历史词共用提交入口，只有提交非空关键词时才进入搜索结果页。
 
@@ -22,6 +23,22 @@
 打开时不调用 `Focus`，也不创建阻挡搜索框的关闭遮罩。
 点击面板和搜索框之外、键盘焦点移出这两个区域、按 Esc 或窗口失活都会关闭；
 外部点击不标记为已处理，目标控件仍响应这一次点击。
+
+## 返回与导航
+
+搜索框左侧常驻 32×32 DIP 的返回按钮，与搜索框间距为 8 DIP，垂直居中。
+按钮绑定 `INavigationService.CanGoBack`；没有上一级时禁用，未登录时随搜索入口隐藏。
+导航服务通过 `INotifyPropertyChanged` 通知返回状态，包括只清空历史、继续显示同一页面实例的换根操作。
+
+提交搜索使用 `Navigate<SearchPage>()` 压栈，保留进入搜索前的页面；在当前搜索页重新提交不会重复压栈。
+结果中的歌单、专辑、歌手详情继续压栈，返回时恢复原页面实例及其结果、滚动位置。
+侧栏点击仍使用 `NavigateRoot` 清空历史并切换根页，搜索页没有独立侧栏项，侧栏高亮跟随栈底根页。
+
+专辑、歌手、AI 歌单与音乐馆分类页的独立返回按钮已移除，统一由主窗口的 `GoBack()` 处理。
+返回前后关闭搜索面板和联想列表，并将焦点放到返回页面的首个可聚焦元素；没有子元素时尝试聚焦页面。
+返回期间忽略搜索框的焦点展开事件，避免返回到根页、按钮禁用后焦点转移而唤起搜索面板。
+歌词页保留原来的 ↓ 收起按钮作为例外，按钮与普通窗口下的 `Esc` 同样调用主窗口的返回处理；
+全屏下的 `Esc` 仍先退出全屏。详情见 [`fullscreen-lyrics.md`](fullscreen-lyrics.md)。
 
 ## 默认综合结果与分类 tab
 
@@ -71,7 +88,7 @@
   样本数量为单曲 30、歌单 5、歌手 3、专辑 5，不将这些数量作为产品限制。
 - 歌手作品使用 `artist-336-music.json`、`artist-336-album.json` 真实响应回放；
   其他分类的构造测试明确用于字段契约验证，不冒充完整真实接口样本。
-- WinUI 构建通过；保留既有 `AiPlaylistPage.xaml:28` 的 `WMC1506` 警告。
+- WinUI 构建通过；保留既有 `AiPlaylistPage.xaml:27` 的 `WMC1506` 警告。
 - 已实际启动确认主窗口成功创建且响应，UI Automation 验证搜索框可保持焦点并输入。
   用户完成本轮界面测试；未将每一种交互都宣称为自动化验证通过。
 
@@ -82,9 +99,11 @@
 复现命令：
 
 ```powershell
-dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --nologo -v minimal
-dotnet run --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore
+dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj -c Debug --no-restore -v minimal
+dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj -c Debug --no-build --no-restore
 ```
 
-本机直接运行 xUnit 可执行测试宿主完成验证；本轮 `dotnet test --project ...` 返回零测试，
-因此不以该命令的结果代替上述 590 项测试通过记录。
+搜索增强阶段曾遇到 `dotnet test --project ...` 返回零测试，当时改用 xUnit 可执行测试宿主验证。
+2026-10-02 统一返回入口时，解决方案构建成功，`dotnet test` 实际执行 590 项测试，全部通过、无跳过；
+焦点修复与恢复歌词 ↓ 按钮后再次构建 WinUI 项目通过，0 错误、1 个上述既有警告。
+这些检查不覆盖实际窗口中的返回焦点迁移和歌词收起交互，本次未进行窗口点击验证。

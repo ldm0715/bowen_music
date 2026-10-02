@@ -62,6 +62,7 @@ public sealed partial class MainWindow : Window
     private AppWindowPresenter? _lyricsRestorePresenter;
     private FrameworkElement? _lyricsTitleBar;
     private bool _lyricsVisible;
+    private bool _isNavigatingBack;
     private bool _lyricsChromeVisible = true;
     private OverlappedPresenter? _hiddenCaptionPresenter;
     private bool _captionRestoreBorder;
@@ -355,7 +356,14 @@ public sealed partial class MainWindow : Window
         _ = LoadSidebarAsync();
     }
 
-    private void OnSearchGotFocus(object sender, RoutedEventArgs args) => ShowSearchPanel();
+    private void OnSearchGotFocus(object sender, RoutedEventArgs args)
+    {
+        // 禁用返回按钮、卸载页面或 Esc 收起浮窗都可能迁移焦点；只有键盘主动切入才展开。
+        if (_isNavigatingBack
+            || FocusManager.GetFocusedElement(ShellRoot.XamlRoot) is not Control { FocusState: FocusState.Keyboard } focused
+            || !IsWithin(focused, SearchBox)) return;
+        ShowSearchPanel();
+    }
 
     private void OnSearchPointerPressed(object sender, PointerRoutedEventArgs args) => ShowSearchPanel();
 
@@ -445,13 +453,38 @@ public sealed partial class MainWindow : Window
         if (args.ClickedItem is string keyword) SubmitSearch(keyword);
     }
 
+    private void OnBackClick(object sender, RoutedEventArgs args) => GoBack();
+
+    public void GoBack()
+    {
+        if (!_navigation.CanGoBack) return;
+
+        _isNavigatingBack = true;
+        try
+        {
+            DismissSearchUi();
+            _navigation.GoBack();
+            // 返回到根页时按钮会被禁用，把焦点放回页面，避免落到旁边的搜索框。
+            if (_navigation.Current is { } page)
+            {
+                var target = FocusManager.FindFirstFocusableElement(page) as UIElement ?? page;
+                target.Focus(FocusState.Programmatic);
+            }
+            DismissSearchUi();
+        }
+        finally
+        {
+            _isNavigatingBack = false;
+        }
+    }
+
     private void SubmitSearch(string keyword)
     {
         if (string.IsNullOrWhiteSpace(keyword)) return;
         DismissSearchUi();
         Search.Keyword = keyword.Trim();
         Search.SearchCommand.Execute(null);
-        _navigation.NavigateRoot<SearchPage>();
+        _navigation.Navigate<SearchPage>();
     }
 
     /// <summary>
@@ -594,6 +627,7 @@ public sealed partial class MainWindow : Window
         _lyricsVisible = true;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = titleBar;
+        DismissSearchUi();
         AppTitleBar.Visibility = Visibility.Collapsed;
         Nav.Visibility = Visibility.Collapsed;
         PlayerHost.Visibility = Visibility.Collapsed;

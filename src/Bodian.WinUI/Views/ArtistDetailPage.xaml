@@ -8,10 +8,9 @@
     <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
         <Grid Margin="0,0,0,16" ColumnSpacing="16">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
             <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.Artist.CoverImage)}" Width="88" Height="88" Stretch="UniformToFill" />
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4"><TextBlock Text="{x:Bind ViewModel.Artist.Name}" Style="{StaticResource TitleTextBlockStyle}" /><TextBlock Text="{x:Bind ViewModel.Artist.Summary}" /></StackPanel>
-            <Button Grid.Column="2" Content="返回" Click="OnBackClick" VerticalAlignment="Top" />
         </Grid>
         <Pivot Grid.Row="1" SelectionChanged="OnSelectionChanged">
             <PivotItem Header="歌曲">

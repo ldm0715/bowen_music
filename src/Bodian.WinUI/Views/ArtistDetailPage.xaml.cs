@@ -1,7 +1,6 @@
 using Bodian.Core.Models;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Bodian.WinUI.Views;
@@ -21,7 +20,6 @@ public sealed partial class ArtistDetailPage : Page, INavigationAware, INavigati
     public object NavigationIdentity => ("artist", ViewModel.Artist.Id);
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
     public void OnNavigatedFrom() { }
-    private void OnBackClick(object sender, RoutedEventArgs e) => _navigation.GoBack();
     private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
     private void OnAlbumClick(object sender, ItemClickEventArgs e)
     {

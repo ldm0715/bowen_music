@@ -16,7 +16,6 @@
         <Grid Grid.Row="0" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Spacing="2">
@@ -46,11 +45,6 @@
                     TextTrimming="CharacterEllipsis" />
             </StackPanel>
 
-            <Button
-                Grid.Column="1"
-                VerticalAlignment="Top"
-                Click="OnBackClick"
-                Content="返回" />
         </Grid>
 
         <controls:TrackListView

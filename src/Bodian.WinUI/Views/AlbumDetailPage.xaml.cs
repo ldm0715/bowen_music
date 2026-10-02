@@ -1,7 +1,6 @@
 using Bodian.Core.Models;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Bodian.WinUI.Views;
@@ -15,15 +14,11 @@ namespace Bodian.WinUI.Views;
 /// </remarks>
 public sealed partial class AlbumDetailPage : Page, INavigationAware
 {
-    private readonly INavigationService _navigation;
-
-    public AlbumDetailPage(AlbumDetailViewModel viewModel, INavigationService navigation)
+    public AlbumDetailPage(AlbumDetailViewModel viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
-        ArgumentNullException.ThrowIfNull(navigation);
 
         ViewModel = viewModel;
-        _navigation = navigation;
 
         InitializeComponent();
     }
@@ -36,8 +31,6 @@ public sealed partial class AlbumDetailPage : Page, INavigationAware
     public void OnNavigatedFrom()
     {
     }
-
-    private void OnBackClick(object sender, RoutedEventArgs e) => _navigation.GoBack();
 
     private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
 }

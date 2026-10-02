@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Bodian.Core.Navigation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
@@ -39,6 +40,8 @@ public sealed class NavigationService : INavigationService
     }
 
     public event EventHandler<Page>? Navigated;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public bool CanGoBack => _stack.CanGoBack;
 
@@ -84,13 +87,16 @@ public sealed class NavigationService : INavigationService
     /// 把某一页显示出来。
     /// </summary>
     /// <remarks>
-    /// <b>页面没变就整体跳过</b>：重复点同一个侧栏项、<c>Navigate</c> 到当前页，都会走到这里
+    /// <b>页面没变就跳过页面生命周期</b>：重复点同一个侧栏项、<c>Navigate</c> 到当前页，都会走到这里
     /// 而目标与已在显示的是同一个实例。跳过意味着既不做内容赋值，也不发
     /// <see cref="INavigationAware.OnNavigatedFrom"/> / <see cref="INavigationAware.OnNavigatedTo"/>
     /// —— 后者会让页面白白重取一次数据。
     /// </remarks>
     private void Show(Page next)
     {
+        // 换根可能只清空历史、继续显示同一实例；返回按钮仍必须同步为不可用。
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanGoBack)));
+
         if (ReferenceEquals(_shown, next))
         {
             return;

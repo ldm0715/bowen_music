@@ -164,8 +164,7 @@ public partial class App : Application
                     sp.GetRequiredService<IBodianApi>(),
                     sp.GetRequiredService<PlaybackCoordinator>(),
                     album,
-                    sp.GetRequiredService<ILogger<AlbumDetailViewModel>>()),
-                sp.GetRequiredService<INavigationService>()));
+                    sp.GetRequiredService<ILogger<AlbumDetailViewModel>>())));
 
         // AI 歌单页要带「哪个序号 + 什么标题」构造，DI 解析不出来 —— 用工厂。
         // 标题一并传进去：模块里那一组的标题与详情响应的 title 实测逐字相同，
@@ -177,8 +176,7 @@ public partial class App : Application
                     sp.GetRequiredService<PlaybackCoordinator>(),
                     target,
                     title,
-                    sp.GetRequiredService<ILogger<AiPlaylistViewModel>>()),
-                sp.GetRequiredService<INavigationService>()));
+                    sp.GetRequiredService<ILogger<AiPlaylistViewModel>>())));
 
         // 榜详情要带「哪个榜」构造，DI 解析不出来 —— 用工厂。
         builder.Services.AddTransient<Func<Bang, BangDetailPage>>(sp => bang =>
