@@ -439,7 +439,10 @@ public sealed partial class MainWindow : Window
 
         ShowShell();
 
-        // 换号之后「创建的歌单」是另一份，必须重拉（重拉会先摘掉上一个账号留下的项）。
+        // 换号之后「创建的歌单」是另一份：先清空再重拉。
+        // 清空不能只指望 LoadAsync —— 它现在失败时不再动列表（见 SidebarViewModel.LoadAsync），
+        // 少这一步，重拉失败就会把上一个账号的歌单留给新账号看。
+        _sidebar.Reset();
         _ = LoadSidebarAsync();
     }
 
@@ -663,6 +666,9 @@ public sealed partial class MainWindow : Window
     {
         Nav.IsPaneVisible = false;
         HidePlaylistsPane();
+
+        // 登出后这段本来就看不见，但列表还留着上一个账号的歌单名 —— 清掉。
+        _sidebar.Reset();
         SearchPanel.Visibility = Visibility.Collapsed;
         Search.ClearSuggestions();
         SearchBarHost.Visibility = Visibility.Collapsed;
@@ -727,10 +733,15 @@ public sealed partial class MainWindow : Window
     private void UpdateSidebarPaneMode()
     {
         var compact = !Nav.IsPaneOpen;
-        var hasPlaylists = _sidebar.Playlists.Count > 0 || _sidebar.ErrorText is not null;
 
-        PlaylistSection.Visibility = hasPlaylists && !compact ? Visibility.Visible : Visibility.Collapsed;
-        CompactPlaylistsItem.Visibility = hasPlaylists && compact ? Visibility.Visible : Visibility.Collapsed;
+        // ★ 判据是「有没有登录」，**不是「有没有歌单」**。
+        //   这一段现在带着「新建歌单」入口，零歌单时恰恰最需要它 ——
+        //   原来的 hasPlaylists 门控会让新账号把两处入口一起藏掉，等于没有入口可用。
+        //   失败那两行重试入口仍由 ErrorText 单独驱动，与这里正交。
+        var showPane = _login.IsAuthenticated;
+
+        PlaylistSection.Visibility = showPane && !compact ? Visibility.Visible : Visibility.Collapsed;
+        CompactPlaylistsItem.Visibility = showPane && compact ? Visibility.Visible : Visibility.Collapsed;
 
         // 展开态自己有那一段，浮层就没用了；收起时反过来，浮层不该留着。
         if (!compact)
@@ -760,6 +771,142 @@ public sealed partial class MainWindow : Window
 
     /// <summary>浮层右上角的收起按钮。</summary>
     private void OnPlaylistsCloseClick(object sender, RoutedEventArgs e) => HidePlaylistsPane();
+
+    /// <summary>展开态标题行与浮层标题行里那颗「新建歌单」，两处共用同一个动作。</summary>
+    private async void OnCreatePlaylistClick(object sender, RoutedEventArgs e)
+        => await ShowCreatePlaylistDialogAsync();
+
+    /// <summary>
+    /// 两颗「刷新」。与两处失败重试（<see cref="OnPlaylistsRetryRequested"/> /
+    /// <see cref="OnPaneRetryClick"/>）是同一个动作，只是那两行只在失败时才出现。
+    /// </summary>
+    private void OnRefreshPlaylistsClick(object sender, RoutedEventArgs e) => _ = LoadSidebarAsync();
+
+    /// <summary>
+    /// 新建歌单的输入框：名字 + 一行「设置为隐私歌单」。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>校验靠 <c>IsPrimaryButtonEnabled</c>，不用 <c>PrimaryButtonClick</c> + deferral。</b>
+    /// 名字为空时主按钮就是灰的，回车与点击都无效 —— 不用把已经弹出来的对话框再拦住。
+    /// </para>
+    /// <para>
+    /// <b>默认按钮是「创建」</b>，与清空队列、取消收藏那类破坏性操作「默认落在取消」相反：
+    /// 用户是按了 + 才进来的，这是个建设性动作。
+    /// </para>
+    /// <para>
+    /// <b>不设长度上限</b>：实测服务端对 50 字的名字照建（文档 2.4），客户端加上限只会挡住合法输入。
+    /// 反过来空白必须自己挡 —— 实测服务端对空名字也照建。
+    /// </para>
+    /// <para>
+    /// <b>建完不收浮层</b>：浮层里那份列表绑的就是 <c>_sidebar.Playlists</c>，
+    /// 新行当场出现在最上面，这就是成功反馈；收起态（48 DIP 图标轨）没有别的地方能显示它。
+    /// </para>
+    /// </remarks>
+    private async Task ShowCreatePlaylistDialogAsync()
+    {
+        var nameBox = new TextBox
+        {
+            PlaceholderText = "给你的歌单起个名字吧...",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+
+        var privateSwitch = new ToggleSwitch
+        {
+            IsOn = false,
+            MinWidth = 0,
+            OffContent = "",
+            OnContent = "",
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var privateRow = new Grid { ColumnSpacing = 12 };
+        privateRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        privateRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        privateRow.Children.Add(new TextBlock
+        {
+            Text = "设置为隐私歌单",
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        Grid.SetColumn(privateSwitch, 1);
+        privateRow.Children.Add(privateSwitch);
+
+        var content = new StackPanel { Spacing = 8 };
+        content.Children.Add(nameBox);
+        content.Children.Add(privateRow);
+
+        var dialog = CreateAppDialog("新建歌单");
+        dialog.Content = content;
+        dialog.PrimaryButtonText = "创建";
+        dialog.CloseButtonText = "取消";
+        dialog.DefaultButton = ContentDialogButton.Primary;
+        dialog.IsPrimaryButtonEnabled = false;
+
+        nameBox.TextChanged += (_, _) =>
+            dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(nameBox.Text);
+
+        // 打开就聚焦输入框，直接敲名字 + 回车即提交（单行 TextBox 不吞 Enter）。
+        dialog.Opened += (_, _) => nameBox.Focus(FocusState.Programmatic);
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var name = nameBox.Text.Trim();
+
+        if (await _sidebar.CreateAsync(name, privateSwitch.IsOn))
+        {
+            AfterSidebarChanged();
+            Player.TransientNotice($"已创建「{name}」");
+            return;
+        }
+
+        var failed = CreateAppDialog("没能新建歌单");
+        failed.Content = _sidebar.CreateErrorText ?? "请稍后再试。";
+        failed.CloseButtonText = "知道了";
+
+        await failed.ShowAsync();
+    }
+
+    /// <summary>
+    /// 造一个跟随应用主题、并且收紧了内边距的对话框。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>主题：</b>代码构造的 <see cref="ContentDialog"/> 不在可视树里，
+    /// <b>不会继承 <c>ShellRoot</c> 上那个 <c>RequestedTheme</c></b> ——
+    /// 不显式设就永远跟随系统，应用内切成深色时它还是一块白板。
+    /// （队列抽屉、歌单浮层那几个自绘面板同理，都各自绑了。）
+    /// </para>
+    /// <para>
+    /// <b>内边距：</b>WinUI 的对话框模板（<c>generic.xaml</c> 的 <c>DefaultContentDialogStyle</c>）
+    /// 给内容区与按钮区<b>各</b>留了一份 <c>ContentDialogPadding</c>（<c>24</c> 四边），
+    /// 两段叠起来，内容底下就凭空多出 48 的空档，按钮区自己也撑到 80 高 ——
+    /// 而里面只有两个扁按钮。这里收到上下 12。
+    /// </para>
+    /// <para>
+    /// 同一个模板还给了 <c>ContentDialogMinHeight = 184</c>：内容不够高时它会把对话框整个撑起来，
+    /// 多出的高度全堆在内容下方，看着就是「这一行下面怎么这么空」。一并解掉。
+    /// 宽度也一并收到 360（默认 <c>MaxWidth</c> 是 548，内容只有一栏时左右空一大片）。
+    /// </para>
+    /// </remarks>
+    private ContentDialog CreateAppDialog(string title)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = ShellRoot.XamlRoot,
+            RequestedTheme = Theme.RequestedTheme,
+            Title = title,
+        };
+
+        dialog.Resources["ContentDialogPadding"] = new Thickness(24, 12, 24, 12);
+        dialog.Resources["ContentDialogMinHeight"] = 0d;
+        dialog.Resources["ContentDialogMinWidth"] = 320d;
+        dialog.Resources["ContentDialogMaxWidth"] = 360d;
+
+        return dialog;
+    }
 
     /// <summary>浮层里点了某个歌单：换根进详情，顺手把浮层收掉。</summary>
     private void OnPanePlaylistInvoked(object? sender, Playlist playlist)

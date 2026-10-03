@@ -52,6 +52,14 @@ public sealed record Playlist
     /// </remarks>
     public int SourceType { get; init; }
 
+    /// <summary>是不是隐私歌单。界面在封面右下角画一颗锁来区分。</summary>
+    /// <remarks>
+    /// 来自响应的 <c>isPrivate</c> —— 服务端给的是**数字**不是布尔
+    /// （见 <c>PlaylistDto.IsPrivate</c>），映射时归一成布尔。
+    /// 新建歌单时本地插入的那一行由开关直接带上。
+    /// </remarks>
+    public bool IsPrivate { get; init; }
+
     // ── 以下都是详情专属字段（见类型注释）────────────────────────────────
 
     /// <summary>创建者 uid。<c>0</c> 表示这个来源没给。</summary>

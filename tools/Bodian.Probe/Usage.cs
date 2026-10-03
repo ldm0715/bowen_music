@@ -27,6 +27,7 @@ internal static class Usage
 
             选项
               --post                     用 POST（默认 GET）
+              --delete                   用 DELETE（歌单删除一类的端点）
               --signed                   带 timestamp 与 sign
               --body <json>              JSON body，原样参与签名并发送
               --name <name>              存 fixture 时的文件名（call 命令）

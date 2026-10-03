@@ -34,15 +34,32 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- 封面。没有封面时留一块底色，行高不跳。 -->
-                    <Border
+                    <Grid
                         Grid.Column="0"
                         Width="48"
                         Height="48"
-                        VerticalAlignment="Center"
-                        Background="{ThemeResource ControlFillColorDefaultBrush}"
-                        CornerRadius="4">
-                        <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                    </Border>
+                        VerticalAlignment="Center">
+                        <Border
+                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                            CornerRadius="4">
+                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        </Border>
+
+                        <!-- 隐私歌单的锁。与侧栏那份行模板同一套画法（角标尺寸也共用 token）。 -->
+                        <Border
+                            Width="{StaticResource SizePrivateBadge}"
+                            Height="{StaticResource SizePrivateBadge}"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="#99000000"
+                            CornerRadius="0,0,4,4"
+                            Visibility="{x:Bind local:Formats.Visible(IsPrivate)}">
+                            <FontIcon
+                                FontSize="9"
+                                Foreground="White"
+                                Glyph="&#xE72E;" />
+                        </Border>
+                    </Grid>
 
                     <TextBlock
                         Grid.Column="1"

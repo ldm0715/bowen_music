@@ -483,6 +483,53 @@ public sealed class BodianApi : IBodianApi
         return playlists;
     }
 
+    /// <inheritdoc cref="IBodianApi.CreatePlaylistAsync"/>
+    public async Task<long> CreatePlaylistAsync(string name, bool isPrivate,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        var trimmed = name.Trim();
+
+        if (trimmed.Length == 0)
+        {
+            throw new ArgumentException("歌单名不能为空。", nameof(name));
+        }
+
+        RequireAuthenticated();
+        var revision = _session.Revision;
+        var body = new CreatePlaylistBody { Name = trimmed, Private = isPrivate };
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.PlaylistCrud,
+                Verb = BodianHttpVerb.Post,
+                Signed = true,
+                JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.CreatePlaylistBody),
+            },
+            BodianJsonContext.Default.PlaylistDto,
+            cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "新建歌单请求已受理：名字 {Name}，隐私 {IsPrivate}，接口 {Path}，业务码 {Code}，reqId {RequestId}",
+            trimmed, isPrivate, Endpoints.PlaylistCrud, envelope.Code, envelope.RequestId);
+
+        if (revision != _session.Revision)
+        {
+            throw new InvalidOperationException("登录状态已改变，请重新检查歌单。");
+        }
+
+        // 实测回执只有 id（文档 2.4）：没有 id 就是没建成，
+        // 不能返回一个假的 0 让界面插进一行空歌单。
+        if (envelope.Data is not { Id: > 0 } created)
+        {
+            throw new InvalidOperationException("服务端没有返回新歌单的 id。");
+        }
+
+        return created.Id;
+    }
+
     public async Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
     {
         var envelope = await _transport.SendAsync(
@@ -1627,6 +1674,9 @@ public sealed class BodianApi : IBodianApi
         //   表现就是「点进去是空歌单」，极难查。
         //   字段缺失时留 0，由调用方决定怎么办（账号歌单那边本来就知道自己是 5，不靠它）。
         SourceType = dto.SourceType,
+
+        // 服务端给的是数字（0/1），这里归一成布尔给界面用。
+        IsPrivate = dto.IsPrivate != 0,
     };
 
     /// <summary>

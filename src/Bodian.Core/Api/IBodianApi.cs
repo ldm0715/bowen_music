@@ -95,6 +95,26 @@ public interface IBodianApi
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 新建歌单，返回新歌单的 id。
+    /// </summary>
+    /// <param name="name">歌单名。<b>会先 Trim</b>，Trim 后为空则抛 <see cref="ArgumentException"/>。</param>
+    /// <param name="isPrivate">是否设为隐私歌单。</param>
+    /// <remarks>
+    /// <para>
+    /// <b>回执只有 id</b>（2026-10-03 实测，文档 2.4）：拿不到完整的歌单对象，
+    /// 调用方要自己拼一个，或者拿这个 id 回列表查。
+    /// </para>
+    /// <para>
+    /// <b>不校验名字长度</b>：实测服务端对空名字与 50 字名字都照建，没有上限可言 ——
+    /// 客户端再加上限只会挡住合法输入。反过来，「名字非空」这条服务端不管，必须客户端自己挡。
+    /// </para>
+    /// <para><b>不幂等</b>：超时后重试可能建出两个同名歌单，所以不做自动重试。</para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">名字去掉首尾空白后为空。</exception>
+    /// <exception cref="InvalidOperationException">未登录；或请求在途时换了账号。</exception>
+    Task<long> CreatePlaylistAsync(string name, bool isPrivate, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 「我喜欢」这个歌单<b>本身</b>，不是它的曲目。
     /// </summary>
     /// <remarks>

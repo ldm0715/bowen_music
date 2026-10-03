@@ -161,8 +161,8 @@ https://h5app.kuwo.cn/m/bodian/collection.html?uid={分享者uid}&playlistId={id
 
 ## 5. 没做的事
 
-- **隐私歌单不做。** 接口是有的（`POST /api/service/playlist` body `{"name", "private"}`，文档 §2.4），
-  但三条歌单 CRUD 端点**只有静态证据、本项目从未发过真实请求**，而且现在根本没有新建/编辑歌单的入口。
+- **隐私歌单**：新建入口 2026-10-03 已在侧栏落地（[`create-playlist.md`](create-playlist.md)）。
+  **本页仍然不提供编辑歌单的入口** —— `PUT service/playlist` 至今未实测。
 - **「我喜欢的」页没动**（`FavoritesPage` / `FavoritesViewModel`）：它是独立页面，不经过
   `PlaylistDetailPage`，要不要也加头部另说。
 - **收藏写入的 `source` 存疑，本轮没改**：`SetCollectedAsync` 把歌单**来源**当收藏**类别**传，

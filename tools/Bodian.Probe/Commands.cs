@@ -255,7 +255,7 @@ internal static class Commands
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var response = await client.SendAsync(UsersLoginPath, null, body, signed: true, post: true);
+            var response = await client.SendAsync(UsersLoginPath, null, body, signed: true, method: HttpMethod.Post);
             Console.WriteLine($"  {response.Describe()}（第 {attempt}/{maxAttempts} 次）");
 
             if (response.Code == 200)
@@ -976,13 +976,13 @@ internal static class Commands
         IReadOnlyList<KeyValuePair<string, string>> query,
         string? body,
         bool signed,
-        bool post,
+        HttpMethod method,
         bool save,
         string? name,
         string? forceSign = null,
         bool mobileSign = false)
     {
-        var response = await client.SendAsync(path, query, body, signed, post: post, overrideSign: forceSign, mobileSign: mobileSign);
+        var response = await client.SendAsync(path, query, body, signed, method: method, overrideSign: forceSign, mobileSign: mobileSign);
         Console.WriteLine(response.Describe());
         SaveIfRequested(save, name ?? "call-" + path.Replace('/', '-'), response);
 

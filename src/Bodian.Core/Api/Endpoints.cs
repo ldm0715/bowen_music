@@ -276,6 +276,24 @@ internal static class Endpoints
     public const string PlaylistMusic = "service/playlist/music";
 
     /// <summary>
+    /// 歌单<b>本身</b>的新建 / 删除 / 编辑。**三条共用这一条裸路径，靠 HTTP method 区分**：
+    /// <c>POST</c> 新建（body <c>{name, private}</c>）、<c>DELETE</c> 删除（body <c>{playlistIds: […]}</c>）、
+    /// <c>PUT</c> 编辑（body <c>{id, name, description, pic, categoryList}</c>）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>与 <see cref="PlaylistMusic"/> 不是一回事</b>：那条动的是「歌单里的歌」，这条动的是「歌单本身」。
+    /// 两条路径不同、语义不同，不要互相套用。
+    /// </para>
+    /// <para>
+    /// 新建与删除已实测（文档 2.4、<c>reverse/findings/11-share-playlist-crud.md</c> §2）：
+    /// 桌面头 + 桌面签名即可，<b>新建的回执只有 <c>{id}</c></b>，删除支持一次传多个 id。
+    /// <c>PUT</c> 仍未实测。
+    /// </para>
+    /// </remarks>
+    public const string PlaylistCrud = "service/playlist";
+
+    /// <summary>
     /// 歌单详情。query 带 <c>source</c>（就是歌单自身的 <c>sourceType</c>）。
     /// </summary>
     /// <remarks>

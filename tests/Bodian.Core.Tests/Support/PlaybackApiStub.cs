@@ -55,6 +55,12 @@ internal sealed class PlaybackApiStub : IBodianApi
             CancellationToken cancellationToken = default)
             => GetCreatedPlaylists(cancellationToken);
 
+        public Func<string, bool, CancellationToken, Task<long>> CreatePlaylist { get; set; } =
+            (_, _, _) => throw new NotSupportedException();
+        public Task<long> CreatePlaylistAsync(string name, bool isPrivate,
+            CancellationToken cancellationToken = default)
+            => CreatePlaylist(name, isPrivate, cancellationToken);
+
         public Func<CancellationToken, Task<Playlist?>> GetLikedPlaylist { get; set; } =
             _ => throw new NotSupportedException();
         public Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)

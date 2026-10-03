@@ -100,7 +100,7 @@ internal sealed class ProbeClient : IDisposable
         bool signed = false,
         SignKeyForm signKeyForm = SignKeyForm.Included,
         PathForm pathForm = PathForm.Bare,
-        bool post = false,
+        HttpMethod? method = null,
         string? overrideSign = null,
         long? fixedTimestamp = null,
         bool mobileSign = false)
@@ -112,6 +112,7 @@ internal sealed class ProbeClient : IDisposable
         };
 
         var seedQuery = "";
+        var verb = method ?? HttpMethod.Get;
 
         if (signed)
         {
@@ -124,7 +125,7 @@ internal sealed class ProbeClient : IDisposable
                 //   签完再补 sign —— 桌面版那条路签的是 query 串 + 裸路径，两者不可混用。
                 var unsignedUrl = BaseUrl + path + "?" + BodianSigner.FormUrlEncode(pairs);
 
-                var mobileSignature = overrideSign ?? BodianMobileSigner.Sign(unsignedUrl, post ? body : null);
+                var mobileSignature = overrideSign ?? BodianMobileSigner.Sign(unsignedUrl, verb != HttpMethod.Get ? body : null);
 
                 pairs.Add(new KeyValuePair<string, string>("sign", mobileSignature));
             }
@@ -149,14 +150,14 @@ internal sealed class ProbeClient : IDisposable
 
         if (Verbose)
         {
-            Console.Error.WriteLine($"> {(post ? "POST" : "GET")} {url}");
+            Console.Error.WriteLine($"> {verb.Method} {url}");
             if (body is not null)
             {
                 Console.Error.WriteLine($"> body {body}");
             }
         }
 
-        using var request = BuildRequest(post ? HttpMethod.Post : HttpMethod.Get, url, body);
+        using var request = BuildRequest(verb, url, body);
         using var response = await _http.SendAsync(request).ConfigureAwait(false);
         var raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 

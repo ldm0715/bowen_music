@@ -16,7 +16,7 @@ string? body = null;
 string? proxy = Environment.GetEnvironmentVariable("BODIAN_PROXY");
 string? fixtureName = null;
 var signed = false;
-var post = false;
+HttpMethod? method = null;
 var save = false;
 var verbose = false;
 var timeoutSeconds = 300;
@@ -41,7 +41,10 @@ for (var i = 0; i < args.Length; i++)
             Usage.Print();
             return 0;
         case "--post":
-            post = true;
+            method = HttpMethod.Post;
+            break;
+        case "--delete":
+            method = HttpMethod.Delete;
             break;
         case "--plat":
             platOverride = NextValue(args, ref i);
@@ -185,7 +188,7 @@ if (command == "call")
     }
 
     return await Commands.CallAsync(
-        client, positional[1], queryPairs, body, signed, post, save, fixtureName, forceSign, mobileSign);
+        client, positional[1], queryPairs, body, signed, method ?? HttpMethod.Get, save, fixtureName, forceSign, mobileSign);
 }
 
 if (command is "info" or "checkright" or "signtest" or "play" or "lyric" or "sigsweep")

@@ -98,6 +98,20 @@ public sealed class PlaylistApiTests : IDisposable
         Assert.Contains($"service/playlist/userCreate?userId={Uid}", _handler.LastRequest.Url);
     }
 
+    /// <summary>隐私标记来自 <c>isPrivate</c>，服务端给的是数字不是布尔。</summary>
+    [Fact]
+    public async Task CreatedPlaylists_MapsPrivateFlag()
+    {
+        const string json = """{"code":200,"msg":"success","data":{"total":2,"playLists":[{"id":1,"name":"私密","isPrivate":1},{"id":2,"name":"公开","isPrivate":0}]}}""";
+
+        _handler.Responder = _ => ReplayHandler.Json(json);
+
+        var playlists = await _api.GetCreatedPlaylistsAsync(Ct);
+
+        Assert.True(playlists[0].IsPrivate);
+        Assert.False(playlists[1].IsPrivate);
+    }
+
     // ── 我喜欢 ──────────────────────────────────────────────────────────────
 
     [Fact]

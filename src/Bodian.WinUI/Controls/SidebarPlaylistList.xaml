@@ -80,15 +80,36 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- 封面。没有封面时留一块底色，行高不跳（同 PlaylistListView）。 -->
-                        <Border
+                        <Grid
                             Grid.Column="0"
                             Width="{StaticResource SizeCoverXs}"
                             Height="{StaticResource SizeCoverXs}"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource ControlFillColorDefaultBrush}"
-                            CornerRadius="{StaticResource RadiusXs}">
-                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                        </Border>
+                            VerticalAlignment="Center">
+                            <Border
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="{StaticResource RadiusXs}">
+                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                            </Border>
+
+                            <!--
+                                隐私歌单的锁。压在右下角，圆角与封面右下角对齐（0,0,4,4 = RadiusXs）。
+                                底色是半透明黑而不是主题色：封面什么颜色都有，只有固定的暗底加白字
+                                才能保证在浅色封面上也看得见。
+                            -->
+                            <Border
+                                Width="{StaticResource SizePrivateBadge}"
+                                Height="{StaticResource SizePrivateBadge}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Background="#99000000"
+                                CornerRadius="0,0,4,4"
+                                Visibility="{x:Bind local:Formats.Visible(IsPrivate)}">
+                                <FontIcon
+                                    FontSize="9"
+                                    Foreground="White"
+                                    Glyph="&#xE72E;" />
+                            </Border>
+                        </Grid>
 
                         <TextBlock
                             Grid.Column="1"

@@ -152,7 +152,8 @@ https://h5app.kuwo.cn/m/bodian/playMusic.html?uid={分享者uid}&musicId={歌曲
 | 查看专辑 | 曲目自带的 `albumId` —— 这一轮才把它从 DTO 映射进 `Track` |
 
 **写入接口是通用的**：落点是红心歌单还是自建歌单，只差一个 `playlistId`。
-但「新建歌单」仍然不做 —— `POST service/playlist` 至今只有静态证据（见上一节的降级说明）。
+「新建歌单」2026-10-03 已补上（侧栏入口，见 [`create-playlist.md`](create-playlist.md)），
+本菜单里的这份歌单列表仍是只读的。
 
 ## 本轮不做
 
@@ -161,5 +162,5 @@ https://h5app.kuwo.cn/m/bodian/playMusic.html?uid={分享者uid}&musicId={歌曲
 | 系统分享面板（`DataTransferManager`） | 官方是 Flutter 插件拉起第三方面板；桌面端没有这条路径 |
 | 分享文案 `{title, describe}` | 本项目没有分享面板，没有消费方 |
 | 喜欢状态落盘 | 见「状态缓存」一节 |
-| 账号没有「我喜欢的」歌单时自动新建 | 新建歌单端点未实测 |
+| 账号没有「我喜欢的」歌单时自动新建 | 端点 2026-10-03 已实测可用，但这一条仍没做 |
 | 行内直接摆心形按钮（不折叠进菜单） | 行内入口统一收进「更多」菜单，见上一节 |

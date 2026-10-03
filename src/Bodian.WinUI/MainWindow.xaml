@@ -419,7 +419,59 @@
                     分组头沿用菜单区那两个的样式：NavigationViewItemHeader 是按类型挂的隐式样式，
                     搬到这里观感、缩进与「我的音乐」完全一致。
                 -->
-                <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
+                <Grid Margin="0,0,8,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
+
+                    <!--
+                        刷新与新建。样式跟浮层那颗 ✕ 是同一套（28×28、透明底、无边框）。
+                        刷新在前、新建在后：次要动作靠里，主要动作靠外。
+
+                        ★ 宽度交给 Grid 的 * 列，不写死：标题长了两颗按钮也不会被挤掉。
+                    -->
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="2">
+                        <Button
+                            x:Name="RefreshPlaylistsButton"
+                            Width="28"
+                            Height="28"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            AutomationProperties.Name="刷新歌单"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnRefreshPlaylistsClick"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            IsEnabled="{x:Bind _sidebar.CanRefresh, Mode=OneWay}"
+                            ToolTipService.ToolTip="刷新">
+                            <FontIcon FontSize="12" Glyph="&#xE72C;" />
+                        </Button>
+
+                        <Button
+                            x:Name="CreatePlaylistButton"
+                            Width="28"
+                            Height="28"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            AutomationProperties.Name="新建歌单"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnCreatePlaylistClick"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            ToolTipService.ToolTip="新建歌单">
+                            <FontIcon FontSize="12" Glyph="&#xE710;" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
 
                 <controls:SidebarPlaylistList
                     x:Name="FooterPlaylistList"
@@ -541,26 +593,67 @@
                         <NavigationViewItemHeader Content="创建的歌单" />
 
                         <!--
-                            收起按钮。与播放队列抽屉那颗同一种写法。
-                            ★ 必须有：外面的透明遮罩只铺第 1 行，点播放条或标题栏是收不掉的，
-                              没有这颗按钮就只剩 Esc 与再点一次图标两条路，太难发现。
+                            与展开态标题行同一组按钮，顺序也一致（刷新 · 新建 · 收起）。
+                            三颗 28 宽加间距约 88，浮层 380 宽放得下。
                         -->
-                        <Button
+                        <StackPanel
                             Grid.Column="1"
-                            Width="32"
-                            Height="32"
-                            MinWidth="0"
-                            MinHeight="0"
-                            Padding="0"
                             VerticalAlignment="Center"
-                            AutomationProperties.Name="收起歌单浮层"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Click="OnPlaylistsCloseClick"
-                            CornerRadius="{StaticResource RadiusSm}"
-                            ToolTipService.ToolTip="收起">
-                            <FontIcon FontSize="12" Glyph="&#xE711;" />
-                        </Button>
+                            Orientation="Horizontal"
+                            Spacing="2">
+                            <Button
+                                Width="28"
+                                Height="28"
+                                MinWidth="0"
+                                MinHeight="0"
+                                Padding="0"
+                                AutomationProperties.AutomationId="PaneRefreshPlaylistsButton"
+                                AutomationProperties.Name="刷新歌单"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnRefreshPlaylistsClick"
+                                CornerRadius="{StaticResource RadiusSm}"
+                                IsEnabled="{x:Bind _sidebar.CanRefresh, Mode=OneWay}"
+                                ToolTipService.ToolTip="刷新">
+                                <FontIcon FontSize="12" Glyph="&#xE72C;" />
+                            </Button>
+
+                            <Button
+                                Width="28"
+                                Height="28"
+                                MinWidth="0"
+                                MinHeight="0"
+                                Padding="0"
+                                AutomationProperties.AutomationId="PaneCreatePlaylistButton"
+                                AutomationProperties.Name="新建歌单"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnCreatePlaylistClick"
+                                CornerRadius="{StaticResource RadiusSm}"
+                                ToolTipService.ToolTip="新建歌单">
+                                <FontIcon FontSize="12" Glyph="&#xE710;" />
+                            </Button>
+
+                            <!--
+                                收起按钮。与播放队列抽屉那颗同一种写法。
+                                ★ 必须有：外面的透明遮罩只铺第 1 行，点播放条或标题栏是收不掉的，
+                                  没有这颗按钮就只剩 Esc 与再点一次图标两条路，太难发现。
+                            -->
+                            <Button
+                                Width="28"
+                                Height="28"
+                                MinWidth="0"
+                                MinHeight="0"
+                                Padding="0"
+                                AutomationProperties.Name="收起歌单浮层"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnPlaylistsCloseClick"
+                                CornerRadius="{StaticResource RadiusSm}"
+                                ToolTipService.ToolTip="收起">
+                                <FontIcon FontSize="12" Glyph="&#xE711;" />
+                            </Button>
+                        </StackPanel>
                     </Grid>
 
                     <controls:PlaylistListView

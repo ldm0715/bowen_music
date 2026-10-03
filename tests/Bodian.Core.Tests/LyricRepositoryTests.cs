@@ -188,6 +188,10 @@ public sealed class LyricRepositoryTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Task<long> CreatePlaylistAsync(string name, bool isPrivate,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
