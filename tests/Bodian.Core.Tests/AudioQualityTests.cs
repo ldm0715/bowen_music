@@ -10,9 +10,9 @@ public sealed class AudioQualityTests
 {
     // ── 请求链 ──────────────────────────────────────────────────────────────
 
-    /// <summary>h 与 p 都请求 320kmp3，必须去重——不去重会对同一档发两次请求。</summary>
+    /// <summary>s 与 h 属于标准档，必须去重——不去重会对同一档发两次请求。</summary>
     [Fact]
-    public void BuildRequestChain_DeduplicatesHighAndPerfect()
+    public void BuildRequestChain_DeduplicatesStandardLevels()
     {
         var chain = AudioQualityTable.BuildRequestChain(["ff", "p", "h", "s"]);
 
@@ -26,7 +26,7 @@ public sealed class AudioQualityTests
     {
         var chain = AudioQualityTable.BuildRequestChain(["s", "ff", "h"]);
 
-        Assert.Equal(new[] { AudioQuality.Lossless, AudioQuality.High, AudioQuality.Standard }, chain);
+        Assert.Equal(new[] { AudioQuality.Lossless, AudioQuality.Standard }, chain);
     }
 
     [Fact]
@@ -42,11 +42,11 @@ public sealed class AudioQualityTests
         Assert.Empty(AudioQualityTable.BuildRequestChain([]));
     }
 
-    /// <summary>加密档位与授权解码档位都不在候选里：本项目播不了它们。</summary>
+    /// <summary>只支持基础三档：剔除所有加密、占位和授权解码档位。</summary>
     [Fact]
-    public void BuildRequestChain_ExcludesEncryptedAndLicensedLevels()
+    public void BuildRequestChain_ExcludesPlaceholderAndLicensedLevels()
     {
-        Assert.Empty(AudioQualityTable.BuildRequestChain(["zp", "zply", "bcms", "ac4", "dd4", "dtsx", "hr"]));
+        Assert.Empty(AudioQualityTable.BuildRequestChain(["zp", "bcms", "zply", "zpga201", "zpga501", "zpga714", "ac4", "dd4", "dtsx", "hr"]));
     }
 
     /// <summary>不认识的档位被丢弃，认识的照常保留。</summary>
@@ -59,12 +59,12 @@ public sealed class AudioQualityTests
     }
 
     [Fact]
-    public void TryParseLevel_MapsBothHAndPToHigh()
+    public void TryParseLevel_MapsHToStandardAndPToHigh()
     {
         Assert.True(AudioQualityTable.TryParseLevel("h", out var fromH));
         Assert.True(AudioQualityTable.TryParseLevel("p", out var fromP));
 
-        Assert.Equal(AudioQuality.High, fromH);
+        Assert.Equal(AudioQuality.Standard, fromH);
         Assert.Equal(AudioQuality.High, fromP);
     }
 

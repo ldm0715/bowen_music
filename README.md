@@ -2,10 +2,13 @@
 
 非官方第三方桌面客户端，目标平台 Windows 10 / 11。
 
-> **当前状态（2026-10-02）：P0–P5、P7 与 P8 评论主流程完成，677 个离线测试通过。**
+> **当前状态（2026-10-03）：P0–P5、P7 与 P8 评论主流程完成，742 个离线测试通过。**
 > 已支持登录、综合与分类搜索、热榜与本地搜索历史、播放、SMTC、曲库与歌单、评论与回复；
 > 搜索默认分段显示综合结果，“更多”进入分类 tab，入口面板与主题浮窗使用相同的半透明背景。
 > 搜索框左侧统一提供返回按钮（间距 8 DIP），支持逐级返回；歌词页保留原来的 ↓ 收起按钮。
+> 音质支持标准 / HQ / SQ 三档；160 DIP 菜单保留真实大小、以背景表示选中，播放器只显示档位名。
+> 歌词页入口紧邻评论按钮，切换保留进度与暂停状态并记住偏好。
+> 高级三档依赖官方手机客户端，本客户端不提供；范围说明见 [`docs/audio-quality-audit.md`](docs/audio-quality-audit.md)。
 > 搜索说明见 [`docs/search.md`](docs/search.md)。歌词界面已替换为参考 LyciaMusic 的全窗口沉浸设计，
 > 包含透明封面背景、逐字渐变、弹簧滚动、长音效果、滚动浏览和点击歌词跳转，
 > 并加入通栏进度条、真实音频频谱、水面封面倒影，以及普通窗口和全屏统一的操作栏自动收起。
@@ -50,6 +53,7 @@
 | [`roadmap.md`](docs/roadmap.md) | **分阶段执行计划**，先读这份 |
 | [`transport.md`](docs/transport.md) | **工程骨架与传输层的落地设计稿**：csproj 全文 / 类清单 / DTO 映射 / 测试清单 / 验收命令 |
 | [`bodian-api-reference.md`](docs/bodian-api-reference.md) | 接口主文档：传输层 / 签名 / 已验证接口 / 数据模型 / 音质档位 |
+| [`audio-quality-audit.md`](docs/audio-quality-audit.md) | 音质接口复核与解密交接：文档误读、APK 调用链、真实样本及未解决项 |
 | [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |

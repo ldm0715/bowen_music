@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <!-- 研究向量单独编译，解密器不在 Bodian.Core / WinUI 的输出程序集内。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\Bodian.Core\Playback\EKeyAudioDecryptor.cs" Link="Research\EKeyAudioDecryptor.cs" />
+    <Compile Include="..\..\src\Bodian.Core\Playback\EncryptedAudioSourceResolver.cs" Link="Research\EncryptedAudioSourceResolver.cs" />
+    <ProjectReference Include="../../src/Bodian.Core/Bodian.Core.csproj" />
+    <Compile Include="../Bodian.Probe/BodianSigner.cs" Link="BodianSigner.cs" />
+  </ItemGroup>
+</Project>

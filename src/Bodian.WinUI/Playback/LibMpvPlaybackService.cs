@@ -59,6 +59,7 @@ public sealed class LibMpvPlaybackService : IPlaybackService
     private TimeSpan? _lastReported;
     private double _volume = 100;
     private bool _disposed;
+    private TaskCompletionSource? _pendingLoad;
 
     public LibMpvPlaybackService(ILogger<LibMpvPlaybackService>? logger = null)
     {
@@ -90,14 +91,14 @@ public sealed class LibMpvPlaybackService : IPlaybackService
 
     public event EventHandler<PlaybackFailedEventArgs>? Failed;
 
-    public Task LoadAsync(PlaybackSource source, CancellationToken cancellationToken = default)
+    public async Task LoadAsync(PlaybackSource source, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!EnsureInitialized() || _mpv is not { } mpv)
         {
-            RaiseFailed(_unavailableReason ?? "音频引擎不可用");
-            return Task.CompletedTask;
+            throw new InvalidOperationException(_unavailableReason ?? "音频引擎不可用");
         }
 
         // ★ 不能用 mpv.LoadFile(path, extraArgs:)：那个重载把 extra 参数从 index 2 开始写，
@@ -106,7 +107,7 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         //   loadfile <url> <flags> <index> <options> 形式。
         var args = new List<object?> { "loadfile", source.StreamUrl.ToString(), "replace" };
 
-        var options = new List<string>();
+        var options = new List<string> { $"pause={(source.InitiallyPaused ? "yes" : "no")}" };
 
         if (source.Start is { } start && start > TimeSpan.Zero)
         {
@@ -132,16 +133,19 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         _duration = TimeSpan.Zero;
         SetState(PlaybackState.Loading);
 
+        cancellationToken.ThrowIfCancellationRequested();
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Interlocked.Exchange(ref _pendingLoad, completion)?.TrySetCanceled();
         try
         {
+            mpv.SetPropertyFlag("pause", source.InitiallyPaused);
             mpv.RunCommand(null, args.ToArray());
+            await completion.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(true);
         }
-        catch (Exception ex)
+        finally
         {
-            RaiseFailed($"播放请求失败：{ex.Message}");
+            Interlocked.CompareExchange(ref _pendingLoad, null, completion);
         }
-
-        return Task.CompletedTask;
     }
 
     public Task PlayAsync(CancellationToken cancellationToken = default)
@@ -224,6 +228,7 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         }
 
         _disposed = true;
+        Interlocked.Exchange(ref _pendingLoad, null)?.TrySetCanceled();
 
         var mpv = _mpv;
         _mpv = null;
@@ -257,18 +262,23 @@ public sealed class LibMpvPlaybackService : IPlaybackService
     private void OnFileLoaded()
     {
         _logger.LogDebug("mpv 已加载文件");
-        SetState(PlaybackState.Playing);
+        SetState(_mpv is { } mpv && TryReadFlag(mpv, "pause") == true ? PlaybackState.Paused : PlaybackState.Playing);
+        Interlocked.Exchange(ref _pendingLoad, null)?.TrySetResult();
     }
 
     private void OnEndFile(MpvEndFileEventArgs e)
     {
         _logger.LogDebug("mpv 结束文件：reason={Reason} error={Error}", e.Reason, e.Error);
 
+        // loadfile replace 的旧文件 Stop 不得覆盖正在加载的新文件状态。
+        if (_pendingLoad is not null && e.Reason == MpvEndFileReason.Stop && e.Error == 0) { return; }
         _position = TimeSpan.Zero;
 
         // 用 Error 码判失败，而不是比 MpvEndFileReason 的名字。
         if (e.Error != 0)
         {
+            Interlocked.Exchange(ref _pendingLoad, null)?.TrySetException(
+                new IOException($"音源加载失败（mpv 错误码 {e.Error}）"));
             RaiseFailed($"播放中断（mpv 错误码 {e.Error}）");
             return;
         }

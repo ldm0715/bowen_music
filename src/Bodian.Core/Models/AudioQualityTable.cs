@@ -1,122 +1,138 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 namespace Bodian.Core.Models;
 
-/// <summary>
-/// 档位与本项目请求参数之间的映射，以及「服务端实际给了什么」的判定。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 请求音频地址时<b>只传 <c>br</c>，绝不传 <c>format</c></b>。实测：带 <c>format=flac</c>
-/// 会让服务端静默降级到 320k mp3，而 <c>code</c> 仍然是 200，不核对返回值根本发现不了。
-/// </para>
-/// <para>
-///<b>必须核对返回值。</b> 响应里的 <c>format</c> / <c>bitrate</c> 是服务端告诉你「实际给了什么」，
-/// 不是回显请求参数。降级时如实上报用户，不要静默当作无损。
-/// </para>
-/// </remarks>
-public static class AudioQualityTable
+public static partial class AudioQualityTable
 {
-    /// <summary>请求该档位时要传的 <c>br</c> 值。</summary>
+    public static string DisplayName(AudioQuality quality) => quality switch
+    {
+        AudioQuality.Standard => "标准",
+        AudioQuality.High => "HQ",
+        AudioQuality.Lossless => "SQ",
+        _ => throw new ArgumentOutOfRangeException(nameof(quality)),
+    };
+
+    // 兼容没有 audios 明细的历史数据。API 映射出的曲目始终使用 AudioVariant.RequestBitrate。
     public static string RequestBitrate(AudioQuality quality) => quality switch
     {
         AudioQuality.Standard => "128kmp3",
         AudioQuality.High => "320kmp3",
         AudioQuality.Lossless => "2000kflac",
-        _ => throw new ArgumentOutOfRangeException(nameof(quality), quality, "未知档位"),
+        _ => throw new ArgumentOutOfRangeException(nameof(quality)),
     };
 
-    /// <summary>该档位未被降级时，服务端应当返回的 <c>format</c>。</summary>
     public static string ExpectedFormat(AudioQuality quality) => quality switch
     {
         AudioQuality.Standard or AudioQuality.High => "mp3",
         AudioQuality.Lossless => "flac",
-        _ => throw new ArgumentOutOfRangeException(nameof(quality), quality, "未知档位"),
+        _ => throw new ArgumentOutOfRangeException(nameof(quality)),
     };
 
-    /// <summary>该档位未被降级时，服务端应当返回的码率（kbps）。</summary>
     public static int ExpectedBitrateKbps(AudioQuality quality) => quality switch
     {
         AudioQuality.Standard => 128,
         AudioQuality.High => 320,
         AudioQuality.Lossless => 2000,
-        _ => throw new ArgumentOutOfRangeException(nameof(quality), quality, "未知档位"),
+        _ => throw new ArgumentOutOfRangeException(nameof(quality)),
     };
 
-    /// <summary>
-    /// 判断服务端实际返回的音源是否就是请求的那一档。
-    /// </summary>
-    /// <param name="quality">请求时用的档位。</param>
-    /// <param name="servedFormat">响应里的 <c>format</c>。</param>
-    /// <param name="servedBitrateKbps">响应里的 <c>bitrate</c>（kbps）。</param>
-    /// <returns><c>false</c> 表示被降级了，调用方应如实告知用户。</returns>
-    public static bool MatchesServed(AudioQuality quality, string? servedFormat, int servedBitrateKbps)
-    {
-        if (string.IsNullOrEmpty(servedFormat))
-        {
-            return false;
-        }
+    public static bool MatchesServed(AudioQuality quality, string? format, int bitrate) =>
+        MatchesServed(ExpectedFormat(quality), ExpectedBitrateKbps(quality), format, bitrate);
 
-        if (!string.Equals(servedFormat, ExpectedFormat(quality), StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
+    public static bool MatchesServed(string expectedFormat, int expectedBitrate, string? format, int bitrate) =>
+        !string.IsNullOrEmpty(format)
+        && string.Equals(format, expectedFormat, StringComparison.OrdinalIgnoreCase)
+        && (bitrate <= 0 || bitrate >= expectedBitrate);
 
-        // 服务端偶尔不给 bitrate，这时只按格式判定，避免把有效音源误判成降级。
-        return servedBitrateKbps <= 0 || servedBitrateKbps >= ExpectedBitrateKbps(quality);
-    }
-
-    /// <summary>
-    /// 把曲目声明的 <c>audios[].level</c> 映射成本项目的档位。
-    /// </summary>
-    /// <remarks>
-    /// 不认识的 level（<c>zp</c> / <c>bcms</c> / <c>ac4</c> / <c>hr</c> 等）返回 <c>false</c>，
-    /// 由调用方丢弃 —— 本项目播不了的档位不该出现在候选里。
-    /// </remarks>
     public static bool TryParseLevel(string? level, out AudioQuality quality)
     {
-        switch (level)
+        AudioQuality? parsed = level switch
         {
-            case "s":
-                quality = AudioQuality.Standard;
-                return true;
-
-            // h 与 p 是同一档：两者请求的都是 320kmp3。
-            case "h":
-            case "p":
-                quality = AudioQuality.High;
-                return true;
-
-            case "ff":
-                quality = AudioQuality.Lossless;
-                return true;
-
-            default:
-                quality = default;
-                return false;
-        }
+            "s" or "h" => AudioQuality.Standard,
+            "p" => AudioQuality.High,
+            "ff" => AudioQuality.Lossless,
+            _ => null,
+        };
+        quality = parsed ?? default;
+        return parsed.HasValue;
     }
 
-    /// <summary>
-    /// 从曲目声明的档位算出请求链：**由高到低、已去重**。
-    /// </summary>
-    /// <remarks>
-    /// 去重不是可选优化：实测同一首曲的 <c>audios[]</c> 有 13 条，其中 <c>p</c> 出现 3 次、
-    /// <c>h</c> 出现 2 次，不去重就会对同一档重复请求。
-    /// <para>返回空列表表示这首歌没有本项目可播的档位，只能试听或不可播。</para>
-    /// </remarks>
+    public static AudioVariant? ParseVariant(string? level, string? format, string? bitrate, string? size)
+    {
+        if (!TryParseLevel(level, out var quality)
+            || string.IsNullOrWhiteSpace(format)
+            || string.Equals(level, format, StringComparison.OrdinalIgnoreCase)
+            || !SizePattern().IsMatch(size ?? "")
+            || !int.TryParse(bitrate, NumberStyles.None, CultureInfo.InvariantCulture, out var kbps)
+            || kbps <= 0)
+        {
+            return null;
+        }
+        var normalized = format.ToLowerInvariant();
+        if (!IsPlayableFormat(normalized)) { return null; }
+        return new AudioVariant(quality, level!, normalized, kbps, ParseSize(size));
+    }
+
     public static IReadOnlyList<AudioQuality> BuildRequestChain(IEnumerable<string?> trackLevels)
     {
         ArgumentNullException.ThrowIfNull(trackLevels);
-
-        var found = new SortedSet<AudioQuality>();
-
-        foreach (var level in trackLevels)
-        {
-            if (TryParseLevel(level, out var quality))
-            {
-                found.Add(quality);
-            }
-        }
-
-        return [.. found.Reverse()];
+        return trackLevels.Select(level => TryParseLevel(level, out var q) ? (AudioQuality?)q : null)
+            .Where(q => q.HasValue).Select(q => q!.Value).Distinct().OrderDescending().ToArray();
     }
+
+    public static bool IsPlayableFormat(string? format) => format?.ToLowerInvariant() is "aac" or "mp3" or "ogg" or "flac";
+
+    /// <summary>同时校验 level、产品档位及明文格式，排除旧历史或外部构造的加密规格。</summary>
+    public static bool IsSupportedVariant(AudioVariant variant) =>
+        TryParseLevel(variant.Level, out var quality) && quality == variant.Quality
+        && IsPlayableFormat(variant.Format) && variant.BitrateKbps > 0;
+
+    public static AudioVariant? SelectVariant(Track track, AudioQuality? preferred = null) =>
+        track.AudioVariants.Where(v => IsSupportedVariant(v) && (preferred is null || v.Quality <= preferred))
+            .OrderByDescending(v => v.Quality).ThenByDescending(v => v.BitrateKbps).FirstOrDefault();
+
+    public static AudioQuality? ServedQuality(AudioSource source)
+    {
+        if (IsPlayableFormat(source.Format) && !source.WasDowngraded
+            && source.RequestedQuality is { } requested && Enum.IsDefined(requested)) { return requested; }
+        return source.Format.ToLowerInvariant() switch
+        {
+            "aac" => AudioQuality.Standard,
+            "mp3" => source.BitrateKbps > 128 ? AudioQuality.High : AudioQuality.Standard,
+            "ogg" => source.BitrateKbps > 100 ? AudioQuality.High : AudioQuality.Standard,
+            "flac" => AudioQuality.Lossless,
+            _ => null,
+        };
+    }
+
+    public static long ParseSize(string? size)
+    {
+        var match = SizePattern().Match(size ?? "");
+        if (!match.Success || !double.TryParse(match.Groups[1].Value, NumberStyles.AllowDecimalPoint,
+            CultureInfo.InvariantCulture, out var number)) { return 0; }
+        var scale = match.Groups[3].Value.ToLowerInvariant() switch
+        {
+            "kb" => 1024d, "mb" => 1024d * 1024, "gb" => 1024d * 1024 * 1024, _ => 0,
+        };
+        var value = number * scale;
+        return double.IsFinite(value) && value > 0 && value < long.MaxValue ? (long)Math.Round(value) : 0;
+    }
+
+    public static string FormatSize(long size) => size <= 0 ? "大小未知"
+        : size >= 1024L * 1024 * 1024 ? $"{size / (1024d * 1024 * 1024):0.##} GB"
+        : size >= 1024 * 1024 ? $"{size / (1024d * 1024):0.##} MB"
+        : $"{size / 1024d:0.##} KB";
+
+    public static string Describe(AudioSource source, bool isAudition = false)
+    {
+        if (isAudition) { return "试听片段"; }
+        var actual = ServedQuality(source) is { } quality ? DisplayName(quality) : "音质未知";
+        var label = source.WasDowngraded && source.RequestedQuality is { } requested
+            ? $"{actual}（{DisplayName(requested)}不可用）" : actual;
+        return $"{label} · {FormatSize(source.SizeBytes)}";
+    }
+
+    [GeneratedRegex(@"^(\d+(\.\d+)?)(Mb|Kb|Gb)$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex SizePattern();
 }

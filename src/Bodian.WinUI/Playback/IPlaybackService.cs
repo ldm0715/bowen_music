@@ -40,7 +40,7 @@ public interface IPlaybackService : IAsyncDisposable
 
     event EventHandler<PlaybackFailedEventArgs>? Failed;
 
-    /// <summary>加载并开始播放。</summary>
+    /// <summary>加载成功后才返回；失败抛异常。InitiallyPaused 指定初始暂停状态。</summary>
     Task LoadAsync(PlaybackSource source, CancellationToken cancellationToken = default);
 
     Task PlayAsync(CancellationToken cancellationToken = default);

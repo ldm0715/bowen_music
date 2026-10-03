@@ -12,7 +12,10 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- 研究向量单独编译，解密器不在 Bodian.Core / WinUI 的输出程序集内。 -->
   <ItemGroup>
+    <Compile Include="..\..\src\Bodian.Core\Playback\EKeyAudioDecryptor.cs" Link="Research\EKeyAudioDecryptor.cs" />
+    <Compile Include="..\..\src\Bodian.Core\Playback\EncryptedAudioSourceResolver.cs" Link="Research\EncryptedAudioSourceResolver.cs" />
     <!-- 脱敏测试要用 LoggerFactory.Create 搭一个内层工厂；
          它在这个包里，而不在 Core 引用的 Abstractions 里。 -->
     <PackageReference Include="Microsoft.Extensions.Logging" />
@@ -33,6 +36,10 @@
     <!-- 评论 ViewModel 不依赖 WinUI，链接源文件验证请求取消和迟到响应，不加载 UI 运行时。 -->
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentsViewModel.cs" Link="ViewModels\SongCommentsViewModel.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentRow.cs" Link="ViewModels\SongCommentRow.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\Playback\PlaybackCoordinator.cs" Link="Playback\PlaybackCoordinator.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\Playback\PlaybackTypes.cs" Link="Playback\PlaybackTypes.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\Playback\PlayQueue.cs" Link="Playback\PlayQueue.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\Playback\IPlaybackService.cs" Link="Playback\IPlaybackService.cs" />
   </ItemGroup>
 
   <!-- ★ 编译期注入仓库根，测试靠它定位 fixtures/。不靠遍历输出目录，也不拷贝 fixture -->

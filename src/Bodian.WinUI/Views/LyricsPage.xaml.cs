@@ -22,6 +22,7 @@ namespace Bodian.WinUI.Views;
 
 public sealed partial class LyricsPage : Page, INavigationAware
 {
+    private void OnQualitySelected(object? sender, EventArgs e) => QualityFlyout.Hide();
     private readonly MainWindow _window;
     private FrameworkElement? _themeRoot;
     private readonly LyricsCanvasView _canvas;

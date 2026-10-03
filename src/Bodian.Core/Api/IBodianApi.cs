@@ -64,6 +64,10 @@ public interface IBodianApi
         Track track,
         CancellationToken cancellationToken = default);
 
+    Task<PlaybackResolution> ResolvePlaybackAsync(
+        Track track, AudioQuality preferredQuality, CancellationToken cancellationToken = default)
+        => ResolvePlaybackAsync(track, cancellationToken);
+
     /// <summary>
     /// 当前账号的自建歌单。
     /// </summary>

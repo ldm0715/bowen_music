@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Bodian.Core.Models;
 using Bodian.WinUI.Media;
 using Bodian.WinUI.Playback;
@@ -34,6 +35,16 @@ public sealed partial class PlayerViewModel : ObservableObject
         _engine = engine;
         _logger = logger ?? NullLogger<PlayerViewModel>.Instance;
 
+        _coordinator.QualityOptionsChanged += (_, _) => RefreshQualityOptions();
+        _coordinator.QualityChanged += (_, e) =>
+        {
+            QualityText = AudioQualityTable.Describe(e.Source);
+            PositionSeconds = e.Position.TotalSeconds;
+            IsPlaying = _engine.State == PlaybackState.Playing;
+            Notice = e.Source.WasDowngraded ? QualityText : "";
+            RefreshQualityOptions();
+        };
+        _coordinator.QualityChangeFailed += (_, e) => Notice = e.Message;
         _coordinator.Started += OnStarted;
         _coordinator.Blocked += OnBlocked;
         _coordinator.AuditionEnded += OnAuditionEnded;
@@ -43,6 +54,51 @@ public sealed partial class PlayerViewModel : ObservableObject
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnEngineStateChanged;
         _engine.Failed += OnEngineFailed;
+        RefreshQualityOptions();
+    }
+
+    public ObservableCollection<AudioQualityOption> QualityOptions { get; } = [];
+
+    [ObservableProperty]
+    public partial AudioQualityOption? SelectedQualityOption { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanChangeQuality { get; set; } = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasQualityStatus))]
+    public partial string QualityStatus { get; set; } = "";
+
+    public bool HasQualityStatus => QualityStatus.Length > 0;
+
+    public Task SwitchQualityAsync(AudioQuality quality) => _coordinator.SwitchQualityAsync(quality);
+
+    private void RefreshQualityOptions()
+    {
+        var track = _coordinator.CurrentTrack;
+        var audition = _coordinator.CurrentPolicy?.IsAudition == true;
+        var busy = _coordinator.IsChangingQuality;
+        var current = _coordinator.CurrentSource is { } source
+            ? AudioQualityTable.ServedQuality(source) : _coordinator.PreferredQuality;
+        CanChangeQuality = !busy;
+        QualityStatus = busy ? "正在切换音质…" : audition ? "试听片段不支持音质切换" : "";
+        SelectedQualityOption = null;
+        QualityOptions.Clear();
+        AudioQualityOption? selected = null;
+        AudioQuality[] order = [AudioQuality.Standard, AudioQuality.High, AudioQuality.Lossless];
+        foreach (var quality in order)
+        {
+            var variant = track?.AudioVariants.Where(v => AudioQualityTable.IsSupportedVariant(v) && v.Quality == quality)
+                .OrderByDescending(v => v.BitrateKbps).FirstOrDefault();
+            var available = track is null || track.AvailableQualities.Contains(quality);
+            var size = variant?.SizeBytes ?? 0;
+            if (current == quality && _coordinator.CurrentSource is { SizeBytes: > 0 } actual) { size = actual.SizeBytes; }
+            var option = new AudioQualityOption(quality, AudioQualityTable.DisplayName(quality),
+                available ? AudioQualityTable.FormatSize(size) : "暂无音源", available && !audition && !busy);
+            QualityOptions.Add(option);
+            if (current == quality) { selected = option; }
+        }
+        SelectedQualityOption = selected;
     }
 
     /// <summary>播放条是否该显示。</summary>
@@ -83,9 +139,15 @@ public sealed partial class PlayerViewModel : ObservableObject
 
     public bool HasPayLabel => PayLabel.Length > 0;
 
-    /// <summary>实际音质描述。被降级时会写成「无损 不可用，实得 mp3 320k」。</summary>
+    /// <summary>实际产品音质、大小及降级提示，不在界面暴露格式或码率参数。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(QualityLabel))]
     public partial string QualityText { get; set; } = "";
+
+    public string QualityLabel => QualityText.Length == 0 ? "音质"
+        : IsAudition ? "试听"
+        : _coordinator.CurrentSource is { } source && AudioQualityTable.ServedQuality(source) is { } quality
+            ? AudioQualityTable.DisplayName(quality) : "音质未知";
 
     [ObservableProperty]
     public partial bool IsPlaying { get; set; }
@@ -236,7 +298,7 @@ public sealed partial class PlayerViewModel : ObservableObject
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
         IsAudition = e.Policy.IsAudition;
-        QualityText = DescribeQuality(e.Source, e.Policy.IsAudition);
+        QualityText = AudioQualityTable.Describe(e.Source, e.Policy.IsAudition);
         PositionSeconds = 0;
 
         // 试听时进度条的上限是试听终点，不是整曲时长 ——
@@ -244,7 +306,8 @@ public sealed partial class PlayerViewModel : ObservableObject
         DurationSeconds = e.Policy.StopAt?.TotalSeconds ?? 0;
 
         Notice = "";
-        IsPlaying = true;
+        IsPlaying = _engine.State == PlaybackState.Playing;
+        RefreshQualityOptions();
         UpdateQueueButtons();
     }
 
@@ -316,26 +379,6 @@ public sealed partial class PlayerViewModel : ObservableObject
             : "";
     }
 
-    private static string DescribeQuality(AudioSource source, bool isAudition)
-    {
-        if (isAudition)
-        {
-            return "试听片段";
-        }
-
-        var actual = $"{source.Format} {source.BitrateKbps}k";
-
-        // 服务端静默降级时必须如实说明，不能显示成用户请求的那一档。
-        return source.RequestedQuality is { } requested && source.WasDowngraded
-            ? $"{Describe(requested)}不可用，实得 {actual}"
-            : actual;
-    }
-
-    private static string Describe(AudioQuality quality) => quality switch
-    {
-        AudioQuality.Lossless => "无损",
-        AudioQuality.High => "高音质",
-        AudioQuality.Standard => "标准音质",
-        _ => quality.ToString(),
-    };
 }
+
+public sealed record AudioQualityOption(AudioQuality Quality, string Name, string SizeText, bool IsEnabled);

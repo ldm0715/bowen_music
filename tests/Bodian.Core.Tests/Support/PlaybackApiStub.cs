@@ -1,0 +1,133 @@
+using Bodian.Core.Api;
+using Bodian.Core.Api.Paging;
+using Bodian.Core.Lyrics;
+using Bodian.Core.Models;
+using Bodian.Core.Models.Home;
+using Bodian.Core.Models.Lyrics;
+
+namespace Bodian.Core.Tests.Support;
+
+internal sealed class PlaybackApiStub : IBodianApi
+    {
+        public Task<string> GetLyricAsync(long musicId, int lrcx = 1, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+        public Task<LyricDocument> GetLyricsAsync(Track track, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+        public Task<SongCommentPage> GetSongCommentRepliesAsync(long musicId, long parentId, int page = 1,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<long?> PublishSongCommentAsync(long musicId, string content, long parentId = 0, long replyId = 0,
+            bool anonymous = false, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task SetSongCommentLikeAsync(long musicId, long commentId, bool liked, long parentId = 0,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<SongCommentPage> GetSongCommentsAsync(long musicId, SongCommentSort sort, int page = 1,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SearchResultSection>> SearchComprehensiveAsync(string keyword, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Album>> SearchAlbumsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Playlist>> SearchPlaylistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Artist>> SearchArtistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<string>> GetSearchSuggestionsAsync(string keyword, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SearchHotWord>> GetSearchHotWordsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Track>> GetArtistTracksAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<Album>> GetArtistAlbumsAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<PagedResult<Track>> SearchAsync(
+            string keyword,
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Track?> GetTrackAsync(long musicId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Func<Track, AudioQuality, CancellationToken, Task<PlaybackResolution>> Resolve { get; set; } =
+            (_, _, _) => throw new NotSupportedException();
+        public Task<PlaybackResolution> ResolvePlaybackAsync(Track track, CancellationToken cancellationToken = default)
+            => Resolve(track, AudioQuality.Lossless, cancellationToken);
+        public Task<PlaybackResolution> ResolvePlaybackAsync(Track track, AudioQuality quality, CancellationToken cancellationToken = default)
+            => Resolve(track, quality, cancellationToken);
+
+        public Task<IReadOnlyList<Playlist>> GetCreatedPlaylistsAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Track>> GetPlaylistTracksAsync(
+            long playlistId,
+            int source,
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Track>> GetPurchasedSinglesAsync(
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Album>> GetPurchasedAlbumsAsync(
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Album>> GetCollectedAlbumsAsync(
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<HomeModule>> GetHomeModulesAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<HomeFeed?> GetHomeModuleAsync(
+            HomeModule module,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<AiPlaylist?> GetAiPlaylistAsync(
+            int index,
+            string passRecName,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Album?> GetAlbumAsync(long albumId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Track>> GetAlbumTracksAsync(
+            long albumId,
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Album>> GetMusicLibraryAlbumsAsync(
+            string pTypeId,
+            string cTypeId,
+            MusicLibSort sort,
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MusicCategoryGroup>> GetMusicLibraryAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CategoryGroup>> GetCategoriesAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Playlist>> GetCategoryPlaylistsAsync(
+            long categoryId,
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<BangSection>> GetBangSectionsAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<PagedResult<Track>> GetBangTracksAsync(
+            long bangId,
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }

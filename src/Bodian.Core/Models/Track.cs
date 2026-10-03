@@ -44,6 +44,9 @@ public sealed record Track
     /// <summary>这首歌在本项目可播的档位，已去重、由高到低。</summary>
     public IReadOnlyList<AudioQuality> AvailableQualities { get; init; } = [];
 
+    /// <summary>歌曲声明的真实音源明细，按它构造 br。</summary>
+    public IReadOnlyList<AudioVariant> AudioVariants { get; init; } = [];
+
     /// <summary>
     /// 服务端标记这首歌需要 VIP。
     /// </summary>
@@ -62,7 +65,8 @@ public sealed record Track
     public bool RequiresPurchase { get; init; }
 
     /// <summary>是否有本项目可播的档位。为 <c>false</c> 时只能试听或不可播。</summary>
-    public bool HasPlayableQuality => AvailableQualities.Count > 0;
+    public bool HasPlayableQuality => AvailableQualities.Any(q => Enum.IsDefined(q))
+        || AudioVariants.Any(AudioQualityTable.IsSupportedVariant);
 
     /// <summary>
     /// 这首歌有哪些歌词轨。**只有曲目详情接口会填**，搜索结果的曲目为 <c>null</c>。

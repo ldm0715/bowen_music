@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
     x:Class="Bodian.WinUI.Controls.PlayerBar"
+    xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:conv="using:Bodian.WinUI.Converters"
@@ -214,20 +215,30 @@
                 VerticalAlignment="Center"
                 Orientation="Horizontal"
                 Spacing="8">
-                <!-- 音质与播放列表先保留入口，后续接入功能。实际音质仍然显示。 -->
+                <!-- 播放栏只显示当前档位，面板保留各档大小；播放列表仍为预留入口。 -->
                 <Button
                     x:Name="QualityButton"
-                    Width="64"
+                    Width="56"
                     Padding="8,0"
-                    AutomationProperties.Name="音质切换（暂未开放）"
-                    IsEnabled="False"
+                    AutomationProperties.Name="音质切换"
+                    IsEnabled="{x:Bind ViewModel.CanChangeQuality, Mode=OneWay}"
                     Style="{StaticResource PlayerUtilityButtonStyle}"
-                    ToolTipService.ToolTip="音质切换（暂未开放）">
-                    <TextBlock
-                        FontSize="{StaticResource FontSizeCaption}"
-                        Text="{x:Bind local:Formats.PlayerQualityLabel(ViewModel.QualityText), Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis"
-                        ToolTipService.ToolTip="{x:Bind ViewModel.QualityText, Mode=OneWay}" />
+                    ToolTipService.ToolTip="{x:Bind ViewModel.QualityText, Mode=OneWay}">
+                    <TextBlock FontSize="12" Text="{x:Bind ViewModel.QualityLabel, Mode=OneWay}"
+                        TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button.Flyout>
+                        <Flyout x:Name="QualityFlyout" Placement="Top">
+                            <Flyout.FlyoutPresenterStyle>
+                                <Style TargetType="FlyoutPresenter">
+                                    <Setter Property="MinWidth" Value="0" />
+                                    <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                    <Setter Property="Padding" Value="6" />
+                                    <Setter Property="CornerRadius" Value="8" />
+                                </Style>
+                            </Flyout.FlyoutPresenterStyle>
+                            <controls:AudioQualityPicker ViewModel="{x:Bind ViewModel}" SelectionRequested="OnQualitySelected" />
+                        </Flyout>
+                    </Button.Flyout>
                 </Button>
                 <Button
                     AutomationProperties.Name="歌词"

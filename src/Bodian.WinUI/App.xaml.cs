@@ -99,6 +99,8 @@ public partial class App : Application
         // 播放。引擎是单例，退出时显式释放（见 OnLaunched 的 Closed 处理）。
         builder.Services.AddSingleton<IPlaybackService>(sp => new LibMpvPlaybackService(
             sp.GetRequiredService<ILogger<LibMpvPlaybackService>>()));
+        builder.Services.AddSingleton<IAudioQualitySettingsStore>(sp => new JsonAudioQualitySettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonAudioQualitySettingsStore>>()));
         builder.Services.AddSingleton<PlaybackCoordinator>();
 
         // 系统媒体控件。构造时只订阅事件，会话在首次播放时才建 —— 所以必须在这里解析一次，

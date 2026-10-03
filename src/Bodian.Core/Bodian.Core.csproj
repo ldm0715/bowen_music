@@ -23,8 +23,14 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
+  <!-- 加密音源依赖官方移动端。保留历史研究源码，客户端不编译或分发解密器/代理。 -->
+  <ItemGroup>
+    <Compile Remove="Playback\EKeyAudioDecryptor.cs;Playback\EncryptedAudioSourceResolver.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Bodian.Core.Tests" />
+    <InternalsVisibleTo Include="Bodian.AudioProbe" />
   </ItemGroup>
 
 </Project>

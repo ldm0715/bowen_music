@@ -43,13 +43,13 @@ public static partial class LogRedactor
     /// 值的字符类里不含 <c>&amp;</c>，所以**空值不匹配**，从而实现「空值不动」。
     /// </remarks>
     [GeneratedRegex(
-        @"\b(?:token|freeSign|devid|qimei36|sign|nickname|headImg|uid)=([^&\s""'<>]+)",
+        @"\b(?:token|ekey|freeSign|devid|qimei36|sign|nickname|headImg|uid)=([^&\s""'<>]+)",
         RegexOptions.IgnoreCase)]
     private static partial Regex QueryForm();
 
     /// <summary>JSON 形态：<c>"key":"value"</c>。空字符串同样不匹配。</summary>
     [GeneratedRegex(
-        @"(""(?:token|freeSign|devid|qimei36|sign|nickname|headImg|uid)""\s*:\s*"")([^""]+)""",
+        @"(""(?:token|ekey|freeSign|devid|qimei36|sign|nickname|headImg|uid)""\s*:\s*"")([^""]+)""",
         RegexOptions.IgnoreCase)]
     private static partial Regex JsonForm();
 

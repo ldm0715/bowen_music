@@ -28,7 +28,7 @@ public enum PlaybackState
 /// <param name="Start">起始位置；为空则从头播。</param>
 /// <param name="End">结束位置；为空则播到文件结尾。</param>
 /// <param name="Title">用于日志与界面显示。</param>
-public sealed record PlaybackSource(Uri StreamUrl, TimeSpan? Start = null, TimeSpan? End = null, string? Title = null);
+public sealed record PlaybackSource(Uri StreamUrl, TimeSpan? Start = null, TimeSpan? End = null, string? Title = null, bool InitiallyPaused = false);
 
 /// <summary>播放状态变化。</summary>
 public sealed class PlaybackStateChangedEventArgs(PlaybackState state) : EventArgs

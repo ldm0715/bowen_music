@@ -20,11 +20,17 @@ public sealed record AudioSource
     /// <summary>请求时用的档位。试听片段不是按档位选的，为 <c>null</c>。</summary>
     public AudioQuality? RequestedQuality { get; init; }
 
+    public AudioVariant? RequestedVariant { get; init; }
+
+    public override string ToString() => $"AudioSource {{ Format = {Format}, BitrateKbps = {BitrateKbps} }}";
+
     /// <summary>服务端实际给出的格式（<c>flac</c> / <c>mp3</c> / <c>aac</c> …）。</summary>
     public required string Format { get; init; }
 
     /// <summary>服务端实际给出的码率（kbps）。</summary>
     public int BitrateKbps { get; init; }
+
+    public long SizeBytes { get; init; }
 
     /// <summary>
     /// 服务端是否没给到请求的档位。
@@ -35,5 +41,7 @@ public sealed record AudioSource
     /// </remarks>
     public bool WasDowngraded =>
         RequestedQuality is { } quality
-        && !AudioQualityTable.MatchesServed(quality, Format, BitrateKbps);
+        && !(RequestedVariant is { } variant
+            ? AudioQualityTable.MatchesServed(variant.Format, variant.BitrateKbps, Format, BitrateKbps)
+            : AudioQualityTable.MatchesServed(quality, Format, BitrateKbps));
 }

@@ -79,6 +79,8 @@ public sealed partial class PlayerBar : UserControl
 
     public PlayerViewModel ViewModel { get; }
 
+    private void OnQualitySelected(object? sender, EventArgs e) => QualityFlyout.Hide();
+
     /// <summary>歌词页是否活跃。封面和「词」按钮按它置灰。</summary>
     public LyricsViewModel Lyrics { get; }
 

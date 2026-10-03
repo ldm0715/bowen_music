@@ -205,8 +205,20 @@ public sealed class BodianApi : IBodianApi
     public async Task<PlaybackResolution> ResolvePlaybackAsync(
         Track track,
         CancellationToken cancellationToken = default)
+        => await ResolvePlaybackCoreAsync(track, null, cancellationToken).ConfigureAwait(false);
+
+    public Task<PlaybackResolution> ResolvePlaybackAsync(
+        Track track, AudioQuality preferredQuality, CancellationToken cancellationToken = default)
+        => ResolvePlaybackCoreAsync(track, preferredQuality, cancellationToken);
+
+    private async Task<PlaybackResolution> ResolvePlaybackCoreAsync(
+        Track track, AudioQuality? preferredQuality, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(track);
+        if (preferredQuality is { } preferred && !Enum.IsDefined(preferred))
+        {
+            throw new ArgumentOutOfRangeException(nameof(preferredQuality));
+        }
 
         var right = await CheckRightAsync(track.Id, cancellationToken).ConfigureAwait(false);
 
@@ -226,7 +238,7 @@ public sealed class BodianApi : IBodianApi
                     ? PlaybackDenialReason.NoPermission
                     : PlaybackDenialReason.NotAuthenticated),
 
-            _ => await ResolveFullAsync(track, cancellationToken).ConfigureAwait(false),
+            _ => await ResolveFullAsync(track, preferredQuality, cancellationToken).ConfigureAwait(false),
         };
     }
 
@@ -273,6 +285,11 @@ public sealed class BodianApi : IBodianApi
             return new PlaybackResolution.Denied(PlaybackDenialReason.AuditionUnavailable);
         }
 
+        if (!AudioQualityTable.IsPlayableFormat(audition.Format))
+        {
+            return new PlaybackResolution.Denied(PlaybackDenialReason.AuditionUnavailable);
+        }
+
         var source = new AudioSource
         {
             Url = url,
@@ -292,18 +309,25 @@ public sealed class BodianApi : IBodianApi
     /// 有完整权限时取音源地址。
     /// </summary>
     /// <remarks>
-    /// <b>只请求一次，不做逐档重试。</b> 服务端降级时业务码仍是 200、给的就是它能给的最好档位，
-    /// 再往下试只会拿到同一个地址。降级由 <see cref="AudioSource.WasDowngraded"/> 如实上报。
+    /// 按用户偏好选一个受支持的明文音源，只请求一次。
+    /// 服务端可能在业务码 200 时降级，由 <see cref="AudioSource.WasDowngraded"/> 如实上报。
     /// </remarks>
-    private async Task<PlaybackResolution> ResolveFullAsync(Track track, CancellationToken cancellationToken)
+    private async Task<PlaybackResolution> ResolveFullAsync(Track track, AudioQuality? preferredQuality, CancellationToken cancellationToken)
     {
         if (!track.HasPlayableQuality)
         {
             return new PlaybackResolution.Denied(PlaybackDenialReason.NoUsableQuality);
         }
 
-        var quality = track.AvailableQualities[0];
-        var br = AudioQualityTable.RequestBitrate(quality);
+        var variant = AudioQualityTable.SelectVariant(track, preferredQuality);
+        var selected = variant?.Quality ?? track.AvailableQualities
+            .Where(q => Enum.IsDefined(q) && (preferredQuality is null || q <= preferredQuality))
+            .OrderDescending().Cast<AudioQuality?>().FirstOrDefault();
+        if (selected is not { } quality)
+        {
+            return new PlaybackResolution.Denied(PlaybackDenialReason.NoUsableQuality);
+        }
+        var br = variant?.RequestBitrate ?? AudioQualityTable.RequestBitrate(quality);
         var deviceId = _device.Value;
 
         // ★ 注意 AudioUrlBody 里没有 format 字段：传 format=flac 会被静默降级。
@@ -353,13 +377,27 @@ public sealed class BodianApi : IBodianApi
             return new PlaybackResolution.Denied(PlaybackDenialReason.NoStreamUrl);
         }
 
+        // 高级档位依赖官方移动端；异常返回的加密或授权格式也不得交给播放引擎。
+        if (!AudioQualityTable.IsPlayableFormat(data.Format))
+        {
+            return new PlaybackResolution.Denied(PlaybackDenialReason.NoUsableQuality);
+        }
+
         var source = new AudioSource
         {
             Url = url,
             RequestedQuality = quality,
+            RequestedVariant = variant,
             Format = data.Format ?? "unknown",
             BitrateKbps = data.Bitrate,
+            SizeBytes = AudioQualityTable.ParseSize(data.Size),
         };
+        if (source.SizeBytes <= 0)
+        {
+            var matching = track.AudioVariants.FirstOrDefault(v =>
+                AudioQualityTable.IsSupportedVariant(v) && AudioQualityTable.MatchesServed(v.Format, v.BitrateKbps, source.Format, source.BitrateKbps));
+            source = source with { SizeBytes = matching?.SizeBytes ?? 0 };
+        }
 
         if (source.WasDowngraded)
         {
@@ -1163,6 +1201,10 @@ public sealed class BodianApi : IBodianApi
         return BodianLyricParser.Parse(text, track.Duration);
     }
 
+    private static AudioVariant[] MapAudioVariants(TrackDto dto) => dto.Audios?
+        .Select(a => AudioQualityTable.ParseVariant(a.Level, a.Format, a.Bitrate, a.Size))
+        .OfType<AudioVariant>().Distinct().ToArray() ?? [];
+
     private static Track MapTrack(TrackDto dto)
     {
         var (requiresVip, requiresPurchase) = PayTypeReader.Resolve(dto.PayInfo);
@@ -1180,8 +1222,8 @@ public sealed class BodianApi : IBodianApi
             CoverImage = ToHttpUri(dto.AlbumPic120) ?? ToHttpUri(dto.AlbumPic),
 
             Duration = TimeSpan.FromSeconds(dto.DurationSeconds),
-            AvailableQualities = AudioQualityTable.BuildRequestChain(
-                dto.Audios?.Select(a => a.Level) ?? []),
+            AudioVariants = MapAudioVariants(dto),
+            AvailableQualities = MapAudioVariants(dto).Select(v => v.Quality).Distinct().OrderDescending().ToArray(),
             RequiresVip = requiresVip,
             RequiresPurchase = requiresPurchase,
 

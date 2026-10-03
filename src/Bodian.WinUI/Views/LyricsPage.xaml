@@ -141,7 +141,6 @@
                     </Button>
                 </StackPanel>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
-                    <TextBlock Text="{x:Bind Player.QualityText, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="12" />
                     <TextBlock Text="{x:Bind Player.PayLabel, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="12" />
                     <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
                 </StackPanel>
@@ -160,6 +159,24 @@
                                     Foreground="#FFF1F4FA" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
                             </Border>
                         </Grid>
+                    </Button>
+                    <Button x:Name="QualityButton" Width="56" Padding="8,0" Style="{StaticResource LyricsChromeButtonStyle}"
+                        IsEnabled="{x:Bind Player.CanChangeQuality, Mode=OneWay}" AutomationProperties.Name="音质切换"
+                        ToolTipService.ToolTip="{x:Bind Player.QualityText, Mode=OneWay}">
+                        <TextBlock Text="{x:Bind Player.QualityLabel, Mode=OneWay}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                        <Button.Flyout>
+                            <Flyout x:Name="QualityFlyout" Placement="Top">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="MinWidth" Value="0" />
+                                        <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                        <Setter Property="Padding" Value="6" />
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <controls:AudioQualityPicker ViewModel="{x:Bind Player}" SelectionRequested="OnQualitySelected" />
+                            </Flyout>
+                        </Button.Flyout>
                     </Button>
                     <StackPanel x:Name="VolumeControls" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
                         <FontIcon Glyph="{x:Bind Player.VolumeGlyph, Mode=OneWay}" FontSize="16" Foreground="#99FFFFFF" />

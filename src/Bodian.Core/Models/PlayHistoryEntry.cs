@@ -49,6 +49,8 @@ public sealed record PlayHistoryEntry
     /// </remarks>
     public AudioQuality[] AvailableQualities { get; init; } = [];
 
+    public AudioVariant[] AudioVariants { get; init; } = [];
+
     /// <summary>当时服务端标记的付费要求。**只用于展示**，权限永远由 checkRight 裁决。</summary>
     public bool RequiresVip { get; init; }
 
@@ -68,7 +70,8 @@ public sealed record PlayHistoryEntry
             AlbumName = track.AlbumName,
             CoverImage = track.CoverImage,
             DurationSeconds = (int)track.Duration.TotalSeconds,
-            AvailableQualities = [.. track.AvailableQualities],
+            AvailableQualities = track.AvailableQualities.Where(q => Enum.IsDefined(q)).Distinct().OrderDescending().ToArray(),
+            AudioVariants = track.AudioVariants.Where(AudioQualityTable.IsSupportedVariant).ToArray(),
             RequiresVip = track.RequiresVip,
             RequiresPurchase = track.RequiresPurchase,
         };
@@ -89,7 +92,8 @@ public sealed record PlayHistoryEntry
         AlbumName = AlbumName,
         CoverImage = CoverImage,
         Duration = TimeSpan.FromSeconds(DurationSeconds),
-        AvailableQualities = AvailableQualities,
+        AvailableQualities = AvailableQualities.Where(q => Enum.IsDefined(q)).Distinct().OrderDescending().ToArray(),
+        AudioVariants = AudioVariants.Where(AudioQualityTable.IsSupportedVariant).ToArray(),
         RequiresVip = RequiresVip,
         RequiresPurchase = RequiresPurchase,
     };
