@@ -205,7 +205,8 @@ event EventHandler<Page>? Navigated;             // 当前显示的页面实例�
 
 ### 4.4 动态项的选中
 
-「创建的歌单」下每个歌单是一个动态 `NavigationViewItem`，点它 → `NavigateRoot<PlaylistDetailPage>()`。
+「创建的歌单」下的每个歌单是 `SidebarPlaylistList` 里的一行，点它 → `NavigateRoot<PlaylistDetailPage>()`
+（2026-10-03 之前是动态 `NavigationViewItem`，改成 `PaneFooter` 里的列表，理由见 §5）。
 因为根页是**每歌单一个实例**，详情页要能带参数构造（`playlistId`），
 所以 `NavigateRoot<TPage>()` 需要支持**传入已构造好的实例**：
 
@@ -226,21 +227,24 @@ Window
     │                                   IsBackButtonVisible=Collapsed   ← 返回栈是自己的
     │                                   IsSettingsVisible=False
     ├── MenuItems
-    │     发现 / (分隔) / 我的音乐(Header) + 我喜欢/最近播放/收藏
-    │     / 创建的歌单(Header) + 运行时填充
-    ├── PaneFooter                     ← 账号卡片：头像 / 昵称 / VIP 徽标 / 退出登录
+    │     发现 / 排行榜 / 乐库 / 我的音乐(Header) + 我喜欢/最近播放/收藏的专辑/收藏的歌单
+    │     + 紧凑栏专用的「创建的歌单」图标（展开时收起）
+    ├── PaneFooter                     ← 「创建的歌单」：Header + 自己内滚的列表
     └── Content
-        ├── Row 0: ContentControl(PageHost)     ← INavigationService 的宿主
-        └── Row 1: ContentControl(PlayerHost)   ← 播放条常驻
+        └── Row 0: ContentControl(PageHost)     ← INavigationService 的宿主
+            （播放条不在这里：它常驻根 Grid 第 2 行、通栏，见 ui-refresh.md §10）
 ```
 
-- **满高**：`NavigationView` 铺满窗口，播放条放在它的 `Content` 里 → 侧栏自然从顶到底，即选定的布局。
+- **满高**：`NavigationView` 铺满第 1 行，播放条在它下方通栏 → 侧栏到播放条上沿为止，不到窗口底。
+- **「创建的歌单」在 `PaneFooter` 而不是 `MenuItems`**：`MenuItems` 整段共用一个滚动区，
+  歌单一多会把整条侧栏顶出常驻滚动条。`PaneFooter` 在模板里是滚动区之外的 `Auto` 行，
+  这一段自己滚、侧栏整体不动；高度由外壳按剩余空间算（见 [`ui-refresh.md`](ui-refresh.md) §19）。
+  收起成 48 DIP 图标轨时这一段整段藏起来，换成轨上一颗图标 + 弹层。
 - **返回按钮**：`IsBackButtonVisible=Collapsed`，用自己的返回栈。2026-10-02 改为标题栏搜索框
   左侧的统一返回按钮，32×32 DIP、间距 8 DIP，无历史时禁用；移除详情页的独立按钮。
   歌词页保留原来的 ↓ 收起按钮作为例外。返回后的焦点处理见 [`search.md`](search.md)。
-- **账号信息**：从 `SearchPage` 顶部移到 `PaneFooter`。`SearchViewModel` 里那几个账号属性
-  （`AccountText` / `Avatar` / `IsVip` / `SignOutCommand`）挪到一个 `AccountViewModel`，
-  播放条与侧栏共享。
+- **账号信息**：从 `SearchPage` 顶部挪进 `AccountViewModel`（播放条与标题栏共享），
+  入口最终落在标题栏右侧，不再占 `PaneFooter` —— 页脚现在归「创建的歌单」。
 - **搜索**：`SearchPage` 是独立结果页，侧栏不列它。提交标题栏搜索框时用 `Navigate<SearchPage>()`
   压栈，保留进入前的页面，可用统一按钮逐级返回；侧栏高亮继续跟随栈底根页。
   点侧栏任一项仍清空历史并换根。
@@ -464,7 +468,8 @@ type 11（你的主题歌单）的分组**压根没有 id 字段**，反序列�
 
 | 新增/改动 | 内容 |
 | --- | --- |
-| `WinUI/MainWindow.xaml(.cs)` | 外壳换成 `NavigationView`；侧栏项与动态歌单项；账号卡片下移 `PaneFooter`；顶部常驻搜索框 |
+| `WinUI/MainWindow.xaml(.cs)` | 外壳换成 `NavigationView`；侧栏项与「创建的歌单」一段（2026-10-03 起落在 `PaneFooter`，见 §5）；顶部常驻搜索框 |
+| `WinUI/Controls/SidebarPlaylistList.xaml(.cs)` | 「创建的歌单」列表：32 DIP 封面 + 曲目数、自带内滚，页脚与紧凑栏弹层共用 |
 | `WinUI/ViewModels/AccountViewModel.cs` | 账号卡片。<b>属性必须自己发通知</b>：侧栏在登录之前就构造好了，OneTime 绑定会永远停在空白 |
 | `WinUI/ViewModels/SidebarViewModel.cs` | 「创建的歌单」那一段；失败写 `ErrorText` 而不抛 |
 | `WinUI/ViewModels/PlaylistTracksViewModel.cs` | 「一个歌单的曲目列表」的共同部分（分页/点播/状态），子类只回答「展示哪个歌单」 |

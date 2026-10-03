@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.SidebarPlaylistList"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:models="using:Bodian.Core.Models">
+
+    <!--
+        侧栏面板底部「创建的歌单」那一段的列表。
+
+        ★ 与 PlaylistListView 不合并：那边是 48 封面、有分页、整页用；这边是 32 封面单行、
+          无分页、跟着导航栈高亮、高度由外壳给的约束决定、自己滚。合并会把两边的取舍互相拖累。
+
+        根是两行的 Grid：失败行 Auto、列表 *。外壳给了这一段高度以后，列表就吃剩下的那一块
+        并自己滚 —— 所以「上限」这件事这里一次都不用算。
+    -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- 失败行：平时收起，占 0 高。放在表头下面而不是列表末尾 —— 失败时列表本身是空的 -->
+            <RowDefinition Height="Auto" />
+            <!-- 列表吃剩下的高度并自己滚 -->
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!--
+            拉取失败。**不能是 NavigationViewItem**：页脚里的导航项不触发 ItemInvoked，
+            也不进选中模型。所以这里就是一颗超链接按钮，与搜索面板的重试入口同一种形态。
+        -->
+        <HyperlinkButton
+            x:Name="RetryRow"
+            Margin="8,2,8,4"
+            Padding="0"
+            HorizontalAlignment="Left"
+            Click="OnRetryClick"
+            Content="歌单加载失败，点击重试"
+            Visibility="Collapsed" />
+
+        <ListView
+            x:Name="List"
+            Grid.Row="1"
+            Padding="0,2"
+            AutomationProperties.Name="创建的歌单"
+            IsItemClickEnabled="True"
+            ItemClick="OnItemClick"
+            ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
+            SelectionMode="Single"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            ScrollViewer.HorizontalScrollMode="Disabled"
+            ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListView.Resources>
+                <!--
+                    选中只用底色：关掉勾选圈与左侧竖条，与侧栏导航项同一套语言
+                    （导航项的竖条也在 Tokens.xaml 里关掉了）。
+                    ★ 悬停/选中的画刷不在这里写 —— Theme.xaml 给的 ListViewItemBackground*
+                      与 NavigationViewItemBackground* 本来就是同一组值，再写一份就是两处状态。
+                    ★ 这两个键名写错不会报错、只会静默失效，改这里必须目视。
+                -->
+                <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+            </ListView.Resources>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="MinHeight" Value="{StaticResource SizeSidebarRow}" />
+                    <Setter Property="Padding" Value="4,0" />
+                    <!-- 与 NavigationViewItemButtonMargin 同值，行的高亮范围才和导航项对齐。 -->
+                    <Setter Property="Margin" Value="4,2" />
+                    <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="models:Playlist">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 封面。没有封面时留一块底色，行高不跳（同 PlaylistListView）。 -->
+                        <Border
+                            Grid.Column="0"
+                            Width="{StaticResource SizeCoverXs}"
+                            Height="{StaticResource SizeCoverXs}"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                            CornerRadius="{StaticResource RadiusXs}">
+                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        </Border>
+
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind Name}"
+                            TextTrimming="CharacterEllipsis" />
+
+                        <TextBlock
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</UserControl>

@@ -36,7 +36,7 @@ namespace Bodian.WinUI;
 /// </remarks>
 public sealed partial class MainWindow : Window
 {
-    /// <summary>侧栏项的标记。<c>Tag</c> 用字符串的只有内置的几项，歌单项直接放 <see cref="Playlist"/>。</summary>
+    /// <summary>侧栏项的标记。固定项与紧凑栏那颗歌单图标都靠它分发，见 <see cref="OnItemInvoked"/>。</summary>
     private const string DiscoverTag = "discover";
 
     private const string BangsTag = "bangs";
@@ -51,10 +51,35 @@ public sealed partial class MainWindow : Window
 
     private const string CollectedPlaylistsTag = "collected-playlists";
 
-    private const string ReloadPlaylistsTag = "reload-playlists";
+    /// <summary>紧凑栏里那颗「创建的歌单」图标。点它弹歌单列表，不换页。</summary>
+    private const string PlaylistsRailTag = "playlists-rail";
 
     /// <summary>侧栏里的歌单都是账号自建歌单，<c>source = 5</c>。</summary>
     private const int SidebarPlaylistSource = 5;
+
+    /// <summary>页脚行自身的下边距（模板里 FooterContentBorder 的 Margin 0,0,0,4）。</summary>
+    private const double PaneFooterBottomMargin = 4;
+
+    /// <summary>
+    /// 段高再让出的余量，见 <see cref="SyncPlaylistSectionHeight"/>。
+    /// </summary>
+    /// <remarks>
+    /// 量的是最后一项容器的 <c>ActualHeight</c>，**它不含该项的下外边距**
+    /// （<c>NavigationViewItemButtonMargin</c> 下 2），所以算出来的底边比菜单内容的真实高度
+    /// 短几像素。照直写进去，星号行就会比内容矮那几像素 → 菜单区溢出 → 上半截冒出一条滚动条。
+    /// 让出这一点余量，代价是面板底部留几像素空白（看不见），换菜单区永不溢出。
+    /// </remarks>
+    private const double PlaylistSectionSlack = 8;
+
+    /// <summary>
+    /// 「创建的歌单」这一段的高度下限（标题 + 两行）。
+    /// </summary>
+    /// <remarks>
+    /// 见 <see cref="SyncPlaylistSectionHeight"/>：窗口压到最小（800×560）时，
+    /// 面板里放不下固定项 + 这一段，此时把这一段保到下限，代价是菜单区自己出现滚动条。
+    /// 这是唯一的取舍点，改这一个常量就能换。
+    /// </remarks>
+    private const double MinPlaylistSectionHeight = 132;
 
     private readonly INavigationService _navigation;
     private readonly IBodianLogin _login;
@@ -63,8 +88,14 @@ public sealed partial class MainWindow : Window
     private readonly WindowRenderActivity _renderActivity;
     private readonly Func<Playlist, int, PlaylistDetailPage> _playlistDetailFactory;
 
-    /// <summary>侧栏里为「创建的歌单」动态加进去的项。重新加载时要先摘掉它们。</summary>
-    private readonly List<NavigationViewItem> _playlistItems = [];
+    /// <summary>
+    /// 上一次算高度时的两个输入。**没有它就会死循环**：见 <see cref="SyncPlaylistSectionHeight"/>。
+    /// </summary>
+    private double _lastNavHeight = double.NaN;
+    private double _lastAnchorBottom = double.NaN;
+
+    /// <summary>收起态下那颗图标开关的浮层是否开着。</summary>
+    private bool _playlistsPaneOpen;
     private OverlappedPresenter? _lyricsRestorePresenter;
     private NativeMethods.WindowPlacement _lyricsRestorePlacement;
     private nint _lyricsRestoreStyle;
@@ -178,6 +209,14 @@ public sealed partial class MainWindow : Window
 
         _login.AccountChanged += OnAccountChanged;
         PageHost.Loaded += OnHostLoaded;
+
+        // 收起 / 展开侧栏时，「创建的歌单」在「面板里的列表」与「轨上一颗图标」之间切换。
+        Nav.RegisterPropertyChangedCallback(
+            NavigationView.IsPaneOpenProperty, (_, _) => UpdateSidebarPaneMode());
+
+        // 这一段的高度跟着窗口尺寸与菜单内容走。挂在 LayoutUpdated 而不是 SizeChanged：
+        // 菜单项的高度也会变（字体、DPI、主题），都从这一条通道过；方法内部有收敛判据。
+        Nav.LayoutUpdated += (_, _) => SyncPlaylistSectionHeight();
     }
 
     /// <summary>给 <c>x:Bind</c> 用。</summary>
@@ -462,6 +501,14 @@ public sealed partial class MainWindow : Window
     {
         if (args.Key != Windows.System.VirtualKey.Escape) return;
 
+        // 歌单浮层压在整个第 1 行上（含播放队列抽屉的左半边），Esc 先收它。
+        if (_playlistsPaneOpen)
+        {
+            HidePlaylistsPane();
+            args.Handled = true;
+            return;
+        }
+
         // 抽屉盖在最上面，Esc 先收它。
         if (Queue.IsOpen)
         {
@@ -615,6 +662,7 @@ public sealed partial class MainWindow : Window
     private void ShowLogin()
     {
         Nav.IsPaneVisible = false;
+        HidePlaylistsPane();
         SearchPanel.Visibility = Visibility.Collapsed;
         Search.ClearSuggestions();
         SearchBarHost.Visibility = Visibility.Collapsed;
@@ -633,59 +681,178 @@ public sealed partial class MainWindow : Window
     private async Task LoadSidebarAsync()
     {
         await _sidebar.LoadAsync().ConfigureAwait(true);
-        RebuildPlaylistItems();
+        AfterSidebarChanged();
     }
 
     /// <summary>
-    /// 按 <see cref="SidebarViewModel.Playlists"/> 重建「创建的歌单」那一段。
+    /// 侧栏歌单数据换过之后的收尾：显不显示这一段、高亮还成不成立、高度要不要重算。
     /// </summary>
     /// <remarks>
-    /// 整段重建而不是增量更新：项数最多几十，重建的代价可以忽略；
-    /// 而增量更新要处理「上一次加载失败留下的重试项」这类残留，容易漏。
+    /// 列表内容本身不重建：<c>ItemsSource</c> 直接绑 <see cref="SidebarViewModel.Playlists"/>
+    /// （<c>ObservableCollection</c>），增删自己会同步。这跟以前「整段重建」的理由不同 ——
+    /// 现在没有「项」要建，只有一段的显隐与高度。
     /// </remarks>
-    private void RebuildPlaylistItems()
+    private void AfterSidebarChanged()
     {
-        foreach (var item in _playlistItems)
-        {
-            Nav.MenuItems.Remove(item);
-        }
+        UpdateSidebarPaneMode();
 
-        _playlistItems.Clear();
+        // 浮层里那份列表没有失败行控件（它复用 PlaylistListView），自己的重试行单独管。
+        PaneRetryRow.Visibility = _sidebar.ErrorText is null ? Visibility.Collapsed : Visibility.Visible;
+        ToolTipService.SetToolTip(PaneRetryRow, _sidebar.ErrorText);
 
-        foreach (var playlist in _sidebar.Playlists)
-        {
-            AddPlaylistItem(new NavigationViewItem
-            {
-                Content = playlist.Name,
-                Tag = playlist,
-                Icon = new SymbolIcon(Symbol.MusicInfo),
-            });
-        }
-
-        if (_sidebar.ErrorText is { } error)
-        {
-            var retry = new NavigationViewItem
-            {
-                Content = "歌单加载失败，点击重试",
-                Tag = ReloadPlaylistsTag,
-                Icon = new SymbolIcon(Symbol.Refresh),
-            };
-
-            ToolTipService.SetToolTip(retry, error);
-            AddPlaylistItem(retry);
-        }
-
-        // 一个项都没有时连标题一起收起来，否则侧栏会留一个空标题。
-        CreatedHeader.Visibility = _playlistItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-
+        // 列表换了，原来那一行可能已经不在里面。
         SyncSelection();
+
+        // 失败行的出现/消失会改变这一段的高度，重算一次。
+        SyncPlaylistSectionHeight();
     }
 
-    private void AddPlaylistItem(NavigationViewItem item)
+    /// <summary>
+    /// 侧栏展开 ↔ 紧凑栏（48px 图标轨）切换时，这一段在「列表」与「一颗图标」之间换形态。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>判据是 <see cref="NavigationView.IsPaneOpen"/>，不是 <c>DisplayMode</c>。</b>
+    /// <c>PaneDisplayMode=Left</c> 时 WinUI 的 <c>UpdateAdaptiveLayout</c> 把 <c>DisplayMode</c>
+    /// 写死成 <c>Expanded</c>，窗口再窄也不变；真正的收起态是 <c>IsPaneOpen=false</c> +
+    /// <c>SplitView</c> 的 ClosedCompact，对应模板里的 <c>ListSizeCompact</c> 视觉状态
+    /// （<c>PaneContentGrid.Width = CompactPaneLength = 48</c>）。拿 <c>DisplayModeChanged</c>
+    /// 当判据的话，这里一次都不会被触发。
+    /// </para>
+    /// <para>
+    /// 收起时整段藏起来还有一个原因：紧凑态下模板把 <c>FooterContentBorder</c> 压进 48px
+    /// 并裁切（上游 issue #10415 未修），留着就是一条被切坏的内容。
+    /// </para>
+    /// </remarks>
+    private void UpdateSidebarPaneMode()
     {
-        // 追加即可：MenuItems 里「创建的歌单」标题已经是最后一项，动态项自然跟在它后面。
-        Nav.MenuItems.Add(item);
-        _playlistItems.Add(item);
+        var compact = !Nav.IsPaneOpen;
+        var hasPlaylists = _sidebar.Playlists.Count > 0 || _sidebar.ErrorText is not null;
+
+        PlaylistSection.Visibility = hasPlaylists && !compact ? Visibility.Visible : Visibility.Collapsed;
+        CompactPlaylistsItem.Visibility = hasPlaylists && compact ? Visibility.Visible : Visibility.Collapsed;
+
+        // 展开态自己有那一段，浮层就没用了；收起时反过来，浮层不该留着。
+        if (!compact)
+        {
+            HidePlaylistsPane();
+        }
+
+        // 展开之后页脚才量得到高度。
+        SyncPlaylistSectionHeight();
+    }
+
+    /// <summary>收起态：轨道上那颗图标点一下开、再点一下关。</summary>
+    private void TogglePlaylistsPane()
+    {
+        _playlistsPaneOpen = !_playlistsPaneOpen;
+        PlaylistsOverlay.Visibility = _playlistsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void HidePlaylistsPane()
+    {
+        _playlistsPaneOpen = false;
+        PlaylistsOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>点面板以外的地方收起。与播放队列抽屉同一种收法。</summary>
+    private void OnPlaylistsDismissTapped(object sender, TappedRoutedEventArgs e) => HidePlaylistsPane();
+
+    /// <summary>浮层右上角的收起按钮。</summary>
+    private void OnPlaylistsCloseClick(object sender, RoutedEventArgs e) => HidePlaylistsPane();
+
+    /// <summary>浮层里点了某个歌单：换根进详情，顺手把浮层收掉。</summary>
+    private void OnPanePlaylistInvoked(object? sender, Playlist playlist)
+    {
+        HidePlaylistsPane();
+        _navigation.NavigateRoot(_playlistDetailFactory(playlist, SidebarPlaylistSource));
+    }
+
+    /// <summary>
+    /// 给「创建的歌单」这一段一个高度：从固定项之下一直铺到面板底部。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 页脚那一行是 Auto，内容多高就多高，NavigationView 不替我们算上限 —— 不给高度时
+    /// 这一段会把菜单区顶掉、自己溢出面板底部被裁掉。所以这里自己算。
+    /// </para>
+    /// <para>
+    /// <b>两条判据缺一不可，它们共同保证「设高度 → 再布局 → 再算」必然收敛。</b>
+    /// </para>
+    /// <para>
+    /// 一是<b>输入必须与本段高度无关</b>：只量「最后一个固定项的底边」与面板高度，
+    /// 两者都在页脚上方，本段怎么变都不影响它们。
+    /// ★ 别改成量菜单区的 <c>MenuItemsHost</c>：它在滚动区里会被拉伸到视口高，
+    /// 而视口 = 星号行 = 面板高减页脚高 —— 于是本段一变、量到的值就跟着变，永远算不完，
+    /// 表现是整个窗口卡死（实测踩过）。
+    /// </para>
+    /// <para>
+    /// 二是<b>输入没变就不重算</b>：本方法挂在 <c>LayoutUpdated</c> 上，每次布局都会来。
+    /// 缓存上一次的两个输入，只有它们真的变了才写 <c>Height</c>，否则「设高度触发的额外布局」
+    /// 会把同一件事再做一遍。
+    /// </para>
+    /// <para>
+    /// 窗口压到最小（800×560）时剩余空间不够，这时保到 <see cref="MinPlaylistSectionHeight"/>，
+    /// 代价是菜单区自己出现滚动条 —— 那种高度下没有既让固定项不滚、又看得见歌单的排法。
+    /// </para>
+    /// </remarks>
+    private void SyncPlaylistSectionHeight()
+    {
+        if (PlaylistSection.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        var navHeight = Nav.ActualHeight;
+        var anchorBottom = MeasureMenuAnchorBottom();
+
+        // 还没布局完：下一轮 LayoutUpdated 再来。
+        if (navHeight <= 0 || double.IsNaN(anchorBottom))
+        {
+            return;
+        }
+
+        if (Math.Abs(navHeight - _lastNavHeight) < 0.5 && Math.Abs(anchorBottom - _lastAnchorBottom) < 0.5)
+        {
+            return;
+        }
+
+        _lastNavHeight = navHeight;
+        _lastAnchorBottom = anchorBottom;
+
+        PlaylistSection.Height = Math.Max(
+            MinPlaylistSectionHeight,
+            navHeight - anchorBottom - PaneFooterBottomMargin - PlaylistSectionSlack);
+    }
+
+    /// <summary>
+    /// 菜单区最后一个可见项的底边（相对 <see cref="Nav"/>）。
+    /// </summary>
+    /// <returns>还没布局完时返回 <see cref="double.NaN"/>。</returns>
+    /// <remarks>
+    /// 取「最后一个可见项」而不是累加全部项，是让它自己跟着菜单内容走：以后往 <c>MenuItems</c>
+    /// 里增删项都不用改这里。收起态那颗紧凑栏图标是 <c>Collapsed</c>，自然被跳过；
+    /// 短的窗口里用户把菜单区滚下去时，项的位置会整体偏移 —— 那种高度下高度本来就被压到下限，
+    /// 偏移只影响下限之上的那几个像素，可以接受。
+    /// </remarks>
+    private double MeasureMenuAnchorBottom()
+    {
+        FrameworkElement? anchor = null;
+
+        foreach (var item in Nav.MenuItems)
+        {
+            // 有容器就量容器（外边距算在容器上），没有就退回量项本身。
+            var element = Nav.ContainerFromMenuItem(item) as FrameworkElement ?? item as FrameworkElement;
+
+            if (element is { Visibility: Visibility.Visible, ActualHeight: > 0 })
+            {
+                anchor = element;
+            }
+        }
+
+        return anchor is null
+            ? double.NaN
+            : anchor.TransformToVisual(Nav).TransformPoint(default).Y + anchor.ActualHeight;
     }
 
     private void OnItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
@@ -726,16 +893,22 @@ public sealed partial class MainWindow : Window
                 _navigation.NavigateRoot<CollectedPlaylistsPage>();
                 break;
 
-            case ReloadPlaylistsTag:
-                _ = LoadSidebarAsync();
-                break;
-
-            case Playlist playlist:
-                // 侧栏里的都是账号自建歌单，source = 5。
-                _navigation.NavigateRoot(_playlistDetailFactory(playlist, SidebarPlaylistSource));
+            case PlaylistsRailTag:
+                // 收起态那颗图标：开关歌单浮层。这一项配了 SelectsOnInvoked=False，
+                // 所以它不会被选成高亮，也不会污染 Nav.SelectedItem。
+                TogglePlaylistsPane();
                 break;
         }
     }
+
+    /// <summary>面板底部那份列表里点了某个歌单。侧栏里的都是账号自建歌单，<c>source = 5</c>。</summary>
+    private void OnSidebarPlaylistInvoked(object? sender, Playlist playlist) =>
+        _navigation.NavigateRoot(_playlistDetailFactory(playlist, SidebarPlaylistSource));
+
+    private void OnPlaylistsRetryRequested(object? sender, EventArgs e) => _ = LoadSidebarAsync();
+
+    /// <summary>浮层里的重试行。与 <see cref="OnPlaylistsRetryRequested"/> 同一个动作，只是委托签名不同。</summary>
+    private void OnPaneRetryClick(object sender, RoutedEventArgs e) => _ = LoadSidebarAsync();
 
     public event EventHandler? RenderingStateChanged;
     public bool IsRenderingSuspended => _renderActivity.IsSuspended;
@@ -894,10 +1067,18 @@ public sealed partial class MainWindow : Window
     /// 把侧栏高亮同步到当前**根页**。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 没有对应项的根页（搜索页）会让侧栏全不高亮 —— 那比错误高亮一项好，
     /// 用户能看出「我当前不在侧栏列出的任何一段里」。
+    /// </para>
+    /// <para>
+    /// 歌单详情同样不进 <c>Nav.SelectedItem</c>：它的高亮画在「创建的歌单」列表里，
+    /// 侧栏本体保持全不高亮。两个实例（页脚那份与弹层那份）都要推，否则从轨上点进来的
+    /// 那次会只剩一边亮着。
+    /// </para>
     /// </remarks>
-    private void SyncSelection() =>
+    private void SyncSelection()
+    {
         Nav.SelectedItem = _navigation.Root switch
         {
             DiscoverPage => DiscoverItem,
@@ -907,10 +1088,11 @@ public sealed partial class MainWindow : Window
             RecentPage => RecentItem,
             CollectedAlbumsPage => CollectedAlbumsItem,
             CollectedPlaylistsPage => CollectedPlaylistsItem,
-
-            PlaylistDetailPage detail => _playlistItems.FirstOrDefault(
-                item => item.Tag is Playlist playlist && playlist.Id == detail.ViewModel.Playlist.Id),
-
             _ => null,
         };
+
+        // 只推面板底部那一份：收起态浮层里用的是 PlaylistListView，它不支持选中态
+        // （那是一个「挑一个就走」的浮层，不留高亮）。
+        FooterPlaylistList.SelectPlaylist((_navigation.Root as PlaylistDetailPage)?.ViewModel.Playlist.Id);
+    }
 }

@@ -27,6 +27,12 @@
     <!-- 侧栏展开宽度。NavigationView 的默认是 320，这里收到 200 -->
     <x:Double x:Key="SizeSidebarWidth">200</x:Double>
 
+    <!--
+        收起侧栏里那个歌单浮层的宽度。与播放队列抽屉同量级（那边是 MainWindow 里的 380 常量）：
+        里面的行是 48 封面那套，窄了名称就没地方放 —— 200 宽试过，名字直接看不全。
+    -->
+    <x:Double x:Key="SizePlaylistPaneWidth">380</x:Double>
+
     <!-- 列表行 -->
     <x:Double x:Key="SizeRowHeight">64</x:Double>
     <!--
@@ -44,6 +50,8 @@
     <!-- 封面。列表行与播放条共用 Row 这一档 -->
     <x:Double x:Key="SizeCoverRow">48</x:Double>
     <x:Double x:Key="SizeCoverSm">36</x:Double>
+    <!-- 侧栏歌单行的封面。比 Row 小一档：一行里还要放名称与曲目数。 -->
+    <x:Double x:Key="SizeCoverXs">32</x:Double>
     <x:Double x:Key="SizeCoverMd">72</x:Double>
     <x:Double x:Key="SizeCoverGrid">150</x:Double>
 
@@ -105,6 +113,13 @@
 
     <!-- 使用原生的左右 4px 边距，紧凑侧栏下背景不会越界裁切；上下项间距仍为 4px -->
     <Thickness x:Key="NavigationViewItemButtonMargin">4,2</Thickness>
+
+    <!--
+        侧栏「创建的歌单」行高。36 + 上下各 2 的项间距 = 40，与导航项同一节奏。
+        它与导航项不是同一个控件（那边是 NavigationViewItem），所以值只能各写一份；
+        改这里时顺手看一眼上面那两行。
+    -->
+    <x:Double x:Key="SizeSidebarRow">40</x:Double>
 
     <!-- 项自身不描边（选中态用底色表示，不用边框） -->
     <Thickness x:Key="NavigationViewItemBorderThickness">0</Thickness>

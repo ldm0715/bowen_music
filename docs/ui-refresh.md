@@ -1000,3 +1000,104 @@ WinUI 构建通过，0 错误、1 个既有 `AiPlaylistPage.xaml:27` WMC1506 警
 ### 18.5 验证
 
 见 [`play-queue.md`](play-queue.md) §8。界面部分待用户手动验收。
+
+---
+
+## 19. 侧栏「创建的歌单」：段落内滚 + 封面与曲目数（2026-10-03）
+
+此前每个自建歌单是一个动态 `NavigationViewItem`，追加进 `NavigationView.MenuItems`。
+`MenuItems` 整段共用一个滚动区，歌单一多就把面板撑出常驻滚动条 —— **整条侧栏**都能滚，
+而用户要的是「侧栏整体不动，只有这一段自己滚」。行内也只有一个音符图标，没有封面与曲目数。
+
+### 19.1 搬出 `MenuItems`，落到 `PaneFooter`
+
+固定导航项留在 `MenuItems`（48 DIP 图标轨的行为由它们决定，自动化脚本也按 `x:Name` 找它们），
+「创建的歌单」整段（`NavigationViewItemHeader` + 列表）搬进 `NavigationView.PaneFooter`。
+
+这是结构性的，不是调参：模板里 `ItemsContainerGrid` 的四行是
+`*`（`MenuItemsScrollViewer`，菜单项）/ `Auto`（分隔线）/ `Auto`（`FooterContentBorder` = `PaneFooter`）/
+`Auto`（`FooterItemsScrollViewer`），**只有第一行会滚**。页脚行天生在滚动区之外，
+所以「整条侧栏不滚」不需要去禁用任何内置滚动条。
+模板源就在 `Microsoft.WindowsAppSDK.WinUI` 包里（`Microsoft.WinUI/Themes/generic.xaml`，
+2.3.9 的 `ItemsContainerGrid` 在 17728 行附近），可本地核对。
+
+`NavigationViewItemHeader` 搬过去观感不变：它按类型挂隐式样式，与容器无关。
+它的「紧凑态自动收起」依赖 `SplitView` 祖先，页脚里的实例取不到，所以永远是展开态 ——
+这正合适，因为这一段在紧凑态本来就整段藏起来（见 §19.4）。
+
+### 19.2 高度是算出来的，不写死
+
+页脚行是 `Auto`，NavigationView 不会替我们算上限：不给高度时这段会把菜单区顶掉、
+自己溢出面板底部被裁掉（本配置下 NavigationView 自己的页脚高度分配是空转的 ——
+没有 `FooterMenuItems`、`IsSettingsVisible=false`，它直接返回可用高度）。所以自己算：
+
+    段高 = Nav.ActualHeight − 菜单区 ScrollViewer 顶边 − 菜单内容高度 − 4
+    下限 132（标题 + 两行）；4 是页脚行自身的下边距
+
+**公式只用「从顶部锚定」的量，这是它不会自激的全部原因**：菜单区滚动条与菜单内容的高度
+都与本段高度无关（内容在 `ScrollViewer` 里按无限高度量，视口缩小不改变它）。
+设完高度触发的那次额外布局里，重算出的值必然相同，被 0.5 DIP 的收敛判据挡住。
+
+**不累加每个菜单项容器的高度**：那是从底部数的，矮窗口里把菜单区滚一下整段值就偏移、跟着抖；
+而且上限一旦让菜单视口塌到 0，最后一个容器还会被虚拟化掉、取不到。
+量模板部件（`MenuItemsScrollViewer` + `MenuItemsHost`）对滚动偏移不敏感。
+部件名若对不上，只找一次就停手，不再每轮遍历可视树；那种情况下这一段退化成「贴底、不设高度」。
+
+窗口压到最小（800×560）时剩余空间不够，这段保到 132，代价是**菜单区自己出现滚动条** ——
+那种高度下没有「固定项不滚」与「看得见歌单」兼得的排法。这是唯一的取舍点，
+换 `MinPlaylistSectionHeight` 一个常量即可。
+
+### 19.3 行与选中态
+
+行 = 32 DIP 封面（新增 token `SizeCoverXs`）+ 名称（`CharacterEllipsis`）+ 右侧曲目数。
+封面走 `Formats.CoverSource`（内部是 `CoverImageCache`），曲目数走 `Formats.AlbumCount`
+（0 首返回空串），与 `PlaylistListView` 同一套；无封面时留一块 `ControlFillColorDefaultBrush`
+底色，行高不跳。
+
+行高用新 token `SizeSidebarRow = 40`（36 + 上下各 2），与导航项同节奏。
+选中只用底色：`ListViewItemSelectionIndicatorVisualEnabled` 与
+`ListViewItemSelectionCheckMarkVisualEnabled` 置 `False`；**画刷不在控件里复写** ——
+`Theme.xaml` 给 `ListViewItemBackground*` 的值与 `NavigationViewItemBackground*` 本来就一样，
+再写一份就是两处状态。
+
+歌单详情**不再进 `Nav.SelectedItem`**（侧栏本体全不高亮，与搜索页同一条规矩），
+高亮改画在列表里，页脚与弹层两个实例都要推一次，否则从轨上点进来时只剩一边亮着。
+
+失败入口是 `HyperlinkButton`，**不能是 `NavigationViewItem`**：`PaneFooter` 里的导航项
+不触发 `ItemInvoked`，也不进选中模型。
+
+### 19.4 收起态的判据是 `IsPaneOpen`，不是 `DisplayMode`
+
+`PaneDisplayMode=Left` 时 WinUI 的 `UpdateAdaptiveLayout` 把 `DisplayMode` 写死成 `Expanded`，
+窗口再窄也不变，`DisplayModeChanged` 只会触发一次。真正的收起态是 `IsPaneOpen=false` +
+`SplitView` 的 ClosedCompact，对应模板视觉状态 `ListSizeCompact`
+（`PaneContentGrid.Width = CompactPaneLength = 48`）。也就是说
+**「窄窗口自动进图标轨」这句话在 `Left` 模式下不成立**，判据只能用 `IsPaneOpen`。
+
+另外，紧凑态下模板把 `FooterContentBorder.HorizontalAlignment` 改成 `Left`，
+页脚会被压进 48 DIP 并裁切（上游 issue #10415 未修），所以收起时这一段整段藏起来，
+换成轨上一颗图标。
+
+点那颗图标开的是**自绘浮层 `PlaylistsOverlay`**，不是 `Flyout`：Flyout 只能贴在触发元素旁边、
+尺寸随内容走，给不了「固定宽度 + 定在左侧 + 圆角卡片」这套形态。它跟右侧的播放队列抽屉
+是一套东西照镜子：同样离窗口边留白、同样圆角 16、同样只跨第 1 行（到播放条上沿为止），
+背景同样用实色 `CommentPanelBackgroundBrush`（半透明会把底下的正文透出来，理由同 `QueuePane`）。
+
+两个几何上的坑，都是实测踩出来的：
+
+- **宽度 `SizePlaylistPaneWidth = 380`**。第一版按侧栏宽度给了 200，里面的行是 48 封面那套，
+  名称直接显示不全。380 与播放队列抽屉同量级，名称 + 曲目数放得下。
+- **左边距 56（48 图标轨 + 8 间隙）**。第一版贴窗口左边、整高、方角，把收起栏整个盖住了 ——
+  那颗图标点不着，也看不出浮层是从哪儿弹出来的。
+
+收起方式有四条：右上角 ✕ 按钮、点浮层以外（透明 `Rectangle`，**只铺第 1 行**，所以点播放条
+和标题栏是收不掉的）、Esc、再点一次轨上那颗图标。✕ 按钮是必需的 —— 另外三条都不容易被发现。
+
+浮层里的行直接用 `PlaylistListView`（与「收藏的歌单」页同一个控件），所以观感天生一致；
+代价是它不支持选中态，浮层里不留高亮 —— 那是一个「挑一个就走」的浮层。
+
+### 19.5 验证
+
+WinUI 构建成功，0 错误，仅保留原有的 `AiPlaylistPage.xaml:27` `WMC1506` 绑定警告。
+界面部分待用户手动验收：歌单数超过可视高度的展开态、内置收起按钮收起后的图标轨与弹层、
+800×560 最小窗口、浅深两套主题。清单见本次交付说明。

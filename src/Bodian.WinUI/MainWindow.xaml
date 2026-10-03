@@ -357,9 +357,81 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <!-- 这一行是「创建的歌单」那一段的锚点：动态项在它后面追加 -->
-            <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
+            <!--
+                紧凑栏（48px 图标轨）里的「创建的歌单」入口。
+
+                ★ 判据是 IsPaneOpen，**不是 DisplayMode** —— PaneDisplayMode=Left 时
+                  DisplayMode 恒为 Expanded（WinUI 源码 UpdateAdaptiveLayout 里写死），
+                  收起态是 IsPaneOpen=false + SplitView 的 ClosedCompact。
+                  见 UpdateSidebarPaneMode。
+
+                ★ SelectsOnInvoked=False：否则点一下这颗图标会被选成高亮，
+                  而且 Nav.SelectedItem 会指到它，跟 SyncSelection 打架。
+
+                ★ 展开时整项收起。用 Visibility 而不是增删 MenuItems：菜单内容的高度喂给
+                  SyncPlaylistSectionHeight，增删单项会让那次计算在两态之间摆动。
+
+                ★ 点它不弹 Flyout，而是开关下面那个自绘浮层（PlaylistsOverlay）：
+                  Flyout 只能贴在触发元素旁边，做不到「贴窗口左边缘、铺满侧栏高、压住收起栏」。
+            -->
+            <NavigationViewItem
+                x:Name="CompactPlaylistsItem"
+                AutomationProperties.AutomationId="PlaylistsRailItem"
+                AutomationProperties.Name="创建的歌单"
+                Content="创建的歌单"
+                SelectsOnInvoked="False"
+                Tag="playlists-rail"
+                ToolTipService.ToolTip="创建的歌单"
+                Visibility="Collapsed">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="MusicInfo" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
         </NavigationView.MenuItems>
+
+        <!--
+            「创建的歌单」整段放在面板页脚里。
+
+            ★ 为什么放这里：PaneFooter 对应模板里的 FooterContentBorder，它在
+              ItemsContainerGrid 的第 2 行（Auto），**不在 MenuItemsScrollViewer 里**
+              （WinUI 模板 generic.xaml 的 ItemsContainerGrid 四行 = *(菜单,可滚) /
+              Auto(分隔线) / Auto(页脚) / Auto(页脚项)）。固定导航项留在 MenuItems，
+              所以滚的只有歌单列表，侧栏整体不出滚动条 —— 这就是本次要的形态。
+
+            ★ 高度由代码给（SyncPlaylistSectionHeight）：页脚这一行是 Auto，内容多高就多高，
+              NavigationView 不会替我们算上限。按自然高度排版的话，歌单一多这段会把菜单区顶掉、
+              自己溢出面板底部被裁掉。代码给的高度 =「菜单内容之下到面板底」，
+              于是歌单少时这段紧跟在固定项下方（脚下留白），歌单多时列表在段内滚动。
+
+            ★ 紧凑栏下这段会被压进 48px 并裁切（上游 issue #10415 未修），
+              所以由 UpdateSidebarPaneMode 在收起时整段藏起来，换成轨上那颗图标。
+        -->
+        <NavigationView.PaneFooter>
+            <Grid x:Name="PlaylistSection" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <!-- 标题 -->
+                    <RowDefinition Height="Auto" />
+                    <!-- 列表：吃剩下的高度，自己滚 -->
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!--
+                    分组头沿用菜单区那两个的样式：NavigationViewItemHeader 是按类型挂的隐式样式，
+                    搬到这里观感、缩进与「我的音乐」完全一致。
+                -->
+                <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
+
+                <controls:SidebarPlaylistList
+                    x:Name="FooterPlaylistList"
+                    Grid.Row="1"
+                    AutomationProperties.AutomationId="SidebarPlaylistList"
+                    AutomationProperties.Name="创建的歌单"
+                    ErrorText="{x:Bind _sidebar.ErrorText, Mode=OneWay}"
+                    ItemsSource="{x:Bind _sidebar.Playlists, Mode=OneWay}"
+                    PlaylistInvoked="OnSidebarPlaylistInvoked"
+                    RetryRequested="OnPlaylistsRetryRequested" />
+            </Grid>
+        </NavigationView.PaneFooter>
 
         <!-- 页面宿主与侧栏从同一行开始；搜索入口统一放在上方标题栏。 -->
         <ContentControl
@@ -415,6 +487,99 @@
                     ClearRequested="OnClearQueueRequested"
                     CloseRequested="OnQueueCloseRequested"
                     ViewModel="{x:Bind Queue}" />
+            </Border>
+        </Grid>
+
+        <!--
+            收起侧栏时「创建的歌单」的浮层：点轨上那颗图标开关。
+
+            ★ 与右侧的播放队列抽屉是**一套东西照镜子**：同样是浮起来的圆角卡片、
+              同样离窗口边留白、同样只跨第 1 行（到播放条上沿为止，不盖播放条）。
+              右边那张是 QueueOverlay，这边这张是它。
+
+            ★ 自绘浮层而不是 Flyout：Flyout 只能贴在触发元素旁边、尺寸也随内容走，
+              给不了「固定宽度 + 定在左侧 + 圆角卡片」这套形态。
+
+            ★ 左边距要让开图标轨（48 + 8），不然会把收起栏整个盖住 —— 盖住以后
+              那颗图标就点不着，也没法看出自己是从哪儿弹出来的。
+
+            ★ 背景必须实色（CommentPanelBackgroundBrush）：面板压在内容区上，
+              半透明会把底下的正文透出来。理由同 QueuePane。
+
+            ★ 行用 PlaylistListView —— 与「收藏的歌单」页是同一个控件，48 封面那套行，
+              380 宽放得下名称与曲目数。放 ImmersiveHost 之前：全屏歌词页要盖住它。
+        -->
+        <Grid
+            x:Name="PlaylistsOverlay"
+            Grid.Row="1"
+            Visibility="Collapsed">
+            <Rectangle Fill="Transparent" Tapped="OnPlaylistsDismissTapped" />
+            <Border
+                x:Name="PlaylistsPane"
+                AutomationProperties.AutomationId="PlaylistsPane"
+                AutomationProperties.Name="创建的歌单"
+                Width="{StaticResource SizePlaylistPaneWidth}"
+                Margin="56,8,0,12"
+                HorizontalAlignment="Left"
+                Background="{ThemeResource CommentPanelBackgroundBrush}"
+                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="0,0,8,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <NavigationViewItemHeader Content="创建的歌单" />
+
+                        <!--
+                            收起按钮。与播放队列抽屉那颗同一种写法。
+                            ★ 必须有：外面的透明遮罩只铺第 1 行，点播放条或标题栏是收不掉的，
+                              没有这颗按钮就只剩 Esc 与再点一次图标两条路，太难发现。
+                        -->
+                        <Button
+                            Grid.Column="1"
+                            Width="32"
+                            Height="32"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="收起歌单浮层"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnPlaylistsCloseClick"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            ToolTipService.ToolTip="收起">
+                            <FontIcon FontSize="12" Glyph="&#xE711;" />
+                        </Button>
+                    </Grid>
+
+                    <controls:PlaylistListView
+                        x:Name="PanePlaylistList"
+                        Grid.Row="1"
+                        ItemsSource="{x:Bind _sidebar.Playlists, Mode=OneWay}"
+                        PlaylistInvoked="OnPanePlaylistInvoked" />
+
+                    <HyperlinkButton
+                        x:Name="PaneRetryRow"
+                        Grid.Row="1"
+                        Margin="8,2,8,4"
+                        Padding="0"
+                        VerticalAlignment="Top"
+                        HorizontalAlignment="Left"
+                        Click="OnPaneRetryClick"
+                        Content="歌单加载失败，点击重试"
+                        Visibility="Collapsed" />
+                </Grid>
             </Border>
         </Grid>
 
