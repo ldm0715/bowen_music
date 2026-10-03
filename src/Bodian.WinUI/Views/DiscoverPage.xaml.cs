@@ -60,34 +60,23 @@ public sealed partial class DiscoverPage : Page, INavigationAware
     {
     }
 
-    /// <summary>
-    /// 点某一组的标题。
-    /// </summary>
-    /// <remarks>
-    /// 「个性化歌单」与「你的主题歌单」的组都可点：每组其实是一个完整歌单，
-    /// 模块里给的 3 首只是预览，点进去能取到完整的（实测都是 30 首）。
-    /// <para>
-    /// <b>用压栈（<c>Navigate</c>）不是换根</b>：AI 歌单页压在「发现」上面，侧栏该继续高亮「发现」。
-    /// </para>
-    /// </remarks>
-    private void OnSectionInvoked(object? sender, HomeSection section)
-    {
-        if (section.Ai is not { } ai)
-        {
-            return;
-        }
-
-        _navigation.Navigate(_aiPlaylistFactory(ai, section.Title));
-    }
-
-    /// <summary>点卡片：曲目就播，歌单就进详情。</summary>
+    /// <summary>点卡片：曲目就播，歌单就进详情，只有预览的卡片就打开那个完整歌单。</summary>
     private async void OnCardInvoked(object? sender, HomeCard card)
     {
         if (card.Track is { } track)
         {
-            // 队列就是这一张卡片所在的组 —— 发现页的卡片来自不同模块，
+            // 队列就是这一张卡片所在的模块 —— 发现页的卡片来自不同模块，
             // 没有一个「整个页面的列表」可以当队列，所以单曲成队。
             await _coordinator.PlayFromAsync([track], 0);
+            return;
+        }
+
+        // 「个性化歌单」与「你的主题歌单」的卡片：卡上那几首只是预览，点整张卡打开完整的那个歌单
+        // （实测都是 30 首）。
+        // ★ 用压栈（Navigate）不是换根：AI 歌单页压在「发现」上面，侧栏该继续高亮「发现」。
+        if (card.Ai is { } ai)
+        {
+            _navigation.Navigate(_aiPlaylistFactory(ai, card.Title));
             return;
         }
 

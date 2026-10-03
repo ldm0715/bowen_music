@@ -106,8 +106,9 @@
 | 音乐库大类详情 | 专辑用原生 `GridView`，同样挂附加属性。`GridView` 的默认模板确实把 `Header`/`Footer` 转发给了 `ItemsPresenter`（查过 WinUI 的 `generic.xaml`） |
 | 评论面板 | 两个列表各挂一份，绑各自的 `HasMore`/`LoadMoreCommand`。它的收尾文案用面板自己的配色，没走 `PagingEndNote` |
 
-**不要误挂**：`HomeSectionView` 里的横向卡片列表（`VerticalScrollMode=Disabled`）、
-音乐库大类页的横向「子类」列表 —— 它们整组一起被实现，挂上就会立刻乱翻页。
+**不要误挂**：`HomeSectionView` 里的横向卡片列表（已改成零溢出、两侧箭头分页，
+见 [`discover-card-strip.md`](discover-card-strip.md)）、音乐库大类页的横向「子类」列表 ——
+它们整组一起被实现，挂上就会立刻乱翻页。
 `BangListPage` / `RecentPage` / `AI 歌单页` 本来就不分页，不挂。
 
 ## 手动验收

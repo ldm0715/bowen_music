@@ -62,6 +62,42 @@
     <x:Double x:Key="SizeCoverGrid">150</x:Double>
 
     <!--
+        ══ 发现页卡片区 ══
+
+        每组的卡片宽度同时是「一屏放得下几张」算式里的步长（见 Controls/CardStripPaging）。
+        它与下面的 SpaceHomeCardGap 一起决定步长 —— 改一个不改另一个，
+        最后一页会有一张探出视口。
+    -->
+    <!--
+        「个性化歌单」：三张封面拼成一张图（左一右二）。
+        ★ 卡片宽度要能撑满一屏 —— 实测这个模块正好 4 张，一屏放得下 4 张才不会有半屏空白。
+          拼图里那三块的尺寸写死在模板里，改这个宽度要连它们一起看。
+    -->
+    <x:Double x:Key="SizeHomeMosaicCard">260</x:Double>
+    <x:Double x:Key="SizeHomeMosaicCover">190</x:Double>
+    <!-- 「你的主题歌单」：左封面 + 右侧歌单名与曲目预览 -->
+    <x:Double x:Key="SizeHomePreviewCard">340</x:Double>
+    <x:Double x:Key="SizeHomePreviewCover">120</x:Double>
+    <!-- 「宝藏歌单库」：单封面 + 播放数角标 + 描述 -->
+    <x:Double x:Key="SizeHomeCoverCard">176</x:Double>
+    <!-- 单曲模块：每列几首曲目 -->
+    <x:Double x:Key="SizeHomeTrackColumn">300</x:Double>
+
+    <!--
+        卡片区两侧的翻页按钮：窄高的竖条。
+        圆形按钮要占 32 宽，会把模块标题和第一张卡片之间推开一大截。
+    -->
+    <x:Double x:Key="SizeHomePagerButtonWidth">20</x:Double>
+    <x:Double x:Key="SizeHomePagerButtonHeight">56</x:Double>
+
+    <!--
+        卡片区左右各留这么宽，翻页按钮落在这段里，不压住首尾那张卡片。
+        = 按钮宽 20 + 两侧各 8 的缝。
+        ★ 代码算「一页放得下几张」时要先把这两段减掉，否则最后一页会多算一张。
+    -->
+    <Thickness x:Key="SpaceHomePagerMargin">28,0,28,0</Thickness>
+
+    <!--
         歌手页专辑卡片的文字区高度（封面底下那一块）：10 的间隔 + 两行标题 + 4 + 一行发行时间 ≈ 60，
         留几像素余量。
         ★ XAML 用它当固定高度、代码用它算卡片总高，两处必须同源 ——
@@ -171,6 +207,13 @@
     <Thickness x:Key="SpaceVerticalScrollContentPadding">0,0,24,0</Thickness>
     <x:Double x:Key="SpaceSection">12</x:Double>
     <x:Double x:Key="SpaceRow">8</x:Double>
+
+    <!--
+        发现页卡片之间的横向间隔。写在每个卡片容器的右边距上，不是容器的内边距 ——
+        内边距会把悬停底色也撑宽，间隔跟着一起被涂上颜色。
+        ★ 与上面几个卡片宽度一起组成「一步」的宽度:XAML 只读它排版，代码读两者算一页放几张。
+    -->
+    <Thickness x:Key="SpaceHomeCardGap">0,0,12,0</Thickness>
 
     <!-- 字号阶梯 -->
     <x:Double x:Key="FontSizeCaption">11</x:Double>

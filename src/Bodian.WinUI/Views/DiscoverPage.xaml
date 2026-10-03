@@ -9,37 +9,27 @@
 
     <Page.Resources>
         <DataTemplate x:Key="DiscoverHeaderTemplate" x:DataType="vm:ListSectionHeader">
-            <TextBlock Margin="4,12,0,8" Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Title}" />
+            <!-- 左边缘与下面卡片区对齐：封面列表为了给翻页按钮腾地方，左边留了 28。 -->
+            <TextBlock Margin="28,12,0,8" Style="{StaticResource BodianModuleTitle}" Text="{x:Bind Title}" />
         </DataTemplate>
         <DataTemplate x:Key="DiscoverSectionTemplate" x:DataType="home:HomeSection">
-            <controls:HomeSectionView Margin="0,0,0,12" CardInvoked="OnCardInvoked" Section="{x:Bind}"
-                SectionInvoked="OnSectionInvoked" />
+            <controls:HomeSectionView Margin="0,0,0,16" CardInvoked="OnCardInvoked" Section="{x:Bind}" />
         </DataTemplate>
         <controls:ResultTemplateSelector x:Key="DiscoverTemplateSelector"
             HeaderTemplate="{StaticResource DiscoverHeaderTemplate}" HomeSectionTemplate="{StaticResource DiscoverSectionTemplate}" />
     </Page.Resources>
     <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-
-        <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="发现" />
-            <TextBlock
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
-                Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis" />
-        </StackPanel>
 
         <!-- 模块标题与每个横向卡片区都是可回收的独立条目；不会实现整组离屏卡片。 -->
         <!--
             翻页靠末尾条目被实现来触发。首屏若不足一屏会自动补到填满 ——
             否则列表根本滚不动，后面的模块就永远够不到了。
         -->
-        <controls:VirtualizedListView x:Name="FeedList" Grid.Row="1"
+        <controls:VirtualizedListView x:Name="FeedList" Grid.Row="0"
             Padding="{StaticResource SpaceVerticalScrollContentPadding}" ItemsSource="{x:Bind ViewModel.Rows}"
             controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
             controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
@@ -59,7 +49,7 @@
             </controls:VirtualizedListView.Footer>
         </controls:VirtualizedListView>
 
-        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
+        <Grid Grid.Row="1" Style="{StaticResource BodianPageFooter}">
             <ProgressRing
                 Style="{StaticResource BodianPageBusyRing}"
                 IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />

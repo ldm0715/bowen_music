@@ -95,13 +95,17 @@ public sealed class HomeApiTests : IDisposable
         Assert.DoesNotContain(modules, module => module.Type == 2 && module.IsSupported);
     }
 
-    // ── type 4：曲目分组 ────────────────────────────────────────────────────
+    // ── type 4：歌单分组 ────────────────────────────────────────────────────
 
     /// <summary>
-    /// <c>songList</c> 在 type 4 里是**曲目分组**（组有 title + songs）。
+    /// <c>songList</c> 在 type 4 里是**歌单分组**：一个分组 = 一张歌单卡片。
     /// </summary>
+    /// <remarks>
+    /// 分组里那 3 首只是预览，用来拼出歌单卡片的封面 —— <b>分组自己没有封面图</b>。
+    /// 所以卡片既不可播（它不是那 3 首），也不带 <c>Playlist</c>（要拿完整歌单得走 AI 接口）。
+    /// </remarks>
     [Fact]
-    public async Task SongGroups_ProducesSectionsOfTracks()
+    public async Task SongGroups_Type4_OneSectionOfPlaylistCards()
     {
         RespondWith("home-module-1.json");
 
@@ -109,14 +113,20 @@ public sealed class HomeApiTests : IDisposable
 
         Assert.NotNull(feed);
         Assert.Equal("个性化歌单", feed.Title);
-        Assert.NotEmpty(feed.Sections);
 
-        var section = feed.Sections[0];
+        // 整个模块一组 —— 不再每组各占一个条目。
+        var section = Assert.Single(feed.Sections);
 
-        Assert.False(string.IsNullOrWhiteSpace(section.Title));
-        Assert.NotEmpty(section.Cards);
-        Assert.All(section.Cards, card => Assert.True(card.IsPlayable));
-        Assert.All(section.Cards, card => Assert.False(card.IsPlaylist));
+        Assert.Equal(HomeSectionLayout.PlaylistMosaic, section.Layout);
+        Assert.Equal(4, section.Cards.Count);
+
+        Assert.All(section.Cards, card => Assert.True(card.OpensAiPlaylist));
+        Assert.All(section.Cards, card => Assert.False(card.IsPlayable));
+        Assert.All(section.Cards, card => Assert.False(string.IsNullOrWhiteSpace(card.Title)));
+
+        // 卡片上没有现成封面，只能靠那几首预览拼。
+        Assert.All(section.Cards, card => Assert.Equal(3, card.Covers.Count));
+        Assert.All(section.Cards, card => Assert.Equal(3, card.Previews.Count));
     }
 
     // ── type 5：**同一个键，语义不同** ──────────────────────────────────────
@@ -139,10 +149,16 @@ public sealed class HomeApiTests : IDisposable
 
         var section = Assert.Single(feed.Sections);
 
+        Assert.Equal(HomeSectionLayout.PlaylistCover, section.Layout);
         Assert.NotEmpty(section.Cards);
         Assert.All(section.Cards, card => Assert.True(card.IsPlaylist));
         Assert.All(section.Cards, card => Assert.False(card.IsPlayable));
         Assert.All(section.Cards, card => Assert.False(string.IsNullOrWhiteSpace(card.Title)));
+
+        // 描述与播放数只有 DTO 上有（MapPlaylist 是列表映射，这两个字段归详情专属），
+        // 卡片直接从 DTO 取过来画在图上。
+        Assert.All(section.Cards, card => Assert.False(string.IsNullOrWhiteSpace(card.Subtitle)));
+        Assert.All(section.Cards, card => Assert.True(card.PlayCount > 0));
     }
 
     /// <summary>
@@ -182,23 +198,28 @@ public sealed class HomeApiTests : IDisposable
 
         // 一整片没有小标题 —— 界面靠这个空串决定不画标题行。
         Assert.Equal("", section.Title);
+        Assert.Equal(HomeSectionLayout.TrackColumns, section.Layout);
         Assert.Equal(15, section.Cards.Count);
         Assert.All(section.Cards, card => Assert.True(card.IsPlayable));
     }
 
     // ── type 11：也是曲目分组，但组名在另一个键上 ──────────────────────────
 
-    /// <summary>type 11 的组名在 <c>passRecName</c> 上，不在 <c>title</c> 上。</summary>
+    /// <summary>type 11 也是一组一个歌单，只是卡片排法不同：右边直接列出那几首是什么。</summary>
     [Fact]
-    public async Task SongGroups_ReadsTheOtherTitleKey()
+    public async Task SongGroups_Type11_ProducesPreviewCards()
     {
         RespondWith("home-module-12.json");
 
         var feed = await _api.GetHomeModuleAsync(Module(12, 11), Ct);
 
         Assert.NotNull(feed);
-        Assert.NotEmpty(feed.Sections);
-        Assert.All(feed.Sections, section => Assert.False(string.IsNullOrWhiteSpace(section.Title)));
+
+        var section = Assert.Single(feed.Sections);
+
+        Assert.Equal(HomeSectionLayout.PlaylistPreview, section.Layout);
+        Assert.All(section.Cards, card => Assert.False(string.IsNullOrWhiteSpace(card.Title)));
+        Assert.All(section.Cards, card => Assert.Equal(3, card.Previews.Count));
     }
 
     // ── AI 歌单（个性化歌单点进去）─────────────────────────────────────────
@@ -218,10 +239,10 @@ public sealed class HomeApiTests : IDisposable
         var feed = await _api.GetHomeModuleAsync(Module(1, 4), Ct);
 
         Assert.NotNull(feed);
-        Assert.All(feed.Sections, section => Assert.NotNull(section.Ai));
+        Assert.All(feed.Sections[0].Cards, card => Assert.NotNull(card.Ai));
 
-        // index 就是位置，第一组是 0 —— 所以**不能**用「大于 0」来判断可点。
-        var indices = feed.Sections.Select(section => section.Ai!.Index).ToList();
+        // index 就是位置，第一张是 0 —— 所以**不能**用「大于 0」来判断可点。
+        var indices = feed.Sections[0].Cards.Select(card => card.Ai!.Index).ToList();
         Assert.Equal(new List<int> { 0, 1, 2, 3 }, indices);
     }
 
@@ -241,10 +262,10 @@ public sealed class HomeApiTests : IDisposable
         var feed = await _api.GetHomeModuleAsync(Module(12, 11), Ct);
 
         Assert.NotNull(feed);
-        Assert.All(feed.Sections, section => Assert.NotNull(section.Ai));
+        Assert.All(feed.Sections[0].Cards, card => Assert.NotNull(card.Ai));
 
-        var indices = feed.Sections.Select(section => section.Ai!.Index).ToList();
-        var passes = feed.Sections.Select(section => section.Ai!.PassRecName).ToList();
+        var indices = feed.Sections[0].Cards.Select(card => card.Ai!.Index).ToList();
+        var passes = feed.Sections[0].Cards.Select(card => card.Ai!.PassRecName).ToList();
 
         Assert.Equal(new List<int> { 0, 1, 2, 3 }, indices);
         Assert.Equal(new List<string> { "0_15", "4_119", "5_15", "2194" }, passes);
@@ -261,7 +282,7 @@ public sealed class HomeApiTests : IDisposable
         var feed = await _api.GetHomeModuleAsync(Module(1, 4), Ct);
 
         Assert.NotNull(feed);
-        Assert.All(feed.Sections, section => Assert.Equal("", section.Ai!.PassRecName));
+        Assert.All(feed.Sections[0].Cards, card => Assert.Equal("", card.Ai!.PassRecName));
     }
 
     [Fact]

@@ -65,4 +65,87 @@
         <Setter Property="HorizontalAlignment" Value="Center" />
     </Style>
 
+    <!--
+        发现页的标题分两层：外层列表的模块标题（一层）、HomeSectionView 里那一组的小标题（二层）。
+        两层的字号必须拉开 —— 曾经是反的（模块 14、组内 20），看起来「孩子比爸爸大」。
+    -->
+
+    <!-- 模块标题 -->
+    <Style x:Key="BodianModuleTitle" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- 组内标题：低模块一层，所以是 14 半粗而不是 20 -->
+    <Style x:Key="BodianSectionTitle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!--
+        同层的「可点」版本（只有 AI 歌单那一组会点开成完整歌单）。
+        字号字重与 BodianSectionTitle 对齐，可点性只用强调色区分 ——
+        靠大小区分会让人以为是两种层级的东西。
+    -->
+    <Style x:Key="BodianSectionTitleLink" TargetType="HyperlinkButton"
+           BasedOn="{StaticResource DefaultHyperlinkButtonStyle}">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeBodyLarge}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="4,0,0,0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        发现页卡片区两侧的翻页箭头。它压封面上，底色不能用 SubtleButton 那一套
+        （悬停底只有 4~6%，一悬停就没了，白箭头压在浅色封面上会消失），
+        用自己的 CardPagerButton* 画刷：深浅两套是同一档半透明黑，高对比度跟系统走。
+        全仓没有 Storyboard，悬停只换底色。
+        ★ MinWidth 必须清零：Button 默认 MinWidth 是 120，不清零会被撑成长条。
+    -->
+    <Style x:Key="BodianCardPagerButton" TargetType="Button">
+        <Setter Property="Width" Value="{StaticResource SizeHomePagerButtonWidth}" />
+        <Setter Property="Height" Value="{StaticResource SizeHomePagerButtonHeight}" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="Background" Value="{ThemeResource CardPagerButtonBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{ThemeResource CardPagerButtonForegroundBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border
+                        x:Name="Root"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Content="{TemplateBinding Content}" />
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background"
+                                                Value="{ThemeResource CardPagerButtonBackgroundPointerOverBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background"
+                                                Value="{ThemeResource CardPagerButtonBackgroundPressedBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled" />
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

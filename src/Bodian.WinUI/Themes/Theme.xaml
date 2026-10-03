@@ -164,6 +164,23 @@
                  白字才在任何封面上都读得出来。高对比度下改跟系统配色走。 -->
             <SolidColorBrush x:Key="MediaOverlayBackgroundBrush" Color="#B3000000" />
             <SolidColorBrush x:Key="MediaOverlayForegroundBrush" Color="#FFFFFFFF" />
+
+            <!-- ── 发现页卡片区两侧的翻页箭头 ──
+                 同样压在封面上，所以深浅两个主题用同一档半透明黑 + 白箭头。
+                 ★ 不复用 SubtleButton 那几个键:那套的悬停底色只有 4~6%，
+                   一悬停底就没了，白箭头压在浅色封面上会直接消失。
+                 悬停/按下是「越压越实」而不是换色。 -->
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundBrush" Color="#B3000000" />
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundPointerOverBrush" Color="#CC000000" />
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundPressedBrush" Color="#E6000000" />
+            <SolidColorBrush x:Key="CardPagerButtonForegroundBrush" Color="#FFFFFFFF" />
+
+            <!--
+                发现页里那些歌单卡的底色。
+                ★ 必须是**实色**：页面背景是一层氛围渐变，用系统的
+                  CardBackgroundFillColorDefaultBrush（70% 白）会被透掉，卡片看起来根本不存在。
+            -->
+            <SolidColorBrush x:Key="HomeCardBackgroundBrush" Color="#FFF6F8FB" />
         </ResourceDictionary>
 
         <!-- ══ 深色 ══════════════════════════════════════════════════════════ -->
@@ -280,6 +297,15 @@
             <!-- 压在封面图上的小角标，与浅色同一档：它压在图片上，不跟窗口底色走。 -->
             <SolidColorBrush x:Key="MediaOverlayBackgroundBrush" Color="#B3000000" />
             <SolidColorBrush x:Key="MediaOverlayForegroundBrush" Color="#FFFFFFFF" />
+
+            <!-- 翻页箭头，与浅色同一档（理由见浅色那一段）。 -->
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundBrush" Color="#B3000000" />
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundPointerOverBrush" Color="#CC000000" />
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundPressedBrush" Color="#E6000000" />
+            <SolidColorBrush x:Key="CardPagerButtonForegroundBrush" Color="#FFFFFFFF" />
+
+            <!-- 歌单卡底色，与浅色同一立场：页面背景是渐变，卡片得用实色才看得出是卡片。 -->
+            <SolidColorBrush x:Key="HomeCardBackgroundBrush" Color="#FF232A38" />
         </ResourceDictionary>
 
         <!-- ══ 高对比度 ══════════════════════════════════════════════════════ -->
@@ -314,6 +340,14 @@
                  所以这里改跟系统配色走。 -->
             <SolidColorBrush x:Key="MediaOverlayBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="MediaOverlayForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+
+            <!-- 翻页箭头同此立场：三档都用系统窗口色，不靠透明度分层 ——
+                 高对比度下透明度对比度不受保证，箭头可能读不出来。 -->
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundPointerOverBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CardPagerButtonBackgroundPressedBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CardPagerButtonForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="HomeCardBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>

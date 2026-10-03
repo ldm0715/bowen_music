@@ -5,75 +5,318 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI"
-    xmlns:models="using:Bodian.Core.Models.Home">
+    xmlns:models="using:Bodian.Core.Models.Home"
+    xmlns:vm="using:Bodian.WinUI.ViewModels">
 
     <!--
-        发现页的一组卡片：可选的小标题 + 一排横向卡片。
+        发现页的一个模块：一排横向排列的卡片。
 
-        ★ 横向列表使用可回收的 ItemsStackPanel，不使用普通 StackPanel：
-          GridView 会按宽度自动换行排成网格，而这里要的是一行横着滚。
-          卡片的宽度写死（120），所以一行能放几张由容器宽度决定。
+        卡片形态由这一组的 Layout 决定（见 HomeSection.Layout）：
+          个性化歌单   → 几张封面拼图 + 歌单名
+          你的主题歌单 → 左封面 + 右侧曲目预览
+          宝藏歌单库   → 单封面 + 播放数角标 + 描述
+          单曲推荐     → 每列几首曲目的白卡片
+        ItemTemplate 由 code-behind 按 Layout 指定，所以这里四种模板都备着。
+
+        卡片区**不滚动**，靠两侧箭头翻页：列表只装当前一页放得下的那些，
+        内容宽度永远不超过视口，ScrollViewer 就没有可滚的量，鼠标滚轮也就不会被它吞掉
+        转成横向滚动。翻页算式见 CardStripPaging。
     -->
-    <StackPanel Spacing="6">
-        <!--
-            标题在 AI 歌单上是**入口**（那一组其实是一个完整歌单，这里只有 3 首预览），
-            所以用 HyperlinkButton；其余分组没有可进去的地方，保持纯文本。
-            两种形态切换靠两个控件的 Visibility，而不是改按钮的可点状态 ——
-            纯文本配可点样式会让人以为坏了。
-        -->
-        <HyperlinkButton
-            Margin="0"
-            Padding="4,0,0,0"
-            Click="OnTitleClick"
-            Content="{x:Bind Section.Title}"
-            Visibility="{x:Bind local:Formats.Visible(IsOpenable)}" />
-
-        <TextBlock
-            Margin="4,0,0,0"
-            Style="{StaticResource SubtitleTextBlockStyle}"
-            Text="{x:Bind Section.Title}"
-            Visibility="{x:Bind local:Formats.Visible(HasPlainTitle)}"
-            TextTrimming="CharacterEllipsis" />
-
-        <controls:VirtualizedListView
-            IsItemClickEnabled="True"
-            ItemClick="OnItemClick"
-            ItemsSource="{x:Bind Section.Cards}"
-            SelectionMode="None"
-            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-            ScrollViewer.HorizontalScrollMode="Enabled"
-            ScrollViewer.VerticalScrollMode="Disabled">
-            <controls:VirtualizedListView.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <ItemsStackPanel Orientation="Horizontal" CacheLength="0.5" />
-                </ItemsPanelTemplate>
-            </controls:VirtualizedListView.ItemsPanel>
-
-            <controls:VirtualizedListView.ItemTemplate>
-                <DataTemplate x:DataType="models:HomeCard">
-                    <StackPanel Width="116" Spacing="6">
-                        <Border
-                            Width="116"
-                            Height="116"
-                            Background="{ThemeResource ControlFillColorDefaultBrush}"
-                            CornerRadius="8">
-                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+    <UserControl.Resources>
+        <!-- 「个性化歌单」：两张封面拼成一张图，下面歌单名。点整张卡进歌单。 -->
+        <DataTemplate x:Key="MosaicCardTemplate" x:DataType="models:HomeCard">
+            <StackPanel Width="{StaticResource SizeHomeMosaicCard}" Spacing="8">
+                <Border
+                    Width="{StaticResource SizeHomeMosaicCard}"
+                    Height="{StaticResource SizeHomeMosaicCover}"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource RadiusMd}">
+                    <!--
+                        左一右二。三块都用固定尺寸 + 对齐摆位，**不靠 Grid 的 * 列** ——
+                        * 列在这里会让图铺满整格，右边两张被挤成看不见的一条。
+                        数值与 SizeHomeMosaicCard(260) / Cover(190) 对齐：154+4+102=260、93+4+93=190。
+                    -->
+                    <Grid>
+                        <Border Width="154" HorizontalAlignment="Left">
+                            <Image Source="{x:Bind local:Formats.CoverSource(Cover1)}" Stretch="UniformToFill" />
                         </Border>
+                        <Border
+                            Width="102"
+                            Height="93"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top">
+                            <Image Source="{x:Bind local:Formats.CoverSource(Cover2)}" Stretch="UniformToFill" />
+                        </Border>
+                        <Border
+                            Width="102"
+                            Height="93"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom">
+                            <Image Source="{x:Bind local:Formats.CoverSource(Cover3)}" Stretch="UniformToFill" />
+                        </Border>
+                    </Grid>
+                </Border>
 
+                <TextBlock
+                    MaxLines="1"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="{x:Bind Title}"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 「你的主题歌单」：左封面 + 右侧歌单名与那几首预览。点整张卡进歌单。 -->
+        <DataTemplate x:Key="PreviewCardTemplate" x:DataType="models:HomeCard">
+            <!--
+                卡片要有底色、圆角与内边距 —— 不然右边一列文字直接飘在页面背景上，
+                既看不出这是张可点的卡片，左右也会一头重一头轻。
+            -->
+            <Border
+                Width="{StaticResource SizeHomePreviewCard}"
+                Padding="12"
+                Background="{ThemeResource HomeCardBackgroundBrush}"
+                CornerRadius="{StaticResource RadiusMd}">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--
+                        封面写死尺寸、顶部对齐。
+                        ★ 不能用 VerticalAlignment="Stretch"：它要「填满可用高度」，而这里的高度恰恰
+                          由内容决定 —— 解出来是一条被拉到上千像素的窄长条，整张卡片跟着一起长。
+                    -->
+                    <Border
+                        Grid.Column="0"
+                        Width="{StaticResource SizeHomePreviewCover}"
+                        Height="{StaticResource SizeHomePreviewCover}"
+                        VerticalAlignment="Top"
+                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                        CornerRadius="{StaticResource RadiusSm}">
+                        <Image Source="{x:Bind local:Formats.CoverSource(Cover1)}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Spacing="6">
                         <TextBlock
                             MaxLines="1"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
                             Text="{x:Bind Title}"
                             TextTrimming="CharacterEllipsis" />
 
-                        <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            MaxLines="1"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="{x:Bind Subtitle}"
-                            TextTrimming="CharacterEllipsis" />
+                    <ItemsControl ItemsSource="{x:Bind Previews}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:HomeTrackPreview">
+                                <!-- 歌名在上、歌手在下：横排的话光这两段文字就要占满整行宽度。 -->
+                                <StackPanel Margin="0,3">
+                                    <TextBlock
+                                        MaxLines="1"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind Title}"
+                                        TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        MaxLines="1"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind Artist}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     </StackPanel>
-                </DataTemplate>
-            </controls:VirtualizedListView.ItemTemplate>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- 「宝藏歌单库」：单封面 + 左下角播放数角标 + 描述。点整张卡进歌单详情。 -->
+        <DataTemplate x:Key="CoverCardTemplate" x:DataType="models:HomeCard">
+            <StackPanel Width="{StaticResource SizeHomeCoverCard}" Spacing="8">
+                <Grid>
+                    <Border
+                        Height="{StaticResource SizeHomeCoverCard}"
+                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                        CornerRadius="{StaticResource RadiusMd}">
+                        <Image Source="{x:Bind local:Formats.CoverSource(Cover1)}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <Border
+                        Margin="8"
+                        Padding="6,2"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom"
+                        Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                        CornerRadius="{StaticResource RadiusXs}">
+                        <TextBlock
+                            Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind PlayCount}" />
+                    </Border>
+                </Grid>
+
+                <TextBlock
+                    MaxLines="2"
+                    Text="{x:Bind Subtitle}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 单曲推荐：一列几首，白卡片装着。每行单独点来播放。 -->
+        <DataTemplate x:Key="TrackColumnTemplate" x:DataType="vm:HomeTrackColumn">
+            <Border
+                Width="{StaticResource SizeHomeTrackColumn}"
+                Padding="8"
+                Background="{ThemeResource HomeCardBackgroundBrush}"
+                CornerRadius="{StaticResource RadiusMd}">
+                <ItemsControl ItemsSource="{x:Bind Tracks}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:HomeCard">
+                            <!-- 整行可点：点哪首放哪首。Tag 带的就是这张卡片的数据。 -->
+                            <Grid
+                                Background="Transparent"
+                                PointerEntered="OnTrackPointerEntered"
+                                PointerExited="OnTrackPointerExited">
+                                <!-- 悬停底色用的就是侧栏 Tab 那个键，两处手感才一致。 -->
+                                <Border
+                                    Background="{ThemeResource NavigationViewItemBackgroundPointerOver}"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Opacity="0" />
+
+                                <Grid
+                                    Padding="6"
+                                    ColumnSpacing="10"
+                                    Tag="{x:Bind}"
+                                    Tapped="OnTrackTapped">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border
+                                        Grid.Column="0"
+                                        Width="40"
+                                        Height="40"
+                                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                        CornerRadius="{StaticResource RadiusXs}">
+                                        <Image Source="{x:Bind local:Formats.CoverSource(Cover1)}" Stretch="UniformToFill" />
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <!-- 歌名与歌手都单行截断：长名字不能把卡片撑变形。 -->
+                                        <Grid ColumnSpacing="6">
+                                            <Grid.ColumnDefinitions>
+                                                <!--
+                                                    歌名按**自然宽度**占位（上限 180），付费标识才会紧跟着它。
+                                                    用 * 列的话歌名会占满整行，标识被推到行尾。
+                                                -->
+                                                <ColumnDefinition Width="Auto" MaxWidth="180" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock
+                                                Grid.Column="0"
+                                                MaxLines="1"
+                                                Text="{x:Bind Title}"
+                                                TextTrimming="CharacterEllipsis" />
+
+                                            <!-- 付费标识：让用户在点之前就知道要不要会员。 -->
+                                            <Border
+                                                Grid.Column="1"
+                                                Padding="5,0"
+                                                VerticalAlignment="Center"
+                                                Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                                CornerRadius="{StaticResource RadiusXs}"
+                                                Visibility="{x:Bind local:Formats.PayLabelVisibility(RequiresVip, RequiresPurchase)}">
+                                                <TextBlock
+                                                    FontSize="{StaticResource FontSizeCaption}"
+                                                    Text="{x:Bind local:Formats.PayLabel(RequiresVip, RequiresPurchase)}" />
+                                            </Border>
+                                        </Grid>
+
+                                        <TextBlock
+                                            MaxLines="1"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind Subtitle}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!--
+        ★ Background 必须是 Transparent，不能留空：没有背景的元素不参与命中测试，
+          PointerEntered 根本不会触发，箭头就永远不出现。
+          它只填「没有子元素覆盖」的那些区域（首尾留白、卡片缝），
+          列表与卡片仍在它上面，点击照旧落到卡片上。
+    -->
+    <Grid
+        x:Name="StripHost"
+        Background="Transparent"
+        PointerEntered="OnStripPointerEntered"
+        PointerExited="OnStripPointerExited"
+        SizeChanged="OnStripSizeChanged">
+        <controls:VirtualizedListView
+            x:Name="ItemsList"
+            Margin="{StaticResource SpaceHomePagerMargin}"
+            IsItemClickEnabled="True"
+            ItemClick="OnItemClick"
+            ItemsSource="{x:Bind PageItems}"
+            SelectionMode="None"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            ScrollViewer.HorizontalScrollMode="Disabled"
+            ScrollViewer.VerticalScrollMode="Disabled">
+            <controls:VirtualizedListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsStackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </controls:VirtualizedListView.ItemsPanel>
+
+            <controls:VirtualizedListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <!--
+                        默认内边距 16,0,12,0 会被当成「间隔」算进分页算式，必须清零；
+                        间隔改由 Margin 控制。顶部对齐：同一组里的卡片高度可能差几像素。
+                    -->
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="Margin" Value="{StaticResource SpaceHomeCardGap}" />
+                    <Setter Property="VerticalContentAlignment" Value="Top" />
+                </Style>
+            </controls:VirtualizedListView.ItemContainerStyle>
         </controls:VirtualizedListView>
-    </StackPanel>
+
+        <!--
+            按钮与列表在同一个 Grid 单元格里，按 XAML 顺序叠在列表之上，命中测试优先按钮。
+            列表左右各留 SpaceHomePagerMargin，按钮就落在那段留白里，**不压住首尾那张卡片**。
+            也不做「半浮出界」：控件的 x=0 就是外层列表的视口左边界，再往左会被裁掉。
+        -->
+        <Button
+            x:Name="PreviousButton"
+            HorizontalAlignment="Left"
+            AutomationProperties.Name="上一页"
+            Click="OnPreviousClick"
+            Style="{StaticResource BodianCardPagerButton}"
+            ToolTipService.ToolTip="上一页"
+            Visibility="Collapsed">
+            <FontIcon FontSize="12" Glyph="&#xE76B;" />
+        </Button>
+
+        <Button
+            x:Name="NextButton"
+            HorizontalAlignment="Right"
+            AutomationProperties.Name="下一页"
+            Click="OnNextClick"
+            Style="{StaticResource BodianCardPagerButton}"
+            ToolTipService.ToolTip="下一页"
+            Visibility="Collapsed">
+            <FontIcon FontSize="12" Glyph="&#xE76C;" />
+        </Button>
+    </Grid>
 </UserControl>

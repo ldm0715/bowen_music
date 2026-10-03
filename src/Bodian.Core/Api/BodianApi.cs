@@ -1283,7 +1283,10 @@ public sealed class BodianApi : IBodianApi
 
         var tracks = payload?.MusicList?.Select(MapTrack).ToArray() ?? [];
 
-        return Build(payload?.ModuleName, tracks.Length == 0 ? [] : [new HomeSection("", null, ToCards(tracks))]);
+        // 一整片单曲：排成「每列若干首」的曲目列，而不是卡片。
+        return Build(payload?.ModuleName, tracks.Length == 0
+            ? []
+            : [new HomeSection("", null, ToCards(tracks), HomeSectionLayout.TrackColumns)]);
     }
 
     /// <summary>
@@ -1305,23 +1308,37 @@ public sealed class BodianApi : IBodianApi
         // 「个性化歌单」（type 4）与「你的主题歌单」（type 11）的分组都能点开成完整歌单。
         var openable = moduleType is 4 or 11;
 
-        var sections = payload?.SongList?
+        // 两个模块的分组形状完全一样，只是卡片排法不同：
+        // type 4 只放封面拼图，type 11 的卡片更宽、右边直接列出那几首是什么。
+        var layout = moduleType is 4
+            ? HomeSectionLayout.PlaylistMosaic
+            : HomeSectionLayout.PlaylistPreview;
+
+        // ★ 一个分组 = 一张歌单卡片，不是「三张单曲卡片」。
+        //   那几首只是预览，用来拼出歌单卡片的封面 —— 分组自己没有封面图。
+        var cards = payload?.SongList?
             .Select((group, position) => (group, position))
             .Where(pair => pair.group.Songs is { Length: > 0 })
-            .Select(pair => new HomeSection(
-                pair.group.Name ?? "",
-                null,
-                ToCards([.. pair.group.Songs!.Select(MapTrack)]),
+            .Select(pair =>
+            {
+                var tracks = pair.group.Songs!.Select(MapTrack).ToArray();
+                return new HomeCard
+                {
+                    Title = pair.group.Name ?? "",
+                    Covers = [.. tracks.Select(track => track.CoverImage).OfType<Uri>()],
+                    Previews = [.. tracks.Select(track => new HomeTrackPreview(track.Title, track.ArtistText))],
 
-                // ★ index 用**位置**，不是分组自带的 id：
-                //   type 11 压根没有 id 字段（反序列化后是 0），而 type 4 的 id
-                //   在实测样本里就是位置。passRecName 只有 type 11 有。
-                openable
-                    ? new AiPlaylistRef(pair.position, pair.group.PassRecName ?? "")
-                    : null))
+                    // ★ index 用**位置**，不是分组自带的 id：
+                    //   type 11 压根没有 id 字段（反序列化后是 0），而 type 4 的 id
+                    //   在实测样本里就是位置。passRecName 只有 type 11 有。
+                    Ai = openable
+                        ? new AiPlaylistRef(pair.position, pair.group.PassRecName ?? "")
+                        : null,
+                };
+            })
             .ToArray() ?? [];
 
-        return Build(payload?.ModuleName, sections);
+        return Build(payload?.ModuleName, cards.Length == 0 ? [] : [new HomeSection("", null, cards, layout)]);
     }
 
     private async Task<HomeFeed?> ReadPlaylistCardsAsync(BodianRequest request, CancellationToken cancellationToken)
@@ -1329,19 +1346,27 @@ public sealed class BodianApi : IBodianApi
         var payload = (await _transport.SendAsync(
             request, BodianJsonContext.Default.HomePlaylistCardsPayload, cancellationToken).ConfigureAwait(false)).Data;
 
-        var playlists = payload?.SongList?.Select(MapPlaylist).ToArray() ?? [];
+        // 描述与播放数只有 DTO 上有：MapPlaylist 是列表映射，这两个字段归详情专属
+        // （见 Playlist 的类型注释），不会在列表来源里填。
+        var cards = payload?.SongList?
+            .Select(dto => (dto, playlist: MapPlaylist(dto)))
+            .Select(pair => new HomeCard
+            {
+                Title = pair.playlist.Name,
+                Subtitle = pair.dto.Description ?? "",
 
-        var cards = playlists.Select(playlist => new HomeCard
-        {
-            Title = playlist.Name,
-            Subtitle = playlist.MusicCount > 0 ? $"{playlist.MusicCount} 首" : "",
-            CoverImage = playlist.CoverImage,
+                // 这些歌单自己有封面图，所以只有一张。
+                Covers = pair.playlist.CoverImage is { } cover ? [cover] : [],
+                PlayCount = pair.dto.PlayNum,
 
-            // 实测发现的歌单是公开集合（sourceType 4），点它要按那个 source 取曲目。
-            Playlist = playlist,
-        }).ToArray();
+                // 实测发现的歌单是公开集合（sourceType 4），点它要按那个 source 取曲目。
+                Playlist = pair.playlist,
+            })
+            .ToArray() ?? [];
 
-        return Build(payload?.ModuleName, cards.Length == 0 ? [] : [new HomeSection("", null, cards)]);
+        return Build(payload?.ModuleName, cards.Length == 0
+            ? []
+            : [new HomeSection("", null, cards, HomeSectionLayout.PlaylistCover)]);
     }
 
     /// <summary>把「每组若干曲目」统一成卡片。</summary>
@@ -1350,7 +1375,7 @@ public sealed class BodianApi : IBodianApi
         {
             Title = track.Title,
             Subtitle = track.ArtistText,
-            CoverImage = track.CoverImage,
+            Covers = track.CoverImage is { } cover ? [cover] : [],
             Track = track,
         })];
 
