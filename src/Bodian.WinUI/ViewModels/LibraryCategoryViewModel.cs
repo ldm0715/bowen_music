@@ -39,6 +39,8 @@ public sealed partial class LibraryCategoryViewModel : ObservableObject
             Children.Add(child);
         }
 
+        ChildTabs = Children.Select(child => child.Name).ToArray();
+
         Albums = new PagedList<Album>(
             FetchAsync,
             logger ?? NullLogger<LibraryCategoryViewModel>.Instance,
@@ -55,11 +57,41 @@ public sealed partial class LibraryCategoryViewModel : ObservableObject
     /// <summary>大类的子类。</summary>
     public ObservableCollection<MusicCategoryChild> Children { get; } = [];
 
+    public IReadOnlyList<string> ChildTabs { get; }
+
+    public IReadOnlyList<string> SortTabs { get; } = ["精品", "最新"];
+
     /// <summary>专辑列表，按当前选中的子类与排序加载。</summary>
     public PagedList<Album> Albums { get; }
 
     [ObservableProperty]
     public partial MusicCategoryChild? SelectedChild { get; set; }
+
+    /// <summary>分类页签下标；列表初始化时的 -1 不会清空当前分类。</summary>
+    public int SelectedChildIndex
+    {
+        get => SelectedChild is { } child ? Children.IndexOf(child) : -1;
+        set
+        {
+            if (value >= 0 && value < Children.Count)
+            {
+                SelectedChild = Children[value];
+            }
+        }
+    }
+
+    /// <summary>精品与最新的页签下标，保持 API 排序枚举的原有取值。</summary>
+    public int SelectedSortIndex
+    {
+        get => SelectedSort == MusicLibSort.Newest ? 1 : 0;
+        set
+        {
+            if (value is 0 or 1)
+            {
+                SelectedSort = value == 1 ? MusicLibSort.Newest : MusicLibSort.Curated;
+            }
+        }
+    }
 
     /// <summary>
     /// 排序。界面上是「精品 / 最新」两个 tab。
@@ -74,13 +106,19 @@ public sealed partial class LibraryCategoryViewModel : ObservableObject
 
     partial void OnSelectedChildChanged(MusicCategoryChild? value)
     {
+        OnPropertyChanged(nameof(SelectedChildIndex));
+
         if (value is not null)
         {
             _ = Albums.ReloadAsync();
         }
     }
 
-    partial void OnSelectedSortChanged(MusicLibSort value) => _ = Albums.ReloadAsync();
+    partial void OnSelectedSortChanged(MusicLibSort value)
+    {
+        OnPropertyChanged(nameof(SelectedSortIndex));
+        _ = Albums.ReloadAsync();
+    }
 
     /// <summary>取一页专辑。<b>用一个读当前选中项的闭包</b>，才会跟着选择走。</summary>
     private Task<PagedResult<Album>> FetchAsync(PagedCursor cursor, CancellationToken cancellationToken)

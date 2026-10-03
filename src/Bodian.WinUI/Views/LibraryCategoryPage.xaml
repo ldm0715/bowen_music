@@ -8,7 +8,7 @@
     xmlns:models="using:Bodian.Core.Models">
 
     <!--
-        乐库的一个大类：子类 chips + 精品/最新 + 专辑列表。
+        乐库的一个大类：子类页签 + 精品/最新 + 专辑列表。
         压在栈上的详情页，侧栏仍高亮「乐库」。
 
         ★ 子类与专辑不是一回事：子类来自首页那一次 navigation（不用请求），
@@ -54,101 +54,109 @@
 
         </Grid>
 
-        <!-- ── 子类 ─────────────────────────────────────────────────────── -->
-        <controls:VirtualizedListView
+        <!-- 分类和排序都使用与侧栏一致的胶囊选中背景。 -->
+        <controls:PillTabBar
             Grid.Row="1"
-            ItemsSource="{x:Bind ViewModel.Children}"
-            SelectedItem="{x:Bind ViewModel.SelectedChild, Mode=TwoWay}"
-            SelectionMode="Single"
-            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-            ScrollViewer.HorizontalScrollMode="Enabled"
-            ScrollViewer.VerticalScrollMode="Disabled">
-            <controls:VirtualizedListView.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <ItemsStackPanel Orientation="Horizontal" CacheLength="0.5" />
-                </ItemsPanelTemplate>
-            </controls:VirtualizedListView.ItemsPanel>
-            <controls:VirtualizedListView.ItemTemplate>
-                <DataTemplate x:DataType="models:MusicCategoryChild">
-                    <TextBlock Margin="4,0" Text="{x:Bind Name}" />
-                </DataTemplate>
-            </controls:VirtualizedListView.ItemTemplate>
-        </controls:VirtualizedListView>
+            HorizontalAlignment="Stretch"
+            WrapItems="True"
+            ItemsSource="{x:Bind ViewModel.ChildTabs}"
+            SelectedIndex="{x:Bind ViewModel.SelectedChildIndex, Mode=TwoWay}" />
 
-        <!-- ── 排序：精品 / 最新 ────────────────────────────────────────── -->
-        <StackPanel
-            Grid.Row="2"
-            Orientation="Horizontal"
-            Spacing="16">
-            <RadioButton
-                x:Name="CuratedRadio"
-                Checked="OnSortChanged"
-                Content="精品"
-                GroupName="MusicLibSort" />
-            <RadioButton
-                x:Name="NewestRadio"
-                Checked="OnSortChanged"
-                Content="最新"
-                GroupName="MusicLibSort" />
+        <Grid Grid.Row="2" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
             <TextBlock
-                Margin="8,0,0,0"
                 VerticalAlignment="Center"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
+                Style="{StaticResource BodianPageStatus}"
                 Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}" />
-        </StackPanel>
+
+            <controls:PillTabBar
+                Grid.Column="1"
+                HorizontalAlignment="Right"
+                ItemsSource="{x:Bind ViewModel.SortTabs}"
+                SelectedIndex="{x:Bind ViewModel.SelectedSortIndex, Mode=TwoWay}" />
+        </Grid>
 
         <!-- ── 专辑网格 ─────────────────────────────────────────────────── -->
         <GridView
             Grid.Row="3"
+            Padding="0"
+            controls:CoverCardLayout.IsEnabled="True"
+            controls:CoverCardLayout.CoverSize="132"
+            controls:CoverCardLayout.TextHeight="60"
             controls:AutoPaging.Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
             controls:AutoPaging.HasMore="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}"
             IsItemClickEnabled="True"
             ItemClick="OnAlbumClick"
+            ItemContainerStyle="{StaticResource BodianCoverCardItem}"
             ItemsSource="{x:Bind ViewModel.Albums.Items}"
             SelectionMode="None">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsWrapGrid
+                        CacheLength="0.5"
+                        ItemHeight="210"
+                        ItemWidth="144"
+                        Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="models:Album">
-                    <StackPanel Width="132" Spacing="6">
-                        <Grid>
-                            <Border
-                                Width="132"
-                                Height="132"
-                                Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                CornerRadius="8">
+                    <Grid
+                        Width="132"
+                        RowSpacing="6"
+                        VerticalAlignment="Top">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border
+                            Width="132"
+                            Height="132"
+                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                            CornerRadius="{StaticResource RadiusMd}">
+                            <Grid>
                                 <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                            </Border>
 
-                            <!-- 曲目数角标压在封面右下角，与歌手页专辑卡上那个同一个样式。 -->
-                            <Border
-                                Margin="0,0,8,8"
-                                Padding="7,1,7,2"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Bottom"
-                                Background="{ThemeResource MediaOverlayBackgroundBrush}"
-                                CornerRadius="{StaticResource RadiusSm}"
-                                Visibility="{x:Bind local:Formats.HasTracks(MusicCount)}">
-                                <TextBlock
-                                    FontSize="12"
-                                    Foreground="{ThemeResource MediaOverlayForegroundBrush}"
-                                    Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
-                            </Border>
-                        </Grid>
+                                <Border
+                                    Margin="0,0,8,8"
+                                    Padding="7,1,7,2"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Visibility="{x:Bind local:Formats.HasTracks(MusicCount)}">
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                                        Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                                </Border>
+                            </Grid>
+                        </Border>
 
-                        <TextBlock
-                            MaxLines="2"
-                            Text="{x:Bind Name}"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="Wrap" />
+                        <StackPanel
+                            Grid.Row="1"
+                            Spacing="2">
+                            <TextBlock
+                                MaxLines="2"
+                                LineHeight="20"
+                                ToolTipService.ToolTip="{x:Bind Name}"
+                                Text="{x:Bind Name}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
 
-                        <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            MaxLines="1"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="{x:Bind ArtistText}"
-                            TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                MaxLines="1"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind ArtistText}"
+                                TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
                 </DataTemplate>
             </GridView.ItemTemplate>
             <GridView.Footer>

@@ -749,15 +749,17 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留，理由与�
   不覆盖的话，页签条和侧栏摆在一起能看出深浅不同。
 - **三套 `ThemeDictionaries` 必须齐全**，只在不完整的字典里定义键会在高对比度下启动即抛
   `XamlParseException`（§3.4）。高对比度用系统高亮配色，前景同时换成 `HighlightText`，否则字会压没。
-- **只有两个属性**：`ItemsSource`（页签名）与 `SelectedIndex`（双向）。
-  需要「切到某页签再做点什么」，写成 ViewModel 里的 `OnSelectedIndexChanged` 分支，
-  **不要在控件里加事件** —— 逻辑留在能离屏测试的一侧。
+- `ItemsSource` 提供页签名，`SelectedIndex` 双向同步选中项；`WrapItems` 控制是否自动换行，默认关闭。
+  启用换行时使用已有的 `WrapPanel`，每个标签按文字定宽，行间距 4 DIP；内部列表横向拉伸，
+  `HorizontalScrollMode` 与 `HorizontalScrollBarVisibility` 均设为 `Disabled`，由内容区宽度决定换行位置。
+  切换后的加载逻辑仍放在 ViewModel 中。
 - 双向绑定会成环，用一个 `_syncing` 标志挡掉「由自己发起的变更」；
   换 `ItemsSource` 会把选中项清成 `-1`，所以重建之后要把属性里的值补回去。
 - 圆角取 `ControlCornerRadius`，与侧栏选中同一档。
 
-使用点：歌手页（歌曲 / 专辑 / 介绍）、搜索页（综合 / 单曲 / 歌单 / 专辑 / 歌手）。
-两页的内容**都留在可视树上，只切 `Visibility`**：折叠的元素不进布局、容器不会被实现，
+使用点：歌手页（歌曲 / 专辑 / 介绍）、搜索页（综合 / 单曲 / 歌单 / 专辑 / 歌手），
+以及乐库分类页（子类、精品 / 最新，见 §21）。乐库子类启用 `WrapItems`，其余使用点保持单行。
+歌手页与搜索页的内容**都留在可视树上，只切 `Visibility`**：折叠的元素不进布局、容器不会被实现，
 所以未选中的列表不会跟着自动翻页（自动翻页挂在「末尾容器被实现」上，见
 [`list-paging.md`](list-paging.md)）；来回切页签时滚动位置也不再丢。
 
@@ -786,8 +788,8 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留，理由与�
 
 ### 16.3 歌手页的专辑卡片网格：尺寸是算出来的
 
-「专辑」页签是一格一张封面的卡片网格，与乐库分类页的专辑网格同形（`GridView` + 附加的
-`AutoPaging` + `PagingEndNote` 挂在 `GridView.Footer`）。四处要点：
+「专辑」页签使用 `GridView`，配合 `AutoPaging`，并将 `PagingEndNote` 挂在 `GridView.Footer`。
+以下尺寸策略用于歌手页；乐库采用固定封面与紧凑留白，见 §21。四处要点：
 
 **单元格宽度按可用宽度等分**（`UpdateAlbumCardMetrics`），不写死 132/150：
 列数取 `round(可用宽度 / (目标列宽 150 + 单元格内边距 16 + 缝隙 4))`，单元格取 `可用宽度 / 列数`，
@@ -1122,3 +1124,57 @@ WinUI 构建成功，0 错误，仅保留原有的 `AiPlaylistPage.xaml:27` `WMC
 
 完整的设计理由（本地插入新行、失败文案单开属性、浮层建完不关）与验收清单见
 [`create-playlist.md`](create-playlist.md)。
+
+---
+
+## 21. 乐库卡片与分类布局
+
+调整范围是侧栏「乐库」的首页 `LibraryPage` 和进入大类后的 `LibraryCategoryPage`。
+首页展示大类封面，分类页展示子类标签及该子类的专辑列表。
+
+### 21.1 固定封面与紧凑悬浮背景
+
+两个页面共用 `Themes/Styles/Pages.xaml` 中的 `BodianCoverCardItem`。
+悬浮状态由原生 `GridViewItem` 模板绘制，圆角取 `RadiusMd`，四周 `Padding=4`，
+容器 `Margin=0,0,4,4`。容器和内容均顶部对齐，悬浮背景高度随内容收紧。
+
+| 页面 | 封面 | 网格单元格 | 文字处理 |
+| --- | --- | --- | --- |
+| 乐库首页 | `SizeCoverGrid`，150×150 DIP | 162×208 DIP | 分类名、英文标题各一行，超出省略 |
+| 大类分类页 | 132×132 DIP | 144×210 DIP | 专辑名最多两行，超出省略；歌手信息一行 |
+
+封面与文字间距为 6 DIP，文字行间距为 2 DIP。文字区按内容布局，不设置固定高度；
+专辑名 `LineHeight=20`，标题的 `ToolTip` 提供完整名称。封面保持固定大小，窗口宽度变化只改变列数。
+
+`Controls/CoverCardLayout.cs` 按 `CoverSize`、`TextHeight` 设置网格单元格尺寸：
+宽度为 `封面 + 2×Padding 4 + Gap 4`，高度为 `封面 + RowSpacing 6 + 文字预留 + 2×Padding 4 + Gap 4`。
+首页文字预留 40 DIP，分类页预留 60 DIP；这部分用于网格行高，不强制拉伸文字区或悬浮背景，
+保证长专辑名不会挤掉歌手信息或被下一行覆盖。
+
+网格使用 `ItemsWrapGrid CacheLength=0.5`。附加布局在加载及条目到位时补算尺寸，卸载时解除订阅；
+只有尺寸变化才写入 `ItemWidth` / `ItemHeight`，避免条目增加时反复重排并触发额外分页。
+分类页的 `AutoPaging`、末尾提示及失败重试保持原有行为。
+
+### 21.2 分类自动换行与排序栏
+
+分类和「精品 / 最新」均使用 `PillTabBar`，选中项采用与侧栏一致的胶囊底色，关闭横线指示条和勾选。
+顶部分类设置 `WrapItems=True` 并横向拉伸，标签按当前内容区宽度自动换行；
+横向滚动模式和横向滚动条均禁用。标签行增加时，页面的 `Auto` 行随之增高，专辑列表下移。
+
+排序栏左侧显示 `Albums.StatusText`，右侧为并排的「精品 / 最新」两个 Tab。
+左侧的「N 项」沿用 `PagedList` 语义，表示当前已加载条数；空状态和失败状态仍使用原来的状态文案。
+
+`LibraryCategoryViewModel` 将 `SelectedChildIndex`、`SelectedSortIndex` 映射回原来的分类对象和
+`MusicLibSort`。分类或排序变化时仍调用 `ReloadAsync` 重置分页；页签初始化时的 `-1` 不改变现有选择，
+排序请求取值仍为精品 `"1"`、最新 `"2"`。
+
+### 21.3 验证
+
+```powershell
+dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal
+dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-build --no-restore --verbosity minimal
+```
+
+WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:27` 的 `WMC1506` 警告。
+现有测试 990 项全部通过，无失败、无跳过。另已检查两页的固定封面、紧凑文字布局，
+以及分类换行模式中的横向滚动禁用设置。自动检查未覆盖实际窗口缩放和最终视觉效果。

@@ -4,12 +4,12 @@ using Microsoft.UI.Xaml.Controls;
 namespace Bodian.WinUI.Controls;
 
 /// <summary>
-/// 页内页签条：一组等宽的胶囊按钮，点击即切，选中项由背景与前景区分。
+/// 页内页签条：按文字宽度排列的胶囊按钮，可选择自动换行。
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>只有两个属性</b>：<see cref="ItemsSource"/>（一组页签名）与
-/// <see cref="SelectedIndex"/>（双向）。需要「切到某个页签再做点什么」时，
+/// <see cref="ItemsSource"/> 提供页签名，<see cref="SelectedIndex"/> 双向同步选中项，
+/// <see cref="WrapItems"/> 控制是否按当前内容宽度换行。需要「切到某个页签再做点什么」时，
 /// 不要在这里加事件 —— 让 ViewModel 在那个属性上写 <c>OnSelectedIndexChanged</c> 分支，
 /// 逻辑才留在能离屏测试的一侧。
 /// </para>
@@ -40,6 +40,12 @@ public sealed partial class PillTabBar : UserControl
         typeof(PillTabBar),
         new PropertyMetadata(0, (sender, args) => ((PillTabBar)sender).ApplySelectedIndex((int)args.NewValue)));
 
+    public static readonly DependencyProperty WrapItemsProperty = DependencyProperty.Register(
+        nameof(WrapItems),
+        typeof(bool),
+        typeof(PillTabBar),
+        new PropertyMetadata(false, (sender, _) => ((PillTabBar)sender).ApplyLayout()));
+
     /// <summary>页签名，通常是一组字符串。换掉它会重建整条页签并重设选中项。</summary>
     public object? ItemsSource
     {
@@ -52,6 +58,23 @@ public sealed partial class PillTabBar : UserControl
     {
         get => (int)GetValue(SelectedIndexProperty);
         set => SetValue(SelectedIndexProperty, value);
+    }
+
+    /// <summary>开启后按可用宽度换行，禁用横向滚动。</summary>
+    public bool WrapItems
+    {
+        get => (bool)GetValue(WrapItemsProperty);
+        set => SetValue(WrapItemsProperty, value);
+    }
+
+    private void ApplyLayout()
+    {
+        Tabs.ItemsPanel = (ItemsPanelTemplate)Resources[WrapItems ? "PillWrapPanel" : "PillSingleRowPanel"];
+        Tabs.HorizontalAlignment = WrapItems ? HorizontalAlignment.Stretch : HorizontalAlignment.Left;
+        ScrollViewer.SetHorizontalScrollBarVisibility(Tabs,
+            WrapItems ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Hidden);
+        ScrollViewer.SetHorizontalScrollMode(Tabs,
+            WrapItems ? ScrollMode.Disabled : ScrollMode.Auto);
     }
 
     private void ApplyItemsSource()

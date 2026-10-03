@@ -36,6 +36,18 @@
         <Setter Property="Padding" Value="{StaticResource SpaceTrackPagePadding}" />
     </Style>
 
+    <!-- 乐库封面卡片：悬浮背景只比内容多一圈小留白，高度随内容变化。 -->
+    <Style x:Key="BodianCoverCardItem" TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Top" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="Margin" Value="0,0,4,4" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+    </Style>
+
     <!-- 页面标题 -->
     <Style x:Key="BodianPageTitle" TargetType="TextBlock" BasedOn="{StaticResource TitleTextBlockStyle}" />
 

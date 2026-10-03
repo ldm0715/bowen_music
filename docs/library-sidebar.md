@@ -8,6 +8,11 @@
 > §3.1 / §3.2 的接口证据保留（逆向结论不因客户端移除而失效），客户端侧的 `PurchasedPage` /
 > `PurchasedViewModel` / DI 注册已删除，Core 的 `purchasedList` 接口、DTO、fixture 与测试保留。
 
+> **乐库当前布局**：首页封面固定 150 DIP，分类页专辑封面固定 132 DIP；
+> 悬浮背景四周留白 4 DIP，长专辑名最多两行并提供完整名称提示。
+> 大类顶部的分类标签按内容区宽度自动换行，禁用横向滚动；项数放左侧，「精品 / 最新」Tab 放右侧。
+> 实现细节和验证记录见 [`ui-refresh.md` §21](ui-refresh.md#21-乐库卡片与分类布局)。
+
 **先读**：`roadmap.md` 的 P7 一节（阶段目标）、`transport.md`（传输层与 DTO 分层）、
 `bodian-api-reference.md` §2.3 / §6.2（账号曲库与歌单元数据模型）。
 
