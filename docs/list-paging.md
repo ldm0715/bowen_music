@@ -69,7 +69,7 @@
 
 | 位置 | 挂法 |
 | --- | --- |
-| 我喜欢的、歌单详情、专辑详情、榜单详情、已购（单曲+专辑）、歌手详情（歌曲+专辑）、搜索的「单曲」页签 | `TrackListView` / `AlbumListView` 的 `HasMore` + `LoadMoreCommand` + `Footer` |
+| 我喜欢的、歌单详情、专辑详情、榜单详情、歌手详情（歌曲+专辑）、搜索的「单曲」页签 | `TrackListView` / `AlbumListView` 的 `HasMore` + `LoadMoreCommand` + `Footer` |
 | 发现页、搜索的「歌单/专辑/歌手」页签、歌手详情的专辑 | `VirtualizedListView` 上直接挂 `AutoPaging` 附加属性，`Footer` 就地写 |
 | 音乐库大类详情 | 专辑用原生 `GridView`，同样挂附加属性。`GridView` 的默认模板确实把 `Header`/`Footer` 转发给了 `ItemsPresenter`（查过 WinUI 的 `generic.xaml`） |
 | 评论面板 | 两个列表各挂一份，绑各自的 `HasMore`/`LoadMoreCommand`。它的收尾文案用面板自己的配色，没走 `PagingEndNote` |
@@ -88,4 +88,4 @@
 | 逐页滚到底 | 不重复请求、不跳页；取完后末尾出现居中小字，且紧贴最后一行 |
 | 音乐库大类详情 | 专辑用的是 `GridView`，`Footer` 渲染是这套方案里最没把握的一处，实际看一眼 |
 | 断网后滚到底 | 出现「加载失败 + 重试」，点了能重拉失败的那一页 |
-| 已购页 / 歌手详情 | 两节（两个页签）的提示各自跟着自己的列表走，不串 |
+| 歌手详情 | 两节（两个页签）的提示各自跟着自己的列表走，不串 |

@@ -1,5 +1,4 @@
 using System.Globalization;
-using Bodian.Core.Models;
 using Bodian.WinUI.Media;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -70,19 +69,41 @@ public static class Formats
             ? value.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
             : value.ToString(@"m\:ss", CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// 列表右侧的可用音质。**显示的是最高可播档位**，实际拿到什么以播放条上的标注为准
-    /// （服务端可能降级）。
-    /// </summary>
-    public static string Quality(IReadOnlyList<AudioQuality> qualities) =>
-        qualities.Count == 0 ? "" : Describe(qualities[0]);
-
     /// <summary>播放条音质按钮：尚未获取实际音质时显示入口名称。</summary>
     public static string PlayerQualityLabel(string quality) =>
         string.IsNullOrWhiteSpace(quality) ? "音质" : quality;
 
     /// <summary>专辑条目右侧的曲目数。0 时留空 —— 「0 首」在列表里只是噪音。</summary>
     public static string AlbumCount(int count) => count > 0 ? $"{count} 首" : "";
+
+    /// <summary>
+    /// 曲目列表里专辑名的字符上限。
+    /// </summary>
+    /// <remarks>
+    /// 列宽是 <c>0.7*</c>，专辑名跟着数据无限长会让同一份列表的列宽忽宽忽窄，
+    /// 所以按字数截断。12 个字放得下「仙剑奇侠传电视剧原声带」这类长专辑名。
+    /// </remarks>
+    private const int AlbumNameMaxChars = 12;
+
+    /// <summary>
+    /// 曲目列表里的专辑名。超过 12 个字符时截断，以省略号收尾。
+    /// </summary>
+    /// <remarks>
+    /// 数的是 <c>char</c>（UTF-16 码元）而不是字素簇：中文、日文、韩文都在基本平面内，
+    /// 一个字符就是一个码元；只有基本平面外的字符（如「𠮷」）占两个。
+    /// 所以截断前查一下末尾是不是高位代理，免得切出半个字符。
+    /// </remarks>
+    public static string AlbumName(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= AlbumNameMaxChars)
+        {
+            return value ?? "";
+        }
+
+        var length = char.IsHighSurrogate(value[AlbumNameMaxChars - 1]) ? AlbumNameMaxChars - 1 : AlbumNameMaxChars;
+
+        return string.Concat(value.AsSpan(0, length), "…");
+    }
 
     /// <summary>
     /// 付费标识文案。
@@ -151,11 +172,4 @@ public static class Formats
     public static string CommentReplyHeading(long count) => $"全部回复 · {count:N0}";
     public static Visibility VisibleWhenFalse(bool value) => Visible(!value);
 
-    private static string Describe(AudioQuality quality) => quality switch
-    {
-        AudioQuality.Lossless => "无损",
-        AudioQuality.High => "高",
-        AudioQuality.Standard => "标准",
-        _ => quality.ToString(),
-    };
 }

@@ -55,17 +55,15 @@ public sealed partial class TrackRow : ObservableObject
 
     public string ArtistText => Source.ArtistText;
 
-    public string AlbumName => Source.AlbumName ?? "";
+    public string AlbumName => Formats.AlbumName(Source.AlbumName);
 
     public Uri? CoverImage => Source.CoverImage;
 
-    // ── 付费与音质：显示逻辑收口在 Formats，这里只做转发 ──
+    // ── 付费：显示逻辑收口在 Formats，这里只做转发 ──
 
     public Visibility PayLabelVisibility => Formats.PayLabelVisibility(Source.RequiresVip, Source.RequiresPurchase);
 
     public string PayLabel => Formats.PayLabel(Source.RequiresVip, Source.RequiresPurchase);
-
-    public string Quality => Formats.Quality(Source.AvailableQualities);
 
     public string DurationText => Formats.Duration(Source.Duration);
 

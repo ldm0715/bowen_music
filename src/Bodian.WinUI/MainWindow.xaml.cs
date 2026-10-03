@@ -46,8 +46,6 @@ public sealed partial class MainWindow : Window
 
     private const string RecentTag = "recent";
 
-    private const string PurchasedTag = "purchased";
-
     private const string CollectedAlbumsTag = "collected-albums";
 
     private const string ReloadPlaylistsTag = "reload-playlists";
@@ -630,10 +628,6 @@ public sealed partial class MainWindow : Window
                 _navigation.NavigateRoot<RecentPage>();
                 break;
 
-            case PurchasedTag:
-                _navigation.NavigateRoot<PurchasedPage>();
-                break;
-
             case CollectedAlbumsTag:
                 _navigation.NavigateRoot<CollectedAlbumsPage>();
                 break;
@@ -817,7 +811,6 @@ public sealed partial class MainWindow : Window
             LibraryPage => LibraryItem,
             FavoritesPage => FavoritesItem,
             RecentPage => RecentItem,
-            PurchasedPage => PurchasedItem,
             CollectedAlbumsPage => CollectedAlbumsItem,
 
             PlaylistDetailPage detail => _playlistItems.FirstOrDefault(

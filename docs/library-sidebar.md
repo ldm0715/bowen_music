@@ -3,6 +3,11 @@
 **写于 2026-09-30。** 本文是 P7 第一刀（外壳侧栏 + 曲库**只读**）的设计定稿。
 接口证据全部来自**静态解包，零请求**，证据链见 [`../reverse/findings/06-library-api.md`](../reverse/findings/06-library-api.md)。
 
+> **2026-10-03 变更：「已购」入口与页面已移除。**
+> 官方客户端与应用内都找不到购买单曲的入口，这一页没有可购买内容可显示，侧栏不再列它。
+> §3.1 / §3.2 的接口证据保留（逆向结论不因客户端移除而失效），客户端侧的 `PurchasedPage` /
+> `PurchasedViewModel` / DI 注册已删除，Core 的 `purchasedList` 接口、DTO、fixture 与测试保留。
+
 **先读**：`roadmap.md` 的 P7 一节（阶段目标）、`transport.md`（传输层与 DTO 分层）、
 `bodian-api-reference.md` §2.3 / §6.2（账号曲库与歌单元数据模型）。
 
@@ -27,7 +32,7 @@
 | 做 | 不做 |
 | --- | --- |
 | 外壳换成侧栏（`NavigationView`） | **新建歌单**（用户明确要求押后） |
-| 发现 / 我喜欢的 / 最近播放 / 已购 / 收藏的专辑 / 自建歌单 六个入口 | **一切写操作**：加歌、删歌、红心、收藏写入 |
+| 发现 / 我喜欢的 / 最近播放 / 收藏的专辑 / 自建歌单 五个入口 | **一切写操作**：加歌、删歌、红心、收藏写入 |
 | 歌单详情页与曲目列表、点播 | 歌单排序、重命名、删除 |
 | 最近播放的**本地记录** | 服务端播放历史（见 §6） |
 | 导航模型从「一条栈」改成「根 + 详情」 | 发现页的块渲染（见 §5，押到最后一刀） |
@@ -79,7 +84,6 @@ home/
 我的音乐
   我喜欢的
   最近播放
-  已购
   收藏的专辑
 ────────────────
 创建的歌单        ← 运行时填充
@@ -222,7 +226,7 @@ Window
     │                                   IsBackButtonVisible=Collapsed   ← 返回栈是自己的
     │                                   IsSettingsVisible=False
     ├── MenuItems
-    │     发现 / (分隔) / 我的音乐(Header) + 我喜欢/最近播放/已购/收藏
+    │     发现 / (分隔) / 我的音乐(Header) + 我喜欢/最近播放/收藏
     │     / 创建的歌单(Header) + 运行时填充
     ├── PaneFooter                     ← 账号卡片：头像 / 昵称 / VIP 徽标 / 退出登录
     └── Content
@@ -288,7 +292,7 @@ Window
 | 3 | **WinUI：`NavigationView` 外壳 + 账号下移 `PaneFooter`** | 侧栏可折叠；播放条在右侧不通栏；账号信息正常；启动落在首页 | ✅ 完成（2026-09-30） |
 | 4 | **WinUI：我喜欢的页**（唯一全链路已验证项） | 出真实曲目、可点播、可翻页 | ✅ 完成（2026-09-30） |
 | 5 | **WinUI：创建的歌单 + 歌单详情** | 列出全部自建歌单；点进详情出曲目并点播 | ✅ 完成（2026-09-30） |
-| 6 | **Core + WinUI：已购 + 收藏的专辑** | 出数据即通过；**返回空/解析失败时界面必须明确说明**（见 §3.2） | ✅ 完成（2026-09-30） |
+| 6 | **Core + WinUI：已购 + 收藏的专辑** | 出数据即通过；**返回空/解析失败时界面必须明确说明**（见 §3.2） | ✅ 完成（2026-09-30）；**已购页与入口于 2026-10-03 移除**（见文首） |
 | 7 | **最近播放（本地记录）** | 播放几首后列表按时间倒序出现；重启不丢；同曲重复播放提到最前 | ✅ 完成（2026-09-30） |
 | 8 | **发现页**（最后一刀） | 见下 | ✅ 完成（2026-10-01） |
 
@@ -481,12 +485,13 @@ type 11（你的主题歌单）的分组**压根没有 id 字段**，反序列�
 | `Core/Models/Album.cs`、`Core/Api/Dto/AlbumDto.cs`、`AlbumPayloads.cs` | 专辑条目与三套信封 |
 | `Core/Api/BodianApi.cs` | `GetPurchasedSinglesAsync` / `GetPurchasedAlbumsAsync` / `GetCollectedAlbumsAsync` |
 | `WinUI/ViewModels/PagedList.cs` | 通用的分页列表（游标 + 状态 + 两个命令），三个列表共用 |
-| `WinUI/ViewModels/{Purchased,CollectedAlbums}ViewModel.cs`、`Views/{Purchased,CollectedAlbums}Page.xaml(.cs)` | 两页 |
+| `WinUI/ViewModels/CollectedAlbumsViewModel.cs`、`Views/CollectedAlbumsPage.xaml(.cs)` | 收藏的专辑页（已购页于 2026-10-03 随入口一并删除） |
 | `WinUI/Controls/AlbumListView.xaml(.cs)` | 专辑列表控件，**行不可点**（没有详情页，让行看起来可点却什么都不发生更糟） |
 | `fixtures/purchased-singles.json`、`purchased-albums.json`、`collected-albums.json` | 见上表的风险行 |
 
 **「已购音乐」做成上下两节**（单曲 / 专辑）而不是页签：少一套选中状态，两个列表都一眼能看见。
 官方桌面端的「已购」也是这么组织的（`purchased_music_page` 下辖两个视图）。
+（2026-10-03：这一页与其侧栏入口已整体移除，见文首；这段布局理由只在页面被恢复时才需要参考。）
 
 **测试 401 → 413。**
 

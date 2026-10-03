@@ -338,15 +338,6 @@
             </NavigationViewItem>
 
             <NavigationViewItem
-                x:Name="PurchasedItem"
-                Content="已购音乐"
-                Tag="purchased">
-                <NavigationViewItem.Icon>
-                    <SymbolIcon Symbol="Shop" />
-                </NavigationViewItem.Icon>
-            </NavigationViewItem>
-
-            <NavigationViewItem
                 x:Name="CollectedAlbumsItem"
                 Content="收藏的专辑"
                 Tag="collected-albums">

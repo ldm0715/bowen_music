@@ -68,7 +68,6 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="0.7*" />
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="40" />
                     </Grid.ColumnDefinitions>
 
@@ -167,19 +166,12 @@
                         Text="{x:Bind AlbumName}"
                         TextTrimming="CharacterEllipsis" />
 
-                    <TextBlock
-                        Grid.Column="4"
-                        VerticalAlignment="Center"
-                        FontSize="{StaticResource FontSizeCaption}"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Text="{x:Bind Quality}" />
-
                     <!--
                         时长。TextBlock 没有 OpenType feature 属性（等宽数字做不到），
                         所以只能靠固定列宽 + 右对齐。
                     -->
                     <TextBlock
-                        Grid.Column="5"
+                        Grid.Column="4"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         FontSize="{StaticResource FontSizeCaption}"

@@ -142,8 +142,6 @@ public partial class App : Application
         builder.Services.AddTransient<FavoritesPage>();
         builder.Services.AddTransient<RecentViewModel>();
         builder.Services.AddTransient<RecentPage>();
-        builder.Services.AddTransient<PurchasedViewModel>();
-        builder.Services.AddTransient<PurchasedPage>();
         builder.Services.AddTransient<CollectedAlbumsViewModel>();
         builder.Services.AddTransient<CollectedAlbumsPage>();
 
