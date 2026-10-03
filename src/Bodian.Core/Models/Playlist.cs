@@ -7,8 +7,13 @@ namespace Bodian.Core.Models;
 /// <para>
 /// <b>只映射真正有消费方的字段</b>（与 <see cref="Track"/> 同一条规矩）：侧栏要
 /// <see cref="Id"/> 与 <see cref="Name"/>，歌单卡片要 <see cref="CoverImage"/> 与
-/// <see cref="MusicCount"/>，详情页头部要曲目数。底层 DTO 里还有创建者、简介、私密标志等
-/// 十几个字段，**没有消费方就不上来**。
+/// <see cref="MusicCount"/>，详情页头部要曲目数、播放数、创建者与简介。
+/// </para>
+/// <para>
+/// <b>详情专属字段只在 <c>BodianApi.GetPlaylistInfoAsync</c> 里填</b>（创建者、简介、播放数、
+/// 收藏数、收藏时间）。列表来源 —— 侧栏、搜索、收藏列表 —— 走的是另一个映射，这些字段留默认值，
+/// 即「这个来源没给」。这与 <see cref="Album"/> 是同一个先例：它的
+/// <c>ArtistText</c> / <c>ReleaseDate</c> / <c>Description</c> 也只有详情请求会填。
 /// </para>
 /// <para>
 /// <see cref="MusicCount"/> 是<b>服务端给的计数，不可信</b>：不可用曲目会被省略，
@@ -46,4 +51,49 @@ public sealed record Playlist
     /// </para>
     /// </remarks>
     public int SourceType { get; init; }
+
+    // ── 以下都是详情专属字段（见类型注释）────────────────────────────────
+
+    /// <summary>创建者 uid。<c>0</c> 表示这个来源没给。</summary>
+    /// <remarks>
+    /// 判断「这个歌单是不是我自己创建的」就靠它跟当前账号 uid 比 ——
+    /// 从搜索结果点进自己创建的公开歌单时，<c>SourceType</c> 不是账号歌单的 5，只有它能认出来。
+    /// </remarks>
+    public long CreatorId { get; init; }
+
+    /// <summary>创建者昵称。空串表示这个来源没给。</summary>
+    public string CreatorName { get; init; } = "";
+
+    /// <summary>创建者头像。**只有详情会给**。</summary>
+    public Uri? CreatorCover { get; init; }
+
+    /// <summary>歌单简介。实测可能很长（整篇企划文案），界面上要折叠。</summary>
+    public string Description { get; init; } = "";
+
+    /// <summary>全站播放数。<b>只用于展示</b>，且**只有详情会给**。</summary>
+    public long PlayCount { get; init; }
+
+    /// <summary>
+    /// 全站收藏人数，**不是当前账号的收藏态** —— 与 <c>music/info</c> 的 <c>favorite</c> 同类陷阱。
+    /// </summary>
+    public long CollectedCount { get; init; }
+
+    /// <summary>
+    /// 当前账号的收藏时间。<b>存在即「已收藏」</b>，未收藏或未登录时是空串。
+    /// </summary>
+    /// <remarks>
+    /// 这是**个人态**，方向与上面那些内容字段不同。它留在这里的理由只有一个：
+    /// 收藏态与歌单元数据来自**同一个响应**（<c>service/playlist/info</c>），
+    /// 丢掉它再单独查一次是白跑一趟。别把它当成歌单自身的属性去别处用。
+    /// </remarks>
+    public string CollectTime { get; init; } = "";
+
+    /// <summary>有简介可展示。简介空时界面上整个折叠区都不该出现。</summary>
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+
+    /// <summary>拿到了创建者信息，头部那一行才有得显示。</summary>
+    public bool HasCreator => CreatorId > 0 || !string.IsNullOrWhiteSpace(CreatorName);
+
+    /// <summary>当前账号是否已收藏这个歌单。判据是 <see cref="CollectTime"/> 存在，**不是 <c>isFond</c>**。</summary>
+    public bool IsCollected => !string.IsNullOrEmpty(CollectTime);
 }

@@ -1295,30 +1295,32 @@ public sealed class BodianApi : IBodianApi
         return artists;
     }
 
-    public async Task<bool?> IsPlaylistCollectedAsync(long playlistId, int source,
+    public async Task<Playlist?> GetPlaylistInfoAsync(long playlistId, int source,
         CancellationToken cancellationToken = default)
     {
         EnsurePlaylistId(playlistId);
 
-        if (!_session.IsAuthenticated)
-        {
-            return null;
-        }
-
+        // ★ 这里**不**做登录校验（与旧的「查收藏态」不同）：歌单详情是公开端点，
+        //   匿名也要拿得到创建者、简介、播放数。匿名时 collectTime 自然不会出现，
+        //   IsCollected 落成 false，与「匿名不能收藏」自洽。
         try
         {
             var envelope = await _transport.SendAsync(
                 new BodianRequest
                 {
                     Path = Endpoints.PlaylistInfo(playlistId),
+
+                    // source 必填，缺了回 -10 参数错误（文档 2.2）。
                     Query = [new KeyValuePair<string, string>("source", source.ToString(CultureInfo.InvariantCulture))],
                     Signed = true,
                 },
-                BodianJsonContext.Default.PlaylistInfoDto,
+                BodianJsonContext.Default.PlaylistDto,
                 cancellationToken).ConfigureAwait(false);
 
-            // collectTime 存在即已收藏（findings/13 §3.3）；不是 isFond。
-            return !string.IsNullOrEmpty(envelope.Data?.CollectTime);
+            // data 是空对象（source 填错、或这个来源没有这个歌单）时按「查不到」处理。
+            // 服务端对「无数据」与「无效 source」返回同一个空对象，不报错 —— 这是第二处
+            // 「对不上就回空」，第一处在 musicList，见文档 2.2。
+            return envelope.Data is { Id: > 0 } dto ? MapPlaylistInfo(dto) : null;
         }
         catch (OperationCanceledException)
         {
@@ -1326,7 +1328,7 @@ public sealed class BodianApi : IBodianApi
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "读取歌单 {PlaylistId} 收藏状态失败", playlistId);
+            _logger.LogDebug(ex, "读取歌单 {PlaylistId} 详情失败", playlistId);
             return null;
         }
     }
@@ -1625,6 +1627,29 @@ public sealed class BodianApi : IBodianApi
         //   表现就是「点进去是空歌单」，极难查。
         //   字段缺失时留 0，由调用方决定怎么办（账号歌单那边本来就知道自己是 5，不靠它）。
         SourceType = dto.SourceType,
+    };
+
+    /// <summary>
+    /// 歌单详情（<c>service/playlist/info/{id}</c>）的映射：在列表映射之上补详情专属字段。
+    /// </summary>
+    /// <remarks>
+    /// 用 <c>with</c> 而不是另写一份 —— <see cref="MapPlaylist"/> 里的名字兜底、封面转 Uri、
+    /// <c>SourceType</c> 不归一化这几条规矩只需维护一处，两个映射不会漂移。
+    /// </remarks>
+    private static Playlist MapPlaylistInfo(PlaylistDto dto) => MapPlaylist(dto) with
+    {
+        CreatorId = dto.CreatorId,
+        CreatorName = dto.CreatorName ?? "",
+        CreatorCover = ToHttpUri(dto.CreatorIcon),
+        Description = dto.Description ?? "",
+        PlayCount = dto.PlayNum,
+
+        // praise 与 collectedCnt 在实测样本里相等，优先取语义正确的 collectedCnt，
+        // 某个来源只给了 praise 时也能兜住（文档 2.2）。
+        CollectedCount = dto.CollectedCount > 0 ? dto.CollectedCount : dto.Praise,
+
+        // 存在即已收藏。空键与空串都当「未收藏」，省得后面各处判 null（findings/13 §3.3）。
+        CollectTime = dto.CollectTime ?? "",
     };
 
     /// <summary>

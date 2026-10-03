@@ -142,7 +142,7 @@ public sealed class LyricRepositoryTests
 
         public Task<IReadOnlyList<Artist>> GetFollowedArtistsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-        public Task<bool?> IsPlaylistCollectedAsync(long playlistId, int source,
+        public Task<Playlist?> GetPlaylistInfoAsync(long playlistId, int source,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task SetPlaylistCollectedAsync(long playlistId, int source, bool collected,

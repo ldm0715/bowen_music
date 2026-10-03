@@ -124,9 +124,11 @@ internal sealed class PlaybackApiStub : IBodianApi
         public Task SetAlbumCollectedAsync(long albumId, bool collected, CancellationToken cancellationToken = default)
             => SetAlbumCollected(albumId, collected, cancellationToken);
 
-        public Task<bool?> IsPlaylistCollectedAsync(long playlistId, int source,
+        public Func<long, int, CancellationToken, Task<Playlist?>> GetPlaylistInfo { get; set; } =
+            (_, _, _) => throw new NotSupportedException();
+        public Task<Playlist?> GetPlaylistInfoAsync(long playlistId, int source,
             CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+            => GetPlaylistInfo(playlistId, source, cancellationToken);
 
         public Task SetPlaylistCollectedAsync(long playlistId, int source, bool collected,
             CancellationToken cancellationToken = default)

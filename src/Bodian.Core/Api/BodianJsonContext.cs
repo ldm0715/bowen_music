@@ -45,7 +45,6 @@ namespace Bodian.Core.Api;
 [JsonSerializable(typeof(PurchasedAlbumsPayload))]
 [JsonSerializable(typeof(CollectedAlbumsPayload))]
 [JsonSerializable(typeof(CollectedPlaylistsPayload))]
-[JsonSerializable(typeof(PlaylistInfoDto))]
 [JsonSerializable(typeof(FollowedArtistsPayload))]
 [JsonSerializable(typeof(CollectMultipleStatePayload))]
 [JsonSerializable(typeof(HomeIndexPayload))]

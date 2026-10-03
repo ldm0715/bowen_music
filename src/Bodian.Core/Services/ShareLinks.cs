@@ -99,4 +99,35 @@ public static class ShareLinks
         return string.Create(CultureInfo.InvariantCulture,
             $"{Endpoints.ShareHost}album.html?uid={escapedUid}&albumid={albumId}");
     }
+
+    /// <summary>
+    /// 歌单分享链接：<c>collection.html?uid=&lt;分享者&gt;&amp;playlistId=&lt;歌单&gt;&amp;source=&lt;s&gt;</c>。
+    /// </summary>
+    /// <param name="playlistId">歌单 id。</param>
+    /// <param name="uid">
+    /// <b>分享者自己</b>的 uid；未登录时传 <see cref="BodianSession.AnonymousUid"/>。
+    /// </param>
+    /// <param name="source">
+    /// 歌单来源，**必须原样传进详情页的那个值**（账号歌单 <c>5</c>、发现页 <c>13</c> 等）。
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// <b><c>source</c> 是歌单这条模板独有的参数</b>，其余三条分享链接都没有它。
+    /// 因此**不要图省事写死 <c>4</c>** —— 同一个歌单在不同 source 下是不同的东西，
+    /// 猜错只会得到一条打不开的链接，没有任何一处会报错。
+    /// </para>
+    /// <para>
+    /// <b>歌单没有分享上报</b>：<c>service/share/text</c> 的 <c>shareSource</c>
+    /// 只实测过 <c>0</c>（歌曲）与 <c>1</c>（歌手），歌单取什么值没有证据。
+    /// 所以这里只拼链接，不涨分享数 —— 不是漏做。
+    /// </para>
+    /// </remarks>
+    public static string BuildPlaylistLink(long playlistId, string uid, int source)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(playlistId);
+        ArgumentNullException.ThrowIfNull(uid);
+        var escapedUid = Uri.EscapeDataString(uid);
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{Endpoints.ShareHost}collection.html?uid={escapedUid}&playlistId={playlistId}&source={source}");
+    }
 }

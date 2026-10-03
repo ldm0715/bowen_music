@@ -210,6 +210,26 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留（逆向结�
 构建通过（0 错误，1 个既有 `WMC1506` 警告），877 项离线测试通过（新增 `CollectionApiTests` 18 项、
 `FollowedArtistsServiceTests` 8 项）。界面验收由用户手动进行，清单见 `collect-follow.md` §4。
 
+### 歌单详情页头部（2026-10-03）
+
+歌单详情页补成完整头部（封面 + 标题 + 「N 首 · M 播放 · K 收藏」+ 创建者 + 播放全部 / 收藏 / 分享
++ 简介折叠区），与专辑详情页同构；**收藏按钮只对别人的歌单出现**，自己的歌单连创建者行一起不显示。
+
+数据本来就在手边：`service/playlist/info/{id}?source=` **早就在发**（为了拿收藏态），
+返回的是 15 个字段的扁平歌单对象，之前只读了 `collectTime` 一个。这一轮把剩下的用了起来，
+顺手把只覆盖 7 个字段的 `PlaylistInfoDto` 并进 `PlaylistDto`，`IsPlaylistCollectedAsync`
+换成一次到位的 `GetPlaylistInfoAsync`（匿名不再短路 —— 详情是公开端点）。
+「播放全部」需要先拉完剩余页，`PlaylistTracksViewModel` 因此补了与 `PagedList<T>` 同语义的 `LoadAllAsync`。
+
+**唯一的没底处**：`source=5`（自建 /「我喜欢」）与 `13`（发现页）下详情接口能不能返回数据
+**没有实测**（只有 `source=4` 有证据）。若回 `data: {}`，头部会退化成只剩名字、封面与曲目数。
+
+实现与验收清单见 [`playlist-detail.md`](playlist-detail.md)。
+
+构建通过（0 错误，1 个既有 `WMC1506` 警告），942 项离线测试通过（新增 `PlaylistTracksLoadAllTests` 7 项，
+其余为 `PlaylistApiTests` / `CollectionApiTests` / `ShareLinkTests` 的改写与补充）。
+界面验收与 `source=5` / `13` 的真机确认由用户手动进行。
+
 ## 做事的规矩
 
 1. **动手前先说明要做什么**，尤其是外部请求、写操作、装工具、改配置。多步操作先给清单（含预计请求数/副作用），等确认再做

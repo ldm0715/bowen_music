@@ -233,16 +233,26 @@ public interface IBodianApi
     Task<IReadOnlyList<Artist>> GetFollowedArtistsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 一个歌单**是否已被当前账号收藏**。
+    /// 歌单详情：元数据（创建者、简介、播放数、收藏数）**加上**当前账号的收藏态。
     /// </summary>
+    /// <param name="source">
+    /// 歌单来源，**必填** —— 就是拿这个歌单去取曲目时填的那个值（账号歌单 5、发现页 13 等）。
+    /// 不带会回 <c>-10 参数错误</c>；填错会回 <c>code 200</c> + <c>data: {}</c>，不报错。
+    /// </param>
     /// <returns>
-    /// <c>true</c> / <c>false</c> 为确定答案；<b><c>null</c> 表示无法判定</b>（未登录或读取失败）。
+    /// 查不到时是 <c>null</c>（<c>data</c> 是空对象）；请求失败返回 <c>null</c>，**不抛**。
     /// </returns>
     /// <remarks>
-    /// 判据是歌单详情里的 <c>collectTime</c> 是否存在，**不是 <c>isFond</c>**。
-    /// 见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §3.3。
+    /// <para>
+    /// 已收藏看 <see cref="Playlist.IsCollected"/>，判据是响应里的 <c>collectTime</c> 是否存在，
+    /// **不是 <c>isFond</c>**。见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §3.3。
+    /// </para>
+    /// <para>
+    /// <b>匿名会话照发</b>：这是公开端点，歌单元数据（创建者、简介、播放数）匿名也该拿得到，
+    /// 只有 <c>collectTime</c> 不会出现。
+    /// </para>
     /// </remarks>
-    Task<bool?> IsPlaylistCollectedAsync(long playlistId, int source, CancellationToken cancellationToken = default);
+    Task<Playlist?> GetPlaylistInfoAsync(long playlistId, int source, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 收藏 / 取消收藏一个歌单（或专辑）。<c>op</c>（<c>1</c> = 收藏、<c>2</c> = 取消）由这里算好。

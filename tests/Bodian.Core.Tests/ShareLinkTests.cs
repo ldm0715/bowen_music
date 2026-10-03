@@ -125,4 +125,53 @@ public sealed class ShareLinkTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => ShareLinks.BuildArtistLink(artistId, "1"));
     }
+
+    // ── 歌单 ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void BuildPlaylistLink_MatchesTheDocumentedTemplate()
+    {
+        var link = ShareLinks.BuildPlaylistLink(2867496601, "50303440", 4);
+
+        Assert.Equal(
+            "https://h5app.kuwo.cn/m/bodian/collection.html?uid=50303440&playlistId=2867496601&source=4",
+            link);
+    }
+
+    /// <summary>
+    /// <c>source</c> 是歌单这条模板**独有**的参数，必须是调用方传进来的那个值。
+    /// </summary>
+    /// <remarks>
+    /// 写死 4 会得到一条打不开的链接，而**没有任何一处会报错** —— 参数名与拼法都合法，
+    /// 只是指向另一个歌单。发现页里的公开歌单实测是 13。
+    /// </remarks>
+    [Fact]
+    public void BuildPlaylistLink_KeepsTheCallerSource()
+    {
+        Assert.Contains("&source=13", ShareLinks.BuildPlaylistLink(1, "1", 13), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildPlaylistLink_EscapesTheUid()
+    {
+        var link = ShareLinks.BuildPlaylistLink(1, "a b&c=d", 4);
+
+        Assert.Equal(
+            "https://h5app.kuwo.cn/m/bodian/collection.html?uid=a%20b%26c%3Dd&playlistId=1&source=4",
+            link);
+    }
+
+    [Fact]
+    public void BuildPlaylistLink_AllowsTheAnonymousUid()
+    {
+        Assert.Contains("uid=-1&", ShareLinks.BuildPlaylistLink(1, "-1", 4), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void BuildPlaylistLink_RejectsNonPositivePlaylistIds(long playlistId)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => ShareLinks.BuildPlaylistLink(playlistId, "1", 4));
+    }
 }

@@ -25,8 +25,10 @@ namespace Bodian.WinUI.ViewModels;
 public abstract partial class PlaylistTracksViewModel : ObservableObject
 {
     private readonly IBodianApi _api;
-    private readonly PlaybackCoordinator _coordinator;
     private readonly ILogger _logger;
+
+    /// <summary>播放入口。子类要自己排队时用它（「播放全部」）。</summary>
+    protected readonly PlaybackCoordinator Coordinator;
 
     private PagedCursor? _cursor;
     private long? _playlistId;
@@ -42,7 +44,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(logger);
 
         _api = api;
-        _coordinator = coordinator;
+        Coordinator = coordinator;
         _logger = logger;
     }
 
@@ -183,6 +185,54 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 一页一页地把剩下的全部拉完，最多拉 <paramref name="maxPages"/> 页。
+    /// </summary>
+    /// <returns>
+    /// 是否真的拉到了「没有下一页」。<b>撞上限、中途失败、以及进来时就在忙，都返回 <c>false</c>。</b>
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// 「播放全部」要用它 —— 与 <c>PagedList&lt;T&gt;.LoadAllAsync</c> 同一份语义，改一处时另一处也要看。
+    /// 只把当前已加载的那些排进队列的话，177 首的歌单第一次点只播得到首屏那 30 首。
+    /// </para>
+    /// <para>
+    /// 中途失败就停，并保留已加载的部分 —— 队列短一点也比整次操作失败好。
+    /// </para>
+    /// <para>
+    /// <b>进来时就有加载在进行则直接返回 <c>false</c></b>：<see cref="LoadMoreAsync"/>
+    /// 在忙时会早退，硬循环只会空转到上限。
+    /// </para>
+    /// <para>
+    /// <b>不改成 <c>PagedList&lt;T&gt;</c></b>：那一族的取数委托是构造时固定的，
+    /// 而这里的 <see cref="ResolvePlaylistAsync"/> 要先回答「是哪个歌单」，搬过去要把基类拆了重做，
+    /// 收益只是少这一个方法。
+    /// </para>
+    /// </remarks>
+    public async Task<bool> LoadAllAsync(int maxPages = 20, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPages);
+
+        await EnsureLoadedAsync(cancellationToken).ConfigureAwait(true);
+
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        var pages = 0;
+
+        while (HasMore && !LoadFailed && !IsBusy && pages < maxPages)
+        {
+            pages++;
+            await LoadMoreAsync(cancellationToken).ConfigureAwait(true);
+        }
+
+        // ★ 失败也要算「没拉全」：首屏就失败时 HasMore 停在 false（ReloadAsync 开头会把它清掉），
+        //   只看 !HasMore 会把「什么都没拉到」当成「拉完了」。
+        return !HasMore && !LoadFailed;
+    }
+
+    /// <summary>
     /// 点播某一行。
     /// </summary>
     /// <remarks>
@@ -205,7 +255,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
 
         CurrentTrack = track;
 
-        await _coordinator.PlayFromAsync([.. Tracks], index).ConfigureAwait(true);
+        await Coordinator.PlayFromAsync([.. Tracks], index).ConfigureAwait(true);
     }
 
     private async Task AppendNextPageAsync(CancellationToken cancellationToken)

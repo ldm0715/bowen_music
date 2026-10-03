@@ -231,4 +231,60 @@ public sealed class PlaylistApiTests : IDisposable
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => _api.GetPlaylistTracksAsync(1, AccountSource, null!, Ct));
     }
+
+    // ── 歌单详情（service/playlist/info/{id}）────────────────────────────────
+    //
+    // 样本是两个真机响应：playlist-info-collected.json（已收藏）与
+    // playlist-info-not-collected.json（未收藏）。详情返回的**扁平对象有 15 个字段**，
+    // 头部要用的创建者、简介、播放数、收藏数全在里面。
+
+    /// <summary>已收藏的那份：15 个字段逐项落在模型上。</summary>
+    [Fact]
+    public async Task PlaylistInfo_MapsTheFullRealResponse()
+    {
+        RespondWith("playlist-info-collected.json");
+
+        var info = await _api.GetPlaylistInfoAsync(2867496601, 4, Ct);
+
+        Assert.NotNull(info);
+        Assert.Equal(2867496601, info.Id);
+        Assert.Equal("终于等到周杰伦，说好不哭你今天哭了吗？", info.Name);
+        Assert.Equal(177, info.MusicCount);
+        Assert.Equal(4, info.SourceType);
+
+        // 头部专属字段：列表来源一个都给不出来。
+        Assert.Equal(182253281, info.CreatorId);
+        Assert.Equal("adbcfdc", info.CreatorName);
+        Assert.NotNull(info.CreatorCover);
+        Assert.Equal(5657990, info.PlayCount);
+        Assert.Equal(21315, info.CollectedCount);
+        Assert.True(info.HasDescription);
+        Assert.True(info.HasCreator);
+
+        // 个人态：collectTime 存在即已收藏，**不是 isFond**。
+        Assert.True(info.IsCollected);
+    }
+
+    /// <summary>未收藏的那份：<c>collectTime</c> 整个键不出现。</summary>
+    [Fact]
+    public async Task PlaylistInfo_NotCollectedForTheOtherRealResponse()
+    {
+        RespondWith("playlist-info-not-collected.json");
+
+        var info = await _api.GetPlaylistInfoAsync(3676986117, 4, Ct);
+
+        Assert.NotNull(info);
+        Assert.False(info.IsCollected);
+        Assert.Equal(576246173, info.CreatorId);
+
+        // praise 与 collectedCnt 在样本里相等，映射优先取语义正确的那个。
+        Assert.Equal(737, info.CollectedCount);
+    }
+
+    [Fact]
+    public async Task PlaylistInfo_NonPositiveId_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => _api.GetPlaylistInfoAsync(0, 4, Ct));
+    }
 }

@@ -218,6 +218,8 @@ public partial class App : Application
             new PlaylistDetailPage(new PlaylistDetailViewModel(
                 sp.GetRequiredService<IBodianApi>(),
                 sp.GetRequiredService<PlaybackCoordinator>(),
+                sp.GetRequiredService<BodianSession>(),
+                sp.GetRequiredService<IClipboardService>(),
                 playlist,
                 source,
                 sp.GetRequiredService<INoticeSink>(),

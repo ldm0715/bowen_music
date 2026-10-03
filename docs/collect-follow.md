@@ -32,9 +32,9 @@
 | 文件 | 内容 |
 | --- | --- |
 | `Api/Dto/Requests/CollectBody.cs` | `service/collect` 请求体。<b>`token` 用 `WhenWritingNull` 表达「不带」</b>——收藏歌单与关注歌手共用它 |
-| `Api/Dto/CollectionPayloads.cs` | `CollectedPlaylistsPayload` / `PlaylistInfoDto`（`collectTime` 在这里）/ `FollowedArtistsPayload` |
+| `Api/Dto/CollectionPayloads.cs` | `CollectedPlaylistsPayload` / `FollowedArtistsPayload`（歌单详情原来另有 `PlaylistInfoDto`，**2026-10-03 已并进 `PlaylistDto`**，见 [`playlist-detail.md`](playlist-detail.md)） |
 | `Api/Endpoints.cs` | `PlaylistInfo(id)`、`CollectSourcePlaylistAlbum=4`、`CollectSourceArtist=7`、两个 `sourceType` 常量 |
-| `Api/BodianApi.cs` | `GetCollectedPlaylistsAsync` / `GetFollowedArtistsAsync` / `IsPlaylistCollectedAsync` / `SetPlaylistCollectedAsync` / `SetArtistFollowedAsync` |
+| `Api/BodianApi.cs` | `GetCollectedPlaylistsAsync` / `GetFollowedArtistsAsync` / `SetPlaylistCollectedAsync` / `SetArtistFollowedAsync`。**读收藏态的方法 2026-10-03 换成了 `GetPlaylistInfoAsync`**（一次拿元数据 + 收藏态） |
 | `Services/Implementations/FollowedArtistsService.cs` | 歌手关注态的会话级集合（拉取时机与失效规则同 `LikedSongsService`） |
 
 两个注意点：

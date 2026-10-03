@@ -66,4 +66,23 @@ internal sealed class PlaylistDto
     [JsonPropertyName("isRecommendStream")] public bool IsRecommendStream { get; init; }
 
     [JsonPropertyName("playPos")] public int PlayPos { get; init; }
+
+    /// <summary>全站播放数。**只有歌单详情会给**，列表来源（侧栏、搜索、收藏列表）没有这个键。</summary>
+    /// <remarks>用 <c>long</c>：样本已到 565 万，而播放数是只增不减的累计值。</remarks>
+    [JsonPropertyName("playNum")] public long PlayNum { get; init; }
+
+    /// <summary>全站点赞数。</summary>
+    /// <remarks>
+    /// 实测与 <see cref="CollectedCount"/> **在样本里相等**（文档 2.2），大概率是同一个数的两个名字。
+    /// 只消费 <see cref="CollectedCount"/>，这里留着当兜底与证据。
+    /// </remarks>
+    [JsonPropertyName("praise")] public long Praise { get; init; }
+
+    /// <summary>全站收藏人数。**不是当前账号的收藏态** —— 个人态看 <see cref="CollectTime"/>。</summary>
+    [JsonPropertyName("collectedCnt")] public long CollectedCount { get; init; }
+
+    [JsonPropertyName("lastPlayTime")] public string? LastPlayTime { get; init; }
+
+    /// <summary>当前账号的收藏时间（<c>yyyy-MM-dd HH:mm:ss</c>）。**存在即「已收藏」**，未收藏时整个键不出现。</summary>
+    [JsonPropertyName("collectTime")] public string? CollectTime { get; init; }
 }

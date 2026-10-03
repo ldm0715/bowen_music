@@ -140,42 +140,89 @@ public sealed class CollectionApiTests : IDisposable
             () => api.SetPlaylistCollectedAsync(PlaylistId, 4, collected: true, Ct));
     }
 
-    // ── 「是否已收藏」判据 ──────────────────────────────────────────────────
+    // ── 歌单详情：元数据 + 收藏态 ──────────────────────────────────────────
+    //
+    // 详情响应把头部要用的东西与「是否已收藏」放在同一份 JSON 里，
+    // 所以读接口只有一个：GetPlaylistInfoAsync。
 
     /// <summary>详情里有 <c>collectTime</c> = 已收藏。</summary>
     [Fact]
-    public async Task IsPlaylistCollected_TrueWhenCollectTimePresent()
+    public async Task PlaylistInfo_IsCollectedWhenCollectTimePresent()
     {
         _session.Set(Uid, "test-token");
         _handler.Responder = _ => ReplayHandler.Json(
             """{"code":200,"data":{"id":2867496601,"name":"x","collectTime":"2026-10-03 10:45:12"}}""");
 
-        var collected = await _api.IsPlaylistCollectedAsync(2867496601, 4, Ct);
+        var info = await _api.GetPlaylistInfoAsync(2867496601, 4, Ct);
 
-        Assert.True(collected);
+        Assert.NotNull(info);
+        Assert.True(info.IsCollected);
         Assert.Contains("service/playlist/info/2867496601?", _handler.LastRequest.Url, StringComparison.Ordinal);
         Assert.Contains("source=4", _handler.LastRequest.Url, StringComparison.Ordinal);
     }
 
     /// <summary>没有这个键 = 未收藏。<b>不是 <c>isFond</c></b>，见 findings/13 §3.3。</summary>
     [Fact]
-    public async Task IsPlaylistCollected_FalseWhenCollectTimeAbsent()
+    public async Task PlaylistInfo_NotCollectedWhenCollectTimeAbsent()
     {
         _session.Set(Uid, "test-token");
         _handler.Responder = _ => ReplayHandler.Json(
             """{"code":200,"data":{"id":3676986117,"name":"x","isFond":0}}""");
 
-        Assert.False(await _api.IsPlaylistCollectedAsync(3676986117, 4, Ct));
+        var info = await _api.GetPlaylistInfoAsync(3676986117, 4, Ct);
+
+        Assert.NotNull(info);
+        Assert.False(info.IsCollected);
     }
 
-    /// <summary>未登录返回 <c>null</c>（无法判定），且**不发请求**。</summary>
+    /// <summary>
+    /// 匿名**照发请求** —— 与它取代的「查收藏态」相反。
+    /// </summary>
+    /// <remarks>
+    /// 头部元数据（创建者、简介、播放数）是公开信息，匿名用户也该看得到；
+    /// 匿名时只是 <c>collectTime</c> 不出现，<c>IsCollected</c> 落成 false。
+    /// </remarks>
     [Fact]
-    public async Task IsPlaylistCollected_NullWhenAnonymous()
+    public async Task PlaylistInfo_IsStillFetchedWhenAnonymous()
     {
-        _handler.Responder = _ => ReplayHandler.Json("""{"code":200,"data":{}}""");
+        _handler.Responder = _ => ReplayHandler.Json(
+            """{"code":200,"data":{"id":2867496601,"name":"x","creatorId":182253281,"playNum":5657990}}""");
 
-        Assert.Null(await _api.IsPlaylistCollectedAsync(PlaylistId, 4, Ct));
-        Assert.Empty(_handler.Requests);
+        var info = await _api.GetPlaylistInfoAsync(2867496601, 4, Ct);
+
+        Assert.NotNull(info);
+        Assert.False(info.IsCollected);
+        Assert.Equal(182253281, info.CreatorId);
+        Assert.Equal(5657990, info.PlayCount);
+        Assert.NotEmpty(_handler.Requests);
+    }
+
+    /// <summary>
+    /// <c>data</c> 是空对象时返回 <c>null</c>，**不抛**。
+    /// </summary>
+    /// <remarks>
+    /// <c>source</c> 填错与「这个来源没有这个歌单」服务端都回同一个空对象、都是 <c>code 200</c>，
+    /// 所以只能当「查不到」处理（文档 2.2）。
+    /// </remarks>
+    [Fact]
+    public async Task PlaylistInfo_NullWhenDataIsEmptyObject()
+    {
+        _session.Set(Uid, "test-token");
+        _handler.Responder = _ => ReplayHandler.Json("""{"code":200,"msg":"success","data":{}}""");
+
+        Assert.Null(await _api.GetPlaylistInfoAsync(PlaylistId, 4, Ct));
+    }
+
+    /// <summary><c>source</c> 原样进 query —— 发现页的歌单不是 4，写死会让详情直接变空。</summary>
+    [Fact]
+    public async Task PlaylistInfo_SendsTheCallerSource()
+    {
+        _session.Set(Uid, "test-token");
+        _handler.Responder = _ => ReplayHandler.Json("""{"code":200,"data":{"id":1,"name":"x"}}""");
+
+        await _api.GetPlaylistInfoAsync(1, 13, Ct);
+
+        Assert.Contains("source=13", _handler.LastRequest.Url, StringComparison.Ordinal);
     }
 
     // ── 收藏歌单列表：混合列表按 sourceType 过滤 ────────────────────────────

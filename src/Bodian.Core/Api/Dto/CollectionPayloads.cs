@@ -24,40 +24,6 @@ internal sealed class CollectedPlaylistsPayload
 }
 
 /// <summary>
-/// 歌单详情的 <c>data</c>（<c>GET service/playlist/info/{id}?source=&lt;s&gt;</c>）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 实测样本 <c>fixtures/playlist-info-collected.json</c>（已收藏）与
-/// <c>fixtures/playlist-info-not-collected.json</c>（未收藏）。
-/// </para>
-/// <para>
-/// <b>「是否已收藏」看 <see cref="CollectTime"/> 是否存在</b> ——
-/// <b>不是 <c>isFond</c></b>：列表 payload 里的 <c>isFond</c> 与个人收藏态无关（连已收藏的也是 0），
-/// 而详情响应里根本没有这个字段。已收藏的歌单详情会给 <c>collectTime</c>（收藏时间），
-/// 未收藏的不给这个键。证据见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §3.3。
-/// </para>
-/// </remarks>
-internal sealed class PlaylistInfoDto
-{
-    [JsonPropertyName("id")] public long Id { get; init; }
-
-    [JsonPropertyName("name")] public string? Name { get; init; }
-
-    [JsonPropertyName("pic")] public string? Pic { get; init; }
-
-    [JsonPropertyName("musicCount")] public int MusicCount { get; init; }
-
-    [JsonPropertyName("sourceType")] public int SourceType { get; init; }
-
-    /// <summary>全站收藏数，**不是**个人态 —— 与 <c>music/info</c> 的 <c>favorite</c> 同类陷阱。</summary>
-    [JsonPropertyName("collectedCnt")] public int CollectedCount { get; init; }
-
-    /// <summary>收藏时间（<c>yyyy-MM-dd HH:mm:ss</c>）。**存在即「已收藏」**，未收藏时整个键不出现。</summary>
-    [JsonPropertyName("collectTime")] public string? CollectTime { get; init; }
-}
-
-/// <summary>
 /// 我**关注的歌手**（<c>service/collect/7/list</c>）的信封：<c>{ artistList: [...], total: N }</c>。
 /// </summary>
 /// <remarks>

@@ -9,57 +9,144 @@
     <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- ── 头部：封面 + 名字 + 副标题 + 创建者 + 操作 ──────────────────
+             与专辑详情页同构。两处会一起改，别只改一边。 -->
         <Grid
             Grid.Row="0"
-            Margin="0,0,0,8"
-            ColumnSpacing="12">
+            ColumnSpacing="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Spacing="2">
+            <!-- 封面与右侧信息块都垂直居中，理由同专辑页：只让一边居中的话，
+                 信息块一高封面就被吊在上边，和下面的按钮拉开一大截。 -->
+            <Border
+                Grid.Column="0"
+                Width="{StaticResource SizeCoverGrid}"
+                Height="{StaticResource SizeCoverGrid}"
+                VerticalAlignment="Center"
+                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                CornerRadius="{StaticResource RadiusMd}">
+                <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.CoverImage), Mode=OneWay}" Stretch="UniformToFill" />
+            </Border>
+
+            <StackPanel
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Spacing="8">
                 <TextBlock
                     Style="{StaticResource TitleTextBlockStyle}"
                     Text="{x:Bind ViewModel.Title, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
+
+                <!-- 副标题：177 首 · 565w7+ 播放 · 2.1w 收藏。详情没回来时整个不显示。 -->
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.HasMeta), Mode=OneWay}" />
+
+                <!--
+                    状态行：只在副标题为空（详情没拿到）时出现。
+                    它承担「加载失败：…」与「这个歌单里还没有歌」，那两条没有别的出口；
+                    详情正常时不显示是因为副标题里已经有曲目数了，两个「177 首」是重复。
+                -->
                 <TextBlock
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis" />
-            </StackPanel>
+                    TextTrimming="CharacterEllipsis"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowStatusText), Mode=OneWay}" />
 
-            <!--
-                收藏按钮，两态：未收藏显示「收藏」，已收藏显示「已收藏」。
-                图标与文案都由 Formats 按 bool? 决定，null（还没判定出来）按未收藏显示。
-
-                ★ 取消收藏要**先弹确认框**，所以这里用 Click 而不是 Command ——
-                  弹窗是界面决策，XamlRoot 也拿不到 ViewModel 里去（同 RecentPage 的清空记录）。
-                ★ 圆角取 ControlCornerRadius、MinWidth=0，与歌手页的关注/分享按钮同一档。
-            -->
-            <Button
-                Grid.Column="1"
-                VerticalAlignment="Top"
-                AutomationProperties.Name="收藏"
-                Click="OnCollectClick"
-                CornerRadius="{StaticResource ControlCornerRadius}"
-                MinWidth="0">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <FontIcon
-                        FontSize="14"
-                        Glyph="{x:Bind local:Formats.CollectGlyph(ViewModel.IsCollected), Mode=OneWay}" />
-                    <TextBlock Text="{x:Bind local:Formats.CollectLabel(ViewModel.IsCollected), Mode=OneWay}" />
+                <!--
+                    创建者。**不可点是故意的** —— 本项目没有用户主页，做成可点的按钮会点出个死路。
+                    自己的歌单不显示这一行（HasCreator 里已经排除了）。
+                -->
+                <StackPanel
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.HasCreator), Mode=OneWay}">
+                    <PersonPicture
+                        Width="28"
+                        Height="28"
+                        DisplayName="{x:Bind ViewModel.CreatorName, Mode=OneWay}"
+                        ProfilePicture="{x:Bind local:Formats.CoverSource(ViewModel.CreatorCover), Mode=OneWay}" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind ViewModel.CreatorName, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
                 </StackPanel>
-            </Button>
+
+                <StackPanel
+                    Margin="0,2,0,0"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <Button
+                        AutomationProperties.Name="播放全部"
+                        Command="{x:Bind ViewModel.PlayAllCommand}"
+                        Style="{StaticResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="14" Glyph="&#xE768;" />
+                            <TextBlock Text="播放全部" />
+                        </StackPanel>
+                    </Button>
+
+                    <!--
+                        收藏按钮**只对别人的歌单出现**：收藏自己创建的歌单没有意义，
+                        挂在那儿只是给人误点的机会。可见性走 CanCollect。
+                        取消收藏要**先弹确认框**，所以用 Click 而不是 Command ——
+                        弹窗是界面决策，XamlRoot 也拿不到 ViewModel 里去（同 RecentPage 的清空记录）。
+                    -->
+                    <Button
+                        AutomationProperties.Name="收藏"
+                        Click="OnCollectClick"
+                        Visibility="{x:Bind local:Formats.Visible(ViewModel.CanCollect), Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon
+                                FontSize="14"
+                                Glyph="{x:Bind local:Formats.CollectGlyph(ViewModel.IsCollected), Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind local:Formats.CollectLabel(ViewModel.IsCollected), Mode=OneWay}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button
+                        AutomationProperties.Name="分享"
+                        Command="{x:Bind ViewModel.ShareCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="14" Glyph="&#xE72D;" />
+                            <TextBlock Text="分享" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
         </Grid>
 
-        <controls:TrackListView
+        <!--
+            ── 简介 ───────────────────────────────────────────────────────
+            折叠起来：实测这份文案可能很长（整篇企划文案），摊开会把曲目列表顶到屏幕外。
+        -->
+        <Expander
             Grid.Row="1"
+            Margin="0,16,0,0"
+            HorizontalAlignment="Stretch"
+            Header="歌单简介"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.HasDescription), Mode=OneWay}">
+            <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}" TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Expander>
+
+        <controls:TrackListView
+            Grid.Row="2"
+            Margin="0,16,0,0"
             HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks}"
             LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
@@ -72,7 +159,8 @@
             </controls:TrackListView.Footer>
         </controls:TrackListView>
 
-        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
+        <!-- ★「重新加载」是歌单页比专辑页多的东西，改版别把它弄丢。 -->
+        <Grid Grid.Row="3" Style="{StaticResource BodianPageFooter}">
             <StackPanel
                 HorizontalAlignment="Left"
                 Orientation="Horizontal"
