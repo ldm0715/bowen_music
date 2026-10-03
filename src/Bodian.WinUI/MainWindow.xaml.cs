@@ -34,7 +34,7 @@ namespace Bodian.WinUI;
 /// 详情压在栈上、根仍是「我喜欢的」，侧栏就该继续高亮「我喜欢的」。
 /// </para>
 /// </remarks>
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindow : Window, IPlaylistLibrarySink
 {
     /// <summary>侧栏项的标记。固定项与紧凑栏那颗歌单图标都靠它分发，见 <see cref="OnItemInvoked"/>。</summary>
     private const string DiscoverTag = "discover";
@@ -781,6 +781,29 @@ public sealed partial class MainWindow : Window
     /// <see cref="OnPaneRetryClick"/>）是同一个动作，只是那两行只在失败时才出现。
     /// </summary>
     private void OnRefreshPlaylistsClick(object sender, RoutedEventArgs e) => _ = LoadSidebarAsync();
+
+    /// <summary>
+    /// 详情页删掉了一个自建歌单：把侧栏那一行摘掉，并离开那一页。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>摘掉是本地动作，不重拉列表</b> —— 删除的写请求已经成功，为此再拉一次是白跑。
+    /// </para>
+    /// <para>
+    /// <b>为什么是换根而不是返回</b>：自建歌单详情是从侧栏 <c>NavigateRoot</c> 进来的根页，
+    /// 栈里没有上一页，<c>GoBack</c> 无处可去。落点与启动时一致（「我喜欢的」）。
+    /// </para>
+    /// </remarks>
+    void IPlaylistLibrarySink.OnPlaylistRemoved(long playlistId)
+    {
+        _sidebar.RemovePlaylist(playlistId);
+        AfterSidebarChanged();
+
+        if (_navigation.Current is PlaylistDetailPage page && page.ViewModel.Playlist.Id == playlistId)
+        {
+            _navigation.NavigateRoot<FavoritesPage>();
+        }
+    }
 
     /// <summary>
     /// 新建歌单的输入框：名字 + 一行「设置为隐私歌单」。

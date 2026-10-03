@@ -115,6 +115,27 @@ public interface IBodianApi
     Task<long> CreatePlaylistAsync(string name, bool isPrivate, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 删除歌单。
+    /// </summary>
+    /// <param name="playlistId">要删的那个歌单。</param>
+    /// <remarks>
+    /// <para>
+    /// <b>不可逆</b>：歌单连里面的曲目一起消失，没有回收站。界面必须先确认再调它。
+    /// </para>
+    /// <para>
+    /// 回执是空对象（实测 <c>{"playlistIds":[a,b]}</c> → <c>200</c>、<c>data: {}</c>），
+    /// 所以成功与否只看业务码 —— 没有「服务端说没删掉」这种情况，删不掉就是抛。
+    /// </para>
+    /// <para>
+    /// <b>只该用来删自己的歌单</b>：服务端会不会挡别人的歌单没有实测过，
+    /// 界面上也只在自建歌单的详情页给入口（见 <c>IsOwnPlaylist</c>）。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">id 不是正数。</exception>
+    /// <exception cref="InvalidOperationException">未登录；或请求在途时换了账号。</exception>
+    Task DeletePlaylistAsync(long playlistId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 「我喜欢」这个歌单<b>本身</b>，不是它的曲目。
     /// </summary>
     /// <remarks>

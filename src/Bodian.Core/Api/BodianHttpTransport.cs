@@ -115,7 +115,12 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
 
         return SendCoreAsync(
             request.Path,
-            request.Verb == BodianHttpVerb.Post ? HttpMethod.Post : HttpMethod.Get,
+            request.Verb switch
+            {
+                BodianHttpVerb.Post => HttpMethod.Post,
+                BodianHttpVerb.Delete => HttpMethod.Delete,
+                _ => HttpMethod.Get,
+            },
             url,
             request.JsonBody,
             request.AcceptedCodes,

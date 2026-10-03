@@ -28,7 +28,7 @@ POST service/playlist   signed   新建歌单
 | `private` | 传 `true` → 读回 `isPrivate: 1`；传 `false` → `0` |
 | 新歌单位置 | `service/playlist/userCreate` 的 `playLists` **第 0 位**（该列表按 id 降序） |
 | 空名字 / 50 字名字 | 服务端**都照建**。空白只能客户端自己挡，长度不该设上限 |
-| `DELETE service/playlist` | `{"playlistIds":[a,b]}` → 200、`data: {}`，支持批量（本轮不接 UI） |
+| `DELETE service/playlist` | `{"playlistIds":[a,b]}` → 200、`data: {}`，支持批量（界面入口见 [`playlist-detail.md`](playlist-detail.md) §6） |
 
 **回执只有 id** 这一点推翻了静态推断（原来以为会回完整歌单对象），它决定了下面「本地插入」的做法。
 

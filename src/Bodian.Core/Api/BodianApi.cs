@@ -530,6 +530,37 @@ public sealed class BodianApi : IBodianApi
         return created.Id;
     }
 
+    /// <inheritdoc cref="IBodianApi.DeletePlaylistAsync"/>
+    public async Task DeletePlaylistAsync(long playlistId, CancellationToken cancellationToken = default)
+    {
+        EnsurePlaylistId(playlistId);
+        RequireAuthenticated();
+        var revision = _session.Revision;
+
+        // 服务端收的是数组（实测一次能删多个），本项目一次只删一个。
+        var body = new DeletePlaylistBody { PlaylistIds = [playlistId] };
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.PlaylistCrud,
+                Verb = BodianHttpVerb.Delete,
+                Signed = true,
+                JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.DeletePlaylistBody),
+            },
+            BodianJsonContext.Default.JsonElement,
+            cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "删除歌单请求已受理：歌单 {PlaylistId}，接口 {Path}，业务码 {Code}，reqId {RequestId}",
+            playlistId, Endpoints.PlaylistCrud, envelope.Code, envelope.RequestId);
+
+        if (revision != _session.Revision)
+        {
+            throw new InvalidOperationException("登录状态已改变，请重新检查歌单。");
+        }
+    }
+
     public async Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
     {
         var envelope = await _transport.SendAsync(

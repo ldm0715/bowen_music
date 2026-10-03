@@ -130,6 +130,10 @@ public partial class App : Application
 
         builder.Services.AddSingleton<MainWindow>();
 
+        // 外壳自己实现它：删歌单之后要把侧栏那一行摘掉，并决定当前页去哪 ——
+        // 两件事都只有外壳知道。与 INoticeSink 指向 TrackActionsService 是同一种接线。
+        builder.Services.AddSingleton<IPlaylistLibrarySink>(sp => sp.GetRequiredService<MainWindow>());
+
         // 播放条与侧栏常驻，所以这几个 ViewModel 是单例；页面则每次导航新建。
         builder.Services.AddSingleton<TrackStatisticsViewModel>();
         builder.Services.AddSingleton<PlayerViewModel>();
@@ -223,6 +227,7 @@ public partial class App : Application
                 playlist,
                 source,
                 sp.GetRequiredService<INoticeSink>(),
+                sp.GetRequiredService<IPlaylistLibrarySink>(),
                 sp.GetRequiredService<ILogger<PlaylistDetailViewModel>>())));
 
         // Win2D 歌词控件由歌词页构造注入（XAML 实例化要求无参构造，所以不能直接写在 XAML 里）

@@ -192,6 +192,9 @@ public sealed class LyricRepositoryTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Task DeletePlaylistAsync(long playlistId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

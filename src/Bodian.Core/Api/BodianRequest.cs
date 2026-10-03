@@ -4,6 +4,12 @@ public enum BodianHttpVerb
 {
     Get,
     Post,
+
+    /// <summary>
+    /// 删歌单。**目前只有 <c>service/playlist</c> 那一条走它** ——
+    /// 其余写操作（加歌、收藏、关注、发评论）全是 POST。
+    /// </summary>
+    Delete,
 }
 
 /// <summary>

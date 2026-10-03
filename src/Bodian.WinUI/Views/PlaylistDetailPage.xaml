@@ -22,6 +22,8 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <!-- 右上角那颗「更多」的位置。Auto：没有它时宽度为 0，不占地方。 -->
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <!-- 封面与右侧信息块都垂直居中，理由同专辑页：只让一边居中的话，
@@ -125,8 +127,74 @@
                             <TextBlock Text="分享" />
                         </StackPanel>
                     </Button>
+
                 </StackPanel>
             </StackPanel>
+
+            <!--
+                右上角的「更多」。**只在自己创建的歌单上出现** —— 菜单里两项（编辑、删除）
+                只对自己的歌单成立，摆在别人的歌单上是误导；可见性走 IsOwnPlaylist，
+                正好是收藏按钮 CanCollect 的反面。
+
+                ★ 刻意做得不显眼：一颗 ⋯ 图标、透明底、无边框，压在页头右上角。
+                  它跟「播放全部 / 收藏 / 分享」不是一类东西 —— 那三个是这一页的主要动作，
+                  它是低频且带破坏性的管理入口，摆在按钮排里会诱导误点。
+            -->
+            <Button
+                Grid.Column="2"
+                Width="32"
+                Height="32"
+                MinWidth="0"
+                MinHeight="0"
+                Padding="0"
+                VerticalAlignment="Top"
+                AutomationProperties.Name="更多"
+                Background="Transparent"
+                BorderThickness="0"
+                CornerRadius="{StaticResource RadiusSm}"
+                ToolTipService.ToolTip="更多"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.IsOwnPlaylist), Mode=OneWay}">
+                <FontIcon FontSize="14" Glyph="&#xE712;" />
+
+                <Button.Flyout>
+                    <!--
+                        ★ **右对齐展开**，不是默认的 Bottom：这颗按钮贴在右上角，
+                          默认摆放会让菜单从它的左边缘往右铺，直接顶出窗口右边。
+                        ★ 宽度也收一下：presenter 模板里的 MinWidth 是按「最宽的菜单项」
+                          算的（给二级菜单对齐用），这里只有两项短文案，用不上。
+                    -->
+                    <MenuFlyout
+                        Placement="BottomEdgeAlignedRight"
+                        ShouldConstrainToRootBounds="True">
+                        <MenuFlyout.MenuFlyoutPresenterStyle>
+                            <Style TargetType="MenuFlyoutPresenter">
+                                <Setter Property="MinWidth" Value="0" />
+                                <Setter Property="MaxWidth" Value="200" />
+
+                                <!--
+                                    背景用与其它弹出菜单同一个画刷 —— 曲目行那颗「更多」就是这么写的。
+                                    MenuFlyout 的默认背景是系统那套半透明亚克力，在这个外壳里显得太透，
+                                    与项目里其余弹层也不是一个观感。
+                                -->
+                                <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+                            </Style>
+                        </MenuFlyout.MenuFlyoutPresenterStyle>
+
+                        <MenuFlyoutItem Click="OnEditPlaylistClick" Text="编辑">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE70F;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+
+                        <MenuFlyoutItem Click="OnDeletePlaylistClick" Text="删除">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE74D;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
         </Grid>
 
         <!--

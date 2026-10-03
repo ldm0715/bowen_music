@@ -42,6 +42,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     private readonly BodianSession _session;
     private readonly IClipboardService _clipboard;
     private readonly INoticeSink _notice;
+    private readonly IPlaylistLibrarySink _library;
     private readonly ILogger<PlaylistDetailViewModel> _logger;
 
     private bool _infoLoaded;
@@ -57,6 +58,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         Playlist playlist,
         int source,
         INoticeSink notice,
+        IPlaylistLibrarySink library,
         ILogger<PlaylistDetailViewModel>? logger = null)
         : base(api, coordinator, logger ?? NullLogger<PlaylistDetailViewModel>.Instance)
     {
@@ -64,11 +66,13 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         ArgumentNullException.ThrowIfNull(clipboard);
         ArgumentNullException.ThrowIfNull(playlist);
         ArgumentNullException.ThrowIfNull(notice);
+        ArgumentNullException.ThrowIfNull(library);
 
         _api = api;
         _session = session;
         _clipboard = clipboard;
         _notice = notice;
+        _library = library;
         _logger = logger ?? NullLogger<PlaylistDetailViewModel>.Instance;
         Playlist = playlist;
         _source = source;
@@ -172,6 +176,10 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     /// <summary>收藏/取消正在进行。<b>挡住重复点击</b> —— 服务端把 <c>op</c> 当一次设置，重发会打架。</summary>
     [ObservableProperty]
     public partial bool IsCollectBusy { get; set; }
+
+    /// <summary>删除正在进行。<b>挡住重复点击</b> —— 删除不可逆，不能发第二次。</summary>
+    [ObservableProperty]
+    public partial bool IsDeleteBusy { get; set; }
 
     /// <summary>「播放全部」正在把剩下的页拉完。与 <see cref="PlaylistTracksViewModel.IsBusy"/> 分开，两者不是一件事。</summary>
     [ObservableProperty]
@@ -295,6 +303,61 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
             IsCollectBusy = false;
         }
     }
+
+    /// <summary>
+    /// 删掉这个歌单。成功返回 <c>true</c>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>确认框不在这里</b>：那是界面决策（要不要弹、按钮怎么摆），<c>XamlRoot</c>
+    /// 也拿不到 ViewModel 里来 —— 与取消收藏同一条规矩，见
+    /// <c>PlaylistDetailPage.OnDeletePlaylistClick</c>。
+    /// </para>
+    /// <para>
+    /// <b>删完不自己导航</b>：这一页是从侧栏换根进来的**根页**，删掉之后去哪由外壳决定 ——
+    /// 它还要同时把侧栏里那一行摘掉。所以这里只通知 <see cref="IPlaylistLibrarySink"/>。
+    /// </para>
+    /// </remarks>
+    public async Task<bool> DeleteAsync(CancellationToken cancellationToken = default)
+    {
+        if (IsDeleteBusy)
+        {
+            return false;
+        }
+
+        IsDeleteBusy = true;
+        try
+        {
+            await _api.DeletePlaylistAsync(Playlist.Id, cancellationToken).ConfigureAwait(true);
+
+            _logger.LogInformation("已删除歌单 {PlaylistId}", Playlist.Id);
+
+            _library.OnPlaylistRemoved(Playlist.Id);
+            _notice.Show($"已删除「{Title}」");
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "删除歌单 {PlaylistId} 失败", Playlist.Id);
+            _notice.Show("删除失败，请稍后再试。");
+            return false;
+        }
+        finally
+        {
+            IsDeleteBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// 「编辑」现在只是个占位。
+    /// </summary>
+    /// <remarks>
+    /// <c>PUT service/playlist</c> 至今**没有实测过**（新建与删除都测了，编辑没测），
+    /// 而且它的 <c>id</c> 键还是按数组槽序推断出来的 —— 试错的代价是改坏别的歌单。
+    /// 所以按钮先摆着，点了如实说没做。
+    /// </remarks>
+    public void NotifyEditUnavailable() => _notice.Show("编辑歌单还没做");
 
     protected override Task<Playlist?> ResolvePlaylistAsync(CancellationToken cancellationToken) =>
         Task.FromResult<Playlist?>(Playlist);

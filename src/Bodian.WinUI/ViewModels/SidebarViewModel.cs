@@ -112,6 +112,25 @@ public sealed partial class SidebarViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 把某个自建歌单从这一段里摘掉 —— 它在详情页被删掉了。
+    /// </summary>
+    /// <remarks>
+    /// <b>只动本地那一份</b>：删除的写请求已经成功，为此再拉一次列表是白跑一趟。
+    /// 找不到就什么都不做（列表可能还没拉回来）。
+    /// </remarks>
+    public void RemovePlaylist(long playlistId)
+    {
+        for (var i = 0; i < Playlists.Count; i++)
+        {
+            if (Playlists[i].Id == playlistId)
+            {
+                Playlists.RemoveAt(i);
+                return;
+            }
+        }
+    }
+
+    /// <summary>
     /// 新建歌单。成功就把新歌单插到列表最前面；失败写 <see cref="CreateErrorText"/> 并返回 <c>false</c>。
     /// </summary>
     /// <remarks>

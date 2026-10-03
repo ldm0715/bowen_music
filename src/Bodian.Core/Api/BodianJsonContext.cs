@@ -73,5 +73,6 @@ namespace Bodian.Core.Api;
 [JsonSerializable(typeof(AudioUrlBody))]
 [JsonSerializable(typeof(PlaylistMusicBody))]
 [JsonSerializable(typeof(CreatePlaylistBody))]
+[JsonSerializable(typeof(DeletePlaylistBody))]
 [JsonSerializable(typeof(CollectBody))]
 internal sealed partial class BodianJsonContext : JsonSerializerContext;

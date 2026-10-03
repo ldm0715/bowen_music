@@ -76,4 +76,41 @@ public sealed partial class PlaylistDetailPage : Page, INavigationAware, INaviga
 
         await ViewModel.SetCollectedAsync(!collected);
     }
+
+    /// <summary>
+    /// 「编辑」。**接口还没实测**（<c>PUT service/playlist</c>，连它的 <c>id</c> 键都是推断的），
+    /// 所以这一项先只摆个入口。
+    /// </summary>
+    private void OnEditPlaylistClick(object sender, RoutedEventArgs e) => ViewModel.NotifyEditUnavailable();
+
+    /// <summary>
+    /// 删除这个歌单。
+    /// </summary>
+    /// <remarks>
+    /// <b>必须先确认</b>：歌单连里面的曲目一起没，没有回收站。
+    /// 与取消收藏同一档 —— 默认按钮落在「取消」上，误触不该真把东西删掉。
+    /// </remarks>
+    private async void OnDeletePlaylistClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+
+            // 页面当前的实际主题就是应用内主题，转手给弹层。
+            // 代码构造的 ContentDialog 不在可视树里，不显式给就永远跟随系统。
+            RequestedTheme = ActualTheme,
+            Title = $"删除「{ViewModel.Playlist.Name}」？",
+            Content = "歌单和里面的曲目会一起删掉，不能恢复。",
+            PrimaryButtonText = "删除",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        await ViewModel.DeleteAsync();
+    }
 }
