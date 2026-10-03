@@ -123,6 +123,12 @@ public sealed class LyricRepositoryTests
         public Task<PagedResult<Album>> SearchAlbumsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResult<Playlist>> SearchPlaylistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResult<Artist>> SearchArtistsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task AddPlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task RemovePlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ShareOutcome> ReportTrackShareAsync(long musicId,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<string>> GetSearchSuggestionsAsync(string keyword, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<SearchHotWord>> GetSearchHotWordsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResult<Track>> GetArtistTracksAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();

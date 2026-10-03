@@ -51,15 +51,36 @@ internal sealed class PlaybackApiStub : IBodianApi
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Func<CancellationToken, Task<Playlist?>> GetLikedPlaylist { get; set; } =
+            _ => throw new NotSupportedException();
         public Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+            => GetLikedPlaylist(cancellationToken);
 
+        public Func<long, int, PagedCursor, CancellationToken, Task<PagedResult<Track>>> GetPlaylistTracks { get; set; } =
+            (_, _, _, _) => throw new NotSupportedException();
         public Task<PagedResult<Track>> GetPlaylistTracksAsync(
             long playlistId,
             int source,
             PagedCursor cursor,
             CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+            => GetPlaylistTracks(playlistId, source, cursor, cancellationToken);
+
+        public Func<long, IReadOnlyList<long>, CancellationToken, Task> AddPlaylistMusic { get; set; } =
+            (_, _, _) => throw new NotSupportedException();
+        public Task AddPlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+            CancellationToken cancellationToken = default)
+            => AddPlaylistMusic(playlistId, musicIds, cancellationToken);
+
+        public Func<long, IReadOnlyList<long>, CancellationToken, Task> RemovePlaylistMusic { get; set; } =
+            (_, _, _) => throw new NotSupportedException();
+        public Task RemovePlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+            CancellationToken cancellationToken = default)
+            => RemovePlaylistMusic(playlistId, musicIds, cancellationToken);
+
+        public Func<long, CancellationToken, Task<ShareOutcome>> ReportShare { get; set; } =
+            (_, _) => throw new NotSupportedException();
+        public Task<ShareOutcome> ReportTrackShareAsync(long musicId, CancellationToken cancellationToken = default)
+            => ReportShare(musicId, cancellationToken);
 
         public Task<PagedResult<Track>> GetPurchasedSinglesAsync(
             PagedCursor cursor,

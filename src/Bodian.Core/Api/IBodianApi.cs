@@ -123,6 +123,44 @@ public interface IBodianApi
         PagedCursor cursor,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 往歌单加歌。红心（把曲目加入「我喜欢的」）走这条。
+    /// </summary>
+    /// <param name="playlistId">目标歌单 id。「我喜欢」的 id 从 <see cref="GetLikedPlaylistAsync"/> 取。</param>
+    /// <param name="musicIds">曲目 id，单次 <b>1–100</b> 首。</param>
+    /// <remarks>
+    /// <b>调用方必须先确认歌单归属</b>：自建歌单走 <see cref="GetCreatedPlaylistsAsync"/>，
+    /// 「我喜欢」走 <see cref="GetLikedPlaylistAsync"/> —— 两者是不同的列表，
+    /// 「我喜欢」<b>不在</b> <c>userCreate</c> 的返回里（文档 2.4）。
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">未登录。</exception>
+    Task AddPlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>把曲目移出歌单。参数与 <see cref="AddPlaylistMusicAsync"/> 相同。</summary>
+    /// <exception cref="InvalidOperationException">未登录。</exception>
+    Task RemovePlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 分享上报：取分享文案，并<b>把该曲目的分享数 +1</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>这是一个写操作</b>（文档 2.8 实测：<c>share</c> 从 2128 变 2129）。分享链接本身不走接口，
+    /// 是本地拼的，但每次分享都要调这里一次 —— 包括「复制链接」，否则分享数与官方行为不一致。
+    /// </para>
+    /// <para>
+    /// 响应里的 <c>data</c> 是分享文案（<c>{title, describe}</c>）。本项目不做系统分享面板，
+    /// 用不到文案，所以只返回结果、不建模。
+    /// </para>
+    /// <para>
+    /// <b>不要求登录</b>：链接的复制不该被登录态挡住；服务端拒绝时返回
+    /// <see cref="ShareOutcome.Unsupported"/> 或 <see cref="ShareOutcome.Failed"/>，由调用方决定是否提示。
+    /// </para>
+    /// </remarks>
+    Task<ShareOutcome> ReportTrackShareAsync(long musicId, CancellationToken cancellationToken = default);
+
     /// <summary>已购单曲。</summary>
     /// <remarks>
     /// 响应里**没有任何订单、购买时间、价格字段** —— 它就是一个普通的曲目列表

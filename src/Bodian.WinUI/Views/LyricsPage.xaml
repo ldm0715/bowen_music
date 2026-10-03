@@ -152,13 +152,17 @@
                     </Button>
                 </StackPanel>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
-                    <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;" Foreground="#CCFFFFFF"
+                    <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;" ActiveGlyph="&#xEB52;"
+                        Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                        IsActive="{x:Bind Player.Statistics.IsFavorite, Mode=OneWay}"
+                        Command="{x:Bind Player.ToggleFavoriteCommand}"
                         Label="{x:Bind Player.Statistics.FavoriteAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind Player.Statistics.FavoriteBadgeText, Mode=OneWay}"
                         HasBadgeCount="{x:Bind Player.Statistics.HasFavoriteCount, Mode=OneWay}" />
                     <controls:TrackStatisticButton x:Name="ShareButton" Glyph="&#xE72D;" Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                        Command="{x:Bind Player.ShareCommand}"
                         Label="{x:Bind Player.Statistics.ShareAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind Player.Statistics.ShareBadgeText, Mode=OneWay}"
                         HasBadgeCount="{x:Bind Player.Statistics.HasShareCount, Mode=OneWay}" />

@@ -4,14 +4,22 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Bodian.WinUI"
     MinWidth="0" Width="42" Height="36">
-    <!-- 只读预留按钮：展示统计与悬停信息，不绑定 Command 或 Click。 -->
+    <!-- 可点按钮：图标 + 统计角标。分享按钮不分状态，IsActive 保持 false 即可。 -->
     <Button Style="{StaticResource SubtleButtonStyle}" MinWidth="0" Padding="0" CornerRadius="6"
         HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
         HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+        Command="{x:Bind Command, Mode=OneWay}" CommandParameter="{x:Bind CommandParameter, Mode=OneWay}"
         AutomationProperties.Name="{x:Bind Label, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}">
         <Grid>
+            <!-- 未激活：轮廓图标，沿用外层给的前景色。 -->
             <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" FontSize="18" Width="20" Height="20"
-                Margin="4,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                Margin="4,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsActive), Mode=OneWay}" />
+            <!-- 已激活：实心图标 + 强调色。两个图标叠在同一格，靠可见性切换。 -->
+            <FontIcon Glyph="{x:Bind ActiveGlyph, Mode=OneWay}" FontSize="18" Width="20" Height="20"
+                Margin="4,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                Visibility="{x:Bind local:Formats.Visible(IsActive), Mode=OneWay}" />
             <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,0,0"
                 MinWidth="16" MaxWidth="40" Padding="3,1" CornerRadius="7"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"

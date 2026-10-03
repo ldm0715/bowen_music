@@ -504,6 +504,79 @@ public sealed class BodianApi : IBodianApi
             cancellationToken).ConfigureAwait(false);
     }
 
+    public Task AddPlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+        CancellationToken cancellationToken = default) =>
+        WritePlaylistMusicAsync(Endpoints.PlaylistMusic, playlistId, musicIds, "加歌", cancellationToken);
+
+    public Task RemovePlaylistMusicAsync(long playlistId, IReadOnlyList<long> musicIds,
+        CancellationToken cancellationToken = default) =>
+        WritePlaylistMusicAsync(Endpoints.PlaylistMusicDelete, playlistId, musicIds, "删歌", cancellationToken);
+
+    /// <summary>单次条数的上下限来自文档 2.4。</summary>
+    private const int MaxPlaylistMusicBatch = 100;
+
+    private async Task WritePlaylistMusicAsync(string path, long playlistId, IReadOnlyList<long> musicIds,
+        string operation, CancellationToken cancellationToken)
+    {
+        EnsurePlaylistId(playlistId);
+        ArgumentNullException.ThrowIfNull(musicIds);
+        if (musicIds.Count is < 1 or > MaxPlaylistMusicBatch)
+        {
+            throw new ArgumentOutOfRangeException(nameof(musicIds), musicIds.Count,
+                $"单次必须是 1–{MaxPlaylistMusicBatch} 首。");
+        }
+
+        foreach (var musicId in musicIds)
+        {
+            if (musicId <= 0) throw new ArgumentOutOfRangeException(nameof(musicIds), musicId, "曲目 id 必须是正数");
+        }
+
+        RequireAuthenticated();
+        var revision = _session.Revision;
+        var body = new PlaylistMusicBody { PlayListId = playlistId, MusicIdList = [.. musicIds] };
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = path,
+            Verb = BodianHttpVerb.Post,
+            Signed = true,
+            JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.PlaylistMusicBody),
+        }, BodianJsonContext.Default.JsonElement, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("歌单{Operation}请求已受理：歌单 {PlaylistId}，曲目 {MusicIds}，接口 {Path}，业务码 {Code}，reqId {RequestId}",
+            operation, playlistId, string.Join(',', musicIds), path, envelope.Code, envelope.RequestId);
+        if (revision != _session.Revision) throw new InvalidOperationException("登录状态已改变，请重新检查歌单。");
+    }
+
+    public async Task<ShareOutcome> ReportTrackShareAsync(long musicId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(musicId);
+
+        static string Text(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+        // 四个参数都是 int。shareTo=5 是「复制链接」，但它同样计入分享数（文档 2.8）。
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = Endpoints.ShareText,
+            Query =
+            [
+                new("shareTo", Text(Endpoints.ShareToCopyLink)),
+                new("shareSource", Text(Endpoints.ShareSourceSong)),
+                new("sourceId", musicId.ToString(CultureInfo.InvariantCulture)),
+                new("playlistType", Text(Endpoints.SharePlaylistType)),
+            ],
+            Signed = true,
+            AcceptedCodes = [BodianErrorCode.ShareUnsupported],
+        }, BodianJsonContext.Default.JsonElement, cancellationToken).ConfigureAwait(false);
+
+        var outcome = envelope.IsSuccess ? ShareOutcome.Succeeded
+            : envelope.ErrorCode == BodianErrorCode.ShareUnsupported ? ShareOutcome.Unsupported
+            : ShareOutcome.Failed;
+        _logger.LogInformation(
+            "分享上报：歌曲 {MusicId}，接口 {Path}，shareTo {ShareTo}，业务码 {Code}，结果 {Outcome}，reqId {RequestId}",
+            musicId, Endpoints.ShareText, Endpoints.ShareToCopyLink, envelope.Code, outcome, envelope.RequestId);
+        return outcome;
+    }
+
     // ── 专辑 ────────────────────────────────────────────────────────────────
 
     public async Task<Album?> GetAlbumAsync(long albumId, CancellationToken cancellationToken = default)

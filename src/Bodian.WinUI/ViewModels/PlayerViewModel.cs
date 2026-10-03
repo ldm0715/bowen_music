@@ -1,7 +1,11 @@
 using System.Collections.ObjectModel;
+using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services;
+using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Media;
 using Bodian.WinUI.Playback;
+using Bodian.WinUI.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -21,21 +25,29 @@ public sealed partial class PlayerViewModel : ObservableObject
 {
     private readonly PlaybackCoordinator _coordinator;
     private readonly IPlaybackService _engine;
+    private readonly BodianSession _session;
+    private readonly IClipboardService _clipboard;
     private readonly ILogger<PlayerViewModel> _logger;
 
     public PlayerViewModel(
         PlaybackCoordinator coordinator,
         IPlaybackService engine,
         TrackStatisticsViewModel statistics,
+        BodianSession session,
+        IClipboardService clipboard,
         ILogger<PlayerViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(statistics);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(clipboard);
         Statistics = statistics;
 
         _coordinator = coordinator;
         _engine = engine;
+        _session = session;
+        _clipboard = clipboard;
         _logger = logger ?? NullLogger<PlayerViewModel>.Instance;
 
         _coordinator.QualityOptionsChanged += (_, _) => RefreshQualityOptions();
@@ -258,6 +270,48 @@ public sealed partial class PlayerViewModel : ObservableObject
 
     [RelayCommand]
     private Task PreviousAsync() => _coordinator.PreviousAsync();
+
+    /// <summary>喜欢 / 取消喜欢当前曲目。已喜欢时点按是取消。</summary>
+    [RelayCommand]
+    private async Task ToggleFavoriteAsync()
+    {
+        var outcome = await Statistics.ToggleFavoriteAsync();
+        Notice = outcome switch
+        {
+            LikedSongsOutcome.Succeeded => "",
+            LikedSongsOutcome.NotAuthenticated => "登录后可以喜欢。",
+            LikedSongsOutcome.NoLikedPlaylist => "账号还没有「我喜欢的」歌单，暂时无法喜欢。",
+            LikedSongsOutcome.AlreadyPending => "",
+            _ => "操作没成功，请稍后再试。",
+        };
+    }
+
+    /// <summary>
+    /// 分享当前曲目：先上报（分享数 +1），再把本地拼的链接复制到剪贴板。
+    /// </summary>
+    /// <remarks>
+    /// 顺序照官方：「先上报并取文案 → 再拼链」。上报失败不影响复制 ——
+    /// 链接不发请求，只有分享计数依赖服务端。
+    /// </remarks>
+    [RelayCommand]
+    private async Task ShareAsync()
+    {
+        if (CurrentTrackId is not { } musicId || musicId <= 0) return;
+
+        var outcome = await Statistics.ReportShareAsync();
+
+        try
+        {
+            _clipboard.SetText(ShareLinks.BuildTrackLink(musicId, _session.Uid));
+            _logger.LogInformation("已复制分享链接：歌曲 {MusicId}，上报结果 {Outcome}", musicId, outcome);
+            Notice = outcome == ShareOutcome.Unsupported ? "该歌曲暂不支持分享，链接已复制。" : "已复制分享链接";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "复制分享链接失败：歌曲 {MusicId}", musicId);
+            Notice = "复制链接失败。";
+        }
+    }
 
     partial void OnVolumeChanged(double value) => _engine.SetVolume(value);
 

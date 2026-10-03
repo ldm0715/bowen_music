@@ -257,6 +257,52 @@ internal static class Endpoints
     /// </summary>
     public const string Collect = "service/collect";
 
+    /// <summary>
+    /// 歌单加歌 / 删歌。「我喜欢」的红心就是往账号的红心歌单增删曲目。
+    /// </summary>
+    /// <remarks>
+    /// 两条路径都在官方桌面端二进制里，<b>用默认 PC 请求头</b>（findings/06 §8）。
+    /// body 是 <c>{"playListId": &lt;number&gt;, "musicIdList": [&lt;number&gt;, ...]}</c>，
+    /// 单次 1–100 首。完整往返实测见文档 2.4。
+    /// </remarks>
+    public const string PlaylistMusic = "service/playlist/music";
+
+    /// <inheritdoc cref="PlaylistMusic"/>
+    public const string PlaylistMusicDelete = "service/playlist/music/delete";
+
+    /// <summary>
+    /// 分享上报：取分享文案，并<b>把该内容的分享数 +1</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>链接本身不经过服务端</b>，是客户端本地拼的（<see cref="ShareHost"/>），
+    /// 但分享动作必须调这里上报一次，否则分享数不涨。见文档 2.8（2026-10-03 实测）。
+    /// </para>
+    /// <para>query：<c>shareTo</c> / <c>shareSource</c> / <c>sourceId</c> / <c>playlistType</c>，四个都是 int。</para>
+    /// </remarks>
+    public const string ShareText = "service/share/text";
+
+    /// <summary>微信会话。</summary>
+    public const int ShareToWeChatSession = 0;
+
+    /// <summary>微信朋友圈。</summary>
+    public const int ShareToWeChatMoments = 1;
+
+    /// <summary>复制链接。<b>同样计入分享数</b>，本项目只用这一个。</summary>
+    public const int ShareToCopyLink = 5;
+
+    /// <summary>分享内容类型：歌曲。</summary>
+    public const int ShareSourceSong = 0;
+
+    /// <summary>分享上报的歌单类型参数，客户端默认值。</summary>
+    public const int SharePlaylistType = 4;
+
+    /// <summary>
+    /// 分享链接的 host。可被服务端远程配置覆盖，本项目不实现远程覆盖。
+    /// </summary>
+    /// <remarks>见文档 2.8：链接是客户端本地拼的，不走接口。</remarks>
+    public const string ShareHost = "https://h5app.kuwo.cn/m/bodian/";
+
     // ── 歌曲评论（android 请求头，读取、发布与点赞使用 v3）────────────────────────
 
     public const string SongCommentsRecommended = "comments/v3/hot";

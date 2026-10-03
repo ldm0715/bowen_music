@@ -33,6 +33,9 @@ public enum BodianErrorCode
     /// <summary>不可播放（实测文案「没有解锁付费歌曲」）。</summary>
     NotPlayable = 20018,
 
+    /// <summary>该曲目不支持分享（分享上报返回，文档 2.8）。**不是失败**，链接照旧能复制。</summary>
+    ShareUnsupported = 23006,
+
     /// <summary>响应体不是合法的 JSON 信封。</summary>
     MalformedResponse = -2,
 }
@@ -48,6 +51,7 @@ public static class BodianErrorCodeExtensions
         11027 => BodianErrorCode.LoginPending,
         20012 => BodianErrorCode.TrackOffline,
         20018 => BodianErrorCode.NotPlayable,
+        23006 => BodianErrorCode.ShareUnsupported,
         _ => BodianErrorCode.Unknown,
     };
 }

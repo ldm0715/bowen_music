@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Bodian.Core.Tests.Support;
 using Bodian.WinUI.ViewModels;
 using Xunit;
@@ -168,6 +169,186 @@ public sealed class TrackStatisticsViewModelTests
         await loading;
         Assert.Null(vm.FavoriteCount);
         Assert.Null(vm.ShareCount);
+    }
+
+    // ── 喜欢往返 ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Favorite_TogglesBothWaysAndMovesTheCountByOne()
+    {
+        var api = new PlaybackApiStub();
+        var liked = new LikedSongs();
+        using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
+        await vm.LoadAsync(Track(1, favorite: 10));
+        Assert.False(vm.IsFavorite);
+
+        Assert.Equal(LikedSongsOutcome.Succeeded, await vm.ToggleFavoriteAsync(Ct));
+        Assert.True(vm.IsFavorite);
+        Assert.Equal(11, vm.FavoriteCount);
+        Assert.Equal([(1L, true)], liked.Requests);
+
+        // 已喜欢时点按是取消，走反向。
+        Assert.Equal(LikedSongsOutcome.Succeeded, await vm.ToggleFavoriteAsync(Ct));
+        Assert.False(vm.IsFavorite);
+        Assert.Equal(10, vm.FavoriteCount);
+        Assert.Equal([(1L, true), (1L, false)], liked.Requests);
+    }
+
+    /// <summary>计数只在写成功之后动；失败时状态和数字都不能变。</summary>
+    [Fact]
+    public async Task Favorite_KeepsTheCountWhenTheWriteFails()
+    {
+        var api = new PlaybackApiStub();
+        var liked = new LikedSongs { Next = LikedSongsOutcome.Failed };
+        using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
+        await vm.LoadAsync(Track(1, favorite: 10));
+
+        Assert.Equal(LikedSongsOutcome.Failed, await vm.ToggleFavoriteAsync(Ct));
+        Assert.False(vm.IsFavorite);
+        Assert.Equal(10, vm.FavoriteCount);
+    }
+
+    [Theory]
+    [InlineData(LikedSongsOutcome.NotAuthenticated)]
+    [InlineData(LikedSongsOutcome.NoLikedPlaylist)]
+    [InlineData(LikedSongsOutcome.AlreadyPending)]
+    public async Task Favorite_LeavesStateAloneWhenItCannotWrite(LikedSongsOutcome outcome)
+    {
+        var api = new PlaybackApiStub();
+        var liked = new LikedSongs { Next = outcome };
+        using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
+        await vm.LoadAsync(Track(1, favorite: 10));
+
+        Assert.Equal(outcome, await vm.ToggleFavoriteAsync(Ct));
+        Assert.False(vm.IsFavorite);
+        Assert.Equal(10, vm.FavoriteCount);
+    }
+
+    /// <summary>计数未知时不能凭空造一个数字出来。</summary>
+    [Fact]
+    public async Task Favorite_LeavesAnUnknownCountUnknown()
+    {
+        var api = new PlaybackApiStub();
+        var liked = new LikedSongs();
+        using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
+        await vm.LoadAsync(Track(1, favorite: null));
+
+        Assert.Equal(LikedSongsOutcome.Succeeded, await vm.ToggleFavoriteAsync(Ct));
+        Assert.True(vm.IsFavorite);
+        Assert.Null(vm.FavoriteCount);
+    }
+
+    [Fact]
+    public async Task Favorite_ReflectsTheKnownSetOnTrackChange()
+    {
+        var api = new PlaybackApiStub();
+        var liked = new LikedSongs();
+        liked.Liked.Add(2);
+        using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
+
+        await vm.LoadAsync(Track(1, favorite: 3, share: 0, comment: 0));
+        Assert.False(vm.IsFavorite);
+
+        await vm.LoadAsync(Track(2, favorite: 3, share: 0, comment: 0));
+        Assert.True(vm.IsFavorite);
+    }
+
+    /// <summary>没有喜欢服务（离线测试宿主）时不能假装写成功。</summary>
+    [Fact]
+    public async Task Favorite_WithoutTheServiceReportsFailure()
+    {
+        var api = new PlaybackApiStub();
+        using var vm = new TrackStatisticsViewModel(api);
+        await vm.LoadAsync(Track(1, favorite: 10));
+
+        Assert.Equal(LikedSongsOutcome.Failed, await vm.ToggleFavoriteAsync(Ct));
+        Assert.Equal(10, vm.FavoriteCount);
+    }
+
+    // ── 分享上报 ────────────────────────────────────────────────────────────
+
+    /// <summary>上报是写操作：成功一次就 +1（文档 2.8 实测）。</summary>
+    [Fact]
+    public async Task Share_BumpsTheCountOnce()
+    {
+        var api = new PlaybackApiStub { ReportShare = (_, _) => Task.FromResult(ShareOutcome.Succeeded) };
+        using var vm = new TrackStatisticsViewModel(api);
+        await vm.LoadAsync(Track(1, favorite: 0, share: 42, comment: 0));
+
+        Assert.Equal(ShareOutcome.Succeeded, await vm.ReportShareAsync(Ct));
+        Assert.Equal(43, vm.ShareCount);
+    }
+
+    [Fact]
+    public async Task Share_KeepsTheCountWhenTheReportFails()
+    {
+        var api = new PlaybackApiStub { ReportShare = (_, _) => Task.FromResult(ShareOutcome.Failed) };
+        using var vm = new TrackStatisticsViewModel(api);
+        await vm.LoadAsync(Track(1, favorite: 0, share: 42, comment: 0));
+
+        Assert.Equal(ShareOutcome.Failed, await vm.ReportShareAsync(Ct));
+        Assert.Equal(42, vm.ShareCount);
+    }
+
+    /// <summary>不支持分享（23006）也不该动计数。</summary>
+    [Fact]
+    public async Task Share_KeepsTheCountWhenUnsupported()
+    {
+        var api = new PlaybackApiStub { ReportShare = (_, _) => Task.FromResult(ShareOutcome.Unsupported) };
+        using var vm = new TrackStatisticsViewModel(api);
+        await vm.LoadAsync(Track(1, favorite: 0, share: 42, comment: 0));
+
+        Assert.Equal(ShareOutcome.Unsupported, await vm.ReportShareAsync(Ct));
+        Assert.Equal(42, vm.ShareCount);
+    }
+
+    [Fact]
+    public async Task Share_LeavesAnUnknownCountUnknown()
+    {
+        var api = new PlaybackApiStub { ReportShare = (_, _) => Task.FromResult(ShareOutcome.Succeeded) };
+        using var vm = new TrackStatisticsViewModel(api);
+        await vm.LoadAsync(Track(1, favorite: 0, share: null, comment: 0));
+
+        Assert.Equal(ShareOutcome.Succeeded, await vm.ReportShareAsync(Ct));
+        Assert.Null(vm.ShareCount);
+    }
+
+    /// <summary>上报抛异常不能把分享流程带崩 —— 链接是本地拼的，照旧要能复制。</summary>
+    [Fact]
+    public async Task Share_SwallowsTransportFailures()
+    {
+        var api = new PlaybackApiStub { ReportShare = (_, _) => throw new HttpRequestException("网络不可用") };
+        using var vm = new TrackStatisticsViewModel(api);
+        await vm.LoadAsync(Track(1, favorite: 0, share: 42, comment: 0));
+
+        Assert.Equal(ShareOutcome.Failed, await vm.ReportShareAsync(Ct));
+        Assert.Equal(42, vm.ShareCount);
+    }
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private sealed class LikedSongs : ILikedSongsService
+    {
+        public HashSet<long> Liked { get; } = [];
+
+        /// <summary>下一次写请求的结果。</summary>
+        public LikedSongsOutcome Next { get; set; } = LikedSongsOutcome.Succeeded;
+
+        public List<(long Id, bool Liked)> Requests { get; } = [];
+
+        public Task<bool?> IsLikedAsync(long musicId, CancellationToken cancellationToken = default)
+            => Task.FromResult<bool?>(Liked.Contains(musicId));
+
+        public Task<LikedSongsOutcome> SetLikedAsync(long musicId, bool liked,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add((musicId, liked));
+            if (Next != LikedSongsOutcome.Succeeded) return Task.FromResult(Next);
+
+            if (liked) Liked.Add(musicId);
+            else Liked.Remove(musicId);
+            return Task.FromResult(LikedSongsOutcome.Succeeded);
+        }
     }
 
     private sealed class Requests

@@ -114,6 +114,9 @@ public partial class App : Application
         builder.Services.AddSingleton<INavigationService, NavigationService>();
         builder.Services.AddSingleton<IQrImageFactory, QrImageFactory>();
         builder.Services.AddSingleton<IStartMenuShortcutInstaller, StartMenuShortcutInstaller>();
+        builder.Services.AddSingleton<IClipboardService, ClipboardService>();
+        // 喜欢状态是会话级缓存，必须单例：播放条与歌词页共享同一份。
+        builder.Services.AddSingleton<ILikedSongsService, LikedSongsService>();
 
         builder.Services.AddSingleton<MainWindow>();
 

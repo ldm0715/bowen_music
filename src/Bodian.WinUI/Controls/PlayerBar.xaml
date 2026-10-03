@@ -148,13 +148,16 @@
                         TextTrimming="CharacterEllipsis" />
                 </Grid>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0">
-                    <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;"
+                    <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;" ActiveGlyph="&#xEB52;"
                         IsEnabled="{x:Bind ViewModel.HasTrack, Mode=OneWay}"
+                        IsActive="{x:Bind ViewModel.Statistics.IsFavorite, Mode=OneWay}"
+                        Command="{x:Bind ViewModel.ToggleFavoriteCommand}"
                         Label="{x:Bind ViewModel.Statistics.FavoriteAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind ViewModel.Statistics.FavoriteBadgeText, Mode=OneWay}"
                         HasBadgeCount="{x:Bind ViewModel.Statistics.HasFavoriteCount, Mode=OneWay}" />
                     <controls:TrackStatisticButton x:Name="ShareButton" Glyph="&#xE72D;"
                         IsEnabled="{x:Bind ViewModel.HasTrack, Mode=OneWay}"
+                        Command="{x:Bind ViewModel.ShareCommand}"
                         Label="{x:Bind ViewModel.Statistics.ShareAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind ViewModel.Statistics.ShareBadgeText, Mode=OneWay}"
                         HasBadgeCount="{x:Bind ViewModel.Statistics.HasShareCount, Mode=OneWay}" />
