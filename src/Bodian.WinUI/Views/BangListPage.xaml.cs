@@ -84,7 +84,11 @@ public sealed partial class BangListPage : Page, INavigationAware
 
     private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (args.InRecycleQueue && args.Item is TrackRow row) row.IsPointerOver = false;
+        if (args.InRecycleQueue && args.Item is TrackRow row)
+        {
+            row.IsPointerOver = false;
+            row.IsMenuOpen = false;
+        }
     }
 
     private void OnPreviewRowPointerEntered(object sender, PointerRoutedEventArgs e) => SetPointerOver(sender, true);

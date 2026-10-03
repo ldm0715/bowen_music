@@ -1,0 +1,82 @@
+using Bodian.Core.Api;
+using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
+using Bodian.WinUI.ViewModels;
+using Bodian.WinUI.Views;
+using Microsoft.Extensions.Logging;
+
+namespace Bodian.WinUI.Services;
+
+/// <summary>
+/// 曲目行「更多」菜单的装配点：把数据、导航与提示凑到一起，每次打开菜单现造一个
+/// <see cref="TrackActionsViewModel"/>。
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>为什么要有这一层</b>：<see cref="TrackActionsViewModel"/> 刻意不碰任何 WinUI 类型
+/// —— 这样它才能被 link 进离线测试工程。代价是导航与提示必须从外面注入，这个类就是那个外面。
+/// </para>
+/// <para>
+/// <b>走 App 资源而不是构造注入</b>：放它的行内控件是 XAML 实例化的，构造函数必须无参、
+/// 拿不到 DI 容器。这与 <c>TrackListView.NowPlaying</c> 是同一处例外，理由见那里的注释。
+/// </para>
+/// </remarks>
+public sealed class TrackActionsService : ITrackNavigator, INoticeSink
+{
+    /// <summary>行内提示挂多久。播放条上那条提示平时要挂到下一首开播，这里不能那么久。</summary>
+    private static readonly TimeSpan NoticeDuration = TimeSpan.FromSeconds(3);
+
+    private readonly IBodianApi _api;
+    private readonly ILikedSongsService _likedSongs;
+    private readonly INavigationService _navigation;
+    private readonly Func<Artist, ArtistDetailPage> _artistFactory;
+    private readonly Func<Album, AlbumDetailPage> _albumFactory;
+    private readonly PlayerViewModel _player;
+    private readonly ILoggerFactory _loggerFactory;
+
+    public TrackActionsService(
+        IBodianApi api,
+        ILikedSongsService likedSongs,
+        INavigationService navigation,
+        Func<Artist, ArtistDetailPage> artistFactory,
+        Func<Album, AlbumDetailPage> albumFactory,
+        PlayerViewModel player,
+        ILoggerFactory loggerFactory)
+    {
+        ArgumentNullException.ThrowIfNull(api);
+        ArgumentNullException.ThrowIfNull(likedSongs);
+        ArgumentNullException.ThrowIfNull(navigation);
+        ArgumentNullException.ThrowIfNull(artistFactory);
+        ArgumentNullException.ThrowIfNull(albumFactory);
+        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+
+        _api = api;
+        _likedSongs = likedSongs;
+        _navigation = navigation;
+        _artistFactory = artistFactory;
+        _albumFactory = albumFactory;
+        _player = player;
+        _loggerFactory = loggerFactory;
+    }
+
+    /// <summary>给一行曲目造菜单状态。行控件在 <c>Row</c> 变化时调它，旧实例丢掉即可。</summary>
+    public TrackActionsViewModel Create(Track track) => new(
+        track,
+        _api,
+        this,
+        this,
+        _likedSongs,
+        _loggerFactory.CreateLogger<TrackActionsViewModel>());
+
+    /// <remarks>
+    /// <b>压栈而不是换根</b>：侧栏该继续高亮用户原来所在的那一页，
+    /// 与搜索页点歌手/专辑结果时的行为一致。
+    /// </remarks>
+    void ITrackNavigator.OpenArtist(Artist artist) => _navigation.Navigate(_artistFactory(artist));
+
+    /// <inheritdoc cref="ITrackNavigator.OpenArtist"/>
+    void ITrackNavigator.OpenAlbum(Album album) => _navigation.Navigate(_albumFactory(album));
+
+    void INoticeSink.Show(string message) => _player.TransientNotice(message, NoticeDuration);
+}

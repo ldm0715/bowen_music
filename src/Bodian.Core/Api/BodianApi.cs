@@ -1292,6 +1292,7 @@ public sealed class BodianApi : IBodianApi
             ArtistText = dto.Artist ?? JoinArtists(dto.Artists),
             Artists = dto.Artists?.Select(a => new TrackArtist(a.Id, a.Name ?? "", ToHttpUri(a.Pic))).ToArray() ?? [],
             AlbumName = dto.Album,
+            AlbumId = dto.AlbumId,
 
             // 120px 那张更省流量，列表里够用；缺了才退回大图。
             CoverImage = ToHttpUri(dto.AlbumPic120) ?? ToHttpUri(dto.AlbumPic),

@@ -307,7 +307,13 @@ public sealed partial class TrackListView : UserControl
 
     private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (args.InRecycleQueue && args.Item is TrackRow row) row.IsPointerOver = false;
+        // 回收时要连菜单状态一起清：容器接着会去装别的曲目，
+        // 留着 IsMenuOpen 会让那一行的「更多」按钮一直显示。
+        if (args.InRecycleQueue && args.Item is TrackRow row)
+        {
+            row.IsPointerOver = false;
+            row.IsMenuOpen = false;
+        }
     }
 
     private void OnItemClick(object sender, ItemClickEventArgs e)

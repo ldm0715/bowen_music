@@ -87,7 +87,8 @@ public sealed partial class MainWindow : Window
         SearchViewModel search,
         ThemeViewModel theme,
         IWindowPlacementStore placement,
-        Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory)
+        Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory,
+        TrackActionsService trackActions)
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(login);
@@ -99,6 +100,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(theme);
         ArgumentNullException.ThrowIfNull(placement);
         ArgumentNullException.ThrowIfNull(playlistDetailFactory);
+        ArgumentNullException.ThrowIfNull(trackActions);
 
         _navigation = navigation;
         _login = login;
@@ -136,6 +138,10 @@ public sealed partial class MainWindow : Window
         //   而这里放一份引用就够了。控件侧仍保留一个 NowPlaying 依赖属性，
         //   显式指定时优先 —— 见 TrackListView.NowPlaying 的说明。
         Application.Current.Resources["BodianNowPlaying"] = playerViewModel;
+
+        // 曲目行「更多」菜单的装配点。同一个理由：行内控件是 XAML 实例化的，
+        // 构造函数拿不到容器，显式传就要改 9 份宿主 XAML 与它们的 ViewModel。
+        Application.Current.Resources["BodianTrackActions"] = trackActions;
 
         ApplyWindowPlacement();
         ConfigureTitleBar();

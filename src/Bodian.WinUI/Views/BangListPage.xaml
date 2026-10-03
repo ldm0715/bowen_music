@@ -61,18 +61,23 @@
                 所以「下一首」在榜内有效（与搜索页同一套行为）。
             -->
             <Grid
-                Padding="4,5,16,5"
+                Padding="4,5,8,5"
                 ColumnSpacing="10"
                 Background="Transparent"
                 PointerEntered="OnPreviewRowPointerEntered"
                 PointerExited="OnPreviewRowPointerExited"
                 Tag="{x:Bind}"
                 Tapped="OnTrackTapped">
+                <!--
+                    这一份与共享列表那份不共用列宽：预览行更矮、时长靠左。
+                    末尾的「更多」列同样定宽，理由见 TrackListView.xaml。
+                -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="32" />
                 </Grid.ColumnDefinitions>
 
                 <!-- 名次列三态互斥：正在播放 → 波普条；悬停 → 播放键；其余 → 名次 -->
@@ -150,6 +155,12 @@
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind DurationText}" />
+
+                <!-- 行根的 Tapped 管点播，按钮会自己吞掉点击 —— 与表头那颗「更多」同一套做法。 -->
+                <controls:TrackMoreButton
+                    Grid.Column="4"
+                    VerticalAlignment="Center"
+                    Row="{x:Bind}" />
             </Grid>
         </DataTemplate>
         <controls:ResultTemplateSelector x:Key="RankTemplateSelector"

@@ -62,7 +62,13 @@ public sealed partial class SearchPage : Page, INavigationAware
     private void OnOverviewRowPointerExited(object sender, PointerRoutedEventArgs args)
     { if (sender is FrameworkElement { DataContext: TrackRow row }) row.IsPointerOver = false; }
     private void OnOverviewContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-    { if (args.InRecycleQueue && args.Item is TrackRow row) row.IsPointerOver = false; }
+    {
+        if (args.InRecycleQueue && args.Item is TrackRow row)
+        {
+            row.IsPointerOver = false;
+            row.IsMenuOpen = false;
+        }
+    }
     private void OnOverviewItemClick(object sender, ItemClickEventArgs args)
     {
         switch (args.ClickedItem)

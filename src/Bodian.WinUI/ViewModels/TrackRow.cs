@@ -29,6 +29,9 @@ namespace Bodian.WinUI.ViewModels;
 /// 序号列是三态互斥的：<b>正在播放 → 频谱条；鼠标悬停 → 播放键；其余 → 序号</b>。
 /// 三个 <c>Visibility</c> 由本类统一算，绑定方不必自己拼条件。
 /// </para>
+/// <para>
+/// 行尾的「更多」按钮同样由本类算：<b>悬停或菜单开着时可见</b>，见 <see cref="MoreVisibility"/>。
+/// </para>
 /// </remarks>
 public sealed partial class TrackRow : ObservableObject
 {
@@ -71,8 +74,20 @@ public sealed partial class TrackRow : ObservableObject
 
     /// <summary>鼠标是否在这一行上。由行的 <c>PointerEntered</c> / <c>PointerExited</c> 驱动。</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility))]
+    [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility), nameof(MoreVisibility))]
     public partial bool IsPointerOver { get; set; }
+
+    /// <summary>
+    /// 这一行的「更多」菜单是不是开着。
+    /// </summary>
+    /// <remarks>
+    /// <b>没有这个状态位，菜单一打开就会自己关掉</b>：菜单在 <c>Popup</c> 里，鼠标移进去的瞬间
+    /// 行收到 <c>PointerExited</c>、<see cref="IsPointerOver"/> 变回 <c>false</c>，按钮随之折叠，
+    /// 而按钮折叠会把它的 Flyout 一起带走。症状是「点了没反应」，光看代码很难发现。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MoreVisibility))]
+    public partial bool IsMenuOpen { get; set; }
 
     /// <summary>这一行是不是当前正在播放的那首。</summary>
     [ObservableProperty]
@@ -84,6 +99,9 @@ public sealed partial class TrackRow : ObservableObject
     public Visibility PlayGlyphVisibility => Vis(!IsCurrent && IsPointerOver);
 
     public Visibility IndexVisibility => Vis(!IsCurrent && !IsPointerOver);
+
+    /// <summary>行尾「更多」按钮：悬停或菜单开着时可见。</summary>
+    public Visibility MoreVisibility => Vis(IsPointerOver || IsMenuOpen);
 
     private static Visibility Vis(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 }

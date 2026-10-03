@@ -118,6 +118,12 @@ public partial class App : Application
         // 喜欢状态是会话级缓存，必须单例：播放条与歌词页共享同一份。
         builder.Services.AddSingleton<ILikedSongsService, LikedSongsService>();
 
+        // 曲目行「更多」菜单的装配点。两个接口指向同一个实例：
+        // 行内控件从 App 资源拿它，而动作 ViewModel 只认那两个接口（这样才能进离线测试）。
+        builder.Services.AddSingleton<TrackActionsService>();
+        builder.Services.AddSingleton<ITrackNavigator>(sp => sp.GetRequiredService<TrackActionsService>());
+        builder.Services.AddSingleton<INoticeSink>(sp => sp.GetRequiredService<TrackActionsService>());
+
         builder.Services.AddSingleton<MainWindow>();
 
         // 播放条与侧栏常驻，所以这几个 ViewModel 是单例；页面则每次导航新建。

@@ -37,6 +37,12 @@
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentsViewModel.cs" Link="ViewModels\SongCommentsViewModel.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentRow.cs" Link="ViewModels\SongCommentRow.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\TrackStatisticsViewModel.cs" Link="ViewModels\TrackStatisticsViewModel.cs" />
+    <!-- 曲目行「更多」菜单。它只依赖 Core 与下面两个接口，所以能离屏测；
+         真正的实现 Services\TrackActionsService.cs 依赖导航与页面，链进来编不过。 -->
+    <Compile Include="..\..\src\Bodian.WinUI\ViewModels\TrackActionsViewModel.cs" Link="ViewModels\TrackActionsViewModel.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\ViewModels\TrackMenuEntry.cs" Link="ViewModels\TrackMenuEntry.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\Services\ITrackNavigator.cs" Link="Services\ITrackNavigator.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\Services\INoticeSink.cs" Link="Services\INoticeSink.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Playback\PlaybackCoordinator.cs" Link="Playback\PlaybackCoordinator.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Playback\PlaybackTypes.cs" Link="Playback\PlaybackTypes.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Playback\PlayQueue.cs" Link="Playback\PlayQueue.cs" />

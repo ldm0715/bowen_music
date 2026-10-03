@@ -177,7 +177,7 @@ public sealed class TrackStatisticsViewModelTests
     public async Task Favorite_TogglesBothWaysAndMovesTheCountByOne()
     {
         var api = new PlaybackApiStub();
-        var liked = new LikedSongs();
+        var liked = new LikedSongsStub();
         using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
         await vm.LoadAsync(Track(1, favorite: 10));
         Assert.False(vm.IsFavorite);
@@ -199,7 +199,7 @@ public sealed class TrackStatisticsViewModelTests
     public async Task Favorite_KeepsTheCountWhenTheWriteFails()
     {
         var api = new PlaybackApiStub();
-        var liked = new LikedSongs { Next = LikedSongsOutcome.Failed };
+        var liked = new LikedSongsStub { Next = LikedSongsOutcome.Failed };
         using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
         await vm.LoadAsync(Track(1, favorite: 10));
 
@@ -215,7 +215,7 @@ public sealed class TrackStatisticsViewModelTests
     public async Task Favorite_LeavesStateAloneWhenItCannotWrite(LikedSongsOutcome outcome)
     {
         var api = new PlaybackApiStub();
-        var liked = new LikedSongs { Next = outcome };
+        var liked = new LikedSongsStub { Next = outcome };
         using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
         await vm.LoadAsync(Track(1, favorite: 10));
 
@@ -229,7 +229,7 @@ public sealed class TrackStatisticsViewModelTests
     public async Task Favorite_LeavesAnUnknownCountUnknown()
     {
         var api = new PlaybackApiStub();
-        var liked = new LikedSongs();
+        var liked = new LikedSongsStub();
         using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
         await vm.LoadAsync(Track(1, favorite: null));
 
@@ -242,7 +242,7 @@ public sealed class TrackStatisticsViewModelTests
     public async Task Favorite_ReflectsTheKnownSetOnTrackChange()
     {
         var api = new PlaybackApiStub();
-        var liked = new LikedSongs();
+        var liked = new LikedSongsStub();
         liked.Liked.Add(2);
         using var vm = new TrackStatisticsViewModel(api, likedSongs: liked);
 
@@ -326,30 +326,6 @@ public sealed class TrackStatisticsViewModelTests
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-
-    private sealed class LikedSongs : ILikedSongsService
-    {
-        public HashSet<long> Liked { get; } = [];
-
-        /// <summary>下一次写请求的结果。</summary>
-        public LikedSongsOutcome Next { get; set; } = LikedSongsOutcome.Succeeded;
-
-        public List<(long Id, bool Liked)> Requests { get; } = [];
-
-        public Task<bool?> IsLikedAsync(long musicId, CancellationToken cancellationToken = default)
-            => Task.FromResult<bool?>(Liked.Contains(musicId));
-
-        public Task<LikedSongsOutcome> SetLikedAsync(long musicId, bool liked,
-            CancellationToken cancellationToken = default)
-        {
-            Requests.Add((musicId, liked));
-            if (Next != LikedSongsOutcome.Succeeded) return Task.FromResult(Next);
-
-            if (liked) Liked.Add(musicId);
-            else Liked.Remove(musicId);
-            return Task.FromResult(LikedSongsOutcome.Succeeded);
-        }
-    }
 
     private sealed class Requests
     {

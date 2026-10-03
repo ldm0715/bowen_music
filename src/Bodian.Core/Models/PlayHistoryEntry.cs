@@ -35,6 +35,15 @@ public sealed record PlayHistoryEntry
 
     public string? AlbumName { get; init; }
 
+    /// <summary>
+    /// 专辑 id 快照。0 表示写下这条记录时服务端没给。
+    /// </summary>
+    /// <remarks>
+    /// 早于这个字段的历史文件里没有这个键，反序列化后是 0 ——「查看专辑」对这类旧条目
+    /// 表现为禁用，不会崩。
+    /// </remarks>
+    public long AlbumId { get; init; }
+
     public Uri? CoverImage { get; init; }
 
     /// <summary>时长，单位秒。存秒是为了让 JSON 可读、且不依赖 <see cref="TimeSpan"/> 的序列化格式。</summary>
@@ -68,6 +77,7 @@ public sealed record PlayHistoryEntry
             Title = track.Title,
             ArtistText = track.ArtistText,
             AlbumName = track.AlbumName,
+            AlbumId = track.AlbumId,
             CoverImage = track.CoverImage,
             DurationSeconds = (int)track.Duration.TotalSeconds,
             AvailableQualities = track.AvailableQualities.Where(q => Enum.IsDefined(q)).Distinct().OrderDescending().ToArray(),
@@ -81,7 +91,8 @@ public sealed record PlayHistoryEntry
     /// 还原成可展示、可点播的曲目。
     /// </summary>
     /// <remarks>
-    /// <b>艺人明细与歌词轨信息是空的</b>：前者这份快照没存，后者要现查。
+    /// <b>艺人明细与歌词轨信息是空的</b>：artistId 这份快照没存（要「查看歌手」只能现查一次详情），
+    /// 歌词轨也要现查。专辑 id 则存了 —— 只多一个数字，却能让「查看专辑」在这一页直接用。
     /// 歌词轨为 <c>null</c> 时取词会走「先试逐字、空了再退逐行」的兜底，是正确的降级。
     /// </remarks>
     public Track ToTrack() => new()
@@ -90,6 +101,7 @@ public sealed record PlayHistoryEntry
         Title = Title,
         ArtistText = ArtistText,
         AlbumName = AlbumName,
+        AlbumId = AlbumId,
         CoverImage = CoverImage,
         Duration = TimeSpan.FromSeconds(DurationSeconds),
         AvailableQualities = AvailableQualities.Where(q => Enum.IsDefined(q)).Distinct().OrderDescending().ToArray(),

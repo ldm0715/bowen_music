@@ -35,6 +35,16 @@ public sealed record Track
     /// <summary>专辑名。</summary>
     public string? AlbumName { get; init; }
 
+    /// <summary>
+    /// 专辑 id，供「查看专辑」跳详情用。
+    /// </summary>
+    /// <remarks>
+    /// <b>0 表示服务端没给这个字段</b> —— 从本地历史重建出来的曲目就是这种。
+    /// 调用方不得拿它去请求 <c>service/album/{id}</c>：<c>GetAlbumAsync</c> 对小于等于 0 的 id
+    /// 直接抛异常。它与 <see cref="AlbumName"/> 互相独立，名字可能为空而 id 有效，反之亦然。
+    /// </remarks>
+    public long AlbumId { get; init; }
+
     /// <summary>封面地址。优先取 120px 那张，缺了才用大图。</summary>
     public Uri? CoverImage { get; init; }
 

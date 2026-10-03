@@ -29,6 +29,9 @@ public sealed partial class PlayerViewModel : ObservableObject
     private readonly IClipboardService _clipboard;
     private readonly ILogger<PlayerViewModel> _logger;
 
+    /// <summary>最近一条定时提示的序号，用来判断「到期该清的是不是我这一条」。</summary>
+    private int _noticeGeneration;
+
     public PlayerViewModel(
         PlaybackCoordinator coordinator,
         IPlaybackService engine,
@@ -225,6 +228,43 @@ public sealed partial class PlayerViewModel : ObservableObject
     public partial string Notice { get; set; } = "";
 
     public bool HasNotice => Notice.Length > 0;
+
+    /// <summary>
+    /// 显示一条到点自己消失的提示。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Notice"/> 平时只在整曲开始播放时被清空，播放条上那个 InfoBar 又设了不可关闭 ——
+    /// 「已加入歌单」这类一次性反馈挂在那里会一直留到下一首播完。所以行内动作走这里。
+    /// </para>
+    /// <para>
+    /// <b>到期时还要比对文案，不只看序号</b>：播放引擎自己也会写 <see cref="Notice"/>
+    /// （音质降级、播放被拒），那些不经过这里。中途被别的提示顶掉时就不清，
+    /// 免得把播放的提示误清掉。
+    /// </para>
+    /// </remarks>
+    public void TransientNotice(string message, TimeSpan? duration = null)
+    {
+        Notice = message;
+
+        if (message.Length == 0)
+        {
+            return;
+        }
+
+        var generation = ++_noticeGeneration;
+        _ = ClearNoticeAfterAsync(generation, message, duration ?? TimeSpan.FromSeconds(3));
+    }
+
+    private async Task ClearNoticeAfterAsync(int generation, string message, TimeSpan delay)
+    {
+        await Task.Delay(delay).ConfigureAwait(true);
+
+        if (generation == _noticeGeneration && Notice == message)
+        {
+            Notice = "";
+        }
+    }
 
     /// <summary>
     /// 用户正在拖动进度条。由界面在按下/松开时设置。

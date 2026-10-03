@@ -56,7 +56,11 @@
                     列宽写的是字面量而不是 token：ColumnDefinition.Width 是 GridLength，
                     而 token 定义的是 x:Double —— {StaticResource} 返回的是 double 对象，
                     赋给 GridLength 会类型不匹配。数值与 Tokens.xaml 里的
-                    SizeRowOrdinalColumn / SizeRowDurationColumn 一致，改的时候两处一起改。
+                    SizeRowOrdinalColumn / SizeRowDurationColumn / SizeRowActionColumn 一致，
+                    改的时候两处一起改。
+
+                    这份模板与 TrackListView 里那份是复制关系，改一处要同步另一处。
+                    最后一列同理**必须定宽**，用 Auto 会随悬停塌缩、整行抖动。
                 -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="32" />
@@ -64,6 +68,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="0.7*" />
                     <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="32" />
                 </Grid.ColumnDefinitions>
 
                 <!--
@@ -172,6 +177,11 @@
                     FontSize="{StaticResource FontSizeCaption}"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                     Text="{x:Bind DurationText}" />
+
+                <controls:TrackMoreButton
+                    Grid.Column="5"
+                    VerticalAlignment="Center"
+                    Row="{x:Bind}" />
             </Grid>
         </DataTemplate>
         <controls:ResultTemplateSelector x:Key="OverviewTemplateSelector"

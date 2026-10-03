@@ -662,3 +662,66 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留，理由与�
 **验证**：WinUI 构建通过，0 错误、1 个既有 `AiPlaylistPage.xaml:27` WMC1506 警告；802 项离线测试通过。
 三处都是显示层改动，不涉及 Core，测试数未变。界面观感（专辑列与曲名列的宽度关系、
 12 字符截断的实际效果）待用户手动验收。
+
+
+## 15. 曲目行「更多」菜单（2026-10-03）
+
+行尾悬停出现一颗「更多」按钮，点开是四项：我喜欢、添加到歌单、查看歌手、查看专辑。
+四个动作走什么接口见 [`like-share.md`](like-share.md)，这里只记界面、几何与接线。
+
+### 15.1 几何：时长左移 32 DIP
+
+§14.1 刚把列表从 6 列减到 5 列，这一节又补回第 6 列 —— 行尾多了一颗按钮：
+
+```
+32 / Auto / * / 0.7* / 40 / 32      序号 / 封面 / 曲名 / 专辑 / 时长 / 更多
+```
+
+**最后一列必须定宽**（`SizeRowActionColumn = 32`）：按钮未悬停时是折叠的，
+用 `Auto` 会塌成 0，一悬停整行宽度突变、时长跟着左右跳。
+
+行内右边距 `SpaceRowPadding` 从 `4,0,16,0` 收到 **`4,0,8,0`**。原本那 16 是为了让时间
+不贴住悬浮背景的圆角；现在紧贴圆角的是按钮（自带静默热区），收回 8 DIP 后，
+「更多」图标的右边缘正好落在时长原先结束的位置。净效果是**时长右边缘左移 32 DIP**，
+`*` 与 `0.7*` 两列按 1:0.7 分摊这 40 DIP。
+
+三份行模板都改了：共享 `TrackListView`、搜索页的 `OverviewTrackTemplate`、
+榜单页的 `PreviewTrackTemplate`（那份列宽与内边距自成一档，末尾同样加了一列定宽 32）。
+
+### 15.2 悬停显示：两个状态位，不是一个
+
+判据是 `TrackRow.MoreVisibility => IsPointerOver || IsMenuOpen`。
+
+**第二个状态位不能省。** 菜单在 `Popup` 里，鼠标从行移进菜单的瞬间，行会收到 `PointerExited`、
+`IsPointerOver` 变回 false，按钮随之折叠 —— 而按钮折叠会把它的 Flyout 一起带走。
+症状是「点了没反应」，光读代码很难发现。`IsMenuOpen` 由 Flyout 的 `Opening` / `Closed` 维护；
+容器被回收时（`ContainerContentChanging`）也要一并清掉，否则菜单会挂到新滚进来的那行上。
+
+### 15.3 控件与服务怎么接线
+
+按钮做成了 `Controls/TrackMoreButton.xaml`，行模板只给它一个 `Row`：
+
+- **不把按钮写进三份模板**，否则就是三份要同步的复制品。
+- 菜单的状态与动作在 `ViewModels/TrackActionsViewModel.cs`，它**只依赖 Core 的模型和两个自制接口**
+  （`ITrackNavigator` / `INoticeSink`），因此能被 link 进离线测试工程，四条动作的分支全都有单测。
+- 真正拿导航与提示去干活的 `Services/TrackActionsService.cs` 是单例，靠
+  `Application.Current.Resources["BodianTrackActions"]` 交给控件 ——
+  与 `BodianNowPlaying` 同一处例外（XAML 实例化的控件拿不到 DI 容器）。
+- 选歌单是**同一个 Flyout 内换面板**，不是弹第二个 Flyout：二级弹层在会被回收的行容器里定位不可靠。
+- 弹层宽度**随内容走**，不写死（四个动作都是短文案，定宽会留出一片空白），
+  上限 240 DIP —— 再宽就让歌单名按 `TextTrimming` 截断。
+  代价是切到歌单那一面时弹层会跟着变一下宽度。
+- 提示走 `PlayerViewModel.TransientNotice`（3 秒后自己消失）。播放条上那条 `Notice` 平时只在
+  整曲开始播放时才清空、InfoBar 又设了不可关闭，「已加入歌单」挂在那里会一直留到下一首播完。
+- 从曲目跳到歌手页时，`Artist` 的两个计数是未知的，`ArtistDetailPage` 头部那一行据此不显示 ——
+  否则会写成「0 首歌曲 · 0 张专辑」。
+
+### 15.4 已知取舍
+
+按钮只在悬停时出现，**键盘用户 Tab 到行上看不到它**，也就无法用键盘打开菜单。
+这是按用户要求做的取舍，不是遗漏。
+
+**验证**：WinUI 构建通过，0 错误、1 个既有 `AiPlaylistPage.xaml:27` WMC1506 警告；
+822 项离线测试通过（新增 20 项，覆盖四条动作的成功与失败路径）。
+图标码位的实际渲染、悬停显隐、菜单打开时按钮是否保持可见，以及两条真实写请求
+（喜欢、加入歌单）均未人工验收。

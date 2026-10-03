@@ -47,9 +47,11 @@ internal sealed class PlaybackApiStub : IBodianApi
         public Task<PlaybackResolution> ResolvePlaybackAsync(Track track, AudioQuality quality, CancellationToken cancellationToken = default)
             => Resolve(track, quality, cancellationToken);
 
+        public Func<CancellationToken, Task<IReadOnlyList<Playlist>>> GetCreatedPlaylists { get; set; } =
+            _ => throw new NotSupportedException();
         public Task<IReadOnlyList<Playlist>> GetCreatedPlaylistsAsync(
             CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+            => GetCreatedPlaylists(cancellationToken);
 
         public Func<CancellationToken, Task<Playlist?>> GetLikedPlaylist { get; set; } =
             _ => throw new NotSupportedException();

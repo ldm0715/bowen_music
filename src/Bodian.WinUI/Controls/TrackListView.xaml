@@ -61,7 +61,11 @@
                         列宽写的是字面量而不是 token：ColumnDefinition.Width 是 GridLength，
                         而 token 定义的是 x:Double —— {StaticResource} 返回的是 double 对象，
                         赋给 GridLength 会类型不匹配。数值与 Tokens.xaml 里的
-                        SizeRowOrdinalColumn / SizeRowDurationColumn 一致，改的时候两处一起改。
+                        SizeRowOrdinalColumn / SizeRowDurationColumn / SizeRowActionColumn 一致，
+                        改的时候两处一起改。
+
+                        最后一列是行尾的「更多」按钮，**必须定宽**：按钮未悬停时是折叠的，
+                        用 Auto 会塌成 0，一悬停整行宽度突变、时长跟着左右跳。
                     -->
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="32" />
@@ -69,6 +73,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="0.7*" />
                         <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="32" />
                     </Grid.ColumnDefinitions>
 
                     <!--
@@ -177,6 +182,12 @@
                         FontSize="{StaticResource FontSizeCaption}"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Text="{x:Bind DurationText}" />
+
+                    <!-- 悬停才出现的「更多」。显隐由控件自己按 MoreVisibility 绑，这里只给数据。 -->
+                    <controls:TrackMoreButton
+                        Grid.Column="5"
+                        VerticalAlignment="Center"
+                        Row="{x:Bind}" />
                 </Grid>
             </DataTemplate>
         </controls:VirtualizedListView.ItemTemplate>

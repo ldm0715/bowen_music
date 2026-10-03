@@ -31,6 +31,9 @@
     <x:Double x:Key="SizeRowHeight">64</x:Double>
     <x:Double x:Key="SizeRowOrdinalColumn">32</x:Double>
     <x:Double x:Key="SizeRowDurationColumn">40</x:Double>
+    <!-- 行尾「更多」按钮的列宽。定宽而不是 Auto：按钮未悬停时是折叠的，
+         Auto 列会塌成 0，一悬停整行宽度突变、时长跟着左右跳。 -->
+    <x:Double x:Key="SizeRowActionColumn">32</x:Double>
 
     <!-- 封面。列表行与播放条共用 Row 这一档 -->
     <x:Double x:Key="SizeCoverRow">48</x:Double>
@@ -124,8 +127,10 @@
     <Thickness x:Key="SpacePagePadding">24,16</Thickness>
     <!-- 曲目页靠近侧栏；保留右侧与上下的原有留白 -->
     <Thickness x:Key="SpaceTrackPagePadding">12,16,24,16</Thickness>
-    <!-- 行悬浮背景内侧单独留 16px，时间不会贴住背景圆角 -->
-    <Thickness x:Key="SpaceRowPadding">4,0,16,0</Thickness>
+    <!-- 行悬浮背景内侧留 8px。原本是 16，为的是让时间不贴住背景圆角；
+         行尾加了「更多」按钮后，紧贴圆角的是那颗按钮（它自带静默热区），
+         于是收回 8px，让图标右边缘落在时间原先结束的位置。 -->
+    <Thickness x:Key="SpaceRowPadding">4,0,8,0</Thickness>
     <!-- 内容在浮动纵向滚动条内侧结束；左侧保持紧凑，不随滚动条显隐跳动 -->
     <Thickness x:Key="SpaceVerticalScrollContentPadding">0,0,24,0</Thickness>
     <x:Double x:Key="SpaceSection">12</x:Double>
