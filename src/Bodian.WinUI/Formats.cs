@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bodian.Core.Models;
 using Bodian.WinUI.Media;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -75,6 +76,15 @@ public static class Formats
 
     /// <summary>专辑条目右侧的曲目数。0 时留空 —— 「0 首」在列表里只是噪音。</summary>
     public static string AlbumCount(int count) => count > 0 ? $"{count} 首" : "";
+
+    /// <summary>
+    /// 曲目数角标要不要显示。
+    /// </summary>
+    /// <remarks>
+    /// 曲目数为 0 表示这个来源没给这个字段（不是「这张专辑是空的」），
+    /// 那时连角标本身都不该出现 —— 只让文字留空的话，封面上会浮一个空的胶囊。
+    /// </remarks>
+    public static Visibility HasTracks(int count) => Visible(count > 0);
 
     /// <summary>
     /// 曲目列表里专辑名的字符上限。
@@ -171,5 +181,49 @@ public static class Formats
     public static Visibility CommentDetailVisibility(bool reply, long replyCount) => Visible(!reply && replyCount > 0);
     public static string CommentReplyHeading(long count) => $"全部回复 · {count:N0}";
     public static Visibility VisibleWhenFalse(bool value) => Visible(!value);
+
+    /// <summary>
+    /// 歌手页头部那一行：<c>484w8+ 粉丝 · 1708 首歌曲 · 47 张专辑</c>，缺的部分自动省掉。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 三个数都不是必然有的：从曲目行「查看歌手」进来时只知道名字，
+    /// 详情还没回来之前一个计数都没有，那时整行不显示（<see cref="ArtistMetaVisibility"/>）。
+    /// </para>
+    /// <para>
+    /// 粉丝数沿用评论角标那套截断（超过一万显示 <c>w</c> 后缀）——
+    /// 4848318 直接写出来会把这一行撑得很长，而精确到个位的粉丝数没有意义。
+    /// </para>
+    /// </remarks>
+    public static string ArtistMeta(Artist? artist)
+    {
+        if (artist is null)
+        {
+            return "";
+        }
+
+        var parts = new List<string>(3);
+
+        if (artist.HasFans)
+        {
+            parts.Add($"{CommentCountLabel.Format(artist.FansCount)} 粉丝");
+        }
+
+        if (artist.SongCount > 0)
+        {
+            parts.Add($"{artist.SongCount} 首歌曲");
+        }
+
+        if (artist.AlbumCount > 0)
+        {
+            parts.Add($"{artist.AlbumCount} 张专辑");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>一个计数都没有时整行不显示，而不是留一行空白。</summary>
+    public static Visibility ArtistMetaVisibility(Artist? artist) =>
+        Visible(!string.IsNullOrEmpty(ArtistMeta(artist)));
 
 }

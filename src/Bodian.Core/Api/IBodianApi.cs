@@ -31,6 +31,15 @@ public interface IBodianApi
     Task<PagedResult<Album>> GetArtistAlbumsAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 歌手详情：别名、粉丝数、简介、单曲与专辑数。
+    /// </summary>
+    /// <remarks>
+    /// 服务端没有这个歌手时返回 <c>null</c>。这几个字段<b>搜索结果里都没有</b>，
+    /// 只有这条接口会给，所以歌手页要单独拉一次。
+    /// </remarks>
+    Task<Artist?> GetArtistInfoAsync(long artistId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 搜索曲目。
     /// </summary>
     /// <param name="keyword">关键词。空白串会抛 <see cref="ArgumentException"/>。</param>

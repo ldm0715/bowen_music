@@ -14,44 +14,113 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ── 头部：封面 + 名字 + 副标题 ───────────────────────────────── -->
-        <Grid Grid.Row="0" ColumnSpacing="12">
+        <!-- ── 头部：封面 + 名字 + 歌手入口 + 操作 ──────────────────────── -->
+        <Grid
+            Grid.Row="0"
+            ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
+            <!--
+                ★ 封面与右侧信息块都垂直居中：封面以前是 VerticalAlignment="Top"，
+                  右边却是居中的，内容一高封面就被吊在上边、和下面的按钮拉开一大截。
+                  SizeCoverGrid(150) 与信息块（标题 + 副标题 + 歌手入口 + 操作行）大致等高，
+                  两块拼成一个整体。
+            -->
             <Border
                 Grid.Column="0"
-                Width="120"
-                Height="120"
-                VerticalAlignment="Top"
+                Width="{StaticResource SizeCoverGrid}"
+                Height="{StaticResource SizeCoverGrid}"
+                VerticalAlignment="Center"
                 Background="{ThemeResource ControlFillColorDefaultBrush}"
-                CornerRadius="8">
-                <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.Album.CoverImage)}" Stretch="UniformToFill" />
+                CornerRadius="{StaticResource RadiusMd}">
+                <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.Album.CoverImage), Mode=OneWay}" Stretch="UniformToFill" />
             </Border>
 
             <StackPanel
                 Grid.Column="1"
                 VerticalAlignment="Center"
-                Spacing="4">
+                Spacing="8">
                 <TextBlock
                     Style="{StaticResource TitleTextBlockStyle}"
                     Text="{x:Bind ViewModel.Title, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
 
+                <!-- 发行日 · 曲目数。歌手名不在这里 —— 下一行有可点的入口，重复一次是噪音 -->
                 <TextBlock
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
 
-                <TextBlock
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}" />
-            </StackPanel>
+                <!--
+                    歌手入口：整块可点，进歌手页。
+                    从曲目行的「查看专辑」进来时这里没有歌手 id，要等详情回来才出现 ——
+                    所以是可见性绑定而不是始终显示。
+                -->
+                <!--
+                    圆角取 ControlCornerRadius —— 与侧栏选中、页签条同一档，不用 RadiusPill(999)：
+                    全圆角配矮按钮会拉成细长椭圆。MinWidth=0 是去掉 Button 默认的 120 最小宽度。
+                -->
+                <Button
+                    Padding="8,4,12,4"
+                    HorizontalAlignment="Left"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="OnArtistClick"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
+                    MinWidth="0"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.HasArtist), Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PersonPicture
+                            Width="28"
+                            Height="28"
+                            DisplayName="{x:Bind ViewModel.Album.ArtistText, Mode=OneWay}"
+                            ProfilePicture="{x:Bind local:Formats.CoverSource(ViewModel.Album.ArtistCover), Mode=OneWay}" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind ViewModel.Album.ArtistText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Button>
 
+                <StackPanel
+                    Margin="0,2,0,0"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <Button
+                        AutomationProperties.Name="播放全部"
+                        Command="{x:Bind ViewModel.PlayAllCommand}"
+                        Style="{StaticResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="14" Glyph="&#xE768;" />
+                            <TextBlock Text="播放全部" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- 本轮只弹提示：写请求的报文方向没实测过，见 AlbumDetailViewModel.Collect -->
+                    <Button
+                        AutomationProperties.Name="收藏"
+                        Command="{x:Bind ViewModel.CollectCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="14" Glyph="&#xEB51;" />
+                            <TextBlock Text="收藏" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button
+                        AutomationProperties.Name="分享"
+                        Command="{x:Bind ViewModel.ShareCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon FontSize="14" Glyph="&#xE72D;" />
+                            <TextBlock Text="分享" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
         </Grid>
 
         <!--
@@ -60,6 +129,7 @@
         -->
         <Expander
             Grid.Row="1"
+            Margin="0,16,0,0"
             HorizontalAlignment="Stretch"
             Header="专辑简介"
             Visibility="{x:Bind local:Formats.Visible(ViewModel.HasDescription), Mode=OneWay}">
@@ -70,6 +140,7 @@
 
         <controls:TrackListView
             Grid.Row="2"
+            Margin="0,16,0,0"
             HasMore="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks.Items}"
             LoadMoreCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}"

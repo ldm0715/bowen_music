@@ -134,6 +134,8 @@ public sealed class LyricRepositoryTests
         public Task<PagedResult<Track>> GetArtistTracksAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PagedResult<Album>> GetArtistAlbumsAsync(long artistId, PagedCursor cursor, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
+        public Task<Artist?> GetArtistInfoAsync(long artistId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public int Calls { get; private set; }
 
         public Func<Track, LyricDocument> Responder { get; init; } = _ => LyricDocument.Empty;

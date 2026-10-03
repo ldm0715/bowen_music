@@ -158,6 +158,12 @@
 
             <!-- 主题弹层深浅色均为 80% 不透明度，以同样比例透出窗口内的氛围背景。 -->
             <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#CCFAFAFA" />
+
+            <!-- ── 压在封面图上的小角标（曲目数这类）──
+                 底色不是主题无关的：它压在图片上，深浅两个主题用同一档半透明黑，
+                 白字才在任何封面上都读得出来。高对比度下改跟系统配色走。 -->
+            <SolidColorBrush x:Key="MediaOverlayBackgroundBrush" Color="#B3000000" />
+            <SolidColorBrush x:Key="MediaOverlayForegroundBrush" Color="#FFFFFFFF" />
         </ResourceDictionary>
 
         <!-- ══ 深色 ══════════════════════════════════════════════════════════ -->
@@ -270,6 +276,10 @@
 
             <!-- 主题弹层深浅色均为 80% 不透明度，以同样比例透出窗口内的氛围背景。 -->
             <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#CC202020" />
+
+            <!-- 压在封面图上的小角标，与浅色同一档：它压在图片上，不跟窗口底色走。 -->
+            <SolidColorBrush x:Key="MediaOverlayBackgroundBrush" Color="#B3000000" />
+            <SolidColorBrush x:Key="MediaOverlayForegroundBrush" Color="#FFFFFFFF" />
         </ResourceDictionary>
 
         <!-- ══ 高对比度 ══════════════════════════════════════════════════════ -->
@@ -299,6 +309,11 @@
             <Color x:Key="BrandAccentOnSurface">{ThemeResource SystemColorHighlightColor}</Color>
             <Color x:Key="BrandOnAccent">{ThemeResource SystemColorHighlightTextColor}</Color>
             <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="{ThemeResource SystemColorWindowColor}" />
+
+            <!-- 半透明黑压在封面上时，高对比度用户设的前景/背景色可能读不出来，
+                 所以这里改跟系统配色走。 -->
+            <SolidColorBrush x:Key="MediaOverlayBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="MediaOverlayForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>

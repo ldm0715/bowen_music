@@ -1,7 +1,10 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services;
 using Bodian.WinUI.Playback;
+using Bodian.WinUI.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -12,7 +15,7 @@ namespace Bodian.WinUI.ViewModels;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>两次请求</b>：一次取专辑信息（简介、发行日），一次取曲目。
+/// <b>两次请求</b>：一次取专辑信息（简介、发行日、歌手 id 与头像），一次取曲目。
 /// 列表页点进来时已经知道专辑名与封面了，所以头部先显示得出来，
 /// 简介那部分要等详情回来 —— 少一次「白屏等」。
 /// </para>
@@ -25,6 +28,9 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
 {
     private readonly IBodianApi _api;
     private readonly PlaybackCoordinator _coordinator;
+    private readonly BodianSession _session;
+    private readonly IClipboardService _clipboard;
+    private readonly INoticeSink _notice;
     private readonly ILogger<AlbumDetailViewModel> _logger;
 
     private bool _infoLoaded;
@@ -32,15 +38,24 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     public AlbumDetailViewModel(
         IBodianApi api,
         PlaybackCoordinator coordinator,
+        BodianSession session,
+        IClipboardService clipboard,
+        INoticeSink notice,
         Album album,
         ILogger<AlbumDetailViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(coordinator);
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(clipboard);
+        ArgumentNullException.ThrowIfNull(notice);
         ArgumentNullException.ThrowIfNull(album);
 
         _api = api;
         _coordinator = coordinator;
+        _session = session;
+        _clipboard = clipboard;
+        _notice = notice;
         _logger = logger ?? NullLogger<AlbumDetailViewModel>.Instance;
 
         Album = album;
@@ -50,11 +65,22 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
             _logger,
             $"专辑「{album.Name}」",
             "这张专辑暂时取不到曲目。",
-            Bodian.Core.Api.Paging.PagingConvention.ZeroBased);
+            // 1 基，理由同 ArtistDetailViewModel：pn=0 会被服务端当成第 1 页，
+            // 于是首屏正常、下一页重复。
+            Bodian.Core.Api.Paging.PagingConvention.OneBased);
     }
 
-    /// <summary>列表页带过来的专辑（名字与封面已经是对的）。</summary>
-    public Album Album { get; }
+    /// <summary>
+    /// 专辑。<b>详情拉回来后会整体换掉</b>。
+    /// </summary>
+    /// <remarks>
+    /// 列表页带过来的那份是够用的（名字与封面已经是对的），但从曲目行的「查看专辑」
+    /// 合成出来的那份<b>没有歌手 id</b>，头部那个歌手入口要靠详情补上，
+    /// 所以这里不是「填完就不动」，而是整体替换。XAML 上的绑定要写成 OneWay。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasArtist))]
+    public partial Album Album { get; set; }
 
     public PagedList<Track> Tracks { get; }
 
@@ -73,6 +99,13 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
+
+    /// <summary>「播放全部」正在把剩下的页拉完。与 <see cref="IsBusy"/> 分开，两者不是一件事。</summary>
+    [ObservableProperty]
+    public partial bool IsPlayingAll { get; set; }
+
+    /// <summary>歌手 id 拿到了才显示头部那个歌手入口。</summary>
+    public bool HasArtist => Album.ArtistId > 0;
 
     public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
     {
@@ -96,7 +129,81 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 取详情（简介 / 发行日 / 收藏数）。
+    /// 播放全部。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>先把剩余的页拉完再播</b>：专辑首屏只回来一页（实测 5 首），
+    /// 直接拿已加载的那几条排队列的话，11 首的专辑点一次只能听到第 5 首。
+    /// </para>
+    /// <para>
+    /// 拉不完（撞上限或中途失败）也照常从第一首开始播 —— 队列短一点比什么都不播好，
+    /// <see cref="PagedList{T}.LoadAllAsync"/> 已经把失败收在状态文案里了。
+    /// </para>
+    /// </remarks>
+    [RelayCommand]
+    private async Task PlayAllAsync()
+    {
+        if (IsPlayingAll)
+        {
+            return;
+        }
+
+        IsPlayingAll = true;
+
+        try
+        {
+            await Tracks.LoadAllAsync().ConfigureAwait(true);
+
+            if (Tracks.Items.Count > 0)
+            {
+                await _coordinator.PlayFromAsync([.. Tracks.Items], 0).ConfigureAwait(true);
+            }
+        }
+        finally
+        {
+            IsPlayingAll = false;
+        }
+    }
+
+    /// <summary>
+    /// 收藏这张专辑。
+    /// </summary>
+    /// <remarks>
+    /// <b>本轮只做界面，不发写请求。</b> 专辑收藏走 <c>service/collect</c>，
+    /// 报文体里的 <c>op</c> 只有 1 与 2 两个取值，<b>哪个是收藏、哪个是取消还没定</b>
+    /// （见 <c>reverse/findings/01-collect-write.md</c> §4）——
+    /// 判反了第一次点就会把已有的收藏取消掉。也没读「是否已收藏」的路径，
+    /// 所以按钮不做两态，固定显示「收藏」。
+    /// </remarks>
+    [RelayCommand]
+    private void Collect() => _notice.Show("专辑收藏暂未开放");
+
+    /// <summary>
+    /// 复制专辑分享链接。
+    /// </summary>
+    /// <remarks>
+    /// <b>不做上报</b>：<c>service/share/text</c> 的 <c>shareSource</c> 只实测过
+    /// <c>0</c>（歌曲）与 <c>1</c>（歌手），专辑取什么值没有证据，所以不猜。
+    /// 代价是这里的分享不会让服务端分享数 +1 —— 这是有意的，不是漏做。
+    /// </remarks>
+    [RelayCommand]
+    private void Share()
+    {
+        try
+        {
+            _clipboard.SetText(ShareLinks.BuildAlbumLink(Album.Id, _session.Uid));
+            _notice.Show("链接已复制");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "复制专辑 {AlbumId} 分享链接失败", Album.Id);
+            _notice.Show("复制链接失败");
+        }
+    }
+
+    /// <summary>
+    /// 取详情（简介 / 发行日 / 歌手 id 与头像）。
     /// </summary>
     /// <remarks>
     /// <b>失败不挡曲目列表</b>：简介拿不到只是少一段文字，
@@ -125,6 +232,9 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
                 return;
             }
 
+            // 整体换掉：歌手 id 与头像只有详情会给，头部那个入口靠它。
+            Album = detail;
+
             Title = detail.Name;
             Subtitle = BuildSubtitle(detail);
             Description = detail.Description;
@@ -140,15 +250,16 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
         }
     }
 
-    /// <summary><c>艺人 · 2003-07-31 · 11 首</c>，缺的部分自动省掉。</summary>
+    /// <summary>
+    /// <c>2003-07-31 · 11 首</c>，缺的部分自动省掉。
+    /// </summary>
+    /// <remarks>
+    /// <b>不再拼歌手名</b>：头部已经有一个可点的歌手入口了，
+    /// 同一个人名在一屏里出现两次是重复信息。
+    /// </remarks>
     private static string BuildSubtitle(Album album)
     {
-        var parts = new List<string>(3);
-
-        if (!string.IsNullOrWhiteSpace(album.ArtistText))
-        {
-            parts.Add(album.ArtistText);
-        }
+        var parts = new List<string>(2);
 
         if (!string.IsNullOrWhiteSpace(album.ReleaseDate))
         {

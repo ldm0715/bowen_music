@@ -55,6 +55,10 @@ public sealed class AlbumDetailApiTests : IDisposable
         Assert.Equal(11, album.MusicCount);
         Assert.NotNull(album.CoverImage);
 
+        // 歌手 id 一直有给，只是以前映射时被丢掉了 —— 专辑页靠它跳歌手页。
+        Assert.Equal(336, album.ArtistId);
+        Assert.NotNull(album.ArtistCover);
+
         // 简介实测是整篇企划文案（几千字），界面上要折叠 —— 这里只确认它真的取到了。
         Assert.True(album.HasDescription);
         Assert.True(album.Description.Length > 500);
@@ -110,7 +114,7 @@ public sealed class AlbumDetailApiTests : IDisposable
     {
         RespondWith("album-1293-tracks.json");
 
-        var page = await _api.GetAlbumTracksAsync(AlbumId, new PagedCursor(PagingConvention.ZeroBased, 5), Ct);
+        var page = await _api.GetAlbumTracksAsync(AlbumId, new PagedCursor(PagingConvention.OneBased, 5), Ct);
 
         Assert.NotEmpty(page.Items);
         Assert.Equal(11, page.Total);
@@ -128,28 +132,42 @@ public sealed class AlbumDetailApiTests : IDisposable
     {
         RespondWith("album-1293-tracks.json");
 
-        var page = await _api.GetAlbumTracksAsync(AlbumId, new PagedCursor(PagingConvention.ZeroBased, 5), Ct);
+        var page = await _api.GetAlbumTracksAsync(AlbumId, new PagedCursor(PagingConvention.OneBased, 5), Ct);
 
         Assert.NotEmpty(page.Items);
     }
 
-    /// <summary>专辑曲目的页号从 0 开始（与搜索一致，与歌单的从 1 不同）。</summary>
+    /// <summary>
+    /// 专辑曲目与其他 <c>service</c> 接口一样从 <b>第 1 页</b>开始（只有 <c>search/*</c> 是 0 基）。
+    /// </summary>
+    /// <remarks>
+    /// ★ <b>这条断言不能省，也不能只断言首屏。</b> 服务端把 <c>pn=0</c> 当成第 1 页，
+    /// 按 0 基发请求时首屏拿到的照样是第一页 —— 看着完全正常；等游标推进发出 <c>pn=1</c>，
+    /// 拿回来的还是第一页，追加进去正好翻倍。所以两页都要断言。
+    /// </remarks>
     [Fact]
-    public async Task AlbumTracks_SendsZeroBasedPaging()
+    public async Task AlbumTracks_SendsOneBasedPaging()
     {
         RespondWith("album-1293-tracks.json");
 
-        await _api.GetAlbumTracksAsync(AlbumId, new PagedCursor(PagingConvention.ZeroBased, 5), Ct);
+        var cursor = new PagedCursor(PagingConvention.OneBased, 5);
+
+        await _api.GetAlbumTracksAsync(AlbumId, cursor, Ct);
 
         Assert.Contains("service/album/music/1293?", _handler.LastRequest.Url);
-        Assert.Contains("pn=0", _handler.LastRequest.Url);
+        Assert.Contains("pn=1", _handler.LastRequest.Url);
+
+        // 第二页必须是 pn=2。若页码基数写错，这里拿回来的还是第一页。
+        await _api.GetAlbumTracksAsync(AlbumId, cursor, Ct);
+
+        Assert.Contains("?pn=2&", _handler.LastRequest.Url);
     }
 
     [Fact]
     public async Task AlbumTracks_NonPositiveId_Throws()
     {
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-            () => _api.GetAlbumTracksAsync(0, new PagedCursor(PagingConvention.ZeroBased), Ct));
+            () => _api.GetAlbumTracksAsync(0, new PagedCursor(PagingConvention.OneBased), Ct));
     }
 
     [Fact]

@@ -65,12 +65,39 @@
 `ShowEnd` 与 `ShowRetry` 是算出来的、没有自己的存储字段，所以任何会影响它们的状态一变
 （`HasMore` / `IsBusy` / `LoadFailed`）都要一并通知，否则末尾提示不会刷新。
 
+## 「播放全部」要先把剩下的页拉完（`PagedList.LoadAllAsync`，2026-10-03）
+
+自动续加载带来一个新问题：**首屏只有一页**。专辑详情进来只加载一页（实测 5 首），
+这时点「播放全部」，队列里就只有那 5 首 —— 11 首的专辑有 6 首永远播不到。
+
+所以 `PagedList<T>` 增加了 `LoadAllAsync(maxPages = 20)`：一页一页拉到 `HasMore` 为假，
+再交给播放协调器排队列。三条返回语义值得记住：
+
+| 情况 | 返回 | 调用方该做什么 |
+| --- | --- | --- |
+| 真的拉到底 | `true` | 正常排队列 |
+| 撞页数上限 / 中途某页失败 | `false` | **照常播已加载的那些**，不要报错 |
+| 进来时就有加载在进行 | `false` | 同上 —— `LoadMoreAsync` 在忙时会早退，硬循环只会空转到上限 |
+
+**失败也算「没拉全」**：首屏就失败时 `HasMore` 停在 `false`（`ReloadAsync` 开头会清掉它），
+只看 `!HasMore` 会把「什么都没拉到」误判成「拉完了」。所以返回的是 `!HasMore && !LoadFailed`。
+
+调用点是专辑详情的「播放全部」（`AlbumDetailViewModel.PlayAllAsync`），
+它另有一个自己的 `IsPlayingAll` 状态位防重复点击 —— 与列表的 `IsBusy` 不是一件事。
+
+## 状态文案不再带「（滚动加载）」
+
+`StatusText` 曾经在还有下一页时补一句「（滚动加载）」。那是自动翻页刚上线时用来提示行为变化的，
+现在列表末尾本来就有「没有更多了哦~」，这句成了噪音，已从 `PagedList<T>`、
+`PlaylistTracksViewModel`、`DiscoverViewModel`、`SearchViewModel` 四处去掉，只留条数。
+
 ## 挂载点
 
 | 位置 | 挂法 |
 | --- | --- |
-| 我喜欢的、歌单详情、专辑详情、榜单详情、歌手详情（歌曲+专辑）、搜索的「单曲」页签 | `TrackListView` / `AlbumListView` 的 `HasMore` + `LoadMoreCommand` + `Footer` |
-| 发现页、搜索的「歌单/专辑/歌手」页签、歌手详情的专辑 | `VirtualizedListView` 上直接挂 `AutoPaging` 附加属性，`Footer` 就地写 |
+| 我喜欢的、歌单详情、专辑详情、榜单详情、歌手详情的歌曲、搜索的「单曲」页签 | `TrackListView` / `AlbumListView` 的 `HasMore` + `LoadMoreCommand` + `Footer` |
+| 发现页、搜索的「歌单/专辑/歌手」页签 | `VirtualizedListView` 上直接挂 `AutoPaging` 附加属性，`Footer` 就地写 |
+| 歌手详情的专辑 | 原生 `GridView`（格子尺寸在代码里按可用宽度算，见 [`ui-refresh.md`](ui-refresh.md) §16.3），挂附加属性 + `GridView.Footer` |
 | 音乐库大类详情 | 专辑用原生 `GridView`，同样挂附加属性。`GridView` 的默认模板确实把 `Header`/`Footer` 转发给了 `ItemsPresenter`（查过 WinUI 的 `generic.xaml`） |
 | 评论面板 | 两个列表各挂一份，绑各自的 `HasMore`/`LoadMoreCommand`。它的收尾文案用面板自己的配色，没走 `PagingEndNote` |
 
@@ -85,7 +112,8 @@
 | 评论面板进回复详情 | `RepliesList` 是初始折叠的那个列表，是「换触发机制」的主要验证点，最容易出问题 |
 | 短列表 | 不足一屏的歌单/专辑会自动补满，不卡在第一页 |
 | 发现页开屏 | 多补一两批而已，不会一口气拉完 12 个模块 |
-| 逐页滚到底 | 不重复请求、不跳页；取完后末尾出现居中小字，且紧贴最后一行 |
+| 逐页滚到底 | 不重复请求、不跳页（**歌手专辑页尤其要看**，页号基数写错时症状正是"第一页重复一遍"）；取完后末尾出现居中小字，且紧贴最后一行 |
+| 歌手专辑页 | 卡片数等于该歌手的真实专辑数，滚到底出现「没有更多了哦~」；页签条切到「歌曲」「介绍」再切回来，滚动位置保留 |
 | 音乐库大类详情 | 专辑用的是 `GridView`，`Footer` 渲染是这套方案里最没把握的一处，实际看一眼 |
 | 断网后滚到底 | 出现「加载失败 + 重试」，点了能重拉失败的那一页 |
 | 歌手详情 | 两节（两个页签）的提示各自跟着自己的列表走，不串 |

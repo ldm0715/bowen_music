@@ -45,4 +45,84 @@ public sealed class ShareLinkTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => ShareLinks.BuildTrackLink(musicId, "1"));
     }
+
+    [Fact]
+    public void BuildAlbumLink_MatchesTheDocumentedTemplate()
+    {
+        var link = ShareLinks.BuildAlbumLink(1293, "50303440");
+
+        Assert.Equal("https://h5app.kuwo.cn/m/bodian/album.html?uid=50303440&albumid=1293", link);
+    }
+
+    /// <summary>
+    /// 参数名是 <c>albumid</c> <b>全小写</b>，与歌曲链接的 <c>musicId</c> 驼峰写法不同。
+    /// </summary>
+    /// <remarks>
+    /// 官方模板就是这么拼的（文档 2.8 的链接模板表）。改成驼峰会得到一条打不开的链接，
+    /// 而且没有任何一处会报错 —— 这条守着别「顺手统一」成 musicId 那种写法。
+    /// </remarks>
+    [Fact]
+    public void BuildAlbumLink_UsesTheLowerCaseParamName()
+    {
+        var link = ShareLinks.BuildAlbumLink(1293, "1");
+
+        Assert.Contains("albumid=1293", link, StringComparison.Ordinal);
+        Assert.DoesNotContain("albumId", link, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildAlbumLink_EscapesTheUid()
+    {
+        var link = ShareLinks.BuildAlbumLink(1, "a b&c=d");
+
+        Assert.Equal("https://h5app.kuwo.cn/m/bodian/album.html?uid=a%20b%26c%3Dd&albumid=1", link);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void BuildAlbumLink_RejectsNonPositiveAlbumIds(long albumId)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => ShareLinks.BuildAlbumLink(albumId, "1"));
+    }
+
+    [Fact]
+    public void BuildArtistLink_MatchesTheDocumentedTemplate()
+    {
+        var link = ShareLinks.BuildArtistLink(336, "50303440");
+
+        Assert.Equal("https://h5app.kuwo.cn/m/bodian/singer.html?uid=50303440&singerId=336", link);
+    }
+
+    /// <summary>
+    /// 歌手链接的参数名是驼峰 <c>singerId</c>，而专辑是<b>全小写</b> <c>albumid</c>。
+    /// </summary>
+    /// <remarks>
+    /// 两条都逐字照抄官方模板，所以这个不一致是<b>真的</b>、不该被"顺手统一"。
+    /// 写错只会得到一条打不开的链接，没有任何一处会报错 —— 靠这条守住。
+    /// </remarks>
+    [Fact]
+    public void BuildArtistLink_UsesTheCamelCaseParamName()
+    {
+        var link = ShareLinks.BuildArtistLink(336, "1");
+
+        Assert.Contains("singerId=336", link, StringComparison.Ordinal);
+        Assert.DoesNotContain("singerid", link, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildArtistLink_EscapesTheUid()
+    {
+        var link = ShareLinks.BuildArtistLink(1, "a b&c=d");
+
+        Assert.Equal("https://h5app.kuwo.cn/m/bodian/singer.html?uid=a%20b%26c%3Dd&singerId=1", link);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void BuildArtistLink_RejectsNonPositiveArtistIds(long artistId)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => ShareLinks.BuildArtistLink(artistId, "1"));
+    }
 }

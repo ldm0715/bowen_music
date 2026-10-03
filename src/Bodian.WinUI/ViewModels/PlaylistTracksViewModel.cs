@@ -227,8 +227,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         // 服务端会省略不可用曲目，实测歌单标称 121 首时第一页只回 99 首。
         HasMore = !_cursor.Exhausted && page.Items.Count > 0;
 
-        StatusText = Tracks.Count == 0
-            ? EmptyText
-            : $"{Tracks.Count} 首{(HasMore ? "（滚动加载）" : "")}";
+        // 只说条数，「（滚动加载）」已去掉 —— 理由同 PagedList 里那一处。
+        StatusText = Tracks.Count == 0 ? EmptyText : $"{Tracks.Count} 首";
     }
 }

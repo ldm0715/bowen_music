@@ -76,8 +76,34 @@ public sealed partial class SearchViewModel : ObservableObject
 
     [ObservableProperty] public partial string Keyword { get; set; } = "";
 
+    /// <summary>页签名。顺序与下标的含义绑死在 <see cref="SelectedCategory"/> 上。</summary>
+    private static readonly string[] CategoryHeaders = ["综合", "单曲", "歌单", "专辑", "歌手"];
+
+    public IReadOnlyList<string> Categories => CategoryHeaders;
+
     /// <summary>当前页签。<c>0</c> 是「综合」，它一次性取全，不分页。</summary>
-    [ObservableProperty] public partial int SelectedCategory { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOverviewTab))]
+    [NotifyPropertyChangedFor(nameof(IsTrackTab))]
+    [NotifyPropertyChangedFor(nameof(IsPlaylistTab))]
+    [NotifyPropertyChangedFor(nameof(IsAlbumTab))]
+    [NotifyPropertyChangedFor(nameof(IsArtistTab))]
+    public partial int SelectedCategory { get; set; }
+
+    // 五个页签的内容都留在可视树上，只切可见性。
+    //
+    // ★ 这样做不会让未选中的列表跟着翻页：Collapsed 的元素不进布局，容器不会被实现，
+    //   而自动翻页正是挂在 ContainerContentChanging 上的（见 docs/list-paging.md）。
+    //   附带的好处是来回切页签时滚动位置不再丢 —— 原来的 Pivot 会整个卸载内容。
+    public bool IsOverviewTab => SelectedCategory == 0;
+
+    public bool IsTrackTab => SelectedCategory == 1;
+
+    public bool IsPlaylistTab => SelectedCategory == 2;
+
+    public bool IsAlbumTab => SelectedCategory == 3;
+
+    public bool IsArtistTab => SelectedCategory == 4;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEnd))]
@@ -330,7 +356,8 @@ public sealed partial class SearchViewModel : ObservableObject
         };
         token.ThrowIfCancellationRequested();
         HasMore = !cursor.Exhausted;
-        StatusText = count == 0 ? "没有找到结果" : $"「{keyword}」已加载 {count} 条{(HasMore ? "（滚动加载）" : "")}";
+        // 「（滚动加载）」已去掉 —— 理由同 PagedList 里那一处。
+        StatusText = count == 0 ? "没有找到结果" : $"「{keyword}」已加载 {count} 条";
     }
 
     private static async Task<int> AppendAsync<T>(ObservableCollection<T> collection, Task<PagedResult<T>> request, CancellationToken token)

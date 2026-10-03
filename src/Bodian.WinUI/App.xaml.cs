@@ -136,7 +136,9 @@ public partial class App : Application
         builder.Services.AddSingleton<SearchViewModel>();
         builder.Services.AddTransient<Func<Artist, ArtistDetailPage>>(sp => artist =>
             new ArtistDetailPage(new ArtistDetailViewModel(
-                sp.GetRequiredService<IBodianApi>(), sp.GetRequiredService<PlaybackCoordinator>(), artist),
+                sp.GetRequiredService<IBodianApi>(), sp.GetRequiredService<PlaybackCoordinator>(),
+                sp.GetRequiredService<BodianSession>(), sp.GetRequiredService<IClipboardService>(), artist,
+                sp.GetRequiredService<INoticeSink>(), sp.GetRequiredService<ILogger<ArtistDetailViewModel>>()),
                 sp.GetRequiredService<INavigationService>(), sp.GetRequiredService<Func<Album, AlbumDetailPage>>()));
         builder.Services.AddSingleton<ThemeViewModel>();
         builder.Services.AddTransient<LoginViewModel>();
@@ -174,8 +176,13 @@ public partial class App : Application
                 new AlbumDetailViewModel(
                     sp.GetRequiredService<IBodianApi>(),
                     sp.GetRequiredService<PlaybackCoordinator>(),
+                    sp.GetRequiredService<BodianSession>(),
+                    sp.GetRequiredService<IClipboardService>(),
+                    sp.GetRequiredService<INoticeSink>(),
                     album,
-                    sp.GetRequiredService<ILogger<AlbumDetailViewModel>>())));
+                    sp.GetRequiredService<ILogger<AlbumDetailViewModel>>()),
+                sp.GetRequiredService<INavigationService>(),
+                sp.GetRequiredService<Func<Artist, ArtistDetailPage>>()));
 
         // AI 歌单页要带「哪个序号 + 什么标题」构造，DI 解析不出来 —— 用工厂。
         // 标题一并传进去：模块里那一组的标题与详情响应的 title 实测逐字相同，

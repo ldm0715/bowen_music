@@ -52,6 +52,7 @@ namespace Bodian.Core.Api;
 [JsonSerializable(typeof(CategoryListPayload))]
 [JsonSerializable(typeof(MusicLibraryNavDto[]))]
 [JsonSerializable(typeof(MusicLibraryAlbumsPayload))]
+[JsonSerializable(typeof(ArtistInfoPayload))]
 [JsonSerializable(typeof(AlbumInfoPayload))]
 [JsonSerializable(typeof(AlbumTracksPayload))]
 [JsonSerializable(typeof(BangSectionDto[]))]

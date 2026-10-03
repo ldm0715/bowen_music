@@ -358,7 +358,7 @@ Window
 | 用途 | 端点 | 实测 |
 | --- | --- | --- |
 | 专辑详情 | `service/album/{id}` | **无 query**，`{ albumInfo: { name, pic, artist, showtime, info, musicCount, collectedCnt, … } }` |
-| 专辑曲目 | `service/album/music/{id}` | 可分页（**`pn` 从 0**），`{ total, rn, resultList, pn }` |
+| 专辑曲目 | `service/album/music/{id}` | 可分页（**`pn` 从 1**，2026-10-03 更正，见 [`bodian-api-reference.md`](bodian-api-reference.md) §1.6），`{ total, rn, resultList, pn }` |
 
 **两个要点：**
 

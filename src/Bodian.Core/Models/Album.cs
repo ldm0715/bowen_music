@@ -19,6 +19,15 @@ public sealed record Album
     /// <summary>艺人名。</summary>
     public string ArtistText { get; init; } = "";
 
+    /// <summary>
+    /// 艺人 id，用来从专辑跳到歌手页。
+    /// </summary>
+    /// <remarks>
+    /// 服务端一直有给（<c>artistId</c>），0 表示这个来源没带 ——
+    /// 从曲目行的「查看专辑」合成出来的专辑就是这种，详情加载回来后会补上。
+    /// </remarks>
+    public long ArtistId { get; init; }
+
     /// <summary>封面地址。</summary>
     public Uri? CoverImage { get; init; }
 

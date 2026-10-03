@@ -556,7 +556,7 @@ internal sealed class AudioUrlDto
 ```csharp
 namespace Bodian.Core.Api.Paging;
 
-/// <summary>首页页号各家不同：search/* 从 0，playlist/collect 从 1。</summary>
+/// <summary>首页页号各家不同：只有 search/* 从 0，其余全从 1。</summary>
 public sealed record PagingConvention(
     string PageParam = "pn",
     string SizeParam = "rn",
@@ -587,6 +587,13 @@ public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Offset, int Page
 **核心约束**：游标只按「请求页边界」推进，**绝不用返回条数推算下一页偏移**。真实案例：歌单标称 121 首，第一页只返回 99 首——服务端会省略不可用曲目，`total` 与可见歌曲数不保证一致。
 
 所以「继续翻页」的判据是 **`items.Count > 0`**，**不是** `Count == pageSize`（短页不代表到底），也**不是** `offset + count < total`（`total` 本身不可信）。这条要写进 `PagedCursor` 的备注。
+
+> ⚠️ **2026-10-03 更正**：`ZeroBased` 的适用范围比这张表的注释原先写的窄 ——
+> `service/album/music/{id}`、`service/artist/music/{id}`、`service/artist/album/{id}`
+> 这三个**也是 1 基**（`pn=1` 是第 1 页），只有 `search/*/list` 真的从 0 起。
+> 它们传 `pn=0` 不报错、被服务端当第 1 页，所以 0 基在首屏看不出问题，
+> 第二次请求（`pn=1`）拿回的还是第 1 页，列表正好翻倍。实测对照表见
+> [`bodian-api-reference.md`](bodian-api-reference.md) §1.6。
 
 「各家列表字段名不同」（`resultList` / `list` / `playLists` / `albumList`）的收敛方式：**每个端点族一个具体 DTO**，再用一个内部接口抽出「取列表 + 取总数」：
 

@@ -41,6 +41,15 @@
     <x:Double x:Key="SizeCoverMd">72</x:Double>
     <x:Double x:Key="SizeCoverGrid">150</x:Double>
 
+    <!--
+        歌手页专辑卡片的文字区高度（封面底下那一块）：10 的间隔 + 两行标题 + 4 + 一行发行时间 ≈ 60，
+        留几像素余量。
+        ★ XAML 用它当固定高度、代码用它算卡片总高，两处必须同源 ——
+          封面是「撑满剩余行高」，只有文字区高度固定，封面才会刚好是正方形。
+        ★ 这个值每多 10 像素，行与行之间就凭空多 10 像素空白，别往大取。
+    -->
+    <x:Double x:Key="SizeAlbumCardText">64</x:Double>
+
     <!-- 图标与按钮 -->
     <x:Double x:Key="SizeIconSm">16</x:Double>
     <x:Double x:Key="SizeIconMd">20</x:Double>

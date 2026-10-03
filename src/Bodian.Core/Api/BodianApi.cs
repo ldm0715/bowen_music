@@ -117,6 +117,29 @@ public sealed class BodianApi : IBodianApi
         SongCount = dto.SongCount, AlbumCount = dto.AlbumCount,
     };
 
+    /// <summary>
+    /// 歌手详情的条目。
+    /// </summary>
+    /// <remarks>
+    /// 名字与头像在导航过来时已经知道了，正常取到详情就会被这份覆盖成服务端的最新值。
+    /// 名字为空时保留占位而不是空串 —— 详情页头部留一片空白比一个明显是占位的词更难排查。
+    /// <para>
+    /// <b>id 由调用方传入</b>：响应里也有 <c>id</c>，但本项目只需要「我请求的那个」，
+    /// 多映射一个字段就多一处可能与请求不一致的来源。
+    /// </para>
+    /// </remarks>
+    private static Artist MapArtistInfo(long artistId, ArtistInfoDto dto) => new()
+    {
+        Id = artistId,
+        Name = string.IsNullOrWhiteSpace(dto.Name) ? "(未命名歌手)" : dto.Name,
+        CoverImage = ToHttpUri(dto.Pic),
+        SongCount = dto.MusicCount,
+        AlbumCount = dto.AlbumCount,
+        AliasName = dto.AliasName ?? "",
+        FansCount = dto.FansCount,
+        Description = dto.Description ?? "",
+    };
+
     public Task<PagedResult<Album>> SearchAlbumsAsync(string keyword, PagedCursor cursor, CancellationToken cancellationToken = default) =>
         SearchPageAsync(keyword, Endpoints.SearchAlbumList, cursor, BodianJsonContext.Default.SearchAlbumsPayload, MapAlbum, cancellationToken);
 
@@ -159,6 +182,23 @@ public sealed class BodianApi : IBodianApi
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(artistId);
         return FetchSearchPageAsync(Endpoints.ArtistAlbums(artistId), [], cursor,
             BodianJsonContext.Default.SearchAlbumsPayload, payload => payload.ResultList?.Select(MapAlbum).ToArray() ?? [], payload => payload.Total, cancellationToken);
+    }
+
+    public async Task<Artist?> GetArtistInfoAsync(long artistId, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(artistId);
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.ArtistInfo(artistId),
+                Query = [],
+                Signed = false,
+            },
+            BodianJsonContext.Default.ArtistInfoPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        return envelope.Data?.ArtistInfo is { } dto ? MapArtistInfo(artistId, dto) : null;
     }
 
     private Task<PagedResult<TModel>> SearchPageAsync<TDto, TModel>(string keyword, string path, PagedCursor cursor,
@@ -1319,6 +1359,7 @@ public sealed class BodianApi : IBodianApi
         Name = string.IsNullOrWhiteSpace(dto.Name) ? "(未命名专辑)" : dto.Name,
 
         ArtistText = dto.EffectiveArtist ?? "",
+        ArtistId = dto.ArtistId,
         CoverImage = ToHttpUri(dto.Pic),
         MusicCount = dto.MusicCount,
         ArtistCover = ToHttpUri(dto.ArtistPic),

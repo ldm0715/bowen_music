@@ -1,17 +1,25 @@
 namespace Bodian.Core.Api.Paging;
 
 /// <summary>
-/// 分页约定。**首页页号各家不同**，这是波点接口最容易踩的一处不一致。
+/// 分页约定。**只有 <c>search/*</c> 是 0 基，其余全从 1 开始。**
 /// </summary>
 /// <remarks>
+/// <para>
 /// 实测（<c>bodian-api-reference.md</c> 1.6 节）：
 /// <list type="bullet">
-/// <item><c>search/*/list</c> 从 <b>0</b> 开始</item>
+/// <item><c>search/*/list</c> 从 <b>0</b> 开始（<c>pn=0</c> 回 1–5 条，<c>pn=1</c> 回 6–10 条）</item>
 /// <item><c>service/playlist/{id}/musicList</c>、<c>service/collect/4/list</c>、<c>service/collect/6/list</c>
 /// 从 <b>1</b> 开始</item>
 /// <item><c>service/album/music/{id}</c>、<c>service/artist/music/{id}</c>、<c>service/artist/album/{id}</c>
-/// 从 <b>0</b> 开始</item>
+/// 也从 <b>1</b> 开始</item>
 /// </list>
+/// </para>
+/// <para>
+/// ★ <b>这三个 <c>service</c> 接口的页码写错会"看起来正常"</b>：传 <c>pn=0</c> 不报错，
+/// 服务端当第 1 页处理。于是首屏拿到的确实是对的，游标推进后发 <c>pn=1</c> —— 又是第 1 页，
+/// 追加进去正好把整个列表翻倍（实测 28 张专辑显示成 56 张）。
+/// 判断办法是拿 <c>pn=1</c> 与 <c>pn=2</c> 的两组 id 比对，别看 <c>pn=0</c>。
+/// </para>
 /// </remarks>
 public sealed record PagingConvention(
     string PageParam = "pn",
@@ -19,7 +27,7 @@ public sealed record PagingConvention(
     int FirstPage = 1,
     int MaxPageSize = 100)
 {
-    /// <summary>首页为 0：<c>search/*</c>、专辑与艺人的曲目列表用这个。</summary>
+    /// <summary>首页为 0：<b>只有 <c>search/*/list</c> 用这个</b>。</summary>
     public static readonly PagingConvention ZeroBased = new(FirstPage: 0);
 
     /// <summary>首页为 1：歌单曲目、收藏列表用这个。</summary>

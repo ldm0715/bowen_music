@@ -28,6 +28,14 @@ internal static class Endpoints
     public static string ArtistTracks(long id) => $"service/artist/music/{id}";
     public static string ArtistAlbums(long id) => $"service/artist/album/{id}";
 
+    /// <summary>
+    /// 歌手详情。<b>无 query</b>，响应 <c>{ artistInfo: {...} }</c>，见 <c>Dto/ArtistInfoPayloads.cs</c>。
+    /// </summary>
+    /// <remarks>
+    /// 别名、粉丝数与简介只有这条接口会给；搜索结果的歌手条目里没有这几个字段。
+    /// </remarks>
+    public static string ArtistInfo(long id) => $"service/artist/{id}";
+
     /// <summary><b>GET 且必须带 JSON body，签名覆盖该 body。</b></summary>
     public const string CheckRight = "play/music/v2/checkRight";
 

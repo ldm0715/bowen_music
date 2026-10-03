@@ -167,6 +167,50 @@ public sealed class PagedList<T> : ObservableObject
     }
 
     /// <summary>
+    /// 一页一页地把剩下的全部拉完，最多拉 <paramref name="maxPages"/> 页。
+    /// </summary>
+    /// <returns>
+    /// 是否真的拉到了「没有下一页」。<b>撞上限、中途失败、以及首屏就失败，都返回 <c>false</c>。</b>
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// 「播放全部」要用它：只把当前已加载的那些排进队列的话，11 首的专辑第一次点只会播 5 首，
+    /// 后面 6 首永远进不了队列。
+    /// </para>
+    /// <para>
+    /// <b>中途失败就停，并保留已经加载的部分</b> —— 队列短一点也比整次操作失败好。
+    /// 调用方拿到 <c>false</c> 时应当照常播现有内容，而不是报错。
+    /// </para>
+    /// <para>
+    /// <b>进来时就有加载在进行则直接返回 <c>false</c></b>：<see cref="LoadMoreAsync"/>
+    /// 在忙时会早退，硬循环只会空转到上限。宁可少拉几页，也不要在这里抢同一份状态。
+    /// </para>
+    /// </remarks>
+    public async Task<bool> LoadAllAsync(int maxPages = 20, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPages);
+
+        await EnsureLoadedAsync(cancellationToken).ConfigureAwait(true);
+
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        var pages = 0;
+
+        while (HasMore && !LoadFailed && !IsBusy && pages < maxPages)
+        {
+            pages++;
+            await LoadMoreAsync(cancellationToken).ConfigureAwait(true);
+        }
+
+        // ★ 失败也要算「没拉全」：首屏就失败时 HasMore 停在 false（ReloadAsync 开头会把它清掉），
+        //   只看 !HasMore 会把「什么都没拉到」当成「拉完了」。
+        return !HasMore && !LoadFailed;
+    }
+
+    /// <summary>
     /// 设一个会牵动 <see cref="ShowEnd"/> / <see cref="ShowRetry"/> 的字段。
     /// </summary>
     /// <remarks>
@@ -198,8 +242,8 @@ public sealed class PagedList<T> : ObservableObject
 
         HasMore = !_cursor.Exhausted && page.Items.Count > 0;
 
-        StatusText = Items.Count == 0
-            ? EmptyText
-            : $"{Items.Count} 项{(HasMore ? "（滚动加载）" : "")}";
+        // 只说条数。曾经在还有下一页时补一个「（滚动加载）」，那是滚到底自动翻页刚上线时
+        // 用来提示行为变化的，现在列表末尾本来就有「没有更多了哦~」，这句纯属噪音。
+        StatusText = Items.Count == 0 ? EmptyText : $"{Items.Count} 项";
     }
 }

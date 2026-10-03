@@ -1,6 +1,7 @@
 using Bodian.Core.Models;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Bodian.WinUI.Views;
@@ -14,11 +15,21 @@ namespace Bodian.WinUI.Views;
 /// </remarks>
 public sealed partial class AlbumDetailPage : Page, INavigationAware
 {
-    public AlbumDetailPage(AlbumDetailViewModel viewModel)
+    private readonly INavigationService _navigation;
+    private readonly Func<Artist, ArtistDetailPage> _artistFactory;
+
+    public AlbumDetailPage(
+        AlbumDetailViewModel viewModel,
+        INavigationService navigation,
+        Func<Artist, ArtistDetailPage> artistFactory)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(navigation);
+        ArgumentNullException.ThrowIfNull(artistFactory);
 
         ViewModel = viewModel;
+        _navigation = navigation;
+        _artistFactory = artistFactory;
 
         InitializeComponent();
     }
@@ -33,4 +44,28 @@ public sealed partial class AlbumDetailPage : Page, INavigationAware
     }
 
     private void OnTrackInvoked(object? sender, Track track) => _ = ViewModel.PlayAsync(track);
+
+    /// <summary>
+    /// 点头部的歌手进歌手页。
+    /// </summary>
+    /// <remarks>
+    /// <b>不带计数</b>：专辑这边只知道歌手名与头像，歌曲数、专辑数、粉丝数都要靠
+    /// 歌手页自己去取（<c>GetArtistInfoAsync</c>），取到之前头部那行元信息是不显示的。
+    /// </remarks>
+    private void OnArtistClick(object sender, RoutedEventArgs e)
+    {
+        var album = ViewModel.Album;
+
+        if (album.ArtistId <= 0)
+        {
+            return;
+        }
+
+        _navigation.Navigate(_artistFactory(new Artist
+        {
+            Id = album.ArtistId,
+            Name = album.ArtistText,
+            CoverImage = album.ArtistCover,
+        }));
+    }
 }

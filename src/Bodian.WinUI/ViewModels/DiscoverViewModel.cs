@@ -200,9 +200,8 @@ public sealed partial class DiscoverViewModel : ObservableObject
             _consumed = end;
             HasMore = _consumed < _supported.Count;
 
-            StatusText = Feeds.Count == 0
-                ? "这次没有取到内容。"
-                : $"{Feeds.Count} 个模块{(HasMore ? "（滚动加载）" : "")}";
+            // 「（滚动加载）」已去掉 —— 理由同 PagedList 里那一处。
+            StatusText = Feeds.Count == 0 ? "这次没有取到内容。" : $"{Feeds.Count} 个模块";
         }
         finally
         {
