@@ -28,6 +28,41 @@ public sealed partial class ArtistDetailPage : Page, INavigationAware, INavigati
         if (e.ClickedItem is Album album) _navigation.Navigate(_albumFactory(album));
     }
 
+    /// <summary>
+    /// 关注 / 取消关注。
+    /// </summary>
+    /// <remarks>
+    /// <b>取关先弹一次确认</b>，关注直接做 —— 两边代价不对称，误触取关是「把攒起来的关系拿掉」。
+    /// 弹窗放页面而不是 ViewModel：那是界面决策（要不要弹、按钮怎么摆），
+    /// 且 <c>XamlRoot</c> 也拿不到 ViewModel 里去（同 <c>RecentPage</c> 的清空记录）。
+    /// </remarks>
+    private async void OnFollowClick(object sender, RoutedEventArgs e)
+    {
+        var followed = ViewModel.IsFollowed == true;
+
+        if (followed)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "取消关注？",
+                Content = "会不再关注这位歌手，之后可以再关注回来。",
+                PrimaryButtonText = "取消关注",
+                CloseButtonText = "再想想",
+
+                // 默认落在「再想想」上，与清空播放记录、取消收藏同一档。
+                DefaultButton = ContentDialogButton.Close,
+            };
+
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+        }
+
+        await ViewModel.SetFollowedAsync(!followed);
+    }
+
     /// <summary>卡片本体想要多宽。列数由它推出来，实际宽度再按可用空间等分。</summary>
     /// <remarks>不是硬性尺寸 —— 可用宽度除不尽时卡片会跟着变宽变窄，保证整行铺满。</remarks>
     private const double AlbumCardTargetWidth = 150;

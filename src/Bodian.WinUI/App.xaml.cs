@@ -117,6 +117,8 @@ public partial class App : Application
         builder.Services.AddSingleton<IClipboardService, ClipboardService>();
         // 喜欢状态是会话级缓存，必须单例：播放条与歌词页共享同一份。
         builder.Services.AddSingleton<ILikedSongsService, LikedSongsService>();
+        // 关注歌手状态同理：歌手详情各处共享同一份本地列表（详情接口没有 follow 字段）。
+        builder.Services.AddSingleton<IFollowedArtistsService, FollowedArtistsService>();
 
         // 曲目行「更多」菜单的装配点。两个接口指向同一个实例：
         // 行内控件从 App 资源拿它，而动作 ViewModel 只认那两个接口（这样才能进离线测试）。
@@ -138,7 +140,8 @@ public partial class App : Application
             new ArtistDetailPage(new ArtistDetailViewModel(
                 sp.GetRequiredService<IBodianApi>(), sp.GetRequiredService<PlaybackCoordinator>(),
                 sp.GetRequiredService<BodianSession>(), sp.GetRequiredService<IClipboardService>(), artist,
-                sp.GetRequiredService<INoticeSink>(), sp.GetRequiredService<ILogger<ArtistDetailViewModel>>()),
+                sp.GetRequiredService<INoticeSink>(), sp.GetRequiredService<IFollowedArtistsService>(),
+                sp.GetRequiredService<ILogger<ArtistDetailViewModel>>()),
                 sp.GetRequiredService<INavigationService>(), sp.GetRequiredService<Func<Album, AlbumDetailPage>>()));
         builder.Services.AddSingleton<ThemeViewModel>();
         builder.Services.AddTransient<LoginViewModel>();
@@ -152,6 +155,8 @@ public partial class App : Application
         builder.Services.AddTransient<RecentPage>();
         builder.Services.AddTransient<CollectedAlbumsViewModel>();
         builder.Services.AddTransient<CollectedAlbumsPage>();
+        builder.Services.AddTransient<CollectedPlaylistsViewModel>();
+        builder.Services.AddTransient<CollectedPlaylistsPage>();
 
         builder.Services.AddTransient<DiscoverViewModel>();
         builder.Services.AddTransient<DiscoverPage>();
@@ -212,6 +217,7 @@ public partial class App : Application
                 sp.GetRequiredService<PlaybackCoordinator>(),
                 playlist,
                 source,
+                sp.GetRequiredService<INoticeSink>(),
                 sp.GetRequiredService<ILogger<PlaylistDetailViewModel>>())));
 
         // Win2D 歌词控件由歌词页构造注入（XAML 实例化要求无参构造，所以不能直接写在 XAML 里）

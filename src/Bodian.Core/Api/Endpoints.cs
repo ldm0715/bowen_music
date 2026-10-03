@@ -275,6 +275,56 @@ internal static class Endpoints
     /// </remarks>
     public const string PlaylistMusic = "service/playlist/music";
 
+    /// <summary>
+    /// 歌单详情。query 带 <c>source</c>（就是歌单自身的 <c>sourceType</c>）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 响应 <c>data</c> 就是歌单对象本身（不套壳）。<b>「是否已收藏」看响应里有没有
+    /// <c>collectTime</c></b> —— 不是 <c>isFond</c>。见
+    /// <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §3.3。
+    /// </para>
+    /// <para>
+    /// <b>id 在路径上</b>，与 <see cref="PlaylistTracks"/> 同形；<c>source</c> 走 query。
+    /// </para>
+    /// </remarks>
+    public static string PlaylistInfo(long playlistId) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"service/playlist/info/{playlistId}");
+
+    /// <summary>收藏写入的 <c>source</c>：歌单与专辑都走 <c>4</c>，按元素的 <c>sourceType</c> 分型。</summary>
+    /// <remarks>见 <see cref="Collect"/> 与 <c>reverse/findings/13-collect-playlist-follow-artist.md</c>。</remarks>
+    public const int CollectSourcePlaylistAlbum = 4;
+
+    /// <summary>收藏**专辑**的 <c>source</c>。</summary>
+    /// <remarks>
+    /// 与歌单（<c>4</c>）不同。写端点与
+    /// <see cref="CollectMultipleState"/> 都用它 —— 2026-10-03 真机往返实测。
+    /// </remarks>
+    public const int CollectSourceAlbum = 6;
+
+    /// <summary>
+    /// 批量查收藏状态。query <c>source</c> + <c>sourceIds</c>（逗号分隔）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 返回 <c>{result:[{id, collect}]}</c>。<b>专辑「是否已收藏」只有这条路</b> ——
+    /// 专辑详情 <c>service/album/{id}</c> 里**没有任何收藏标志**（已收藏与未收藏的响应逐字段同形）。
+    /// </para>
+    /// <para>
+    /// <b><c>source</c> 必须与对象类型匹配</b>：对专辑要传 <c>6</c>，传 <c>4</c> 会一律回 <c>false</c>（实测）。
+    /// </para>
+    /// </remarks>
+    public const string CollectMultipleState = "service/collect/multipleState";
+
+    /// <summary>关注歌手的 <c>source</c>。与歌单同为 <see cref="Collect"/> 端点，但 body 多一个 <c>token</c>。</summary>
+    public const int CollectSourceArtist = 7;
+
+    /// <summary>收藏族混合列表里代表「歌单」的 <c>sourceType</c>。</summary>
+    public const int CollectedPlaylistType = 4;
+
+    /// <summary>收藏族混合列表里代表「专辑」的 <c>sourceType</c>。</summary>
+    public const int CollectedAlbumType = 6;
+
     /// <inheritdoc cref="PlaylistMusic"/>
     public const string PlaylistMusicDelete = "service/playlist/music/delete";
 

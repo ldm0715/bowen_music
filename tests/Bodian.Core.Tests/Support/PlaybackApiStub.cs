@@ -101,6 +101,37 @@ internal sealed class PlaybackApiStub : IBodianApi
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Task<PagedResult<Playlist>> GetCollectedPlaylistsAsync(
+            PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Func<CancellationToken, Task<IReadOnlyList<Artist>>> GetFollowedArtists { get; set; } =
+            _ => throw new NotSupportedException();
+        public Task<IReadOnlyList<Artist>> GetFollowedArtistsAsync(CancellationToken cancellationToken = default)
+            => GetFollowedArtists(cancellationToken);
+
+        public Func<long, bool, CancellationToken, Task> SetArtistFollowed { get; set; } =
+            (_, _, _) => throw new NotSupportedException();
+        public Task SetArtistFollowedAsync(long artistId, bool followed, CancellationToken cancellationToken = default)
+            => SetArtistFollowed(artistId, followed, cancellationToken);
+
+        public Task<bool?> IsAlbumCollectedAsync(long albumId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Func<long, bool, CancellationToken, Task> SetAlbumCollected { get; set; } =
+            (_, _, _) => throw new NotSupportedException();
+        public Task SetAlbumCollectedAsync(long albumId, bool collected, CancellationToken cancellationToken = default)
+            => SetAlbumCollected(albumId, collected, cancellationToken);
+
+        public Task<bool?> IsPlaylistCollectedAsync(long playlistId, int source,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task SetPlaylistCollectedAsync(long playlistId, int source, bool collected,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<IReadOnlyList<HomeModule>> GetHomeModulesAsync(
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

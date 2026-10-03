@@ -69,8 +69,10 @@
                 <!--
                     关注与分享并排。
 
-                    关注本轮只弹提示，不发写请求，见 ArtistDetailViewModel.Follow 的说明；
-                    分享只复制本地拼的链接，同样不发请求，见 Share。
+                    关注是两态：未关注显示「关注」，已关注显示「已关注」，图标也跟着换。
+                    取关要**先弹确认框**，所以用 Click 而不是 Command —— 弹窗是界面决策，
+                    XamlRoot 也拿不到 ViewModel 里去（见 code-behind 的 OnFollowClick）。
+                    分享只复制本地拼的链接，不发请求，见 Share。
 
                     圆角取 ControlCornerRadius —— 与侧栏选中、页签条同一档。
                     不要用 RadiusPill(999)：全圆角配这种矮按钮会拉成细长椭圆。
@@ -82,12 +84,14 @@
                     Spacing="8">
                     <Button
                         AutomationProperties.Name="关注"
-                        Command="{x:Bind ViewModel.FollowCommand}"
+                        Click="OnFollowClick"
                         CornerRadius="{StaticResource ControlCornerRadius}"
                         MinWidth="0">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon FontSize="14" Glyph="&#xE8FA;" />
-                            <TextBlock Text="关注" />
+                            <FontIcon
+                                FontSize="14"
+                                Glyph="{x:Bind local:Formats.FollowGlyph(ViewModel.IsFollowed), Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind local:Formats.FollowLabel(ViewModel.IsFollowed), Mode=OneWay}" />
                         </StackPanel>
                     </Button>
 

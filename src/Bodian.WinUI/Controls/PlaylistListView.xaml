@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.PlaylistListView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:models="using:Bodian.Core.Models">
+
+    <!--
+        歌单列表。收藏的歌单用。
+
+        与 AlbumListView 同一套行模板（VirtualizedListView + 48 封面 + 右侧曲目数），
+        只是报的是 Playlist、点行进歌单详情 —— 两页并排放在侧栏里，观感要一样。
+
+        歌单没有「艺人」那一行，所以行内只有标题，不像专辑行是两行。
+    -->
+    <controls:VirtualizedListView
+        x:Name="List"
+        Padding="{StaticResource SpaceVerticalScrollContentPadding}"
+        controls:AutoPaging.Command="{x:Bind LoadMoreCommand, Mode=OneWay}"
+        controls:AutoPaging.HasMore="{x:Bind HasMore, Mode=OneWay}"
+        IsItemClickEnabled="True"
+        ItemClick="OnItemClick"
+        ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
+        SelectionMode="None">
+        <controls:VirtualizedListView.ItemTemplate>
+            <DataTemplate x:DataType="models:Playlist">
+                <Grid Padding="8,6" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 封面。没有封面时留一块底色，行高不跳。 -->
+                    <Border
+                        Grid.Column="0"
+                        Width="48"
+                        Height="48"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                        CornerRadius="4">
+                        <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Text="{x:Bind Name}"
+                        TextTrimming="CharacterEllipsis" />
+
+                    <TextBlock
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                </Grid>
+            </DataTemplate>
+        </controls:VirtualizedListView.ItemTemplate>
+    </controls:VirtualizedListView>
+</UserControl>

@@ -48,6 +48,8 @@ public sealed partial class MainWindow : Window
 
     private const string CollectedAlbumsTag = "collected-albums";
 
+    private const string CollectedPlaylistsTag = "collected-playlists";
+
     private const string ReloadPlaylistsTag = "reload-playlists";
 
     /// <summary>侧栏里的歌单都是账号自建歌单，<c>source = 5</c>。</summary>
@@ -638,6 +640,10 @@ public sealed partial class MainWindow : Window
                 _navigation.NavigateRoot<CollectedAlbumsPage>();
                 break;
 
+            case CollectedPlaylistsTag:
+                _navigation.NavigateRoot<CollectedPlaylistsPage>();
+                break;
+
             case ReloadPlaylistsTag:
                 _ = LoadSidebarAsync();
                 break;
@@ -818,6 +824,7 @@ public sealed partial class MainWindow : Window
             FavoritesPage => FavoritesItem,
             RecentPage => RecentItem,
             CollectedAlbumsPage => CollectedAlbumsItem,
+            CollectedPlaylistsPage => CollectedPlaylistsItem,
 
             PlaylistDetailPage detail => _playlistItems.FirstOrDefault(
                 item => item.Tag is Playlist playlist && playlist.Id == detail.ViewModel.Playlist.Id),

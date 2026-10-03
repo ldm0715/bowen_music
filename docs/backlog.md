@@ -169,9 +169,8 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留（逆向结�
 | 专辑页歌手入口 | 从列表进来直接可见；从曲目行「查看专辑」进来要等详情回来才出现 |
 | 播放全部 | 11 首的专辑连播 11 首，不是只播首屏那几首 |
 
-仍缺的：**专辑收藏**（`service/collect` 的 `op` 哪个是收藏还没定，按钮只弹提示）、
-**歌手关注**（写请求报文未实测，也没读回「是否已关注」的路径，按钮固定显示「关注」）、
-**歌手/专辑分享不上报**（只复制链接，歌手分享数不 +1 —— 这是本轮的范围决定，值已探明）。
+仍缺的：**歌手/专辑分享不上报**（只复制链接，歌手分享数不 +1 —— 这是本轮的范围决定，值已探明）。
+协议结论见 [`../reverse/findings/13-collect-playlist-follow-artist.md`](../reverse/findings/13-collect-playlist-follow-artist.md)。
 
 ### 曲目行序号列与播放动画（2026-10-03）
 
@@ -191,6 +190,22 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留（逆向结�
 | 行滚动/切页 | 容器回收后不会留下停住的条，也不会两条相位混淆 |
 | 窄窗口 | 列宽加宽后曲名区仍不被挤到换行 |
 | 榜单页 | 名次列是另一档宽度，播放态同样会动 |
+
+### 收藏歌单与关注歌手（2026-10-03）
+
+侧栏「我的音乐」下新增「收藏的歌单」；歌单详情的收藏、**专辑详情页的收藏**、歌手页的关注
+三处都改成**两态**，取消操作**先弹确认框**（与清空播放记录同一档）。**歌单 ≠ 专辑** ——
+「收藏的专辑」页顺手修掉了「把歌单也当专辑渲染」的问题。
+
+专辑那条比歌单多花了一次探针：**专辑详情里没有任何收藏标志**，写用 `source=6`、
+判据走 `service/collect/multipleState`（歌单是 `source=4` + 详情 `collectTime`）。
+
+接口、判定机制与实现分层见 [`collect-follow.md`](collect-follow.md)，
+协议结论（含两次真机往返）见
+[`../reverse/findings/13-collect-playlist-follow-artist.md`](../reverse/findings/13-collect-playlist-follow-artist.md)。
+
+构建通过（0 错误，1 个既有 `WMC1506` 警告），877 项离线测试通过（新增 `CollectionApiTests` 18 项、
+`FollowedArtistsServiceTests` 8 项）。界面验收由用户手动进行，清单见 `collect-follow.md` §4。
 
 ## 做事的规矩
 

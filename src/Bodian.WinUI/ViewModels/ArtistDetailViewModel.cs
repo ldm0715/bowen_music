@@ -2,6 +2,7 @@ using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
 using Bodian.Core.Services;
+using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Playback;
 using Bodian.WinUI.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -35,6 +36,7 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
     private readonly BodianSession _session;
     private readonly IClipboardService _clipboard;
     private readonly INoticeSink _notice;
+    private readonly IFollowedArtistsService _follows;
     private readonly ILogger<ArtistDetailViewModel> _logger;
 
     private bool _infoRequested;
@@ -46,6 +48,7 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         IClipboardService clipboard,
         Artist artist,
         INoticeSink notice,
+        IFollowedArtistsService follows,
         ILogger<ArtistDetailViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
@@ -54,12 +57,14 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(clipboard);
         ArgumentNullException.ThrowIfNull(artist);
         ArgumentNullException.ThrowIfNull(notice);
+        ArgumentNullException.ThrowIfNull(follows);
 
         _api = api;
         _coordinator = coordinator;
         _session = session;
         _clipboard = clipboard;
         _notice = notice;
+        _follows = follows;
         _logger = logger ?? NullLogger<ArtistDetailViewModel>.Instance;
 
         Artist = artist;
@@ -99,11 +104,12 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
 
     public PagedList<Album> Albums { get; }
 
-    /// <summary>页面进入时调一次：歌手信息与歌曲列表。</summary>
+    /// <summary>页面进入时调一次：歌手信息、歌曲列表与关注态。</summary>
     public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
     {
         await LoadInfoAsync(cancellationToken).ConfigureAwait(true);
         await Tracks.EnsureLoadedAsync(cancellationToken).ConfigureAwait(true);
+        await LoadFollowStateAsync(cancellationToken).ConfigureAwait(true);
     }
 
     /// <summary>点播。队列是当前已加载的歌曲列表。</summary>
@@ -120,16 +126,73 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 关注。
+    /// 这个歌手当前是否已被我关注。
     /// </summary>
     /// <remarks>
-    /// <b>本轮只做界面，不发写请求。</b> 关注走的是 <c>service/collect</c> 上另一条实现
-    /// （<c>api_service.dart::submitUserSource</c>），报文与 <c>op</c> 方向都没实测过。
-    /// 也没有读回「是否已关注」的路径（要读 <c>service/collect/7/list</c>），
-    /// 所以按钮固定显示「关注」—— <b>不假造一个可能是错的已关注状态</b>。
+    /// <c>null</c> = 还没判定出来（未登录或读取失败），按钮按「未关注」显示。
+    /// 歌手详情**没有 follow 字段**，判据是 <c>service/collect/7/list</c> 的本地集合，
+    /// 见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §4.3。
     /// </remarks>
-    [RelayCommand]
-    private void Follow() => _notice.Show("关注功能暂未开放");
+    [ObservableProperty]
+    public partial bool? IsFollowed { get; set; }
+
+    /// <summary>关注/取关正在进行。<b>挡住重复点击</b> —— 服务端把 <c>op</c> 当一次设置，重发会打架。</summary>
+    [ObservableProperty]
+    public partial bool IsFollowBusy { get; set; }
+
+    /// <summary>
+    /// 关注 / 取消关注，并就地更新按钮状态。
+    /// </summary>
+    /// <remarks>
+    /// <b>确认弹窗不在这里</b>：那是界面决策，且 <c>XamlRoot</c> 拿不到 ViewModel 里来。
+    /// 取关由页面在调用前先确认，见 <c>ArtistDetailPage.OnFollowClick</c>。
+    /// </remarks>
+    public async Task SetFollowedAsync(bool followed, CancellationToken cancellationToken = default)
+    {
+        if (IsFollowBusy)
+        {
+            return;
+        }
+
+        IsFollowBusy = true;
+        try
+        {
+            var outcome = await _follows.SetFollowedAsync(Artist.Id, followed, cancellationToken)
+                .ConfigureAwait(true);
+
+            switch (outcome)
+            {
+                case FollowedArtistOutcome.Succeeded:
+                    IsFollowed = followed;
+                    _notice.Show(followed ? "已关注" : "已取消关注");
+                    break;
+
+                case FollowedArtistOutcome.NotAuthenticated:
+                    _notice.Show("登录后可以关注");
+                    break;
+
+                case FollowedArtistOutcome.AlreadyPending:
+                    break;
+
+                default:
+                    _notice.Show(followed ? "关注失败" : "取消关注失败");
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "歌手 {ArtistId} {Operation}失败", Artist.Id, followed ? "关注" : "取消关注");
+            _notice.Show(followed ? "关注失败" : "取消关注失败");
+        }
+        finally
+        {
+            IsFollowBusy = false;
+        }
+    }
 
     /// <summary>
     /// 复制歌手分享链接。
@@ -203,6 +266,30 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "加载歌手 {ArtistId} 详情失败", Artist.Id);
+        }
+    }
+
+    /// <summary>
+    /// 取这个歌手的关注态（来自 <see cref="IFollowedArtistsService"/> 的会话级本地集合）。
+    /// </summary>
+    /// <remarks>
+    /// <b>每次都问一次</b>，不是「只问一次」：关注态可能在别处被改，
+    /// 而那个服务自己带缓存与失效规则，反复问不会多发请求。拿不到就保持 <c>null</c>。
+    /// </remarks>
+    private async Task LoadFollowStateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IsFollowed = await _follows.IsFollowedAsync(Artist.Id, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "加载歌手 {ArtistId} 关注状态失败", Artist.Id);
+            IsFollowed = null;
         }
     }
 }

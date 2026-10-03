@@ -1,0 +1,232 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "aee2cb42469994fdcf827b158f3fe15f",
+  "data": {
+    "artistList": [
+      {
+        "id": 1306,
+        "name": "王心凌",
+        "aliasName": "Cyndi Wang",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s77/97/1548119791.jpg",
+        "fansCnt": 159778,
+        "musicCnt": 583,
+        "isshowtype": 0,
+        "albumCnt": 43
+      },
+      {
+        "id": 1524176,
+        "name": "Akie秋绘",
+        "aliasName": "Akie",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/5/31/3241158484.jpg",
+        "fansCnt": 4921,
+        "musicCnt": 199,
+        "isshowtype": 0,
+        "albumCnt": 115
+      },
+      {
+        "id": 1715,
+        "name": "BY2",
+        "aliasName": "By2",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s53/54/180876807.jpg",
+        "fansCnt": 86431,
+        "musicCnt": 400,
+        "isshowtype": 0,
+        "albumCnt": 67
+      },
+      {
+        "id": 624,
+        "name": "S.H.E",
+        "aliasName": "",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s47/40/1518389109.png",
+        "fansCnt": 140390,
+        "musicCnt": 659,
+        "isshowtype": 0,
+        "albumCnt": 33
+      },
+      {
+        "id": 9211,
+        "name": "骆集益",
+        "aliasName": "Lo Chi-YiLu Fred",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/87/94/2266961999.jpg",
+        "fansCnt": 425,
+        "musicCnt": 574,
+        "isshowtype": 0,
+        "albumCnt": 20
+      },
+      {
+        "id": 223,
+        "name": "杨丞琳",
+        "aliasName": "Rainie Yang",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s28/93/3469735896.jpg",
+        "fansCnt": 83345,
+        "musicCnt": 683,
+        "isshowtype": 0,
+        "albumCnt": 48
+      },
+      {
+        "id": 5359,
+        "name": "田馥甄",
+        "aliasName": "Hebe",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s2/59/338773283.png",
+        "fansCnt": 354071,
+        "musicCnt": 531,
+        "isshowtype": 0,
+        "albumCnt": 29
+      },
+      {
+        "id": 5371,
+        "name": "G.E.M.邓紫棋",
+        "aliasName": "",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/40/9/1980630626.jpg",
+        "fansCnt": 1538945,
+        "musicCnt": 955,
+        "isshowtype": 0,
+        "albumCnt": 73
+      },
+      {
+        "id": 680,
+        "name": "张杰",
+        "aliasName": "Jason",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/76/9/646457804.jpg",
+        "fansCnt": 646540,
+        "musicCnt": 1111,
+        "isshowtype": 0,
+        "albumCnt": 139
+      },
+      {
+        "id": 4444256,
+        "name": "YOASOBI",
+        "aliasName": "",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s0/88/2227585000.jpg",
+        "fansCnt": 62902,
+        "musicCnt": 105,
+        "isshowtype": 0,
+        "albumCnt": 64
+      },
+      {
+        "id": 3026635,
+        "name": "司南",
+        "aliasName": "",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s71/51/961245724.jpg",
+        "fansCnt": 24047,
+        "musicCnt": 249,
+        "isshowtype": 0,
+        "albumCnt": 101
+      },
+      {
+        "id": 744,
+        "name": "孙燕姿",
+        "aliasName": "Stefanie Sun",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s28/47/3391812016.jpg",
+        "fansCnt": 270362,
+        "musicCnt": 749,
+        "isshowtype": 0,
+        "albumCnt": 56
+      },
+      {
+        "id": 2,
+        "name": "周传雄",
+        "aliasName": "Steve Chou",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s84/13/1119809443.jpg",
+        "fansCnt": 251213,
+        "musicCnt": 640,
+        "isshowtype": 0,
+        "albumCnt": 46
+      },
+      {
+        "id": 231,
+        "name": "王铮亮",
+        "aliasName": "Reno Wang",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s88/44/2596900339.jpg",
+        "fansCnt": 9422,
+        "musicCnt": 685,
+        "isshowtype": 0,
+        "albumCnt": 121
+      },
+      {
+        "id": 1062,
+        "name": "林俊杰",
+        "aliasName": "JJ Lin",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/40/64/2063938955.jpg",
+        "fansCnt": 2516137,
+        "musicCnt": 1231,
+        "isshowtype": 0,
+        "albumCnt": 81
+      },
+      {
+        "id": 978,
+        "name": "蔡依林",
+        "aliasName": "Jolin Cai",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s67/8/3629759113.jpg",
+        "fansCnt": 182441,
+        "musicCnt": 1122,
+        "isshowtype": 0,
+        "albumCnt": 73
+      },
+      {
+        "id": 136559,
+        "name": "泠鸢yousa",
+        "aliasName": "",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/70/3/3603021739.jpg",
+        "fansCnt": 112127,
+        "musicCnt": 559,
+        "isshowtype": 0,
+        "albumCnt": 105
+      },
+      {
+        "id": 336,
+        "name": "周杰伦",
+        "aliasName": "Jay Chou",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s56/58/291211030.jpg",
+        "fansCnt": 4849103,
+        "musicCnt": 1709,
+        "isshowtype": 0,
+        "albumCnt": 45
+      },
+      {
+        "id": 47,
+        "name": "陈奕迅",
+        "aliasName": "Eason Chan",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/37/26/3816222178.jpg",
+        "fansCnt": 2079215,
+        "musicCnt": 1842,
+        "isshowtype": 0,
+        "albumCnt": 152
+      },
+      {
+        "id": 4536,
+        "name": "徐佳莹",
+        "aliasName": "Lala Hsu",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s64/61/1363070992.jpg",
+        "fansCnt": 57364,
+        "musicCnt": 492,
+        "isshowtype": 0,
+        "albumCnt": 65
+      },
+      {
+        "id": 61144,
+        "name": "李荣浩",
+        "aliasName": "Ronghao Li",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s61/56/1743763333.jpg",
+        "fansCnt": 1366653,
+        "musicCnt": 366,
+        "isshowtype": 0,
+        "albumCnt": 29
+      },
+      {
+        "id": 947,
+        "name": "薛之谦",
+        "aliasName": "Joker Xue",
+        "pic": "https://img3.kuwo.cn/star/starheads/700/s4s3/97/3476806853.jpg",
+        "fansCnt": 1730319,
+        "musicCnt": 492,
+        "isshowtype": 0,
+        "albumCnt": 34
+      }
+    ],
+    "total": 22
+  },
+  "profileId": "site",
+  "curTime": 1791017619205
+}

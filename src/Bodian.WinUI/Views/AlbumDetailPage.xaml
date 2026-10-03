@@ -101,13 +101,18 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- 本轮只弹提示：写请求的报文方向没实测过，见 AlbumDetailViewModel.Collect -->
+                    <!--
+                        收藏是两态；取消收藏要**先弹确认框**，所以用 Click 而不是 Command ——
+                        弹窗是界面决策，XamlRoot 也拿不到 ViewModel 里去（见 code-behind）。
+                    -->
                     <Button
                         AutomationProperties.Name="收藏"
-                        Command="{x:Bind ViewModel.CollectCommand}">
+                        Click="OnCollectClick">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon FontSize="14" Glyph="&#xEB51;" />
-                            <TextBlock Text="收藏" />
+                            <FontIcon
+                                FontSize="14"
+                                Glyph="{x:Bind local:Formats.CollectGlyph(ViewModel.IsCollected), Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind local:Formats.CollectLabel(ViewModel.IsCollected), Mode=OneWay}" />
                         </StackPanel>
                     </Button>
 

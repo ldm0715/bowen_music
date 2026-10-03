@@ -190,14 +190,92 @@ public interface IBodianApi
     /// 收藏的专辑。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 走的是移动端的<b>收藏歌单</b>端点（<c>service/collect/4/list</c>，数组键 <c>playLists</c>）——
     /// 按用户实测，它的内容与官方桌面端「收藏专辑」的效果一致。
     /// 官方桌面端自己那条路（<c>service/collect/6/list</c>）已弃用：实测返回 200 但 <c>data</c> 是空对象。
+    /// </para>
+    /// <para>
+    /// <b>该端点是混合列表</b>（元素自带 <c>sourceType</c>），本方法**排除 <c>sourceType == 4</c> 的歌单**，
+    /// 其余都当专辑；歌单由 <see cref="GetCollectedPlaylistsAsync"/> 取。见
+    /// <c>reverse/findings/13-collect-playlist-follow-artist.md</c>。
+    /// </para>
+    /// <para>
+    /// 判据写成「排除歌单」而不是「等于专辑（6）」：专辑条目**可能不带 <c>sourceType</c>**，
+    /// 那种形状要被收下而不是漏掉。
+    /// </para>
     /// </remarks>
     /// <exception cref="InvalidOperationException">未登录。</exception>
     Task<PagedResult<Album>> GetCollectedAlbumsAsync(
         PagedCursor cursor,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 收藏的歌单。与 <see cref="GetCollectedAlbumsAsync"/> 是同一条端点，只保留 <c>sourceType == 4</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>歌单 ≠ 专辑</b>：两者是不同概念，只是共用 <c>service/collect/4/list</c> 这条读端点。
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">未登录。</exception>
+    Task<PagedResult<Playlist>> GetCollectedPlaylistsAsync(
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 我关注的歌手（<c>service/collect/7/list</c>，数组键 <c>artistList</c>）。
+    /// </summary>
+    /// <remarks>
+    /// <b>一次返回全部，没有分页</b>（官方客户端固定 <c>rn=400</c>）。
+    /// 歌手详情 <c>service/artist/{id}</c> **没有任何 follow 字段**，所以「是否已关注」
+    /// 只能靠这份列表的成员判定。
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">未登录。</exception>
+    Task<IReadOnlyList<Artist>> GetFollowedArtistsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 一个歌单**是否已被当前账号收藏**。
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> / <c>false</c> 为确定答案；<b><c>null</c> 表示无法判定</b>（未登录或读取失败）。
+    /// </returns>
+    /// <remarks>
+    /// 判据是歌单详情里的 <c>collectTime</c> 是否存在，**不是 <c>isFond</c>**。
+    /// 见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §3.3。
+    /// </remarks>
+    Task<bool?> IsPlaylistCollectedAsync(long playlistId, int source, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 收藏 / 取消收藏一个歌单（或专辑）。<c>op</c>（<c>1</c> = 收藏、<c>2</c> = 取消）由这里算好。
+    /// </summary>
+    /// <param name="source">收藏类型，歌单/专辑是 <c>4</c>。</param>
+    /// <exception cref="InvalidOperationException">未登录。</exception>
+    Task SetPlaylistCollectedAsync(long playlistId, int source, bool collected, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 关注 / 取消关注一个歌手。与 <see cref="SetPlaylistCollectedAsync"/> 同一个端点，
+    /// 但 <c>source=7</c> 且报文多一个 <c>token</c>。
+    /// </summary>
+    /// <exception cref="InvalidOperationException">未登录。</exception>
+    Task SetArtistFollowedAsync(long artistId, bool followed, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 一张专辑**是否已被当前账号收藏**。
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> / <c>false</c> 为确定答案；<b><c>null</c> 表示无法判定</b>（未登录或读取失败）。
+    /// </returns>
+    /// <remarks>
+    /// <b>专辑详情 <c>service/album/{id}</c> 里没有收藏标志</b>（已收藏与未收藏的响应逐字段同形），
+    /// 判据只能走 <c>service/collect/multipleState?source=6&amp;sourceIds=</c> 的 <c>collect</c> 布尔。
+    /// 见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §3.3 的补记。
+    /// </remarks>
+    Task<bool?> IsAlbumCollectedAsync(long albumId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 收藏 / 取消收藏一张专辑。与歌单同一个端点，但 <c>source=6</c>（歌单是 <c>4</c>）、同样不带 <c>token</c>。
+    /// </summary>
+    /// <exception cref="InvalidOperationException">未登录。</exception>
+    Task SetAlbumCollectedAsync(long albumId, bool collected, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 排行榜首页：分组（置顶位 / 热力榜 / 全球榜 / 特色榜 / H5榜单），每组若干榜。

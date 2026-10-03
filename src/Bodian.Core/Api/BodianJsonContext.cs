@@ -44,6 +44,10 @@ namespace Bodian.Core.Api;
 [JsonSerializable(typeof(PurchasedSinglesPayload))]
 [JsonSerializable(typeof(PurchasedAlbumsPayload))]
 [JsonSerializable(typeof(CollectedAlbumsPayload))]
+[JsonSerializable(typeof(CollectedPlaylistsPayload))]
+[JsonSerializable(typeof(PlaylistInfoDto))]
+[JsonSerializable(typeof(FollowedArtistsPayload))]
+[JsonSerializable(typeof(CollectMultipleStatePayload))]
 [JsonSerializable(typeof(HomeIndexPayload))]
 [JsonSerializable(typeof(HomeMusicListPayload))]
 [JsonSerializable(typeof(HomeSongGroupsPayload))]
@@ -69,4 +73,5 @@ namespace Bodian.Core.Api;
 [JsonSerializable(typeof(CheckRightBody))]
 [JsonSerializable(typeof(AudioUrlBody))]
 [JsonSerializable(typeof(PlaylistMusicBody))]
+[JsonSerializable(typeof(CollectBody))]
 internal sealed partial class BodianJsonContext : JsonSerializerContext;

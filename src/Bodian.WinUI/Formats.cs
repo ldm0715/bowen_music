@@ -226,4 +226,20 @@ public static class Formats
     public static Visibility ArtistMetaVisibility(Artist? artist) =>
         Visible(!string.IsNullOrEmpty(ArtistMeta(artist)));
 
+    // ── 收藏 / 关注按钮的两态（reverse/findings/13）─────────────────────────
+    //
+    // 状态是 bool?：null 代表「还没判定出来」（未登录或读取失败）。
+    // 按未收藏/未关注显示 —— 那是更保守的一侧，此时点下去会走「收藏/关注」分支。
+
+    /// <summary>歌单收藏按钮文案。</summary>
+    public static string CollectLabel(bool? collected) => collected == true ? "已收藏" : "收藏";
+
+    /// <summary>歌单收藏按钮图标：空心星（未收藏）/ 实心星（已收藏）。</summary>
+    public static string CollectGlyph(bool? collected) => collected == true ? "\uE735" : "\uE734";
+
+    /// <summary>歌手关注按钮文案。</summary>
+    public static string FollowLabel(bool? followed) => followed == true ? "已关注" : "关注";
+
+    /// <summary>歌手关注按钮图标：人形（未关注）/ 对勾（已关注）。</summary>
+    public static string FollowGlyph(bool? followed) => followed == true ? "\uE73E" : "\uE8FA";
 }

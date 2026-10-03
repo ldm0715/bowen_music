@@ -3,7 +3,8 @@
     x:Class="Bodian.WinUI.Views.PlaylistDetailPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:Bodian.WinUI.Controls">
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI">
 
     <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
@@ -12,17 +13,50 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock
-                Style="{StaticResource TitleTextBlockStyle}"
-                Text="{x:Bind ViewModel.Title, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis" />
-            <TextBlock
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
-                Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                TextTrimming="CharacterEllipsis" />
-        </StackPanel>
+        <Grid
+            Grid.Row="0"
+            Margin="0,0,0,8"
+            ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Spacing="2">
+                <TextBlock
+                    Style="{StaticResource TitleTextBlockStyle}"
+                    Text="{x:Bind ViewModel.Title, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <!--
+                收藏按钮，两态：未收藏显示「收藏」，已收藏显示「已收藏」。
+                图标与文案都由 Formats 按 bool? 决定，null（还没判定出来）按未收藏显示。
+
+                ★ 取消收藏要**先弹确认框**，所以这里用 Click 而不是 Command ——
+                  弹窗是界面决策，XamlRoot 也拿不到 ViewModel 里去（同 RecentPage 的清空记录）。
+                ★ 圆角取 ControlCornerRadius、MinWidth=0，与歌手页的关注/分享按钮同一档。
+            -->
+            <Button
+                Grid.Column="1"
+                VerticalAlignment="Top"
+                AutomationProperties.Name="收藏"
+                Click="OnCollectClick"
+                CornerRadius="{StaticResource ControlCornerRadius}"
+                MinWidth="0">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon
+                        FontSize="14"
+                        Glyph="{x:Bind local:Formats.CollectGlyph(ViewModel.IsCollected), Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind local:Formats.CollectLabel(ViewModel.IsCollected), Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+        </Grid>
 
         <controls:TrackListView
             Grid.Row="1"

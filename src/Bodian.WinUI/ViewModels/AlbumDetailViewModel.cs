@@ -111,6 +111,7 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     {
         await LoadInfoAsync(cancellationToken).ConfigureAwait(true);
         await Tracks.EnsureLoadedAsync(cancellationToken).ConfigureAwait(true);
+        await LoadCollectStateAsync(cancellationToken).ConfigureAwait(true);
     }
 
     /// <summary>点播。队列就是这张专辑，所以「下一首」在专辑内有效。</summary>
@@ -167,17 +168,52 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 收藏这张专辑。
+    /// 这张专辑当前是否已被我收藏。
     /// </summary>
     /// <remarks>
-    /// <b>本轮只做界面，不发写请求。</b> 专辑收藏走 <c>service/collect</c>，
-    /// 报文体里的 <c>op</c> 只有 1 与 2 两个取值，<b>哪个是收藏、哪个是取消还没定</b>
-    /// （见 <c>reverse/findings/01-collect-write.md</c> §4）——
-    /// 判反了第一次点就会把已有的收藏取消掉。也没读「是否已收藏」的路径，
-    /// 所以按钮不做两态，固定显示「收藏」。
+    /// <c>null</c> = 还没判定出来（未登录或读取失败），按钮按「未收藏」显示。
+    /// 专辑详情里**没有收藏标志**，判据走 <c>service/collect/multipleState?source=6</c>，
+    /// 见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c>。
     /// </remarks>
-    [RelayCommand]
-    private void Collect() => _notice.Show("专辑收藏暂未开放");
+    [ObservableProperty]
+    public partial bool? IsCollected { get; set; }
+
+    /// <summary>收藏/取消正在进行。<b>挡住重复点击</b> —— 服务端把 <c>op</c> 当一次设置，重发会打架。</summary>
+    [ObservableProperty]
+    public partial bool IsCollectBusy { get; set; }
+
+    /// <summary>
+    /// 收藏 / 取消收藏，并就地更新按钮状态。
+    /// </summary>
+    /// <remarks>
+    /// <b>确认弹窗不在这里</b>：那是界面决策，且 <c>XamlRoot</c> 拿不到 ViewModel 里来。
+    /// 取消收藏由页面在调用前先确认，见 <c>AlbumDetailPage.OnCollectClick</c>。
+    /// </remarks>
+    public async Task SetCollectedAsync(bool collected, CancellationToken cancellationToken = default)
+    {
+        if (IsCollectBusy)
+        {
+            return;
+        }
+
+        IsCollectBusy = true;
+        try
+        {
+            await _api.SetAlbumCollectedAsync(Album.Id, collected, cancellationToken).ConfigureAwait(true);
+
+            IsCollected = collected;
+            _notice.Show(collected ? "已收藏" : "已取消收藏");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "专辑 {AlbumId} {Operation}失败", Album.Id, collected ? "收藏" : "取消收藏");
+            _notice.Show(collected ? "收藏失败" : "取消收藏失败");
+        }
+        finally
+        {
+            IsCollectBusy = false;
+        }
+    }
 
     /// <summary>
     /// 复制专辑分享链接。
@@ -247,6 +283,27 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// 取这张专辑的收藏态（<c>service/collect/multipleState?source=6</c>）。
+    /// </summary>
+    /// <remarks>拿不到就保持 <c>null</c>，只记日志 —— 不因为一个可选的按钮状态打断整页。</remarks>
+    private async Task LoadCollectStateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IsCollected = await _api.IsAlbumCollectedAsync(Album.Id, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "加载专辑 {AlbumId} 收藏状态失败", Album.Id);
+            IsCollected = null;
         }
     }
 

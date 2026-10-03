@@ -1,0 +1,23 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "a738ffb0750ef467ca77e0646cc1b2b5",
+  "data": {
+    "id": 3676986117,
+    "name": "2026热梗合集丨即刻上头唤醒抽象DNA",
+    "pic": "http://img1.kwcdn.kuwo.cn/star/userpl2015/73/41/1770047434168_576246173_1260.jpg",
+    "creatorId": 576246173,
+    "creatorName": "1649937631401kuwo",
+    "creatorIcon": "http://img1.kwcdn.kuwo.cn/star/userpl2015/73/41/1770047434168_576246173_1260.jpg",
+    "description": "世界究竟还要被这种萌物统治多久 欢迎收听，会一直更新的",
+    "praise": 737,
+    "musicCount": 133,
+    "isPrivate": 0,
+    "playNum": 549211,
+    "lastPlayTime": "",
+    "sourceType": 4,
+    "collectedCnt": 737
+  },
+  "profileId": "site",
+  "curTime": 1791017620350
+}

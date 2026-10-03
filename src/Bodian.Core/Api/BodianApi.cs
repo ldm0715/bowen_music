@@ -1196,7 +1196,11 @@ public sealed class BodianApi : IBodianApi
     /// 所以本项目用这一条，官方桌面端自己那条（<c>service/collect/6/list</c>）已弃用 ——
     /// 它对本项目在测的账号返回 200 但 <c>data</c> 是空对象。
     /// </remarks>
-    private const int CollectedAlbumsSource = 4;
+    /// <summary>收藏族的读端点。<b>歌单与专辑共用它</b>，靠元素的 <c>sourceType</c> 区分。</summary>
+    private const int CollectedSource = Endpoints.CollectSourcePlaylistAlbum;
+
+    /// <summary>关注歌手列表一次取回的条数（照官方客户端固定 <c>rn=400</c>）。</summary>
+    private const int FollowedArtistPageSize = 400;
 
     public async Task<PagedResult<Album>> GetCollectedAlbumsAsync(
         PagedCursor cursor,
@@ -1207,16 +1211,235 @@ public sealed class BodianApi : IBodianApi
         var uid = UidPair().Value;
 
         return await FetchAlbumsAsync(
-            Endpoints.CollectList(CollectedAlbumsSource),
+            Endpoints.CollectList(CollectedSource),
             [
                 new KeyValuePair<string, string>("userId", uid),
                 new KeyValuePair<string, string>("fromUid", uid),
             ],
             cursor,
             BodianJsonContext.Default.CollectedAlbumsPayload,
-            payload => payload.PlayLists,
+            // 混合列表：**排除** sourceType == 4 的歌单，其余都当专辑（歌单见 GetCollectedPlaylistsAsync）。
+            // 用「排除歌单」而不是「等于专辑」：专辑条目可能**不带 sourceType**（实测有这种形状，
+            // 见 AlbumApiTests.CollectedAlbums_AcceptsAlbumShapedItems），写 `== 6` 会把它们漏掉。
+            payload => payload.PlayLists?.Where(a => a.SourceType != Endpoints.CollectedPlaylistType).ToArray(),
             payload => payload.Total,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<PagedResult<Playlist>> GetCollectedPlaylistsAsync(
+        PagedCursor cursor,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        var uid = UidPair().Value;
+
+        return await PagedList.FetchNextAsync(
+            cursor,
+            async (paging, token) =>
+            {
+                var query = new List<KeyValuePair<string, string>>(paging)
+                {
+                    new("userId", uid),
+                    new("fromUid", uid),
+                };
+
+                var envelope = await _transport.SendAsync(
+                    new BodianRequest
+                    {
+                        Path = Endpoints.CollectList(CollectedSource),
+                        Query = query,
+                        Signed = true,
+                    },
+                    BodianJsonContext.Default.CollectedPlaylistsPayload,
+                    token).ConfigureAwait(false);
+
+                var payload = envelope.Data;
+                // 同一条端点的混合列表：只保留 sourceType == 4 的歌单。
+                var items = payload?.PlayLists?
+                    .Where(p => p.SourceType == Endpoints.CollectedPlaylistType)
+                    .Select(MapPlaylist)
+                    .ToArray() ?? [];
+
+                _logger.LogInformation("收藏歌单返回 {Count} 个（offset={Offset}）", items.Length, cursor.Offset);
+
+                return new PagedResult<Playlist>(items, cursor.Offset, cursor.PageSize, payload?.Total);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<Artist>> GetFollowedArtistsAsync(CancellationToken cancellationToken = default)
+    {
+        var uid = UidPair().Value;
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.CollectList(Endpoints.CollectSourceArtist),
+                Query =
+                [
+                    new("userId", uid),
+                    new("fromUid", uid),
+                    new("pn", "1"),
+                    new("rn", FollowedArtistPageSize.ToString(CultureInfo.InvariantCulture)),
+                ],
+                Signed = true,
+            },
+            BodianJsonContext.Default.FollowedArtistsPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        var artists = envelope.Data?.ArtistList?.Select(MapFollowedArtist).ToArray() ?? [];
+
+        _logger.LogInformation("关注歌手 {Count} 位", artists.Length);
+
+        return artists;
+    }
+
+    public async Task<bool?> IsPlaylistCollectedAsync(long playlistId, int source,
+        CancellationToken cancellationToken = default)
+    {
+        EnsurePlaylistId(playlistId);
+
+        if (!_session.IsAuthenticated)
+        {
+            return null;
+        }
+
+        try
+        {
+            var envelope = await _transport.SendAsync(
+                new BodianRequest
+                {
+                    Path = Endpoints.PlaylistInfo(playlistId),
+                    Query = [new KeyValuePair<string, string>("source", source.ToString(CultureInfo.InvariantCulture))],
+                    Signed = true,
+                },
+                BodianJsonContext.Default.PlaylistInfoDto,
+                cancellationToken).ConfigureAwait(false);
+
+            // collectTime 存在即已收藏（findings/13 §3.3）；不是 isFond。
+            return !string.IsNullOrEmpty(envelope.Data?.CollectTime);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "读取歌单 {PlaylistId} 收藏状态失败", playlistId);
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public Task SetPlaylistCollectedAsync(long playlistId, int source, bool collected,
+        CancellationToken cancellationToken = default)
+    {
+        EnsurePlaylistId(playlistId);
+
+        // 收藏歌单/专辑的报文里**没有** token（findings/13 §3.2）。
+        return WriteCollectAsync(source, playlistId, collected, token: null, "收藏歌单", cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task SetArtistFollowedAsync(long artistId, bool followed,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(artistId);
+
+        // 关注歌手的报文比收藏歌单**多一个 token**（findings/13 §4.2）。
+        return WriteCollectAsync(Endpoints.CollectSourceArtist, artistId, followed, _session.Token, "关注歌手", cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task SetAlbumCollectedAsync(long albumId, bool collected,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(albumId);
+
+        // 收藏专辑走 source=6（歌单是 4），同样**不带 token**；2026-10-03 真机往返实测。
+        return WriteCollectAsync(Endpoints.CollectSourceAlbum, albumId, collected, token: null, "收藏专辑", cancellationToken);
+    }
+
+    public async Task<bool?> IsAlbumCollectedAsync(long albumId, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(albumId);
+
+        if (!_session.IsAuthenticated)
+        {
+            return null;
+        }
+
+        try
+        {
+            var envelope = await _transport.SendAsync(
+                new BodianRequest
+                {
+                    Path = Endpoints.CollectMultipleState,
+                    Query =
+                    [
+                        new("source", Endpoints.CollectSourceAlbum.ToString(CultureInfo.InvariantCulture)),
+                        new("sourceIds", albumId.ToString(CultureInfo.InvariantCulture)),
+                    ],
+                    Signed = true,
+                },
+                BodianJsonContext.Default.CollectMultipleStatePayload,
+                cancellationToken).ConfigureAwait(false);
+
+            var match = envelope.Data?.Result?.FirstOrDefault(r => r.Id == albumId);
+
+            // 没回这个 id 时按「无法判定」处理，不要当成未收藏。
+            return match?.Collect;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "读取专辑 {AlbumId} 收藏状态失败", albumId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// <c>service/collect</c> 的共同写入流程。
+    /// </summary>
+    /// <remarks>
+    /// <c>op</c> 由**目标态**算好（<c>true</c> → <c>1</c> 收藏/关注，<c>false</c> → <c>2</c> 取消）——
+    /// 服务端把它当一次「设置」而不是「切换」，所以这里必须传确定的目标态，
+    /// 不能指望服务端翻转。见 <c>reverse/findings/13-collect-playlist-follow-artist.md</c> §2。
+    /// </remarks>
+    private async Task WriteCollectAsync(int source, long targetId, bool collected, string? token,
+        string operation, CancellationToken cancellationToken)
+    {
+        RequireAuthenticated();
+
+        var uid = long.Parse(_session.Uid, CultureInfo.InvariantCulture);
+        var revision = _session.Revision;
+
+        var body = new CollectBody
+        {
+            Source = source,
+            SourceId = [targetId],
+            Op = collected ? 1 : 2,
+            Uid = uid,
+            Token = token,
+        };
+
+        var envelope = await _transport.SendAsync(new BodianRequest
+        {
+            Path = Endpoints.Collect,
+            Verb = BodianHttpVerb.Post,
+            Signed = true,
+            JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.CollectBody),
+        }, BodianJsonContext.Default.JsonElement, cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "{Operation}请求已受理：目标 {TargetId}，source {Source}，op {Op}，业务码 {Code}，reqId {RequestId}",
+            operation, targetId, source, body.Op, envelope.Code, envelope.RequestId);
+
+        if (revision != _session.Revision) throw new InvalidOperationException("登录状态已改变，请重新检查。");
     }
 
     /// <summary>
@@ -1365,6 +1588,25 @@ public sealed class BodianApi : IBodianApi
         ArtistCover = ToHttpUri(dto.ArtistPic),
         ReleaseDate = dto.ShowTime ?? "",
         Description = dto.Info ?? "",
+    };
+
+    /// <summary>
+    /// 关注歌手列表的条目映射。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="MapArtistInfo"/> 分开写：两者的键名与来源都不同
+    /// （详情是 <c>artistInfo</c> 嵌套、这里是 <c>artistList</c> 平铺），共用会让两处互相牵制。
+    /// 这里<b>没有简介</b> —— 关注列表不给 <c>desc</c>。
+    /// </remarks>
+    private static Artist MapFollowedArtist(FollowedArtistDto dto) => new()
+    {
+        Id = dto.Id,
+        Name = string.IsNullOrWhiteSpace(dto.Name) ? "(未命名歌手)" : dto.Name,
+        CoverImage = ToHttpUri(dto.Pic),
+        SongCount = dto.MusicCount,
+        AlbumCount = dto.AlbumCount,
+        AliasName = dto.AliasName ?? "",
+        FansCount = dto.FansCount,
     };
 
     private static Playlist MapPlaylist(PlaylistDto dto) => new()

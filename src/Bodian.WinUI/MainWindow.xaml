@@ -346,6 +346,16 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
+            <!-- 收藏的歌单。与「收藏的专辑」是两回事（同一端点的另一半元素） -->
+            <NavigationViewItem
+                x:Name="CollectedPlaylistsItem"
+                Content="收藏的歌单"
+                Tag="collected-playlists">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="List" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
             <!-- 这一行是「创建的歌单」那一段的锚点：动态项在它后面追加 -->
             <NavigationViewItemHeader x:Name="CreatedHeader" Content="创建的歌单" />
         </NavigationView.MenuItems>
