@@ -17,6 +17,8 @@
 > 窗口、动态绘制、导航和图片加载已按 120 fps 目标优化，验证范围与实际限制见
 > [`docs/performance.md`](docs/performance.md)；歌词交互说明见 [`docs/fullscreen-lyrics.md`](docs/fullscreen-lyrics.md)。
 > 评论界面支持主题、数量角标、面板内图片缩放／拖动、文字发布和点赞，见 [`docs/comments-ui.md`](docs/comments-ui.md)。
+> 分页列表改为滚到末尾自动续加载，取完后列表末尾提示「没有更多了哦~」，
+> 机制与各页挂载点见 [`docs/list-paging.md`](docs/list-paging.md)。
 > 进度见 [`docs/roadmap.md`](docs/roadmap.md)，待办见 [`docs/backlog.md`](docs/backlog.md)。
 > P6 桌面悬浮歌词及其 P1.5 透明窗口验证仍未完成。
 
@@ -61,6 +63,7 @@
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`search.md`](docs/search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
 | [`comments-ui.md`](docs/comments-ui.md) | 评论入口与角标、列表与回复、发布和点赞、主题与图片查看、接口约束及验证 |
+| [`list-paging.md`](docs/list-paging.md) | 列表滚到末尾自动续加载：触发机制、补屏行为、失败重试、挂载点与验收 |
 | [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |

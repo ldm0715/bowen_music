@@ -227,10 +227,8 @@ public sealed partial class SongCommentsViewModel : ObservableObject
     public bool ShowInitialError => LoadFailed && !HasItems;
     public bool ShowInitialRetry => ShowInitialError && !CommentsUnavailable;
     public bool ShowMoreError => LoadFailed && HasItems;
-    public bool ShowLoadMore => HasMore && !IsLoading && !LoadFailed;
     public bool ShowEnd => HasLoaded && HasItems && !HasMore && !IsLoading && !LoadFailed;
     public bool ShowRepliesEmpty => RepliesHasLoaded && Replies.Count == 0 && !IsRepliesLoading && !RepliesLoadFailed;
-    public bool ShowMoreReplies => RepliesHasMore && !IsRepliesLoading && !RepliesLoadFailed;
     public bool ShowRepliesEnd => RepliesHasLoaded && Replies.Count > 0 && !RepliesHasMore && !IsRepliesLoading && !RepliesLoadFailed;
     public string TotalText => CommentsUnavailable ? "暂不可用" : HasLoaded ? $"{TotalCount:N0} 条评论" : "听听大家怎么说";
     private bool CanLoadMore => IsOpen && HasMore && !IsLoading;
@@ -597,8 +595,8 @@ public sealed partial class SongCommentsViewModel : ObservableObject
     private void UpdateState()
     {
         foreach (var property in new[] { nameof(HasItems), nameof(IsEmpty), nameof(IsInitialLoading), nameof(IsLoadingMore),
-            nameof(ShowInitialError), nameof(ShowInitialRetry), nameof(ShowMoreError), nameof(ShowLoadMore), nameof(ShowEnd), nameof(ShowRepliesEmpty),
-            nameof(ShowMoreReplies), nameof(ShowRepliesEnd) }) OnPropertyChanged(property);
+            nameof(ShowInitialError), nameof(ShowInitialRetry), nameof(ShowMoreError), nameof(ShowEnd), nameof(ShowRepliesEmpty),
+            nameof(ShowRepliesEnd) }) OnPropertyChanged(property);
         LoadMoreRepliesCommand.NotifyCanExecuteChanged();
     }
 }

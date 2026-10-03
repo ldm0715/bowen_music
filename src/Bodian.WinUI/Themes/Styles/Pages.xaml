@@ -6,7 +6,7 @@
     16px 的 ProgressRing，光「16」就重复了十二次。改一处要改十三处。
 
     这里只收敛**尺寸与外观**，不动页面的行列结构 —— 各页的组合本来就不一样
-    （发现页只有「加载更多」，我喜欢的页有「重新加载」+「加载更多」），
+    （发现页只有「重新加载」，我喜欢的页还有「重试」），
     抽成控件反而要开一堆可见性属性孔。
 
     ★ 这些 Style 的目标类型是 Grid / TextBlock / ProgressRing，不是 Control。
@@ -52,9 +52,17 @@
         <Setter Property="HorizontalAlignment" Value="Left" />
     </Style>
 
-    <!-- 页脚那一行（进度环 + 重新加载 + 加载更多） -->
+    <!-- 页脚那一行：左侧一簇（进度环 + 重新加载） -->
     <Style x:Key="BodianPageFooter" TargetType="Grid">
         <Setter Property="ColumnSpacing" Value="{StaticResource SpaceSection}" />
+    </Style>
+
+    <!--
+        列表末尾的状态小字：「没有更多了哦~」「加载失败」，由 PagingEndNote 使用。
+        翻页改成滚动触发后，这是用户判断「是真的没了」还是「卡住了」的唯一线索。
+    -->
+    <Style x:Key="BodianPageEndNote" TargetType="TextBlock" BasedOn="{StaticResource BodianPageStatus}">
+        <Setter Property="HorizontalAlignment" Value="Center" />
     </Style>
 
 </ResourceDictionary>

@@ -102,6 +102,8 @@
         <!-- ── 专辑网格 ─────────────────────────────────────────────────── -->
         <GridView
             Grid.Row="3"
+            controls:AutoPaging.Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}"
             IsItemClickEnabled="True"
             ItemClick="OnAlbumClick"
             ItemsSource="{x:Bind ViewModel.Albums.Items}"
@@ -132,25 +134,18 @@
                     </StackPanel>
                 </DataTemplate>
             </GridView.ItemTemplate>
+            <GridView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.Albums.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.Albums.ShowRetry, Mode=OneWay}" />
+            </GridView.Footer>
         </GridView>
 
-        <Grid Grid.Row="4" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
+        <Grid Grid.Row="4" Style="{StaticResource BodianPageFooter}">
             <ProgressRing
-                Grid.Column="0"
                 Style="{StaticResource BodianPageBusyRing}"
-                HorizontalAlignment="Left"
                 IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" />
-
-            <Button
-                Grid.Column="1"
-                Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
-                Content="加载更多"
-                Visibility="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}" />
         </Grid>
     </Grid>
 </Page>

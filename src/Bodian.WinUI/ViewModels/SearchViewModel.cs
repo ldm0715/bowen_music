@@ -75,9 +75,26 @@ public sealed partial class SearchViewModel : ObservableObject
     }
 
     [ObservableProperty] public partial string Keyword { get; set; } = "";
+
+    /// <summary>当前页签。<c>0</c> 是「综合」，它一次性取全，不分页。</summary>
     [ObservableProperty] public partial int SelectedCategory { get; set; }
-    [ObservableProperty] public partial bool IsBusy { get; set; }
-    [ObservableProperty] public partial bool HasMore { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEnd))]
+    [NotifyPropertyChangedFor(nameof(ShowRetry))]
+    public partial bool IsBusy { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEnd))]
+    [NotifyPropertyChangedFor(nameof(ShowRetry))]
+    public partial bool HasMore { get; set; }
+
+    /// <summary>上一次加载下一页失败了。页脚据此让出「重试」入口。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEnd))]
+    [NotifyPropertyChangedFor(nameof(ShowRetry))]
+    public partial bool LoadFailed { get; set; }
+
     [ObservableProperty] public partial bool HasSearch { get; set; }
     [ObservableProperty] public partial bool HistoryIsEmpty { get; set; }
     [ObservableProperty] public partial string StatusText { get; set; } = "输入关键词，或选择热搜词";
@@ -85,8 +102,31 @@ public sealed partial class SearchViewModel : ObservableObject
     [ObservableProperty] public partial IReadOnlyList<string> Suggestions { get; set; } = [];
     [ObservableProperty] public partial Track? CurrentTrack { get; set; }
 
+    /// <summary>
+    /// 当前页签的条数。各页签是各自独立的集合，结束文案要看当前那个。
+    /// </summary>
+    /// <remarks>「综合」不分页，所以恒为 0 —— 它的结束文案不显示。</remarks>
+    private int SelectedCategoryCount => SelectedCategory switch
+    {
+        1 => Results.Count,
+        2 => Playlists.Count,
+        3 => Albums.Count,
+        4 => Artists.Count,
+        _ => 0,
+    };
+
+    /// <summary>已经取完，且当前页签非空。页脚据此显示「没有更多了哦~」。</summary>
+    public bool ShowEnd =>
+        HasSearch && !IsBusy && !HasMore && !LoadFailed && SelectedCategoryCount > 0;
+
+    /// <summary>翻页失败，且确实还有下一页可拉。页脚据此显示「重试」。</summary>
+    public bool ShowRetry => LoadFailed && HasMore && !IsBusy;
+
     partial void OnSelectedCategoryChanged(int value)
     {
+        OnPropertyChanged(nameof(ShowEnd));
+        OnPropertyChanged(nameof(ShowRetry));
+
         if (HasSearch && !_resettingCategory && value >= 0) _ = SearchCoreAsync(_searchedKeyword);
     }
 
@@ -182,6 +222,7 @@ public sealed partial class SearchViewModel : ObservableObject
         OverviewItems.Clear();
         Results.Clear(); Playlists.Clear(); Albums.Clear(); Artists.Clear();
         HasMore = false;
+        LoadFailed = false;
         CurrentTrack = null;
         _searchedKeyword = keyword;
         HasSearch = keyword.Length > 0;
@@ -242,11 +283,17 @@ public sealed partial class SearchViewModel : ObservableObject
         using var cancellation = new CancellationTokenSource();
         _searchCancellation = cancellation;
         IsBusy = true;
+        LoadFailed = false;
         try { await AppendNextPageAsync(_searchedKeyword, SelectedCategory, _cursor, cancellation.Token); }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            if (!cancellation.IsCancellationRequested) StatusText = $"加载失败：{ex.Message}";
+            if (!cancellation.IsCancellationRequested)
+            {
+                StatusText = $"加载失败：{ex.Message}";
+                LoadFailed = true;
+            }
+
             _logger.LogWarning(ex, "加载搜索下一页失败");
         }
         finally
@@ -283,7 +330,7 @@ public sealed partial class SearchViewModel : ObservableObject
         };
         token.ThrowIfCancellationRequested();
         HasMore = !cursor.Exhausted;
-        StatusText = count == 0 ? "没有找到结果" : $"「{keyword}」已加载 {count} 条{(HasMore ? "（还有更多）" : "")}";
+        StatusText = count == 0 ? "没有找到结果" : $"「{keyword}」已加载 {count} 条{(HasMore ? "（滚动加载）" : "")}";
     }
 
     private static async Task<int> AppendAsync<T>(ObservableCollection<T> collection, Task<PagedResult<T>> request, CancellationToken token)

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 using Bodian.Core.Api.Paging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -35,6 +36,7 @@ public sealed class PagedList<T> : ObservableObject
     private bool _started;
     private bool _hasMore;
     private bool _isBusy;
+    private bool _loadFailed;
     private string _statusText = "";
 
     /// <param name="fetch">取一页。调用方在这里拼请求。</param>
@@ -63,7 +65,7 @@ public sealed class PagedList<T> : ObservableObject
 
     public ObservableCollection<T> Items { get; } = [];
 
-    /// <summary>加载下一页。绑到页脚的「加载更多」按钮。</summary>
+    /// <summary>加载下一页。滚到列表末尾时由 <c>AutoPaging</c> 触发。</summary>
     public IAsyncRelayCommand LoadMoreCommand { get; }
 
     /// <summary>重新从第一页开始。</summary>
@@ -75,14 +77,27 @@ public sealed class PagedList<T> : ObservableObject
     public bool HasMore
     {
         get => _hasMore;
-        private set => SetProperty(ref _hasMore, value);
+        private set => SetDerived(ref _hasMore, value);
     }
 
     public bool IsBusy
     {
         get => _isBusy;
-        private set => SetProperty(ref _isBusy, value);
+        private set => SetDerived(ref _isBusy, value);
     }
+
+    /// <summary>上一次加载失败了。页脚据此让出「重试」入口。</summary>
+    public bool LoadFailed
+    {
+        get => _loadFailed;
+        private set => SetDerived(ref _loadFailed, value);
+    }
+
+    /// <summary>已经取完，且列表非空。页脚据此显示「没有更多了哦~」。</summary>
+    public bool ShowEnd => _started && !IsBusy && !HasMore && !LoadFailed && Items.Count > 0;
+
+    /// <summary>翻页失败，且确实还有下一页可拉。页脚据此显示「重试」。</summary>
+    public bool ShowRetry => LoadFailed && HasMore && !IsBusy;
 
     public string StatusText
     {
@@ -105,6 +120,7 @@ public sealed class PagedList<T> : ObservableObject
         _started = true;
         IsBusy = true;
         HasMore = false;
+        LoadFailed = false;
         Items.Clear();
         _cursor = new PagedCursor(_convention);
 
@@ -116,6 +132,7 @@ public sealed class PagedList<T> : ObservableObject
         {
             _logger.LogWarning(ex, "加载{What}失败", _what);
             StatusText = $"加载失败：{ex.Message}";
+            LoadFailed = true;
         }
         finally
         {
@@ -131,6 +148,7 @@ public sealed class PagedList<T> : ObservableObject
         }
 
         IsBusy = true;
+        LoadFailed = false;
 
         try
         {
@@ -140,10 +158,27 @@ public sealed class PagedList<T> : ObservableObject
         {
             _logger.LogWarning(ex, "加载{What}的下一页失败", _what);
             StatusText = $"加载失败：{ex.Message}";
+            LoadFailed = true;
         }
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// 设一个会牵动 <see cref="ShowEnd"/> / <see cref="ShowRetry"/> 的字段。
+    /// </summary>
+    /// <remarks>
+    /// 那两个是算出来的、没有自己的存储字段，所以任何会影响它们的状态一变就得一并通知，
+    /// 否则页脚的结束文案与「重试」按钮不会跟着刷新。
+    /// </remarks>
+    private void SetDerived(ref bool field, bool value, [CallerMemberName] string? propertyName = null)
+    {
+        if (SetProperty(ref field, value, propertyName))
+        {
+            OnPropertyChanged(nameof(ShowEnd));
+            OnPropertyChanged(nameof(ShowRetry));
         }
     }
 
@@ -165,6 +200,6 @@ public sealed class PagedList<T> : ObservableObject
 
         StatusText = Items.Count == 0
             ? EmptyText
-            : $"{Items.Count} 项{(HasMore ? "（还有更多）" : "")}";
+            : $"{Items.Count} 项{(HasMore ? "（滚动加载）" : "")}";
     }
 }

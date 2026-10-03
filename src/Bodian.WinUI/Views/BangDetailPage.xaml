@@ -59,26 +59,22 @@
         -->
         <controls:TrackListView
             Grid.Row="1"
+            HasMore="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks.Items}"
-            TrackInvoked="OnTrackInvoked" />
+            LoadMoreCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}"
+            TrackInvoked="OnTrackInvoked">
+            <controls:TrackListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.Tracks.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.Tracks.ShowRetry, Mode=OneWay}" />
+            </controls:TrackListView.Footer>
+        </controls:TrackListView>
 
-        <Grid Grid.Row="2" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
+        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
             <ProgressRing
-                Grid.Column="0"
                 Style="{StaticResource BodianPageBusyRing}"
-                HorizontalAlignment="Left"
                 IsActive="{x:Bind ViewModel.Tracks.IsBusy, Mode=OneWay}" />
-
-            <Button
-                Grid.Column="1"
-                Command="{x:Bind ViewModel.Tracks.LoadMoreCommand}"
-                Content="加载更多"
-                Visibility="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}" />
         </Grid>
     </Grid>
 </Page>

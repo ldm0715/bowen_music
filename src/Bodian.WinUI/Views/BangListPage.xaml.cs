@@ -12,7 +12,7 @@ namespace Bodian.WinUI.Views;
 /// 排行榜页。侧栏的一个根页。
 /// </summary>
 /// <remarks>
-/// <b>整页只有一次请求</b>（<c>service/home/bangNew</c>），没有懒加载与「加载更多」——
+/// <b>整页只有一次请求</b>（<c>service/home/bangNew</c>），没有懒加载也不分页 ——
 /// 首页一次就把所有分组与每个榜的前几首预览都带回来了。
 /// 完整榜单按榜点进 <see cref="BangDetailPage"/> 取。
 /// </remarks>

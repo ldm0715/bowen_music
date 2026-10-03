@@ -21,31 +21,28 @@
 
         <controls:TrackListView
             Grid.Row="1"
+            HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks}"
-            TrackInvoked="OnTrackInvoked" />
+            LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
+            TrackInvoked="OnTrackInvoked">
+            <controls:TrackListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </controls:TrackListView.Footer>
+        </controls:TrackListView>
 
         <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <ProgressRing
-                Grid.Column="0"
-                Style="{StaticResource BodianPageBusyRing}"
-                IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
-
-            <Button
-                Grid.Column="1"
-                Command="{x:Bind ViewModel.ReloadCommand}"
-                Content="重新加载" />
-
-            <Button
-                Grid.Column="2"
-                Command="{x:Bind ViewModel.LoadMoreCommand}"
-                Content="加载更多"
-                Visibility="{x:Bind ViewModel.HasMore, Mode=OneWay}" />
+            <StackPanel
+                HorizontalAlignment="Left"
+                Orientation="Horizontal"
+                Spacing="12">
+                <ProgressRing
+                    Style="{StaticResource BodianPageBusyRing}"
+                    IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+                <Button Command="{x:Bind ViewModel.ReloadCommand}" Content="重新加载" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Page>

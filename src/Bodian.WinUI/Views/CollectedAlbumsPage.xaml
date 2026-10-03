@@ -26,31 +26,27 @@
         <controls:AlbumListView
             Grid.Row="1"
             AlbumInvoked="OnAlbumInvoked"
-            ItemsSource="{x:Bind ViewModel.Albums.Items}" />
+            HasMore="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}"
+            ItemsSource="{x:Bind ViewModel.Albums.Items}"
+            LoadMoreCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}">
+            <controls:AlbumListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.Albums.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.Albums.ShowRetry, Mode=OneWay}" />
+            </controls:AlbumListView.Footer>
+        </controls:AlbumListView>
 
-        <Grid Grid.Row="2" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <ProgressRing
-                Grid.Column="0"
-                Style="{StaticResource BodianPageBusyRing}"
+        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
+            <StackPanel
                 HorizontalAlignment="Left"
-                IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" />
-
-            <Button
-                Grid.Column="1"
-                Command="{x:Bind ViewModel.Albums.ReloadCommand}"
-                Content="重新加载" />
-
-            <Button
-                Grid.Column="2"
-                Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
-                Content="加载更多"
-                Visibility="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}" />
+                Orientation="Horizontal"
+                Spacing="12">
+                <ProgressRing
+                    Style="{StaticResource BodianPageBusyRing}"
+                    IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" />
+                <Button Command="{x:Bind ViewModel.Albums.ReloadCommand}" Content="重新加载" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Page>

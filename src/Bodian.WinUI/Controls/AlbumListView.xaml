@@ -13,7 +13,10 @@
         点行进专辑详情 —— 与 TrackListView 同形，只是报的是 Album。
     -->
     <controls:VirtualizedListView
+        x:Name="List"
         Padding="{StaticResource SpaceVerticalScrollContentPadding}"
+        controls:AutoPaging.Command="{x:Bind LoadMoreCommand, Mode=OneWay}"
+        controls:AutoPaging.HasMore="{x:Bind HasMore, Mode=OneWay}"
         IsItemClickEnabled="True"
         ItemClick="OnItemClick"
         ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"

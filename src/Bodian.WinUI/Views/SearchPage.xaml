@@ -214,22 +214,63 @@
                     </controls:VirtualizedListView.ItemContainerStyle>
                 </controls:VirtualizedListView>
             </PivotItem>
+            <!--
+                四个分页页签各自挂一份末尾提示：只有当前页签的列表会实现容器，
+                所以翻页与提示天然跟着选中的那个走。「综合」不分页，不挂。
+            -->
             <PivotItem Header="单曲">
-                <controls:TrackListView ItemsSource="{x:Bind ViewModel.Results}" TrackInvoked="OnTrackInvoked" />
+                <controls:TrackListView
+                    HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
+                    ItemsSource="{x:Bind ViewModel.Results}"
+                    LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    TrackInvoked="OnTrackInvoked">
+                    <controls:TrackListView.Footer>
+                        <controls:PagingEndNote
+                            RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                            ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                            ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+                    </controls:TrackListView.Footer>
+                </controls:TrackListView>
             </PivotItem>
             <PivotItem Header="歌单">
-                <controls:VirtualizedListView ItemsSource="{x:Bind ViewModel.Playlists}" ItemTemplate="{StaticResource SearchPlaylistTemplate}" IsItemClickEnabled="True" ItemClick="OnPlaylistClick" SelectionMode="None" />
+                <controls:VirtualizedListView ItemsSource="{x:Bind ViewModel.Playlists}" ItemTemplate="{StaticResource SearchPlaylistTemplate}" IsItemClickEnabled="True" ItemClick="OnPlaylistClick" SelectionMode="None"
+                    controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+                    controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}">
+                    <controls:VirtualizedListView.Footer>
+                        <controls:PagingEndNote
+                            RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                            ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                            ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+                    </controls:VirtualizedListView.Footer>
+                </controls:VirtualizedListView>
             </PivotItem>
             <PivotItem Header="专辑">
-                <controls:VirtualizedListView ItemsSource="{x:Bind ViewModel.Albums}" ItemTemplate="{StaticResource SearchAlbumTemplate}" IsItemClickEnabled="True" ItemClick="OnAlbumClick" SelectionMode="None" />
+                <controls:VirtualizedListView ItemsSource="{x:Bind ViewModel.Albums}" ItemTemplate="{StaticResource SearchAlbumTemplate}" IsItemClickEnabled="True" ItemClick="OnAlbumClick" SelectionMode="None"
+                    controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+                    controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}">
+                    <controls:VirtualizedListView.Footer>
+                        <controls:PagingEndNote
+                            RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                            ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                            ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+                    </controls:VirtualizedListView.Footer>
+                </controls:VirtualizedListView>
             </PivotItem>
             <PivotItem Header="歌手">
-                <controls:VirtualizedListView ItemsSource="{x:Bind ViewModel.Artists}" ItemTemplate="{StaticResource SearchArtistTemplate}" IsItemClickEnabled="True" ItemClick="OnArtistClick" SelectionMode="None" />
+                <controls:VirtualizedListView ItemsSource="{x:Bind ViewModel.Artists}" ItemTemplate="{StaticResource SearchArtistTemplate}" IsItemClickEnabled="True" ItemClick="OnArtistClick" SelectionMode="None"
+                    controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+                    controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}">
+                    <controls:VirtualizedListView.Footer>
+                        <controls:PagingEndNote
+                            RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                            ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                            ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+                    </controls:VirtualizedListView.Footer>
+                </controls:VirtualizedListView>
             </PivotItem>
         </Pivot>
-        <Grid Grid.Row="2">
-            <ProgressRing Style="{StaticResource BodianPageBusyRing}" HorizontalAlignment="Left" IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
-            <Button HorizontalAlignment="Right" Command="{x:Bind ViewModel.LoadMoreCommand}" Content="加载更多" Visibility="{x:Bind ViewModel.HasMore, Mode=OneWay}" />
+        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
+            <ProgressRing Style="{StaticResource BodianPageBusyRing}" IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
         </Grid>
     </Grid>
 </Page>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.PagingEndNote"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    IsTabStop="False">
+
+    <!--
+        列表末尾的状态提示。放进列表自己的 Footer，跟着内容一起滚。
+
+        Margin 写在子元素上而不是容器的 Padding 上：两者都隐藏时容器要能量到 0 高，
+        否则列表末尾会多出一块空白。
+    -->
+    <StackPanel HorizontalAlignment="Center" Spacing="8">
+        <TextBlock
+            Margin="0,16,0,8"
+            Style="{StaticResource BodianPageEndNote}"
+            Text="没有更多了哦~"
+            Visibility="{x:Bind ShowEnd, Mode=OneWay}" />
+
+        <StackPanel
+            Margin="0,16,0,8"
+            HorizontalAlignment="Center"
+            Orientation="Horizontal"
+            Spacing="8"
+            Visibility="{x:Bind ShowRetry, Mode=OneWay}">
+            <TextBlock Style="{StaticResource BodianPageEndNote}" Text="加载失败" />
+            <Button Command="{x:Bind RetryCommand, Mode=OneWay}" Content="重试" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

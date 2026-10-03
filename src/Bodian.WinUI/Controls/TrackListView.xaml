@@ -10,9 +10,12 @@
     <!--
         曲目列表。搜索页、我喜欢的页、歌单详情页等共用同一套行模板。
 
-        **只负责「列表 + 点行」**：表头、空状态、加载更多按钮都留给页面自己 ——
+        **只负责「列表 + 点行 + 自动翻页」**：表头、空状态、底部文案都留给页面自己 ——
         它们每页的说法不一样（「输入关键词开始搜索」/「账号里没有这个歌单」），
         塞进控件就得开一堆属性孔。
+
+        翻页靠透传 HasMore / LoadMoreCommand 两个依赖属性给内部的 AutoPaging，
+        页面因此不必知道这里用的是什么列表控件。
 
         **点行只报 Track，不给下标。** 队列要的是「当前列表里的第几首」，
         而下标取决于页面用的是哪个集合（搜索结果还是歌单曲目），控件不该知道。
@@ -26,7 +29,10 @@
     -->
     <!-- Padding 作用在原生 ItemsPresenter 上，给时间列与滚动条之间留出独立空间。 -->
     <controls:VirtualizedListView
+        x:Name="List"
         Padding="{StaticResource SpaceVerticalScrollContentPadding}"
+        controls:AutoPaging.Command="{x:Bind LoadMoreCommand, Mode=OneWay}"
+        controls:AutoPaging.HasMore="{x:Bind HasMore, Mode=OneWay}"
         IsItemClickEnabled="True"
         ItemClick="OnItemClick"
         ItemsSource="{x:Bind Rows}"

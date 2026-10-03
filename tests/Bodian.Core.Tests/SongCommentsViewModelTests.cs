@@ -84,7 +84,7 @@ public sealed class SongCommentsViewModelTests
         var first = _vm.ShowAsync(118990, "song");
         _transport.Requests[0].Complete(Page([1, 2], true));
         await first;
-        Assert.True(_vm.ShowLoadMore);
+        Assert.True(_vm.HasMore);
         var failed = _vm.LoadMoreCommand.ExecuteAsync(null);
         _transport.Requests[1].Fail(new HttpRequestException("offline"));
         await failed;
@@ -97,7 +97,7 @@ public sealed class SongCommentsViewModelTests
         Assert.Equal(new long[] { 1, 2, 3 }, _vm.Items.Select(item => item.Id));
         Assert.True(_vm.ShowEnd);
         Assert.False(_vm.LoadFailed);
-        Assert.False(_vm.ShowLoadMore);
+        Assert.False(_vm.HasMore);
     }
 
     [Fact]

@@ -215,6 +215,9 @@ error CS9035: 必须在对象初始值设定项中设置所需的成员 'Track.I
 行间距有三种值（12 / 10 / 8）。现在收敛到 `Themes/Styles/Pages.xaml`：
 `BodianPageRoot` / `BodianPageTitle` / `BodianPageStatus` / `BodianPageBusyRing` / `BodianPageFooter`。
 
+（2026-10-03 追加 `BodianPageEndNote` —— 列表末尾的「没有更多了哦~」小字，
+由 `Controls/PagingEndNote.xaml` 使用，见 [`list-paging.md`](list-paging.md)。）
+
 顺带归一化了圆角（10 / 8 / 6 / 4 混用 → token 阶梯）与封面尺寸（散落 13 档 → 对到 token）。
 
 **`LyricsPage` 不在本次范围内**（歌词页暂不改）。

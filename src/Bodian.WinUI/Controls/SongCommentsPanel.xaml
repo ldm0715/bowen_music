@@ -144,6 +144,8 @@
         </Border>
         <Grid Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsListOpen), Mode=OneWay}">
             <controls:VirtualizedListView x:Name="CommentsList" ItemsSource="{x:Bind ViewModel.Items}"
+                controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+                controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
                 SelectionMode="None" IsItemClickEnabled="False" IsTabStop="False" Padding="0,0,8,0"
                 ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                 ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="歌曲评论列表"
@@ -172,9 +174,7 @@
                             Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowMoreError), Mode=OneWay}" />
                         <Button Content="重试" Command="{x:Bind ViewModel.RetryCommand}" HorizontalAlignment="Center"
                             Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowMoreError), Mode=OneWay}" />
-                        <Button Content="加载更多" Command="{x:Bind ViewModel.LoadMoreCommand}" HorizontalAlignment="Center"
-                            Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowLoadMore), Mode=OneWay}" />
-                        <TextBlock Text="已经看完全部评论" FontSize="12" Foreground="{ThemeResource CommentTertiaryTextBrush}"
+                        <TextBlock Text="没有更多了哦~" FontSize="12" Foreground="{ThemeResource CommentTertiaryTextBrush}"
                             Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowEnd), Mode=OneWay}" />
                     </StackPanel>
                 </controls:VirtualizedListView.Footer>
@@ -200,6 +200,8 @@
             </StackPanel>
         </Grid>
         <controls:VirtualizedListView x:Name="RepliesList" Grid.Row="2" ItemsSource="{x:Bind ViewModel.Replies}"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreRepliesCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.RepliesHasMore, Mode=OneWay}"
             SelectionMode="None" IsItemClickEnabled="False" IsTabStop="False" Padding="0,0,8,0"
             ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
             ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="评论详情与回复"
@@ -236,9 +238,7 @@
                         Visibility="{x:Bind local:Formats.Visible(ViewModel.RepliesLoadFailed), Mode=OneWay}" />
                     <TextBlock Text="还没有回复，聊聊你的想法吧" FontSize="12" Foreground="{ThemeResource CommentSecondaryTextBrush}"
                         Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowRepliesEmpty), Mode=OneWay}" />
-                    <Button Content="加载更多回复" Command="{x:Bind ViewModel.LoadMoreRepliesCommand}" HorizontalAlignment="Center"
-                        Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowMoreReplies), Mode=OneWay}" />
-                    <TextBlock Text="已经看完全部回复" FontSize="12" Foreground="{ThemeResource CommentTertiaryTextBrush}"
+                    <TextBlock Text="没有更多了哦~" FontSize="12" Foreground="{ThemeResource CommentTertiaryTextBrush}"
                         Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowRepliesEnd), Mode=OneWay}" />
                 </StackPanel>
             </controls:VirtualizedListView.Footer>

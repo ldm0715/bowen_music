@@ -49,13 +49,29 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     public ObservableCollection<Track> Tracks { get; } = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEnd))]
+    [NotifyPropertyChangedFor(nameof(ShowRetry))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEnd))]
+    [NotifyPropertyChangedFor(nameof(ShowRetry))]
     public partial bool HasMore { get; set; }
+
+    /// <summary>上一次加载失败了。页脚据此让出「重试」入口。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEnd))]
+    [NotifyPropertyChangedFor(nameof(ShowRetry))]
+    public partial bool LoadFailed { get; set; }
 
     [ObservableProperty]
     public partial string StatusText { get; set; } = "";
+
+    /// <summary>已经取完，且列表非空。页脚据此显示「没有更多了哦~」。</summary>
+    public bool ShowEnd => Tracks.Count > 0 && !HasMore && !IsBusy && !LoadFailed;
+
+    /// <summary>翻页失败，且确实还有下一页可拉。页脚据此显示「重试」。</summary>
+    public bool ShowRetry => LoadFailed && HasMore && !IsBusy;
 
     [ObservableProperty]
     public partial Track? CurrentTrack { get; set; }
@@ -106,6 +122,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
 
         IsBusy = true;
         HasMore = false;
+        LoadFailed = false;
         CurrentTrack = null;
         Tracks.Clear();
         _cursor = new PagedCursor(PagingConvention.OneBased);
@@ -130,6 +147,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "加载歌单曲目失败");
             StatusText = $"加载失败：{ex.Message}";
+            LoadFailed = true;
         }
         finally
         {
@@ -146,6 +164,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         }
 
         IsBusy = true;
+        LoadFailed = false;
 
         try
         {
@@ -155,6 +174,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "加载下一页失败");
             StatusText = $"加载失败：{ex.Message}";
+            LoadFailed = true;
         }
         finally
         {
@@ -209,6 +229,6 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
 
         StatusText = Tracks.Count == 0
             ? EmptyText
-            : $"{Tracks.Count} 首{(HasMore ? "（还有更多）" : "")}";
+            : $"{Tracks.Count} 首{(HasMore ? "（滚动加载）" : "")}";
     }
 }

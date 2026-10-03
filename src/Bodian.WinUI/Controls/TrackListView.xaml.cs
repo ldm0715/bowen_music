@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Windows.Input;
 using Bodian.Core.Models;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
@@ -57,6 +58,38 @@ public sealed partial class TrackListView : UserControl
             typeof(TrackListView),
             new PropertyMetadata(null));
 
+    /// <summary>还有没有下一页。转给内部列表的 <see cref="AutoPaging.HasMoreProperty"/>。</summary>
+    public static readonly DependencyProperty HasMoreProperty =
+        DependencyProperty.Register(
+            nameof(HasMore),
+            typeof(bool),
+            typeof(TrackListView),
+            new PropertyMetadata(false));
+
+    /// <summary>滚到末尾时执行。转给内部列表的 <see cref="AutoPaging.CommandProperty"/>。</summary>
+    /// <remarks>
+    /// 转发而不是让页面自己去 <see cref="AutoPaging"/> 上挂：页面只跟这个包装控件打交道，
+    /// 不必知道它内部用的是哪个列表、也不必去猜视觉树结构。
+    /// </remarks>
+    public static readonly DependencyProperty LoadMoreCommandProperty =
+        DependencyProperty.Register(
+            nameof(LoadMoreCommand),
+            typeof(ICommand),
+            typeof(TrackListView),
+            new PropertyMetadata(null));
+
+    /// <summary>列表内容之后的附加内容，页面拿它放「没有更多了哦~」与失败重试。</summary>
+    /// <remarks>
+    /// <b>转给内部列表的 <c>Footer</c>，让它跟着列表一起滚。</b> 钉在页面底部的话，
+    /// 提示与列表末尾之间会隔着一大片空白，看不出「是这个列表到底了」。
+    /// </remarks>
+    public static readonly DependencyProperty FooterProperty =
+        DependencyProperty.Register(
+            nameof(Footer),
+            typeof(object),
+            typeof(TrackListView),
+            new PropertyMetadata(null, OnFooterChanged));
+
     private INotifyCollectionChanged? _observed;
     private PlayerViewModel? _nowPlaying;
 
@@ -86,8 +119,31 @@ public sealed partial class TrackListView : UserControl
         set => SetValue(NowPlayingProperty, value);
     }
 
+    public bool HasMore
+    {
+        get => (bool)GetValue(HasMoreProperty);
+        set => SetValue(HasMoreProperty, value);
+    }
+
+    public ICommand? LoadMoreCommand
+    {
+        get => (ICommand?)GetValue(LoadMoreCommandProperty);
+        set => SetValue(LoadMoreCommandProperty, value);
+    }
+
+    public object? Footer
+    {
+        get => GetValue(FooterProperty);
+        set => SetValue(FooterProperty, value);
+    }
+
     private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((TrackListView)d).Observe(e.NewValue as INotifyCollectionChanged);
+
+    // 直接推给内部列表，不走 x:Bind：Footer 属性元素与子内容的赋值顺序在 XAML 里没有保证，
+    // OneTime 绑定时可能还没轮到 Footer。
+    private static void OnFooterChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((TrackListView)d).List.Footer = e.NewValue;
 
     private void Observe(INotifyCollectionChanged? source)
     {
@@ -112,7 +168,7 @@ public sealed partial class TrackListView : UserControl
         //
         // 其余动作（删除 / 移动 / 重置）都会让后面所有行的序号变掉，而序号是 init 属性，
         // 改不了 —— 所以整表重建。重建会重置滚动位置，但那几种情况本来就伴随列表大改，
-        // 而「加载更多」走的是追加这条路径，不受影响。
+        // 而滚动续加载走的是追加这条路径，不受影响。
         if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems is not null && Rows.Count > 0)
         {
             foreach (var item in e.NewItems)

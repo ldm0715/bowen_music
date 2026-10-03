@@ -16,17 +16,32 @@
             <PivotItem Header="歌曲">
                 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                     <TextBlock Text="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}" Margin="0,8" />
-                    <controls:TrackListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Tracks.Items}" TrackInvoked="OnTrackInvoked" />
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12"><ProgressRing IsActive="{x:Bind ViewModel.Tracks.IsBusy, Mode=OneWay}" Style="{StaticResource BodianPageBusyRing}" /><Button Content="重新加载" Command="{x:Bind ViewModel.Tracks.ReloadCommand}" /><Button Content="加载更多" Command="{x:Bind ViewModel.Tracks.LoadMoreCommand}" Visibility="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}" /></StackPanel>
+                    <controls:TrackListView Grid.Row="1" HasMore="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}" ItemsSource="{x:Bind ViewModel.Tracks.Items}" LoadMoreCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}" TrackInvoked="OnTrackInvoked">
+                        <controls:TrackListView.Footer>
+                            <controls:PagingEndNote RetryCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}" ShowEnd="{x:Bind ViewModel.Tracks.ShowEnd, Mode=OneWay}" ShowRetry="{x:Bind ViewModel.Tracks.ShowRetry, Mode=OneWay}" />
+                        </controls:TrackListView.Footer>
+                    </controls:TrackListView>
+                    <StackPanel Grid.Row="2" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="12">
+                        <ProgressRing IsActive="{x:Bind ViewModel.Tracks.IsBusy, Mode=OneWay}" Style="{StaticResource BodianPageBusyRing}" />
+                        <Button Content="重新加载" Command="{x:Bind ViewModel.Tracks.ReloadCommand}" />
+                    </StackPanel>
                 </Grid>
             </PivotItem>
             <PivotItem Header="专辑">
                 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                     <TextBlock Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}" Margin="0,8" />
-                    <controls:VirtualizedListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Albums.Items}" IsItemClickEnabled="True" ItemClick="OnAlbumClick" SelectionMode="None">
+                    <controls:VirtualizedListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Albums.Items}" IsItemClickEnabled="True" ItemClick="OnAlbumClick" SelectionMode="None"
+                        controls:AutoPaging.Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+                        controls:AutoPaging.HasMore="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}">
                         <controls:VirtualizedListView.ItemTemplate><DataTemplate x:DataType="models:Album"><StackPanel Orientation="Horizontal" Spacing="16" Padding="4,8"><Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" /><StackPanel VerticalAlignment="Center"><TextBlock Text="{x:Bind Name}" /><TextBlock Text="{x:Bind ReleaseDate}" /></StackPanel></StackPanel></DataTemplate></controls:VirtualizedListView.ItemTemplate>
+                        <controls:VirtualizedListView.Footer>
+                            <controls:PagingEndNote RetryCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}" ShowEnd="{x:Bind ViewModel.Albums.ShowEnd, Mode=OneWay}" ShowRetry="{x:Bind ViewModel.Albums.ShowRetry, Mode=OneWay}" />
+                        </controls:VirtualizedListView.Footer>
                     </controls:VirtualizedListView>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12"><ProgressRing IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" Style="{StaticResource BodianPageBusyRing}" /><Button Content="重新加载" Command="{x:Bind ViewModel.Albums.ReloadCommand}" /><Button Content="加载更多" Command="{x:Bind ViewModel.Albums.LoadMoreCommand}" Visibility="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}" /></StackPanel>
+                    <StackPanel Grid.Row="2" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="12">
+                        <ProgressRing IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" Style="{StaticResource BodianPageBusyRing}" />
+                        <Button Content="重新加载" Command="{x:Bind ViewModel.Albums.ReloadCommand}" />
+                    </StackPanel>
                 </Grid>
             </PivotItem>
         </Pivot>

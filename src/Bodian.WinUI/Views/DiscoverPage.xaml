@@ -35,8 +35,14 @@
         </StackPanel>
 
         <!-- 模块标题与每个横向卡片区都是可回收的独立条目；不会实现整组离屏卡片。 -->
+        <!--
+            翻页靠末尾条目被实现来触发。首屏若不足一屏会自动补到填满 ——
+            否则列表根本滚不动，后面的模块就永远够不到了。
+        -->
         <controls:VirtualizedListView x:Name="FeedList" Grid.Row="1"
             Padding="{StaticResource SpaceVerticalScrollContentPadding}" ItemsSource="{x:Bind ViewModel.Rows}"
+            controls:AutoPaging.Command="{x:Bind ViewModel.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
             ItemTemplateSelector="{StaticResource DiscoverTemplateSelector}" SelectionMode="None"
             ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollMode="Enabled">
             <controls:VirtualizedListView.ItemContainerStyle>
@@ -45,26 +51,18 @@
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 </Style>
             </controls:VirtualizedListView.ItemContainerStyle>
+            <controls:VirtualizedListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.ShowRetry, Mode=OneWay}" />
+            </controls:VirtualizedListView.Footer>
         </controls:VirtualizedListView>
 
-        <Grid Grid.Row="2" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
+        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
             <ProgressRing
-                Grid.Column="0"
                 Style="{StaticResource BodianPageBusyRing}"
-                HorizontalAlignment="Left"
                 IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
-
-            <!-- 兜底入口：滚动检测失效时用户还能手动拉下一批 -->
-            <Button
-                Grid.Column="1"
-                Command="{x:Bind ViewModel.LoadMoreCommand}"
-                Content="加载更多"
-                Visibility="{x:Bind ViewModel.HasMore, Mode=OneWay}" />
         </Grid>
     </Grid>
 </Page>

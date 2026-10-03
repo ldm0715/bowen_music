@@ -3,9 +3,7 @@ using Bodian.Core.Models.Home;
 using Bodian.WinUI.Playback;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 
 namespace Bodian.WinUI.Views;
 
@@ -14,13 +12,14 @@ namespace Bodian.WinUI.Views;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 内容按模块懒加载：首屏几个，滚到底再拉下一批。触发靠 <see cref="FeedList"/> 内部那个
-/// <c>ScrollViewer</c> 的 <c>ViewChanged</c> —— 这是 WinUI 里最直接的做法，
-/// 不必为每个模块去算它在视口里的位置。
+/// 内容按模块懒加载：首屏几个，滚到底再拉下一批。触发靠列表上的
+/// <see cref="Bodian.WinUI.Controls.AutoPaging"/> —— 末尾条目的容器被实现，
+/// 就说明用户已经接近底部。
 /// </para>
 /// <para>
-/// 页面底部另留一个「加载更多」按钮当兜底：滚动检测依赖内部 ScrollViewer 被真正创建出来，
-/// 内容不足一屏时它可能不触发。
+/// 首屏不足一屏时会自动补拉，直到填满或没有更多。<b>这一步是必要的</b>：
+/// 列表滚不动的话末尾条目不会再被实现，后面的模块就永远够不到了
+/// （换成滚动触发之前，那个「加载更多」按钮正是这条逃生通道）。
 /// </para>
 /// </remarks>
 public sealed partial class DiscoverPage : Page, INavigationAware
@@ -29,8 +28,6 @@ public sealed partial class DiscoverPage : Page, INavigationAware
     private readonly INavigationService _navigation;
     private readonly Func<Playlist, int, PlaylistDetailPage> _playlistDetailFactory;
     private readonly Func<AiPlaylistRef, string, AiPlaylistPage> _aiPlaylistFactory;
-
-    private ScrollViewer? _scroll;
 
     public DiscoverPage(
         DiscoverViewModel viewModel,
@@ -52,61 +49,15 @@ public sealed partial class DiscoverPage : Page, INavigationAware
         _aiPlaylistFactory = aiPlaylistFactory;
 
         InitializeComponent();
-
-        // 内部 ScrollViewer 要等内容加载完才存在，所以先挂 Loaded。
-        FeedList.Loaded += OnFeedListLoaded;
-        FeedList.Unloaded += OnFeedListUnloaded;
     }
 
     public DiscoverViewModel ViewModel { get; }
 
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
 
-    /// <summary>摘掉滚动订阅，避免页面不在时还在触发加载。</summary>
-    public void OnNavigatedFrom() => DetachScroll();
-
-    private void OnFeedListLoaded(object sender, RoutedEventArgs e)
+    /// <summary>离开这一页时没有需要摘掉的东西：翻页订阅挂在列表自己身上。</summary>
+    public void OnNavigatedFrom()
     {
-        DetachScroll();
-
-        _scroll = FindScrollViewer(FeedList);
-
-        if (_scroll is not null)
-        {
-            _scroll.ViewChanged += OnScrollViewChanged;
-        }
-    }
-
-    private void OnFeedListUnloaded(object sender, RoutedEventArgs e) => DetachScroll();
-
-    private void DetachScroll()
-    {
-        if (_scroll is not null)
-        {
-            _scroll.ViewChanged -= OnScrollViewChanged;
-            _scroll = null;
-        }
-    }
-
-    /// <summary>
-    /// 滚到接近底部时拉下一批。
-    /// </summary>
-    /// <remarks>
-    /// 留 200 像素的提前量：等真正滚到底才发请求的话，用户会先看到一段空白。
-    /// </remarks>
-    private void OnScrollViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
-    {
-        if (_scroll is null || !ViewModel.HasMore || ViewModel.IsBusy)
-        {
-            return;
-        }
-
-        var remaining = _scroll.ScrollableHeight - _scroll.VerticalOffset;
-
-        if (remaining <= 200)
-        {
-            _ = ViewModel.LoadMoreAsync();
-        }
     }
 
     /// <summary>
@@ -149,33 +100,5 @@ public sealed partial class DiscoverPage : Page, INavigationAware
 
             _navigation.NavigateRoot(_playlistDetailFactory(playlist, source));
         }
-    }
-
-    /// <summary>
-    /// 找 <paramref name="element"/> 模板里的那个 <see cref="ScrollViewer"/>。
-    /// </summary>
-    /// <remarks>
-    /// <c>ListView</c> 把它的滚动容器藏在模板里，没有公开属性可取，
-    /// 只能走视觉树。找不到时返回 <c>null</c> —— 那样只是懒加载不触发，
-    /// 底部那个「加载更多」按钮仍然可用。
-    /// </remarks>
-    private static ScrollViewer? FindScrollViewer(DependencyObject element)
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
-        {
-            var child = VisualTreeHelper.GetChild(element, i);
-
-            if (child is ScrollViewer viewer)
-            {
-                return viewer;
-            }
-
-            if (FindScrollViewer(child) is { } found)
-            {
-                return found;
-            }
-        }
-
-        return null;
     }
 }
