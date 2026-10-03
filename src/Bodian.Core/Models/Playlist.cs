@@ -36,6 +36,16 @@ public sealed record Playlist
     public Uri? CoverImage { get; init; }
 
     /// <summary>
+    /// 服务端下发的**原始**封面串，原样保留。
+    /// </summary>
+    /// <remarks>
+    /// 编辑歌单要把封面回传回去（<c>PUT</c> 的 <c>pic</c>），而 <see cref="CoverImage"/> 是
+    /// <c>ToHttpUri</c> 规范化过的产物 —— 回传改写过的地址是否被接受没有验证过，
+    /// 所以留一份原串。空串表示这个来源没给封面。
+    /// </remarks>
+    public string CoverRawUrl { get; init; } = "";
+
+    /// <summary>
     /// 歌单来源，**直接就是取曲目时要填的 <c>source</c>**。原样来自服务端，不做归一化。
     /// </summary>
     /// <remarks>
@@ -95,6 +105,16 @@ public sealed record Playlist
     /// 丢掉它再单独查一次是白跑一趟。别把它当成歌单自身的属性去别处用。
     /// </remarks>
     public string CollectTime { get; init; } = "";
+
+    /// <summary>
+    /// 歌单的标签，最多 3 个。**只有详情会给**，列表来源是空数组。
+    /// </summary>
+    /// <remarks>
+    /// 与编辑页的标签候选同一套 id（<c>service/category/list</c>），所以类型复用了
+    /// <see cref="MusicCategory"/> —— 候选与已选是同一种东西，界面不用做两套模型。
+    /// 回写给服务端的 <c>categoryList</c> 只要 id。
+    /// </remarks>
+    public IReadOnlyList<MusicCategory> Categories { get; init; } = [];
 
     /// <summary>有简介可展示。简介空时界面上整个折叠区都不该出现。</summary>
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);

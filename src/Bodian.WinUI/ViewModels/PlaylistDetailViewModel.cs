@@ -349,15 +349,160 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         }
     }
 
+    // ── 编辑 ────────────────────────────────────────────────────────────
+
     /// <summary>
-    /// 「编辑」现在只是个占位。
+    /// 编辑正在进行。<b>挡住重复提交</b> —— 上传 + 编辑是两次写请求，重入会打架。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsEditBusy { get; set; }
+
+    /// <summary>
+    /// 封面回传用的**原始串**（<c>PUT</c> 的 <c>pic</c>）。
     /// </summary>
     /// <remarks>
-    /// <c>PUT service/playlist</c> 至今**没有实测过**（新建与删除都测了，编辑没测），
-    /// 而且它的 <c>id</c> 键还是按数组槽序推断出来的 —— 试错的代价是改坏别的歌单。
-    /// 所以按钮先摆着，点了如实说没做。
+    /// 不改封面时必须把它原样回传 —— <see cref="CoverImage"/> 是规范化过的 <c>Uri</c>，
+    /// 回传改写过的地址是否被接受没有验证过。详情回来了就用详情那份（更全）。
     /// </remarks>
-    public void NotifyEditUnavailable() => _notice.Show("编辑歌单还没做");
+    public string CoverRawUrl => _info?.CoverRawUrl ?? Playlist.CoverRawUrl;
+
+    /// <summary>
+    /// 歌单当前的标签，编辑时用来预选。
+    /// </summary>
+    /// <remarks>
+    /// <b>只有详情会给标签</b>（<c>service/playlist/info</c> 的 <c>categories</c>），
+    /// 列表来源没有 —— 所以详情还没回来时这里就是空的，与「这个歌单没有标签」无法区分。
+    /// 编辑入口只在 <see cref="IsOwnPlaylist"/> 时出现，而那一页必然会加载详情。
+    /// </remarks>
+    public IReadOnlyList<MusicCategory> Categories => _info?.Categories ?? Playlist.Categories;
+
+    /// <summary>
+    /// 标签的候选项。与「歌单广场」用的是同一棵树（<c>service/category/list</c>）。
+    /// </summary>
+    /// <remarks>匿名也能调，但只有登录后才有意义 —— 没登录就没有编辑入口。</remarks>
+    public Task<IReadOnlyList<CategoryGroup>> LoadCategoriesAsync(CancellationToken cancellationToken = default)
+        => _api.GetCategoriesAsync(cancellationToken);
+
+    /// <summary>
+    /// 保存编辑。成功返回 <c>true</c>，并就地刷新头部与侧栏那一行。
+    /// </summary>
+    /// <param name="name">新名字。空白由 <c>BodianApi</c> 挡（它会抛）。</param>
+    /// <param name="description">新简介。</param>
+    /// <param name="coverRawUrl">当前封面原始串；<paramref name="coverBytes"/> 非空时会被上传结果覆盖。</param>
+    /// <param name="categories">选中的标签，最多 3 个。</param>
+    /// <param name="coverBytes">新封面的字节；<c>null</c> 表示没换封面。</param>
+    /// <remarks>
+    /// <para>
+    /// <b>换封面是两步</b>：先 <c>uploadPic</c> 拿地址，再把这个地址填进 <c>PUT</c> 的 <c>pic</c> ——
+    /// 上传本身不会换掉封面。两步都成功才算改完。
+    /// </para>
+    /// <para>
+    /// <b>确认框不在这里</b>：与删除同一条规矩，弹窗是界面决策，<c>XamlRoot</c> 也拿不到 VM 里来。
+    /// </para>
+    /// <para>
+    /// <b>失败不改任何本地状态</b>：头部与侧栏都保持原样，用户看到的还是服务端那份。
+    /// </para>
+    /// </remarks>
+    public async Task<bool> SaveEditAsync(
+        string name,
+        string description,
+        string coverRawUrl,
+        IReadOnlyList<MusicCategory> categories,
+        byte[]? coverBytes,
+        string coverFileName,
+        string coverContentType,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsEditBusy)
+        {
+            return false;
+        }
+
+        IsEditBusy = true;
+
+        try
+        {
+            var pic = coverRawUrl;
+
+            if (coverBytes is { Length: > 0 })
+            {
+                pic = await _api
+                    .UploadPlaylistCoverAsync(Playlist.Id, coverBytes, coverFileName, coverContentType, cancellationToken)
+                    .ConfigureAwait(true);
+            }
+
+            var trimmed = name.Trim();
+            var ids = categories.Select(c => (int)c.Id).ToArray();
+
+            await _api.UpdatePlaylistAsync(Playlist.Id, trimmed, description, pic, ids, cancellationToken)
+                .ConfigureAwait(true);
+
+            ApplyEdit(trimmed, description, pic, categories);
+            _library.OnPlaylistUpdated(Playlist.Id, trimmed, TryCreateHttpUri(pic));
+            _notice.Show("已保存");
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "编辑歌单 {PlaylistId} 失败", Playlist.Id);
+            _notice.Show("歌单编辑失败，请稍后再试。");
+            return false;
+        }
+        finally
+        {
+            IsEditBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// 把编辑结果落到头部绑定字段上。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能重新赋值 <see cref="Playlist"/></b>：它是 <c>get</c>-only 的记录，而且是
+    /// 导航身份的一部分（改了会让同一个页面被判成另一个页面）。所以只动绑定的
+    /// <c>[ObservableProperty]</c>，以及那份详情副本 <c>_info</c> —— 副标题靠它重算。
+    /// </remarks>
+    private void ApplyEdit(string name, string description, string pic, IReadOnlyList<MusicCategory> categories)
+    {
+        var cover = TryCreateHttpUri(pic);
+
+        Title = name;
+        Description = description;
+        HasDescription = !string.IsNullOrWhiteSpace(description);
+
+        if (cover is not null)
+        {
+            CoverImage = cover;
+        }
+
+        if (_info is null)
+        {
+            return;
+        }
+
+        _info = _info with
+        {
+            Name = name,
+            Description = description,
+            CoverRawUrl = pic,
+            CoverImage = cover ?? _info.CoverImage,
+            Categories = categories,
+        };
+
+        Subtitle = BuildSubtitle(_info);
+    }
+
+    /// <summary>把封面串转成可用的地址。空串或非法地址返回 <c>null</c>（表示「没有封面」）。</summary>
+    private static Uri? TryCreateHttpUri(string? value)
+        => Uri.TryCreate(value, UriKind.Absolute, out var uri)
+           && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            ? uri
+            : null;
 
     protected override Task<Playlist?> ResolvePlaylistAsync(CancellationToken cancellationToken) =>
         Task.FromResult<Playlist?>(Playlist);

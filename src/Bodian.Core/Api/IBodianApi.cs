@@ -136,6 +136,71 @@ public interface IBodianApi
     Task DeletePlaylistAsync(long playlistId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 编辑自己的歌单：名称、简介、封面、标签。
+    /// </summary>
+    /// <param name="playlistId">要改的歌单。</param>
+    /// <param name="name">新名字。<b>会先 Trim</b>，Trim 后为空则抛。</param>
+    /// <param name="description">新简介，空串表示没有简介。</param>
+    /// <param name="pic">封面地址，**必须是原始串**（<see cref="Models.Playlist.CoverRawUrl"/>）。不改封面时回传原值。</param>
+    /// <param name="categoryIds">标签的<b>分类 id</b>，取自 <c>service/category/list</c>。官网上限 3 个。</param>
+    /// <remarks>
+    /// <para>
+    /// <c>PUT service/playlist</c>，与新建 / 删除共用裸路径。五个键都有反汇编字面量证据，
+    /// 但<b>整条路径尚未实测</b>。
+    /// </para>
+    /// <para>
+    /// <b>改不了隐私</b>：请求体里没有 <c>private</c> 键，官方编辑页也没有隐私开关 ——
+    /// 歌单一旦建成，公开/私密就定了。要改只能删了重建（会丢掉 id、收藏与播放数）。
+    /// </para>
+    /// <para>
+    /// <b>不幂等但可重试</b>：与新建不同，编辑同一个歌单发两次结果一样，重复调用不会造出多余数据。
+    /// </para>
+    /// <para>
+    /// 回执的 <c>data</c> 不被使用（反汇编里成功与否只看业务码），所以返回 <c>Task</c>。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">名字去掉首尾空白后为空。</exception>
+    /// <exception cref="ArgumentOutOfRangeException">id 不是正数。</exception>
+    /// <exception cref="InvalidOperationException">未登录；或请求在途时换了账号。</exception>
+    Task UpdatePlaylistAsync(
+        long playlistId,
+        string name,
+        string description,
+        string pic,
+        IReadOnlyList<int> categoryIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 上传歌单封面，返回可用的封面地址。
+    /// </summary>
+    /// <param name="playlistId">要换封面的歌单。</param>
+    /// <param name="imageBytes">图像字节。</param>
+    /// <param name="fileName">文件名，参与 multipart 的 <c>filename</c>。</param>
+    /// <param name="contentType">MIME，如 <c>image/jpeg</c>。</param>
+    /// <remarks>
+    /// <para>
+    /// <c>POST service/playlist/uploadPic/{id}</c>，multipart，字段名 <c>file</c>。
+    /// </para>
+    /// <para>
+    /// <b>上传本身不会换掉封面</b> —— 拿到地址后还要拿它去调
+    /// <see cref="UpdatePlaylistAsync"/> 填 <c>pic</c>，两步都成功才算改完。
+    /// </para>
+    /// <para>
+    /// <b>签名不覆盖二进制 body</b>：桌面签名对 body 算的是 <c>md5(body + "kuwotest")</c>，
+    /// 那是针对 JSON 字符串的，二进制没有良定义的字符串形态。这一条未实测。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">字节为空，或文件名/类型是空白。</exception>
+    /// <exception cref="ArgumentOutOfRangeException">id 不是正数。</exception>
+    /// <exception cref="InvalidOperationException">未登录；请求在途时换了账号；服务端没回封面地址。</exception>
+    Task<string> UploadPlaylistCoverAsync(
+        long playlistId,
+        byte[] imageBytes,
+        string fileName,
+        string contentType,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 「我喜欢」这个歌单<b>本身</b>，不是它的曲目。
     /// </summary>
     /// <remarks>

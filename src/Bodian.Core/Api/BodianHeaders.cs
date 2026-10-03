@@ -50,7 +50,9 @@ internal static class BodianHeaders
             request.Headers.TryAddWithoutValidation("token", session.Token);
         }
 
-        if (request.Content is not null)
+        // ★ 只在 ContentType 还空着时才补 application/json。
+        //   multipart 的 ContentType 自带 boundary，无条件覆写会把它毁掉，服务端就解析不出文件。
+        if (request.Content is { Headers.ContentType: null })
         {
             request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         }

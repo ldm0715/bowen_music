@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.ImageCropView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        固定比例（1.25:1）的裁剪视口。
+
+        ★ 宽高是**定死的常量**（350×280），不由 code-behind 去量外层容器再赋回来。
+          量回来的写法有两个连环坑：外层在 Visibility 切出来之前量不到尺寸，
+          而在布局回调里写 Width/Height 又会被并回当前那轮布局、写进去不生效 ——
+          两者任一发生，这个 Grid 就是 0×0，**而 0 尺寸的子树在渲染时会被整个丢掉**，
+          表现是「框和图片一起不见」，同时裁剪数学照常成立（它只看状态机，不看元素尺寸）。
+          定死之后这些坑一次性都没有了；容器再小也只是居中溢出，不会消失。
+    -->
+    <Grid x:Name="CropRoot">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="FrameHost">
+            <Border
+                x:Name="CropFrame"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="4">
+                <Grid
+                    x:Name="CropViewport"
+                    Width="350"
+                    Height="280"
+                    Background="Transparent"
+                    ManipulationMode="TranslateX,TranslateY,Scale"
+                    PointerCanceled="OnViewportPointerReleased"
+                    PointerCaptureLost="OnViewportPointerCaptureLost"
+                    PointerMoved="OnViewportPointerMoved"
+                    PointerPressed="OnViewportPointerPressed"
+                    PointerReleased="OnViewportPointerReleased"
+                    PointerWheelChanged="OnViewportPointerWheelChanged"
+                    ManipulationDelta="OnViewportManipulationDelta">
+                    <Grid.Clip>
+                        <RectangleGeometry x:Name="CropViewportClip" />
+                    </Grid.Clip>
+
+                    <Canvas IsHitTestVisible="False">
+                        <!--
+                            变换用普通的 RenderTransform，不用 ElementCompositionPreview 那套合成器属性。
+                            合成器是给拖动时的平滑用的，裁剪器没有那个需求；
+                            这里的坐标直接对应视口状态，越简单越不容易出错。
+                            缩放以左上角为原点（RenderTransformOrigin="0,0"）。
+                        -->
+                        <Image
+                            x:Name="CropImage"
+                            AutomationProperties.Name="待裁剪的封面"
+                            HorizontalAlignment="Left"
+                            ImageFailed="OnImageFailed"
+                            ImageOpened="OnImageOpened"
+                            RenderTransformOrigin="0,0"
+                            Stretch="Fill"
+                            VerticalAlignment="Top">
+                            <Image.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="CropScale" />
+                                    <TranslateTransform x:Name="CropTranslate" />
+                                </TransformGroup>
+                            </Image.RenderTransform>
+                        </Image>
+                    </Canvas>
+                </Grid>
+            </Border>
+
+            <ProgressRing
+                x:Name="BusyRing"
+                Width="26"
+                Height="26"
+                HorizontalAlignment="Center"
+                IsActive="False"
+                VerticalAlignment="Center" />
+        </Grid>
+
+        <TextBlock
+            x:Name="HintText"
+            Grid.Row="1"
+            Margin="0,10,0,0"
+            FontSize="12"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="拖动调整位置，滚轮缩放"
+            TextAlignment="Center"
+            TextWrapping="Wrap" />
+    </Grid>
+</UserControl>

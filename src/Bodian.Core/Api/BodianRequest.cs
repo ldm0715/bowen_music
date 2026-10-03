@@ -6,11 +6,26 @@ public enum BodianHttpVerb
     Post,
 
     /// <summary>
-    /// 删歌单。**目前只有 <c>service/playlist</c> 那一条走它** ——
-    /// 其余写操作（加歌、收藏、关注、发评论）全是 POST。
+    /// 删歌单。**只有 <c>service/playlist</c> 那一条走它**。
     /// </summary>
     Delete,
+
+    /// <summary>
+    /// 编辑歌单。与 <see cref="Post"/>、<see cref="Delete"/> 共用 <c>service/playlist</c>，
+    /// 靠 method 区分，见 <c>Endpoints.PlaylistCrud</c>。
+    /// </summary>
+    Put,
 }
+
+/// <summary>
+/// 一次 <c>multipart/form-data</c> 上传的文件部分。
+/// </summary>
+/// <remarks>
+/// 上传封面的请求体是二进制，没有 JSON 形态，所以不能复用 <see cref="BodianRequest.JsonBody"/>。
+/// 带它的请求**签名的 body 部分是 null**（只签 path 与 query）—— 桌面签名对 body 算的是
+/// <c>md5(body + "kuwotest")</c>，那是针对 JSON 字符串的，二进制没有良定义的字符串形态。
+/// </remarks>
+public sealed record BodianFormFile(string FieldName, string FileName, string ContentType, byte[] Content);
 
 /// <summary>
 /// 一次请求的形状。
@@ -37,6 +52,12 @@ public sealed record BodianRequest
     /// 传输层只做搬运，不做规范化。
     /// </summary>
     public string? JsonBody { get; init; }
+
+    /// <summary>
+    /// 要上传的二进制文件（multipart）。**与 <see cref="JsonBody"/> 互斥**，
+    /// 两者同时给时以 <see cref="JsonBody"/> 为准。
+    /// </summary>
+    public BodianFormFile? File { get; init; }
 
     /// <summary>是否需要 <c>timestamp</c> 与 <c>sign</c>。</summary>
     public bool Signed { get; init; }

@@ -17,6 +17,16 @@ public sealed class ImageViewportState
     public double OffsetY { get; private set; }
     public bool CanPan => FittedWidth * Zoom > ViewportWidth + 0.5 || FittedHeight * Zoom > ViewportHeight + 0.5;
 
+    /// <summary>
+    /// cover 语义：把图铺满视口、不留白，代价是可能裁掉一边。
+    /// </summary>
+    /// <remarks>
+    /// <b>裁剪器专用</b>。默认是 contain 语义（整张图都看得见、可能留白）——
+    /// 图片查看器要的正是那个，所以这是一个显式开关而不是把默认改掉。
+    /// 打开后 <see cref="Fit"/> 与 <see cref="Resize"/> 都按 cover 计算。
+    /// </remarks>
+    public bool CoverMode { get; set; }
+
     public void Reset()
     {
         _imageWidth = _imageHeight = FittedWidth = FittedHeight = OffsetX = OffsetY = 0;
@@ -72,6 +82,32 @@ public sealed class ImageViewportState
 
     public void PanBy(double x, double y) => PanTo(OffsetX + x, OffsetY + y);
 
+    /// <summary>
+    /// 当前视口对应的**源图像素**矩形。裁剪器用它反算要截哪一块。
+    /// </summary>
+    /// <remarks>
+    /// 视口只有一个缩放系数（<c>FittedWidth * Zoom / _imageWidth</c>），宽高比因此与视口一致 ——
+    /// 裁剪器把视口做成目标比例，截出来的矩形就自然是那个比例。
+    /// 图片还没装载时返回全零。
+    /// </remarks>
+    public (double X, double Y, double Width, double Height) SourceRect()
+    {
+        if (_imageWidth <= 0 || _imageHeight <= 0 || FittedWidth <= 0 || ViewportWidth <= 0 || ViewportHeight <= 0)
+        {
+            return (0, 0, 0, 0);
+        }
+
+        var scale = FittedWidth * Zoom / _imageWidth;
+        var width = Math.Min(ViewportWidth / scale, _imageWidth);
+        var height = Math.Min(ViewportHeight / scale, _imageHeight);
+
+        // 平移越界时钳回图内，避免截到图外的空白。
+        var x = Math.Clamp(-OffsetX / scale, 0, _imageWidth - width);
+        var y = Math.Clamp(-OffsetY / scale, 0, _imageHeight - height);
+
+        return (x, y, width, height);
+    }
+
     private void UpdateFitSize()
     {
         if (_imageWidth <= 0 || _imageHeight <= 0 || ViewportWidth <= 0 || ViewportHeight <= 0)
@@ -79,8 +115,20 @@ public sealed class ImageViewportState
             FittedWidth = FittedHeight = 0;
             return;
         }
-        var scale = Math.Min(1, Math.Min(Math.Max(1, ViewportWidth - 20) / _imageWidth,
-            Math.Max(1, ViewportHeight - 20) / _imageHeight));
+
+        double scale;
+
+        if (CoverMode)
+        {
+            // 铺满：取较大的那个比例，短边因此会溢出视口 —— 这正是「可裁」的来源。
+            scale = Math.Max(ViewportWidth / _imageWidth, ViewportHeight / _imageHeight);
+        }
+        else
+        {
+            scale = Math.Min(1, Math.Min(Math.Max(1, ViewportWidth - 20) / _imageWidth,
+                Math.Max(1, ViewportHeight - 20) / _imageHeight));
+        }
+
         FittedWidth = _imageWidth * scale;
         FittedHeight = _imageHeight * scale;
     }

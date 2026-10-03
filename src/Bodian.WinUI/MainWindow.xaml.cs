@@ -34,7 +34,7 @@ namespace Bodian.WinUI;
 /// 详情压在栈上、根仍是「我喜欢的」，侧栏就该继续高亮「我喜欢的」。
 /// </para>
 /// </remarks>
-public sealed partial class MainWindow : Window, IPlaylistLibrarySink
+public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHandleProvider
 {
     /// <summary>侧栏项的标记。固定项与紧凑栏那颗歌单图标都靠它分发，见 <see cref="OnItemInvoked"/>。</summary>
     private const string DiscoverTag = "discover";
@@ -805,6 +805,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink
         }
     }
 
+    /// <summary>编辑过的歌单：侧栏那一行的名字与封面就地换掉，**不导航**（歌单还在，用户也还停在详情页）。</summary>
+    void IPlaylistLibrarySink.OnPlaylistUpdated(long playlistId, string name, Uri? cover)
+    {
+        _sidebar.UpdatePlaylist(playlistId, name, cover);
+        AfterSidebarChanged();
+    }
+
+    /// <summary>桌面端 WinRT 互操作（选文件等）要拿宿主窗口来初始化。</summary>
+    nint IWindowHandleProvider.WindowHandle => WinRT.Interop.WindowNative.GetWindowHandle(this);
+
     /// <summary>
     /// 新建歌单的输入框：名字 + 一行「设置为隐私歌单」。
     /// </summary>
@@ -896,40 +906,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink
     /// 造一个跟随应用主题、并且收紧了内边距的对话框。
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>主题：</b>代码构造的 <see cref="ContentDialog"/> 不在可视树里，
-    /// <b>不会继承 <c>ShellRoot</c> 上那个 <c>RequestedTheme</c></b> ——
-    /// 不显式设就永远跟随系统，应用内切成深色时它还是一块白板。
-    /// （队列抽屉、歌单浮层那几个自绘面板同理，都各自绑了。）
-    /// </para>
-    /// <para>
-    /// <b>内边距：</b>WinUI 的对话框模板（<c>generic.xaml</c> 的 <c>DefaultContentDialogStyle</c>）
-    /// 给内容区与按钮区<b>各</b>留了一份 <c>ContentDialogPadding</c>（<c>24</c> 四边），
-    /// 两段叠起来，内容底下就凭空多出 48 的空档，按钮区自己也撑到 80 高 ——
-    /// 而里面只有两个扁按钮。这里收到上下 12。
-    /// </para>
-    /// <para>
-    /// 同一个模板还给了 <c>ContentDialogMinHeight = 184</c>：内容不够高时它会把对话框整个撑起来，
-    /// 多出的高度全堆在内容下方，看着就是「这一行下面怎么这么空」。一并解掉。
-    /// 宽度也一并收到 360（默认 <c>MaxWidth</c> 是 548，内容只有一栏时左右空一大片）。
-    /// </para>
+    /// 主题与内边距的规矩收在 <see cref="AppDialogs"/> 里，与详情页的编辑对话框共用一份 ——
+    /// 那边拿不到这个私有方法，各写一份必然会漂移。
     /// </remarks>
     private ContentDialog CreateAppDialog(string title)
-    {
-        var dialog = new ContentDialog
-        {
-            XamlRoot = ShellRoot.XamlRoot,
-            RequestedTheme = Theme.RequestedTheme,
-            Title = title,
-        };
-
-        dialog.Resources["ContentDialogPadding"] = new Thickness(24, 12, 24, 12);
-        dialog.Resources["ContentDialogMinHeight"] = 0d;
-        dialog.Resources["ContentDialogMinWidth"] = 320d;
-        dialog.Resources["ContentDialogMaxWidth"] = 360d;
-
-        return dialog;
-    }
+        => AppDialogs.Create(title, ShellRoot.XamlRoot, Theme.RequestedTheme);
 
     /// <summary>浮层里点了某个歌单：换根进详情，顺手把浮层收掉。</summary>
     private void OnPanePlaylistInvoked(object? sender, Playlist playlist)

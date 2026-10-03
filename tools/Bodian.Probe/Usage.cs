@@ -22,12 +22,16 @@ internal static class Usage
               signtest <musicId>         签名对照：对照请求 + 六种形态，判断接口到底看不看签名
               sigsweep <musicId>         签名算法变体扫描（只在 --ver 触发强制校验时才有意义）
               call <path> [k=v ...]      直接调任意接口
+              uploadpic <歌单id> <文件>  上传歌单封面（multipart，字段名 file）
 
             除 devid / login / logout 外，命令一律带已保存的会话执行。
 
             选项
               --post                     用 POST（默认 GET）
               --delete                   用 DELETE（歌单删除一类的端点）
+              --put                      用 PUT（歌单编辑 service/playlist）
+              --sign-body-bytes          uploadpic 用：把二进制字节按 Latin-1 进签名
+                                         （默认不签 body，用来验证服务端到底看不看）
               --signed                   带 timestamp 与 sign
               --body <json>              JSON body，原样参与签名并发送
               --name <name>              存 fixture 时的文件名（call 命令）

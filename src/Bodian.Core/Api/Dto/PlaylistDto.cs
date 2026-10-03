@@ -85,4 +85,22 @@ internal sealed class PlaylistDto
 
     /// <summary>当前账号的收藏时间（<c>yyyy-MM-dd HH:mm:ss</c>）。**存在即「已收藏」**，未收藏时整个键不出现。</summary>
     [JsonPropertyName("collectTime")] public string? CollectTime { get; init; }
+
+    /// <summary>
+    /// 歌单的标签。**只有详情（<c>service/playlist/info</c>）会给**，列表来源（侧栏、搜索、收藏列表）
+    /// 没有这个键 —— 2026-10-03 实测确认。
+    /// </summary>
+    /// <remarks>
+    /// 元素是对象，而写回去的 <c>categoryList</c> 只要 id：官方模型 <c>CategoryItem</c>
+    /// 就读 <c>id</c> 与 <c>name</c> 两个键（<c>discovery_tabbar_titles.dart</c>）。
+    /// </remarks>
+    [JsonPropertyName("categories")] public PlaylistCategoryDto[]? Categories { get; init; }
+}
+
+/// <summary>歌单标签。<c>service/playlist/info</c> 的 <c>categories</c> 数组元素。</summary>
+internal sealed class PlaylistCategoryDto
+{
+    [JsonPropertyName("id")] public int Id { get; init; }
+
+    [JsonPropertyName("name")] public string? Name { get; init; }
 }

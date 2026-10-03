@@ -30,6 +30,7 @@ string? forceSign = null;
 var mobileSign = false;
 string? platOverride = null;
 var anonymous = false;
+var signBodyBytes = false;
 
 for (var i = 0; i < args.Length; i++)
 {
@@ -45,6 +46,12 @@ for (var i = 0; i < args.Length; i++)
             break;
         case "--delete":
             method = HttpMethod.Delete;
+            break;
+        case "--put":
+            method = HttpMethod.Put;
+            break;
+        case "--sign-body-bytes":
+            signBodyBytes = true;
             break;
         case "--plat":
             platOverride = NextValue(args, ref i);
@@ -189,6 +196,18 @@ if (command == "call")
 
     return await Commands.CallAsync(
         client, positional[1], queryPairs, body, signed, method ?? HttpMethod.Get, save, fixtureName, forceSign, mobileSign);
+}
+
+if (command == "uploadpic")
+{
+    if (positional.Count < 3)
+    {
+        Console.Error.WriteLine("uploadpic 缺少参数。用法：uploadpic <playlistId> <图片文件>");
+        Usage.Print();
+        return 2;
+    }
+
+    return await Commands.UploadPicAsync(client, positional[1], positional[2], signed, signBodyBytes, save);
 }
 
 if (command is "info" or "checkright" or "signtest" or "play" or "lyric" or "sigsweep")

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -119,10 +120,12 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
             {
                 BodianHttpVerb.Post => HttpMethod.Post,
                 BodianHttpVerb.Delete => HttpMethod.Delete,
+                BodianHttpVerb.Put => HttpMethod.Put,
                 _ => HttpMethod.Get,
             },
             url,
             request.JsonBody,
+            request.File,
             request.AcceptedCodes,
             dataTypeInfo,
             cancellationToken,
@@ -143,6 +146,7 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
             HttpMethod.Get,
             url.OriginalString,
             body: null,
+            file: null,
             acceptedCodes: [],
             dataTypeInfo,
             cancellationToken);
@@ -153,6 +157,7 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
         HttpMethod method,
         string url,
         string? body,
+        BodianFormFile? file,
         IReadOnlyCollection<BodianErrorCode> acceptedCodes,
         JsonTypeInfo<T> dataTypeInfo,
         CancellationToken cancellationToken,
@@ -168,6 +173,16 @@ public sealed class BodianHttpTransport : IBodianTransport, IDisposable
         {
             // 签名覆盖的是这份精确字节，序列化必须发生在调用方，这里只做搬运。
             request.Content = new ByteArrayContent(new UTF8Encoding(false).GetBytes(body));
+        }
+        else if (file is not null)
+        {
+            // multipart：ContentType 由 MultipartFormDataContent 自己带 boundary，
+            // BodianHeaders.Apply 里要为此让路，别把它盖成 application/json。
+            var multipart = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent(file.Content);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            multipart.Add(fileContent, file.FieldName, file.FileName);
+            request.Content = multipart;
         }
 
         // 只挂一次：TryAddWithoutValidation 对同名头是追加，调两次会发出重复头。

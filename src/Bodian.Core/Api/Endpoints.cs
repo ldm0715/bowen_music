@@ -288,8 +288,18 @@ internal static class Endpoints
     /// <para>
     /// 新建与删除已实测（文档 2.4、<c>reverse/findings/11-share-playlist-crud.md</c> §2）：
     /// 桌面头 + 桌面签名即可，<b>新建的回执只有 <c>{id}</c></b>，删除支持一次传多个 id。
-    /// <c>PUT</c> 仍未实测。
     /// </para>
+    /// <para>
+    /// <c>PUT</c> 的五个键都有反汇编字面量证据（<c>edit_user_playlist.dart:3796-3914</c>），
+    /// 但<b>尚未实测</b>。编辑页没有隐私开关，body 里也没有 <c>private</c> 键 ——
+    /// <b>官方客户端不支持改已有歌单的隐私</b>。
+    /// </para>
+    /// <para>
+    /// <c>categoryList</c> 是分类 <b>id 数组</b>（id 来自 <c>service/category/list</c>）；
+    /// 歌单已有的标签从 <c>service/playlist/info</c> 的 <c>categories</c> 读回
+    /// （<c>[{id, name}]</c>，见 <c>PlaylistDto.Categories</c>）。
+    /// </para>
+    /// </remarks>
     /// </remarks>
     public const string PlaylistCrud = "service/playlist";
 
@@ -308,6 +318,17 @@ internal static class Endpoints
     /// </remarks>
     public static string PlaylistInfo(long playlistId) =>
         string.Create(System.Globalization.CultureInfo.InvariantCulture, $"service/playlist/info/{playlistId}");
+
+    /// <summary>
+    /// 歌单封面上传。歌单 id 在路径上，body 是 <c>multipart/form-data</c>，字段名 <c>file</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>签名只覆盖 path 与 query，不含二进制 body</b> —— 桌面签名对 body 算的是
+    /// <c>md5(body + "kuwotest")</c>，那是针对 JSON 字符串的，二进制没有良定义的字符串形态。
+    /// 上传成功后返回的封面 URL，回填到 <see cref="PlaylistCrud"/> 的 <c>pic</c> 才会真正生效。
+    /// </remarks>
+    public static string PlaylistUploadPic(long playlistId) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"service/playlist/uploadPic/{playlistId}");
 
     /// <summary>收藏写入的 <c>source</c>：歌单与专辑都走 <c>4</c>，按元素的 <c>sourceType</c> 分型。</summary>
     /// <remarks>见 <see cref="Collect"/> 与 <c>reverse/findings/13-collect-playlist-follow-artist.md</c>。</remarks>

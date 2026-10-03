@@ -134,6 +134,9 @@ public partial class App : Application
         // 两件事都只有外壳知道。与 INoticeSink 指向 TrackActionsService 是同一种接线。
         builder.Services.AddSingleton<IPlaylistLibrarySink>(sp => sp.GetRequiredService<MainWindow>());
 
+        // 选文件（封面）要在显示前绑定宿主窗口，句柄只有 MainWindow 拿得到。
+        builder.Services.AddSingleton<IWindowHandleProvider>(sp => sp.GetRequiredService<MainWindow>());
+
         // 播放条与侧栏常驻，所以这几个 ViewModel 是单例；页面则每次导航新建。
         builder.Services.AddSingleton<TrackStatisticsViewModel>();
         builder.Services.AddSingleton<PlayerViewModel>();
@@ -219,16 +222,18 @@ public partial class App : Application
         // 歌单详情要带「哪个歌单 + 哪个 source」构造，DI 解析不出来 —— 用工厂交给调用方，
         // 侧栏（自建歌单，source=5）与发现页（公开歌单，source=4）各传各的。
         builder.Services.AddTransient<Func<Playlist, int, PlaylistDetailPage>>(sp => (playlist, source) =>
-            new PlaylistDetailPage(new PlaylistDetailViewModel(
-                sp.GetRequiredService<IBodianApi>(),
-                sp.GetRequiredService<PlaybackCoordinator>(),
-                sp.GetRequiredService<BodianSession>(),
-                sp.GetRequiredService<IClipboardService>(),
-                playlist,
-                source,
-                sp.GetRequiredService<INoticeSink>(),
-                sp.GetRequiredService<IPlaylistLibrarySink>(),
-                sp.GetRequiredService<ILogger<PlaylistDetailViewModel>>())));
+            new PlaylistDetailPage(
+                new PlaylistDetailViewModel(
+                    sp.GetRequiredService<IBodianApi>(),
+                    sp.GetRequiredService<PlaybackCoordinator>(),
+                    sp.GetRequiredService<BodianSession>(),
+                    sp.GetRequiredService<IClipboardService>(),
+                    playlist,
+                    source,
+                    sp.GetRequiredService<INoticeSink>(),
+                    sp.GetRequiredService<IPlaylistLibrarySink>(),
+                    sp.GetRequiredService<ILogger<PlaylistDetailViewModel>>()),
+                sp.GetRequiredService<IWindowHandleProvider>()));
 
         // Win2D 歌词控件由歌词页构造注入（XAML 实例化要求无参构造，所以不能直接写在 XAML 里）
         builder.Services.AddTransient<LyricsCanvasView>();

@@ -159,7 +159,7 @@ https://h5app.kuwo.cn/m/bodian/collection.html?uid={分享者uid}&playlistId={id
 | 更多按钮的位置 | 页头**右上角**一颗 `⋯`，**不与**「播放全部 / 收藏 / 分享」同排 |
 | 更多菜单 | 两项都带图标（铅笔 / 垃圾桶）；**向左展开**，不越出窗口右边界 |
 | 更多按钮的可见性 | 自建歌单上**有**；收藏 / 发现页 / 搜索点进来的别人的歌单上**没有** |
-| 编辑 | 点「编辑」回一句「编辑歌单还没做」，不崩 |
+| 编辑 | 点「编辑」弹出对话框，标题 / 简介 / 封面 / 已选标签都是歌单当前的样子；见 [`edit-playlist.md`](edit-playlist.md) §4 |
 | 删除 | 「更多」→ 删除 → 确认框默认落在「取消」；确认后侧栏那一行消失、页面切到「我喜欢的」 |
 | 删除失败 | 断网时点删除 → 提示「删除失败，请稍后再试。」，页面留在原地 |
 
@@ -167,9 +167,9 @@ https://h5app.kuwo.cn/m/bodian/collection.html?uid={分享者uid}&playlistId={id
 
 ## 5. 没做的事
 
-- **编辑歌单没做**：本页「更多」里留了入口，点了只回一句提示 —— `PUT service/playlist`
-  至今未实测，连它的 `id` 键都是按数组槽序推断的，试错的代价是改坏别的歌单。
-  （隐私歌单的新建入口在侧栏，见 [`create-playlist.md`](create-playlist.md)；删除见 §6。）
+- ~~编辑歌单没做~~ —— **2026-10-03 已做**，见 [`edit-playlist.md`](edit-playlist.md)。
+  它与删除同在这个「更多」菜单里；隐私歌单的新建入口在侧栏，见
+  [`create-playlist.md`](create-playlist.md)；删除见 §6。
 - **「我喜欢的」页没动**（`FavoritesPage` / `FavoritesViewModel`）：它是独立页面，不经过
   `PlaylistDetailPage`，要不要也加头部另说。
 - **收藏写入的 `source` 存疑，本轮没改**：`SetCollectedAsync` 把歌单**来源**当收藏**类别**传，
@@ -226,7 +226,8 @@ DI 里注册成指向同一个外壳实例（`AddSingleton<IPlaylistLibrarySink>
 删除不可逆（歌单连里面的曲目一起没），所以**先确认**，且默认按钮落在「取消」上 ——
 与清空播放记录、取消收藏同一档：误触不该真把东西删掉。
 
-「编辑」点了只回一句「编辑歌单还没做」。
+「编辑」弹出编辑对话框（名称 / 简介 / 封面 / 标签），实现与验收清单见
+[`edit-playlist.md`](edit-playlist.md)。
 
 ### 6.4 验证
 

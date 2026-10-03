@@ -66,6 +66,18 @@ internal sealed class PlaybackApiStub : IBodianApi
         public Task DeletePlaylistAsync(long playlistId, CancellationToken cancellationToken = default)
             => DeletePlaylist(playlistId, cancellationToken);
 
+        public Func<long, string, string, string, IReadOnlyList<int>, CancellationToken, Task> UpdatePlaylist
+            { get; set; } = (_, _, _, _, _, _) => throw new NotSupportedException();
+        public Task UpdatePlaylistAsync(long playlistId, string name, string description, string pic,
+            IReadOnlyList<int> categoryIds, CancellationToken cancellationToken = default)
+            => UpdatePlaylist(playlistId, name, description, pic, categoryIds, cancellationToken);
+
+        public Func<long, byte[], string, string, CancellationToken, Task<string>> UploadPlaylistCover
+            { get; set; } = (_, _, _, _, _) => throw new NotSupportedException();
+        public Task<string> UploadPlaylistCoverAsync(long playlistId, byte[] imageBytes, string fileName,
+            string contentType, CancellationToken cancellationToken = default)
+            => UploadPlaylistCover(playlistId, imageBytes, fileName, contentType, cancellationToken);
+
         public Func<CancellationToken, Task<Playlist?>> GetLikedPlaylist { get; set; } =
             _ => throw new NotSupportedException();
         public Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)

@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using Bodian.Core.Models;
+using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
@@ -15,11 +17,15 @@ namespace Bodian.WinUI.Views;
 /// </remarks>
 public sealed partial class PlaylistDetailPage : Page, INavigationAware, INavigationIdentity
 {
-    public PlaylistDetailPage(PlaylistDetailViewModel viewModel)
+    private readonly IWindowHandleProvider _windowHandles;
+
+    public PlaylistDetailPage(PlaylistDetailViewModel viewModel, IWindowHandleProvider windowHandles)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(windowHandles);
 
         ViewModel = viewModel;
+        _windowHandles = windowHandles;
 
         InitializeComponent();
     }
@@ -78,10 +84,77 @@ public sealed partial class PlaylistDetailPage : Page, INavigationAware, INaviga
     }
 
     /// <summary>
-    /// 「编辑」。**接口还没实测**（<c>PUT service/playlist</c>，连它的 <c>id</c> 键都是推断的），
-    /// 所以这一项先只摆个入口。
+    /// 编辑这个歌单：改名称、简介、封面、标签。
     /// </summary>
-    private void OnEditPlaylistClick(object sender, RoutedEventArgs e) => ViewModel.NotifyEditUnavailable();
+    /// <remarks>
+    /// <para>
+    /// <b>对话框里带的是初值。</b> 标题与简介来自头部那份（详情回来后就是服务端最新值），
+    /// 封面用当前封面，标签用详情里的 <c>categories</c> —— 编辑界面显示歌单现在的样子，
+    /// 用户才知道要改哪一项。
+    /// </para>
+    /// <para>
+    /// <b>标签拉不到不挡编辑</b>：那只是一个可选字段，网络抖一下就整个对话框打不开是过度反应。
+    /// 拉不到就按「没有标签候选」处理，名称与简介照改。
+    /// </para>
+    /// <para>
+    /// <b>弹窗在这里、动作在 ViewModel</b>：与取消收藏、删除同一条规矩（<c>XamlRoot</c>
+    /// 也拿不到 ViewModel 里去）。这里的点击必须 <c>await</c> 完把结果交回去，
+    /// 不像删除那样可以 <c>async void</c> 一把到底。
+    /// </para>
+    /// </remarks>
+    private async void OnEditPlaylistClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.IsEditBusy)
+        {
+            return;
+        }
+
+        var content = new EditPlaylistDialogContent(_windowHandles);
+        content.Initialize(
+            await LoadTagChoicesAsync(),
+            ViewModel.Categories,
+            ViewModel.CoverImage,
+            ViewModel.Title,
+            ViewModel.Description);
+
+        var dialog = AppDialogs.Create("编辑歌单", XamlRoot, ActualTheme, maxWidth: 460);
+        dialog.Content = content;
+        dialog.PrimaryButtonText = "保存";
+        dialog.CloseButtonText = "取消";
+        dialog.DefaultButton = ContentDialogButton.Primary;
+        dialog.IsPrimaryButtonEnabled = content.CanSave;
+
+        // 名字清空、或正在裁剪时「保存」都该是灰的。
+        content.StateChanged += (_, _) => dialog.IsPrimaryButtonEnabled = content.CanSave;
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        await ViewModel.SaveEditAsync(
+            content.PlaylistName,
+            content.PlaylistDescription,
+            ViewModel.CoverRawUrl,
+            content.SelectedCategories,
+            content.CoverBytes,
+            "cover.jpg",
+            "image/jpeg");
+    }
+
+    private async Task<IReadOnlyList<CategoryGroup>> LoadTagChoicesAsync()
+    {
+        try
+        {
+            return await ViewModel.LoadCategoriesAsync();
+        }
+        catch (Exception ex)
+        {
+            // 兜底成「没有标签可选」，不让一个可选字段把整个编辑挡死。
+            Debug.WriteLine($"加载标签候选失败：{ex.Message}");
+            return [];
+        }
+    }
 
     /// <summary>
     /// 删除这个歌单。

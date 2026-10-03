@@ -159,20 +159,79 @@ internal sealed class ProbeClient : IDisposable
 
         using var request = BuildRequest(verb, url, body);
         using var response = await _http.SendAsync(request).ConfigureAwait(false);
-        var raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var (raw, envelope) = await ReadBodyAsync(response).ConfigureAwait(false);
 
-        JsonNode? envelope = null;
-        if (!string.IsNullOrWhiteSpace(raw))
+        return new ProbeResponse((int)response.StatusCode, raw, envelope, url, signedQuery, seedQuery);
+    }
+
+    /// <summary>
+    /// 发一个 <c>multipart/form-data</c> 请求——封面之类的二进制上传走这条。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>签名默认只覆盖 path 与 query，不碰二进制 body</b>：桌面签名对 body 做的是
+    /// <c>md5(body + "kuwotest")</c>，那是针对 JSON 字符串的，二进制没有良定义的字符串形态。
+    /// 这一条<b>未实测</b>（见 <c>docs/edit-playlist.md</c>）；<paramref name="signBodyBytes"/>
+    /// 打开时把原始字节按 Latin-1 当作字符串进 md5，用来验证服务端到底签不签 body。
+    /// </para>
+    /// <para>
+    /// 风险窗口很小：<c>ver ≤ 3.0.0</c> 时服务端根本不校验签名。
+    /// </para>
+    /// </remarks>
+    public async Task<ProbeResponse> SendMultipartAsync(
+        string path,
+        IEnumerable<KeyValuePair<string, string>>? query,
+        string fieldName,
+        string fileName,
+        string contentType,
+        byte[] content,
+        bool signed = false,
+        HttpMethod? method = null,
+        bool signBodyBytes = false)
+    {
+        var pairs = new List<KeyValuePair<string, string>>(query ?? [])
         {
-            try
-            {
-                envelope = JsonNode.Parse(raw);
-            }
-            catch (Exception ex) when (ex is System.Text.Json.JsonException or ArgumentException)
-            {
-                // 非 JSON 响应（网关错误页等）保留原文供排查。
-            }
+            new("uid", Uid),
+            new("token", Token),
+        };
+
+        var seedQuery = "";
+        var verb = method ?? HttpMethod.Post;
+
+        if (signed)
+        {
+            var stamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            pairs.Add(new KeyValuePair<string, string>("timestamp", stamp.ToString()));
+            pairs.Add(new KeyValuePair<string, string>("sign", ""));
+
+            seedQuery = BodianSigner.FormUrlEncode(pairs);
+            var signBody = signBodyBytes ? Encoding.Latin1.GetString(content) : null;
+            pairs[^1] = new KeyValuePair<string, string>("sign", BodianSigner.SignRaw(path, seedQuery, signBody));
         }
+
+        var signedQuery = BodianSigner.FormUrlEncode(pairs);
+        var url = BaseUrl + path + "?" + signedQuery;
+
+        if (Verbose)
+        {
+            Console.Error.WriteLine($"> {verb.Method} {url}");
+            Console.Error.WriteLine($"> multipart {fieldName}={fileName}（{contentType}，{content.Length} 字节）"
+                                    + $"　签 body：{(signBodyBytes ? "是" : "否")}");
+        }
+
+        using var request = new HttpRequestMessage(verb, url);
+        AddCommonHeaders(request);
+
+        // 独立构造，不复用 BuildRequest —— 它会无条件把 ContentType 设成 application/json，
+        // 那会盖掉 MultipartFormDataContent 自带的 boundary。
+        var multipart = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(content);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        multipart.Add(fileContent, fieldName, fileName);
+        request.Content = multipart;
+
+        using var response = await _http.SendAsync(request).ConfigureAwait(false);
+        var (raw, envelope) = await ReadBodyAsync(response).ConfigureAwait(false);
 
         return new ProbeResponse((int)response.StatusCode, raw, envelope, url, signedQuery, seedQuery);
     }
@@ -187,6 +246,14 @@ internal sealed class ProbeClient : IDisposable
 
         using var request = BuildRequest(HttpMethod.Get, url, null);
         using var response = await _http.SendAsync(request).ConfigureAwait(false);
+        var (raw, envelope) = await ReadBodyAsync(response).ConfigureAwait(false);
+
+        return new ProbeResponse((int)response.StatusCode, raw, envelope, url, "", "");
+    }
+
+    /// <summary>读响应体并尝试解析信封。非 JSON（网关错误页等）保留原文供排查。</summary>
+    private static async Task<(string Raw, JsonNode? Envelope)> ReadBodyAsync(HttpResponseMessage response)
+    {
         var raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
         JsonNode? envelope = null;
@@ -198,11 +265,11 @@ internal sealed class ProbeClient : IDisposable
             }
             catch (Exception ex) when (ex is System.Text.Json.JsonException or ArgumentException)
             {
-                // 非 JSON 响应保留原文供排查。
+                // 解析不了就留 null，raw 已经带回去了。
             }
         }
 
-        return new ProbeResponse((int)response.StatusCode, raw, envelope, url, "", "");
+        return (raw, envelope);
     }
 
     private static string SignPath(string path, PathForm form) => form switch
@@ -215,6 +282,21 @@ internal sealed class ProbeClient : IDisposable
     private HttpRequestMessage BuildRequest(HttpMethod method, string url, string? body)
     {
         var request = new HttpRequestMessage(method, url);
+        AddCommonHeaders(request);
+
+        if (body is not null)
+        {
+            // 签名覆盖的是这份精确字节，序列化必须发生在调用方，这里只做搬运。
+            request.Content = new ByteArrayContent(new UTF8Encoding(false).GetBytes(body));
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        }
+
+        return request;
+    }
+
+    /// <summary>JSON 与 multipart 两条路共用的请求头。</summary>
+    private void AddCommonHeaders(HttpRequestMessage request)
+    {
         var headers = request.Headers;
 
         headers.TryAddWithoutValidation("User-Agent", "Dart/3.3 (dart:io)");
@@ -234,15 +316,6 @@ internal sealed class ProbeClient : IDisposable
             headers.TryAddWithoutValidation("uid", Uid);
             headers.TryAddWithoutValidation("token", Token);
         }
-
-        if (body is not null)
-        {
-            // 签名覆盖的是这份精确字节，序列化必须发生在调用方，这里只做搬运。
-            request.Content = new ByteArrayContent(new UTF8Encoding(false).GetBytes(body));
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        }
-
-        return request;
     }
 
     public void Dispose() => _http.Dispose();

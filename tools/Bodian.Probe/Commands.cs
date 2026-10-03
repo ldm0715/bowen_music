@@ -996,6 +996,82 @@ internal static class Commands
         return 0;
     }
 
+    // ── 歌单封面：multipart 上传 ─────────────────────────────────────────────
+
+    /// <summary>
+    /// 上传歌单封面。端点与字段名（<c>file</c>）来自反汇编，见
+    /// <c>reverse/findings/11-share-playlist-crud.md</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>这是写操作，会上传真实文件</b>。配合编辑接口的实测序列时，只对刚建的测试歌单用；
+    /// 传已有歌单的 id 会把它自己的封面换掉。
+    /// </remarks>
+    public static async Task<int> UploadPicAsync(
+        ProbeClient client, string playlistId, string filePath, bool signed, bool signBodyBytes, bool save)
+    {
+        if (!long.TryParse(playlistId, out var id) || id <= 0)
+        {
+            Console.Error.WriteLine($"playlistId 非法：{playlistId}（要求正整数）");
+            return 2;
+        }
+
+        if (!File.Exists(filePath))
+        {
+            Console.Error.WriteLine($"文件不存在：{filePath}");
+            return 2;
+        }
+
+        var bytes = await File.ReadAllBytesAsync(filePath);
+        var contentType = ImageContentType(filePath);
+        var path = $"service/playlist/uploadPic/{id}";
+
+        Console.WriteLine($"上传 {Path.GetFileName(filePath)}（{bytes.Length} 字节，{contentType}）→ 歌单 {id}");
+        Console.WriteLine();
+
+        var response = await client.SendMultipartAsync(
+            path,
+            query: null,
+            fieldName: "file",
+            fileName: Path.GetFileName(filePath),
+            contentType: contentType,
+            content: bytes,
+            signed: signed,
+            method: HttpMethod.Post,
+            signBodyBytes: signBodyBytes);
+
+        Console.WriteLine(response.Describe());
+        SaveIfRequested(save, $"playlist-uploadpic-{id}", response);
+
+        if (response.Code != 200)
+        {
+            PrintBody(response, raw: false);
+            return 1;
+        }
+
+        PrintBody(response, raw: false);
+
+        // 回执里封面 URL 的键名未实测，把像 URL 的候选键都列出来。
+        Console.WriteLine();
+        foreach (var key in (string[])["imgUrl", "imgurl", "pic", "url", "cover", "coverUrl"])
+        {
+            if (response.Data?[key]?.ToString() is { Length: > 0 } value)
+            {
+                Console.WriteLine($"封面 URL（data.{key}）：{value}");
+            }
+        }
+
+        return 0;
+    }
+
+    private static string ImageContentType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".webp" => "image/webp",
+        ".gif" => "image/gif",
+        ".bmp" => "image/bmp",
+        _ => "image/jpeg",
+    };
+
     // ── 输出 ────────────────────────────────────────────────────────────────
 
     /// <summary>

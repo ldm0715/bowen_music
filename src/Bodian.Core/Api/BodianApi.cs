@@ -561,6 +561,151 @@ public sealed class BodianApi : IBodianApi
         }
     }
 
+    /// <inheritdoc cref="IBodianApi.UpdatePlaylistAsync"/>
+    public async Task UpdatePlaylistAsync(
+        long playlistId,
+        string name,
+        string description,
+        string pic,
+        IReadOnlyList<int> categoryIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(pic);
+        ArgumentNullException.ThrowIfNull(categoryIds);
+
+        EnsurePlaylistId(playlistId);
+
+        // 服务端不校验空白名（新建时的实测结论），这条必须客户端自己挡。
+        var trimmed = name.Trim();
+
+        if (trimmed.Length == 0)
+        {
+            throw new ArgumentException("歌单名不能为空。", nameof(name));
+        }
+
+        RequireAuthenticated();
+        var revision = _session.Revision;
+
+        var body = new UpdatePlaylistBody
+        {
+            Id = playlistId,
+            Name = trimmed,
+            Description = description,
+            Pic = pic,
+            CategoryList = [.. categoryIds],
+        };
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.PlaylistCrud,
+                Verb = BodianHttpVerb.Put,
+                Signed = true,
+                JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.UpdatePlaylistBody),
+            },
+            BodianJsonContext.Default.JsonElement,
+            cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "编辑歌单请求已受理：歌单 {PlaylistId}，名字 {Name}，标签 {TagCount} 个，接口 {Path}，业务码 {Code}，reqId {RequestId}",
+            playlistId, trimmed, categoryIds.Count, Endpoints.PlaylistCrud, envelope.Code, envelope.RequestId);
+
+        if (revision != _session.Revision)
+        {
+            throw new InvalidOperationException("登录状态已改变，请重新检查歌单。");
+        }
+    }
+
+    /// <inheritdoc cref="IBodianApi.UploadPlaylistCoverAsync"/>
+    public async Task<string> UploadPlaylistCoverAsync(
+        long playlistId,
+        byte[] imageBytes,
+        string fileName,
+        string contentType,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(imageBytes);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
+
+        if (imageBytes.Length == 0)
+        {
+            throw new ArgumentException("封面内容为空。", nameof(imageBytes));
+        }
+
+        EnsurePlaylistId(playlistId);
+        RequireAuthenticated();
+        var revision = _session.Revision;
+        var path = Endpoints.PlaylistUploadPic(playlistId);
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = path,
+                Verb = BodianHttpVerb.Post,
+                Signed = true,
+                File = new BodianFormFile("file", fileName, contentType, imageBytes),
+            },
+            BodianJsonContext.Default.JsonElement,
+            cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "上传歌单封面请求已受理：歌单 {PlaylistId}，{Bytes} 字节，接口 {Path}，业务码 {Code}，reqId {RequestId}",
+            playlistId, imageBytes.Length, path, envelope.Code, envelope.RequestId);
+
+        if (revision != _session.Revision)
+        {
+            throw new InvalidOperationException("登录状态已改变，请重新检查歌单。");
+        }
+
+        var url = ExtractImageUrl(envelope.Data);
+
+        // 拿不到地址就不能往下走 —— 调用方是要拿它去填 pic 的，填个空值等于把封面清掉。
+        if (url.Length == 0)
+        {
+            throw new InvalidOperationException("服务端没有返回封面的地址。");
+        }
+
+        return url;
+    }
+
+    /// <summary>
+    /// 从封面上传的回执里取封面地址。
+    /// </summary>
+    /// <remarks>
+    /// <b>键名未实测</b>：反汇编只知道回执会经 <c>fromImgJson</c> 解析出一个 URL
+    /// （<c>api_service.dart</c> 的 <c>uploadPlaylistImageToService</c>），具体键名没取到证据。
+    /// 所以按候选键逐个试，并兼容 <c>data</c> 本身就是字符串的形态。
+    /// </remarks>
+    private static string ExtractImageUrl(JsonElement data)
+    {
+        if (data.ValueKind == JsonValueKind.String)
+        {
+            return data.GetString() ?? "";
+        }
+
+        if (data.ValueKind != JsonValueKind.Object)
+        {
+            return "";
+        }
+
+        foreach (var key in (string[])["imgUrl", "imgurl", "pic", "url", "cover", "coverUrl"])
+        {
+            if (data.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String)
+            {
+                var text = value.GetString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text;
+                }
+            }
+        }
+
+        return "";
+    }
+
     public async Task<Playlist?> GetLikedPlaylistAsync(CancellationToken cancellationToken = default)
     {
         var envelope = await _transport.SendAsync(
@@ -1699,6 +1844,9 @@ public sealed class BodianApi : IBodianApi
         MusicCount = dto.MusicCount,
         CoverImage = ToHttpUri(dto.Pic),
 
+        // 原串另存一份：编辑歌单要把它回传回去，规范化过的地址没验证过能不能用。
+        CoverRawUrl = dto.Pic ?? "",
+
         // ★ 服务端给什么就存什么，**不做归一化**。
         //   实测发现页里的歌单 sourceType 是 13，不是文档说的公开集合默认值 4 ——
         //   自作主张改写成 4 会让取曲目时填错 source，而服务端对不上的值只回空、不报错，
@@ -1731,6 +1879,11 @@ public sealed class BodianApi : IBodianApi
 
         // 存在即已收藏。空键与空串都当「未收藏」，省得后面各处判 null（findings/13 §3.3）。
         CollectTime = dto.CollectTime ?? "",
+
+        // 标签只有详情会给（2026-10-03 实测）。id 是 int，这里统一成 MusicCategory 的 long。
+        Categories = dto.Categories is { Length: > 0 } categories
+            ? [.. categories.Select(c => new MusicCategory(c.Id, c.Name ?? ""))]
+            : [],
     };
 
     /// <summary>

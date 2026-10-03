@@ -131,6 +131,35 @@ public sealed partial class SidebarViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 把某个自建歌单的名字与封面就地换掉 —— 它在详情页被编辑了。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="RemovePlaylist"/> 一样<b>只动本地那一份</b>，不重拉列表。
+    /// 歌单是记录，所以是整项替换（<c>with</c>）而不是改属性。
+    /// <paramref name="cover"/> 为 <c>null</c> 表示没换封面，保留原来那个。
+    /// </remarks>
+    public void UpdatePlaylist(long playlistId, string name, Uri? cover)
+    {
+        for (var i = 0; i < Playlists.Count; i++)
+        {
+            if (Playlists[i].Id != playlistId)
+            {
+                continue;
+            }
+
+            var current = Playlists[i];
+
+            Playlists[i] = current with
+            {
+                Name = name,
+                CoverImage = cover ?? current.CoverImage,
+            };
+
+            return;
+        }
+    }
+
+    /// <summary>
     /// 新建歌单。成功就把新歌单插到列表最前面；失败写 <see cref="CreateErrorText"/> 并返回 <c>false</c>。
     /// </summary>
     /// <remarks>

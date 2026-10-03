@@ -192,6 +192,12 @@ public sealed class LyricRepositoryTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Task UpdatePlaylistAsync(long playlistId, string name, string description, string pic,
+            IReadOnlyList<int> categoryIds, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+        public Task<string> UploadPlaylistCoverAsync(long playlistId, byte[] imageBytes, string fileName,
+            string contentType, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
         public Task DeletePlaylistAsync(long playlistId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
