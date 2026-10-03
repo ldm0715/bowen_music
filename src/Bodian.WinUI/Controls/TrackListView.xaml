@@ -68,7 +68,7 @@
                         用 Auto 会塌成 0，一悬停整行宽度突变、时长跟着左右跳。
                     -->
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="40" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="0.7*" />
@@ -77,12 +77,16 @@
                     </Grid.ColumnDefinitions>
 
                     <!--
-                        序号列：三态互斥。正在播放 → 频谱条；悬停 → 播放键；其余 → 序号。
-                        三个 Visibility 由 TrackRow 统一算好，这里不拼条件。
+                        序号列：三态互斥。正在播放 → 起伏条；悬停 → 播放键；其余 → 序号。
+                        后两个 Visibility 由 TrackRow 算好（起伏条自己管显隐，见 PlayingBars）。
+
+                        ★ 三种状态**必须落在同一个位置上**，所以一律 Center：
+                          早先序号是右对齐的，和居中的播放键差半个列宽，鼠标一进一出
+                          整个图标就横向跳一下。
                     -->
                     <Grid Grid.Column="0">
                         <TextBlock
-                            HorizontalAlignment="Right"
+                            HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontSize="{StaticResource FontSizeBody}"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
@@ -97,31 +101,10 @@
                             Glyph="&#xE768;"
                             Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
 
-                        <StackPanel
+                        <controls:PlayingBars
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Orientation="Horizontal"
-                            Spacing="2"
-                            Visibility="{x:Bind BarsVisibility, Mode=OneWay}">
-                            <Rectangle
-                                Width="3"
-                                Height="8"
-                                Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                RadiusX="1.5"
-                                RadiusY="1.5" />
-                            <Rectangle
-                                Width="3"
-                                Height="14"
-                                Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                RadiusX="1.5"
-                                RadiusY="1.5" />
-                            <Rectangle
-                                Width="3"
-                                Height="10"
-                                Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                RadiusX="1.5"
-                                RadiusY="1.5" />
-                        </StackPanel>
+                            IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
                     </Grid>
 
                     <!-- 封面。没有封面时留一块底色，行高不跳。 -->

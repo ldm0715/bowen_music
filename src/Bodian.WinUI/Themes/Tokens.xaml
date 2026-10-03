@@ -29,7 +29,13 @@
 
     <!-- 列表行 -->
     <x:Double x:Key="SizeRowHeight">64</x:Double>
-    <x:Double x:Key="SizeRowOrdinalColumn">32</x:Double>
+    <!--
+        序号列。三种状态（序号 / 播放键 / 起伏条）都居中落在这一列里，所以列宽同时决定
+        序号与后面封面的位置。32 太挤（两位序号几乎没有余量），2026-10-03 放到 40 ——
+        与参照物 LyciaMusic 的 w-10 一致。
+        ★ TrackListView 与 SearchPage 的行模板里写的是字面量 40，改这里要同步那两处。
+    -->
+    <x:Double x:Key="SizeRowOrdinalColumn">40</x:Double>
     <x:Double x:Key="SizeRowDurationColumn">40</x:Double>
     <!-- 行尾「更多」按钮的列宽。定宽而不是 Auto：按钮未悬停时是折叠的，
          Auto 列会塌成 0，一悬停整行宽度突变、时长跟着左右跳。 -->

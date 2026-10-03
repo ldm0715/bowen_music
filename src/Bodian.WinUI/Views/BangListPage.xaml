@@ -80,7 +80,7 @@
                     <ColumnDefinition Width="32" />
                 </Grid.ColumnDefinitions>
 
-                <!-- 名次列三态互斥：正在播放 → 波普条；悬停 → 播放键；其余 → 名次 -->
+                <!-- 名次列三态互斥：正在播放 → 起伏条；悬停 → 播放键；其余 → 名次 -->
                 <Grid Grid.Column="0">
                     <TextBlock
                         HorizontalAlignment="Center"
@@ -97,31 +97,10 @@
                         Glyph="&#xE768;"
                         Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
 
-                    <StackPanel
+                    <controls:PlayingBars
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="2"
-                        Visibility="{x:Bind BarsVisibility, Mode=OneWay}">
-                        <Rectangle
-                            Width="3"
-                            Height="8"
-                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                            RadiusX="1.5"
-                            RadiusY="1.5" />
-                        <Rectangle
-                            Width="3"
-                            Height="12"
-                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                            RadiusX="1.5"
-                            RadiusY="1.5" />
-                        <Rectangle
-                            Width="3"
-                            Height="9"
-                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                            RadiusX="1.5"
-                            RadiusY="1.5" />
-                    </StackPanel>
+                        IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
                 </Grid>
 
                 <!-- 封面。没有封面时留一块底色，行高不跳 -->

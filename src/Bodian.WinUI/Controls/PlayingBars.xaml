@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    「正在播放」的三根起伏条。
+
+    三根的 Height 都写死成峰值 14：起伏是合成器上的缩放动画做的，不是改高度
+    （改高度每帧都要重新布局），所以这里的值同时是缩放的分母，见 PlayingBars.xaml.cs。
+
+    间距 3、条宽 3、圆角 1.5 照参照物 LyciaMusic 的 SongTable.vue。
+-->
+<UserControl
+    x:Class="Bodian.WinUI.Controls.PlayingBars"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel Orientation="Horizontal" Spacing="3">
+        <Rectangle
+            x:Name="Bar1"
+            Width="3"
+            Height="14"
+            Fill="{ThemeResource AccentFillColorDefaultBrush}"
+            RadiusX="1.5"
+            RadiusY="1.5" />
+        <Rectangle
+            x:Name="Bar2"
+            Width="3"
+            Height="14"
+            Fill="{ThemeResource AccentFillColorDefaultBrush}"
+            RadiusX="1.5"
+            RadiusY="1.5" />
+        <Rectangle
+            x:Name="Bar3"
+            Width="3"
+            Height="14"
+            Fill="{ThemeResource AccentFillColorDefaultBrush}"
+            RadiusX="1.5"
+            RadiusY="1.5" />
+    </StackPanel>
+</UserControl>

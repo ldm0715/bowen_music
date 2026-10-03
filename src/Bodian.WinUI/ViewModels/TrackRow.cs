@@ -26,8 +26,8 @@ namespace Bodian.WinUI.ViewModels;
 /// 生成器要给它生成 setter，<c>init</c> 会让那行生成代码编不过（CS8852）。
 /// </para>
 /// <para>
-/// 序号列是三态互斥的：<b>正在播放 → 频谱条；鼠标悬停 → 播放键；其余 → 序号</b>。
-/// 三个 <c>Visibility</c> 由本类统一算，绑定方不必自己拼条件。
+/// 序号列是三态互斥的：<b>正在播放 → 起伏条；鼠标悬停 → 播放键；其余 → 序号</b>。
+/// 前两者由本类算，绑定方不必自己拼条件；起伏条自己管显隐（见 <c>Controls/PlayingBars</c>）。
 /// </para>
 /// <para>
 /// 行尾的「更多」按钮同样由本类算：<b>悬停或菜单开着时可见</b>，见 <see cref="MoreVisibility"/>。
@@ -91,10 +91,11 @@ public sealed partial class TrackRow : ObservableObject
 
     /// <summary>这一行是不是当前正在播放的那首。</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility), nameof(BarsVisibility))]
+    [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility))]
     public partial bool IsCurrent { get; set; }
 
-    public Visibility BarsVisibility => Vis(IsCurrent);
+    // 正在播放那一态的显隐不在这里：起伏条是 Controls/PlayingBars，它自己按 IsPlaying 管显隐，
+    // 行模板直接把 IsCurrent 绑上去。多算一个 Visibility 反而多一处要同步的状态。
 
     public Visibility PlayGlyphVisibility => Vis(!IsCurrent && IsPointerOver);
 

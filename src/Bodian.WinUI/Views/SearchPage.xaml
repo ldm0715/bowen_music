@@ -63,7 +63,7 @@
                     最后一列同理**必须定宽**，用 Auto 会随悬停塌缩、整行抖动。
                 -->
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="32" />
+                    <ColumnDefinition Width="40" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="0.7*" />
@@ -72,12 +72,14 @@
                 </Grid.ColumnDefinitions>
 
                 <!--
-                    序号列：三态互斥。正在播放 → 频谱条；悬停 → 播放键；其余 → 序号。
-                    三个 Visibility 由 TrackRow 统一算好，这里不拼条件。
+                    序号列：三态互斥。正在播放 → 起伏条；悬停 → 播放键；其余 → 序号。
+                    后两个 Visibility 由 TrackRow 算好（起伏条自己管显隐，见 PlayingBars）。
+
+                    ★ 三种状态必须落在同一个位置，所以一律 Center —— 与 TrackListView 那份一致。
                 -->
                 <Grid Grid.Column="0">
                     <TextBlock
-                        HorizontalAlignment="Right"
+                        HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         FontSize="{StaticResource FontSizeBody}"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
@@ -92,31 +94,10 @@
                         Glyph="&#xE768;"
                         Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
 
-                    <StackPanel
+                    <controls:PlayingBars
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="2"
-                        Visibility="{x:Bind BarsVisibility, Mode=OneWay}">
-                        <Rectangle
-                            Width="3"
-                            Height="8"
-                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                            RadiusX="1.5"
-                            RadiusY="1.5" />
-                        <Rectangle
-                            Width="3"
-                            Height="14"
-                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                            RadiusX="1.5"
-                            RadiusY="1.5" />
-                        <Rectangle
-                            Width="3"
-                            Height="10"
-                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                            RadiusX="1.5"
-                            RadiusY="1.5" />
-                    </StackPanel>
+                        IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
                 </Grid>
 
                 <!-- 封面。没有封面时留一块底色，行高不跳。 -->
