@@ -26,25 +26,32 @@ namespace Bodian.WinUI.ViewModels;
 public sealed partial class TrackActionsViewModel : ObservableObject
 {
     /// <summary>空心心形。与播放条上那颗喜欢按钮同一对码位。</summary>
-    private const string UnlikedGlyph = "";
+    private const string UnlikedGlyph = "\uEB51";
 
     /// <summary>实心心形。</summary>
-    private const string LikedGlyph = "";
+    private const string LikedGlyph = "\uEB52";
 
     /// <summary>加号。「添加到歌单」用它。</summary>
-    private const string AddToPlaylistGlyph = "";
+    private const string AddToPlaylistGlyph = "\uE710";
 
     /// <summary>人像轮廓，与搜索页的歌手结果同一个意象。</summary>
-    private const string ArtistGlyph = "";
+    private const string ArtistGlyph = "\uE77B";
 
     /// <summary>唱片。</summary>
-    private const string AlbumGlyph = "";
+    private const string AlbumGlyph = "\uE8FD";
+
+    /// <summary>下一首。与播放条上那颗「下一首」同一码位。</summary>
+    private const string PlayNextGlyph = "\uE893";
+
+    /// <summary>播放列表。与播放条上那颗「播放列表」同一码位。</summary>
+    private const string AddToQueueGlyph = "\uE142";
 
     private readonly Track _track;
     private readonly IBodianApi _api;
     private readonly ILikedSongsService? _likedSongs;
     private readonly ITrackNavigator _navigator;
     private readonly INoticeSink _notice;
+    private readonly IQueueSink? _queue;
     private readonly ILogger<TrackActionsViewModel> _logger;
 
     private readonly TrackMenuEntry _favoriteEntry = new()
@@ -52,6 +59,20 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         Action = TrackMenuAction.Favorite,
         Glyph = UnlikedGlyph,
         Text = "我喜欢",
+    };
+
+    private readonly TrackMenuEntry _playNextEntry = new()
+    {
+        Action = TrackMenuAction.PlayNext,
+        Glyph = PlayNextGlyph,
+        Text = "下一首播放",
+    };
+
+    private readonly TrackMenuEntry _addToQueueEntry = new()
+    {
+        Action = TrackMenuAction.AddToQueue,
+        Glyph = AddToQueueGlyph,
+        Text = "加入播放队列",
     };
 
     private readonly TrackMenuEntry _playlistEntry = new()
@@ -86,6 +107,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         IBodianApi api,
         ITrackNavigator navigator,
         INoticeSink notice,
+        IQueueSink? queue = null,
         ILikedSongsService? likedSongs = null,
         ILogger<TrackActionsViewModel>? logger = null)
     {
@@ -98,13 +120,26 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         _api = api;
         _navigator = navigator;
         _notice = notice;
+        _queue = queue;
         _likedSongs = likedSongs;
         _logger = logger ?? NullLogger<TrackActionsViewModel>.Instance;
 
         // 没带专辑 id 就灰着（点了也去不了，见 Track.AlbumId 的说明）。
         _albumEntry.IsEnabled = track.AlbumId > 0;
 
-        MenuEntries = [_favoriteEntry, _playlistEntry, _artistEntry, _albumEntry];
+        // 没有曲目 id 就送不进队列，与「添加到歌单」同一条判据。
+        _playNextEntry.IsEnabled = track.Id > 0;
+        _addToQueueEntry.IsEnabled = track.Id > 0;
+
+        MenuEntries =
+        [
+            _favoriteEntry,
+            _playNextEntry,
+            _addToQueueEntry,
+            _playlistEntry,
+            _artistEntry,
+            _albumEntry,
+        ];
     }
 
     public IReadOnlyList<TrackMenuEntry> MenuEntries { get; }
@@ -195,6 +230,52 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         {
             _logger.LogDebug(ex, "曲目 {MusicId} 喜欢写入失败", _track.Id);
             _notice.Show("操作没成功，请稍后再试。");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>
+    /// 插到播放队列的当前曲目之后。
+    /// </summary>
+    /// <remarks>
+    /// 队列为空时这一首会直接开播 —— 见 <c>PlaybackCoordinator.PlayNextAsync</c>，
+    /// 否则加了没反应，用户会以为没生效。
+    /// </remarks>
+    public async Task PlayNextAsync()
+    {
+        if (_queue is null || _track.Id <= 0 || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await _queue.PlayNextAsync(_track).ConfigureAwait(true);
+            _notice.Show("已设为下一首播放");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>加到播放队列的队尾。空队列时同样会直接开播。</summary>
+    public async Task AddToQueueAsync()
+    {
+        if (_queue is null || _track.Id <= 0 || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await _queue.AddToQueueAsync(_track).ConfigureAwait(true);
+            _notice.Show("已加入播放队列");
         }
         finally
         {

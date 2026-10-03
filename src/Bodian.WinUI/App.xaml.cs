@@ -101,6 +101,8 @@ public partial class App : Application
             sp.GetRequiredService<ILogger<LibMpvPlaybackService>>()));
         builder.Services.AddSingleton<IAudioQualitySettingsStore>(sp => new JsonAudioQualitySettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonAudioQualitySettingsStore>>()));
+        builder.Services.AddSingleton<IPlaybackSettingsStore>(sp => new JsonPlaybackSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonPlaybackSettingsStore>>()));
         builder.Services.AddSingleton<PlaybackCoordinator>();
 
         // 系统媒体控件。构造时只订阅事件，会话在首次播放时才建 —— 所以必须在这里解析一次，
@@ -132,6 +134,7 @@ public partial class App : Application
         builder.Services.AddSingleton<TrackStatisticsViewModel>();
         builder.Services.AddSingleton<PlayerViewModel>();
         builder.Services.AddSingleton<LyricsViewModel>();
+        builder.Services.AddSingleton<PlayQueueViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
         builder.Services.AddSingleton<ISearchHistoryStore, JsonSearchHistoryStore>();

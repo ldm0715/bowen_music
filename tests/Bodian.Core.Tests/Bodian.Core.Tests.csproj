@@ -43,6 +43,7 @@
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\TrackMenuEntry.cs" Link="ViewModels\TrackMenuEntry.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Services\ITrackNavigator.cs" Link="Services\ITrackNavigator.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Services\INoticeSink.cs" Link="Services\INoticeSink.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\Services\IQueueSink.cs" Link="Services\IQueueSink.cs" />
     <!-- 通用分页列表。只依赖 Core 的游标与 CommunityToolkit.Mvvm，不含 WinUI 类型，
          所以「播放全部」要用的 LoadAllAsync（拉完全部、触顶、中途失败）能离屏测。 -->
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\PagedList.cs" Link="ViewModels\PagedList.cs" />

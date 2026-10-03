@@ -43,6 +43,15 @@ public static class AppPaths
     public static string SettingsFile => Path.Combine(LocalAppData, "settings.json");
 
     /// <summary>
+    /// 播放偏好（明文 JSON，目前只有播放模式一项）。
+    /// </summary>
+    /// <remarks>
+    /// <b>刻意与 <see cref="SettingsFile"/> 分开、也与音质偏好分开</b>：
+    /// 音质已经单独落在 <c>audio-quality.json</c>，两个独立的小偏好挤进一个文件只会让读写互相牵制。
+    /// </remarks>
+    public static string PlaybackSettingsFile => Path.Combine(LocalAppData, "playback.json");
+
+    /// <summary>
     /// 上次关闭时的窗口位置与大小（明文 JSON）。
     /// </summary>
     /// <remarks>

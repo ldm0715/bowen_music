@@ -67,7 +67,8 @@ public sealed partial class PlayerViewModel : ObservableObject
         _coordinator.Blocked += OnBlocked;
         _coordinator.AuditionEnded += OnAuditionEnded;
         _coordinator.QueueExhausted += OnQueueExhausted;
-        _coordinator.Queue.Changed += (_, _) => UpdateQueueButtons();
+        _coordinator.Queue.Changed += OnQueueChanged;
+        Mode = _coordinator.Mode;
 
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnEngineStateChanged;
@@ -223,6 +224,29 @@ public sealed partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     public partial bool CanGoPrevious { get; set; }
 
+    /// <summary>
+    /// 当前播放模式。
+    /// </summary>
+    /// <remarks>
+    /// <b>不从命令里赋值，只跟着队列走</b>：模式是队列的状态，面板和系统媒体控件也可能改它，
+    /// 各入口自己刷一遍迟早会漏。这里统一在 <see cref="OnQueueChanged"/> 里同步。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSequentialMode))]
+    [NotifyPropertyChangedFor(nameof(IsListLoopMode))]
+    [NotifyPropertyChangedFor(nameof(IsShuffleMode))]
+    [NotifyPropertyChangedFor(nameof(PlayModeText))]
+    public partial PlayMode Mode { get; set; }
+
+    /// <summary>三个模式图标是叠在同一个按钮里的，靠这三个开关选一个显示。</summary>
+    public bool IsSequentialMode => Mode == PlayMode.Sequential;
+
+    public bool IsListLoopMode => Mode == PlayMode.ListLoop;
+
+    public bool IsShuffleMode => Mode == PlayMode.Shuffle;
+
+    public string PlayModeText => Mode.DisplayName();
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasNotice))]
     public partial string Notice { get; set; } = "";
@@ -310,6 +334,10 @@ public sealed partial class PlayerViewModel : ObservableObject
 
     [RelayCommand]
     private Task PreviousAsync() => _coordinator.PreviousAsync();
+
+    /// <summary>按「顺序播放 → 列表循环 → 列表随机」切到下一个模式。</summary>
+    [RelayCommand]
+    private void CyclePlayMode() => _coordinator.CyclePlayMode();
 
     /// <summary>喜欢 / 取消喜欢当前曲目。已喜欢时点按是取消。</summary>
     [RelayCommand]
@@ -451,6 +479,12 @@ public sealed partial class PlayerViewModel : ObservableObject
     {
         IsPlaying = false;
         Notice = "已经是最后一首了";
+    }
+
+    private void OnQueueChanged(object? sender, EventArgs e)
+    {
+        UpdateQueueButtons();
+        Mode = _coordinator.Mode;
     }
 
     private void UpdateQueueButtons()

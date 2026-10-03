@@ -1,6 +1,7 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
 using Bodian.Core.Services.Abstractions;
+using Bodian.WinUI.Playback;
 using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
 using Microsoft.Extensions.Logging;
@@ -21,7 +22,7 @@ namespace Bodian.WinUI.Services;
 /// 拿不到 DI 容器。这与 <c>TrackListView.NowPlaying</c> 是同一处例外，理由见那里的注释。
 /// </para>
 /// </remarks>
-public sealed class TrackActionsService : ITrackNavigator, INoticeSink
+public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSink
 {
     /// <summary>行内提示挂多久。播放条上那条提示平时要挂到下一首开播，这里不能那么久。</summary>
     private static readonly TimeSpan NoticeDuration = TimeSpan.FromSeconds(3);
@@ -32,6 +33,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink
     private readonly Func<Artist, ArtistDetailPage> _artistFactory;
     private readonly Func<Album, AlbumDetailPage> _albumFactory;
     private readonly PlayerViewModel _player;
+    private readonly PlaybackCoordinator _coordinator;
     private readonly ILoggerFactory _loggerFactory;
 
     public TrackActionsService(
@@ -41,6 +43,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink
         Func<Artist, ArtistDetailPage> artistFactory,
         Func<Album, AlbumDetailPage> albumFactory,
         PlayerViewModel player,
+        PlaybackCoordinator coordinator,
         ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(api);
@@ -49,6 +52,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink
         ArgumentNullException.ThrowIfNull(artistFactory);
         ArgumentNullException.ThrowIfNull(albumFactory);
         ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
         _api = api;
@@ -57,6 +61,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink
         _artistFactory = artistFactory;
         _albumFactory = albumFactory;
         _player = player;
+        _coordinator = coordinator;
         _loggerFactory = loggerFactory;
     }
 
@@ -64,6 +69,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink
     public TrackActionsViewModel Create(Track track) => new(
         track,
         _api,
+        this,
         this,
         this,
         _likedSongs,
@@ -79,4 +85,12 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink
     void ITrackNavigator.OpenAlbum(Album album) => _navigation.Navigate(_albumFactory(album));
 
     void INoticeSink.Show(string message) => _player.TransientNotice(message, NoticeDuration);
+
+    /// <remarks>
+    /// 两条都落到同一个队列上：菜单里的「加入播放队列」与播放条上的「播放列表」看的是同一份数据。
+    /// </remarks>
+    Task IQueueSink.PlayNextAsync(Track track) => _coordinator.PlayNextAsync(track);
+
+    /// <inheritdoc cref="IQueueSink.PlayNextAsync"/>
+    Task IQueueSink.AddToQueueAsync(Track track) => _coordinator.AddToQueueAsync(track);
 }

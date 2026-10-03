@@ -8,7 +8,7 @@ using Xunit;
 namespace Bodian.Core.Tests;
 
 /// <summary>
-/// 曲目行「更多」菜单的四项动作，以及它们各自的失败路径。
+/// 曲目行「更多」菜单的六项动作，以及它们各自的失败路径。
 /// </summary>
 public sealed class TrackActionsViewModelTests
 {
@@ -37,7 +37,7 @@ public sealed class TrackActionsViewModelTests
     {
         var liked = new LikedSongsStub();
         var notices = new Notices();
-        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), notices, liked);
+        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), notices, likedSongs: liked);
 
         await viewModel.InitializeAsync(Ct);
         Assert.Equal("我喜欢", Entry(viewModel, TrackMenuAction.Favorite).Text);
@@ -62,7 +62,7 @@ public sealed class TrackActionsViewModelTests
         liked.Liked.Add(7);
 
         var viewModel = new TrackActionsViewModel(
-            Track(7), new PlaybackApiStub(), new Navigator(), new Notices(), liked);
+            Track(7), new PlaybackApiStub(), new Navigator(), new Notices(), likedSongs: liked);
 
         await viewModel.InitializeAsync(Ct);
 
@@ -78,7 +78,7 @@ public sealed class TrackActionsViewModelTests
     {
         var liked = new LikedSongsStub { Next = outcome };
         var notices = new Notices();
-        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), notices, liked);
+        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), notices, likedSongs: liked);
 
         await viewModel.ToggleFavoriteAsync(Ct);
 
@@ -93,7 +93,7 @@ public sealed class TrackActionsViewModelTests
     {
         var liked = new LikedSongsStub { Next = LikedSongsOutcome.AlreadyPending };
         var notices = new Notices();
-        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), notices, liked);
+        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), notices, likedSongs: liked);
 
         await viewModel.ToggleFavoriteAsync(Ct);
 
@@ -105,7 +105,7 @@ public sealed class TrackActionsViewModelTests
     {
         var notices = new Notices();
         var viewModel = new TrackActionsViewModel(
-            Track(), new PlaybackApiStub(), new Navigator(), notices, new ThrowingLikedSongs());
+            Track(), new PlaybackApiStub(), new Navigator(), notices, likedSongs: new ThrowingLikedSongs());
 
         await viewModel.ToggleFavoriteAsync(Ct);
 
@@ -118,7 +118,7 @@ public sealed class TrackActionsViewModelTests
     public async Task Favorite_TreatsAnUnknownStateAsNotLikedButStillWritesTrue()
     {
         var liked = new UnknownLikedSongs();
-        var viewModel = new TrackActionsViewModel(Track(3), new PlaybackApiStub(), new Navigator(), new Notices(), liked);
+        var viewModel = new TrackActionsViewModel(Track(3), new PlaybackApiStub(), new Navigator(), new Notices(), likedSongs: liked);
 
         await viewModel.InitializeAsync(Ct);
         Assert.False(viewModel.IsLiked);
@@ -139,6 +139,88 @@ public sealed class TrackActionsViewModelTests
         await viewModel.ToggleFavoriteAsync(Ct);
 
         Assert.False(viewModel.IsLiked);
+        Assert.Equal("", notices.Last);
+    }
+
+    // ── 加入播放队列 ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 六项，且顺序固定。
+    /// </summary>
+    /// <remarks>
+    /// 两条队列动作紧挨「我喜欢」，与写服务器的「添加到歌单」用位置自然隔开 ——
+    /// 那两项都带「歌单/列表」字样，挨着摆最容易被点错。
+    /// </remarks>
+    [Fact]
+    public void Menu_ListsTheSixActionsInOrder()
+    {
+        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), new Notices());
+
+        Assert.Equal(
+            [
+                TrackMenuAction.Favorite,
+                TrackMenuAction.PlayNext,
+                TrackMenuAction.AddToQueue,
+                TrackMenuAction.AddToPlaylist,
+                TrackMenuAction.Artist,
+                TrackMenuAction.Album,
+            ],
+            viewModel.MenuEntries.Select(entry => entry.Action));
+
+        Assert.Equal("下一首播放", Entry(viewModel, TrackMenuAction.PlayNext).Text);
+        Assert.Equal("加入播放队列", Entry(viewModel, TrackMenuAction.AddToQueue).Text);
+    }
+
+    [Fact]
+    public async Task PlayNext_HandsTheTrackToTheQueue()
+    {
+        var queue = new Queue();
+        var notices = new Notices();
+        var viewModel = new TrackActionsViewModel(
+            Track(4), new PlaybackApiStub(), new Navigator(), notices, queue);
+
+        await viewModel.PlayNextAsync();
+
+        Assert.Equal([4L], queue.PlayedNext);
+        Assert.Empty(queue.Appended);
+        Assert.Equal("已设为下一首播放", notices.Last);
+    }
+
+    [Fact]
+    public async Task AddToQueue_HandsTheTrackToTheQueue()
+    {
+        var queue = new Queue();
+        var notices = new Notices();
+        var viewModel = new TrackActionsViewModel(
+            Track(9), new PlaybackApiStub(), new Navigator(), notices, queue);
+
+        await viewModel.AddToQueueAsync();
+
+        Assert.Equal([9L], queue.Appended);
+        Assert.Empty(queue.PlayedNext);
+        Assert.Equal("已加入播放队列", notices.Last);
+    }
+
+    /// <summary>没有曲目 id 就送不进队列，与「查看专辑」缺 id 时同一套处理。</summary>
+    [Fact]
+    public void Queue_IsDisabledWithoutATrackId()
+    {
+        var viewModel = new TrackActionsViewModel(Track(id: 0), new PlaybackApiStub(), new Navigator(), new Notices());
+
+        Assert.False(Entry(viewModel, TrackMenuAction.PlayNext).IsEnabled);
+        Assert.False(Entry(viewModel, TrackMenuAction.AddToQueue).IsEnabled);
+    }
+
+    /// <summary>没有队列出口（离线宿主）时什么也不做，不能假装加成功了。</summary>
+    [Fact]
+    public async Task Queue_WithoutTheSinkDoesNothing()
+    {
+        var notices = new Notices();
+        var viewModel = new TrackActionsViewModel(Track(4), new PlaybackApiStub(), new Navigator(), notices);
+
+        await viewModel.PlayNextAsync();
+        await viewModel.AddToQueueAsync();
+
         Assert.Equal("", notices.Last);
     }
 
@@ -349,6 +431,27 @@ public sealed class TrackActionsViewModelTests
         public string Last { get; private set; } = "";
 
         public void Show(string message) => Last = message;
+    }
+
+    private sealed class Queue : IQueueSink
+    {
+        public List<long> PlayedNext { get; } = [];
+
+        public List<long> Appended { get; } = [];
+
+        public Task PlayNextAsync(Track track)
+        {
+            PlayedNext.Add(track.Id);
+
+            return Task.CompletedTask;
+        }
+
+        public Task AddToQueueAsync(Track track)
+        {
+            Appended.Add(track.Id);
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class ThrowingLikedSongs : ILikedSongsService

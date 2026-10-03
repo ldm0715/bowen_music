@@ -84,6 +84,17 @@ public sealed partial class PlayerBar : UserControl
     /// <summary>歌词页是否活跃。封面和「词」按钮按它置灰。</summary>
     public LyricsViewModel Lyrics { get; }
 
+    /// <summary>
+    /// 点了「播放列表」。
+    /// </summary>
+    /// <remarks>
+    /// <b>只抛事件，不开面板</b>：队列抽屉要盖住内容区，而播放条自己就占着窗口最下面那一行，
+    /// 在这一层放不下。抽屉归主窗口管，开合也在那边。
+    /// </remarks>
+    public event EventHandler? PlaylistRequested;
+
+    private void OnPlaylistClick(object sender, RoutedEventArgs e) => PlaylistRequested?.Invoke(this, EventArgs.Empty);
+
     private void OnLoaded(object sender, RoutedEventArgs e) => ViewModel.PropertyChanged += OnPlayerPropertyChanged;
 
     private void OnUnloaded(object sender, RoutedEventArgs e)

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.PlayQueuePanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:vm="using:Bodian.WinUI.ViewModels">
+
+    <!--
+        主窗口右侧那个播放队列抽屉的内容。
+
+        **是内存播放队列，不是服务器歌单** —— 与曲目行「更多」菜单里的「添加到歌单」是两回事。
+        面板只做三件事：点行切歌、删单曲、清空。列表要撑满抽屉高度，所以根容器是 Grid 而不是
+        StackPanel（后者会把列表压成内容高度，下面的空白就露出来了）。
+    -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="18,16,10,8" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                FontSize="14"
+                FontWeight="SemiBold"
+                Text="播放队列"
+                VerticalAlignment="Center" />
+            <TextBlock
+                Grid.Column="1"
+                FontSize="11"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.CountText, Mode=OneWay}"
+                VerticalAlignment="Center" />
+
+            <!-- 空队列时藏起来：没有东西可清，摆一个灰按钮只会让人以为点坏了。 -->
+            <Button
+                Grid.Column="2"
+                MinWidth="0"
+                Padding="8,4"
+                AutomationProperties.Name="清空播放队列"
+                Click="OnClearClick"
+                Content="清空"
+                FontSize="12"
+                Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.IsEmpty), Mode=OneWay}" />
+            <Button
+                Grid.Column="3"
+                Width="32"
+                Height="32"
+                MinWidth="0"
+                MinHeight="0"
+                Padding="0"
+                AutomationProperties.Name="收起播放队列"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="OnCloseClick"
+                CornerRadius="{StaticResource RadiusSm}"
+                ToolTipService.ToolTip="收起">
+                <FontIcon FontSize="12" Glyph="&#xE711;" />
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <ListView
+                MinWidth="0"
+                IsItemClickEnabled="True"
+                ItemClick="OnRowClick"
+                ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}"
+                SelectionMode="None"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                ScrollViewer.HorizontalScrollMode="Disabled"
+                VerticalAlignment="Stretch"
+                AutomationProperties.Name="播放队列">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                        <Setter Property="MinWidth" Value="0" />
+                        <Setter Property="MinHeight" Value="40" />
+                        <Setter Property="Padding" Value="10,6" />
+                        <Setter Property="Margin" Value="6,1" />
+                        <Setter Property="CornerRadius" Value="6" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PlayQueueRow">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="20" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="28" />
+                            </Grid.ColumnDefinitions>
+
+                            <!--
+                                序号与起伏条同格居中：正在播放那一行显示起伏条，其余显示序号。
+                                起伏条自己按 IsPlaying 管显隐（见 Controls/PlayingBars）。
+                            -->
+                            <Grid Grid.Column="0">
+                                <TextBlock
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    Text="{x:Bind OrdinalText}"
+                                    Visibility="{x:Bind OrdinalVisibility}" />
+                                <controls:PlayingBars
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
+                            </Grid>
+
+                            <Border
+                                Grid.Column="1"
+                                Width="{StaticResource SizeCoverRow}"
+                                Height="{StaticResource SizeCoverRow}"
+                                VerticalAlignment="Center"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="{StaticResource RadiusMd}">
+                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                            </Border>
+
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock
+                                    FontSize="{StaticResource FontSizeBody}"
+                                    Text="{x:Bind Title}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    FontSize="11"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind ArtistText}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <TextBlock
+                                Grid.Column="3"
+                                FontSize="11"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                Text="{x:Bind DurationText}"
+                                VerticalAlignment="Center" />
+
+                            <Button
+                                Grid.Column="4"
+                                Width="28"
+                                Height="28"
+                                MinWidth="0"
+                                MinHeight="0"
+                                Padding="0"
+                                AutomationProperties.Name="从播放队列中移除"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnRemoveClick"
+                                CornerRadius="{StaticResource RadiusSm}"
+                                IsEnabled="{x:Bind CanRemove, Mode=OneWay}"
+                                ToolTipService.ToolTip="从播放队列中移除"
+                                VerticalAlignment="Center">
+                                <FontIcon FontSize="12" Glyph="&#xE711;" />
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <TextBlock
+                Margin="18,28,18,0"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                HorizontalAlignment="Center"
+                Text="播放队列是空的"
+                VerticalAlignment="Top"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.IsEmpty), Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</UserControl>

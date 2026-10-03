@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
     xmlns:models="using:Bodian.Core.Models"
     Title="波点音乐">
 
@@ -377,6 +378,45 @@
             Grid.Row="2"
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch" />
+
+        <!--
+            播放队列抽屉。
+
+            **只跨第 1 行**：盖在内容区之上、播放条之下 —— 拉着队列调整顺序时播放条还在，
+            要暂停 / 切歌不用先收起抽屉。上面那行标题栏也保留，搜索框还能用。
+
+            空白处点一下收起，Esc 也收（见 OnShellKeyDown），右上角另有收起按钮。
+            放在 ImmersiveHost 之前：全屏歌词页要盖住它，那时播放条本来也不可见，进不来。
+
+            ★ 背景用 CommentPanelBackgroundBrush 而不是 ThemeFlyoutBackground：后者是 #CC 的
+              半透明，铺满一整条抽屉时底下的正文会透出来。这块实色面板与评论抽屉同源，
+              理由也在那边（「实色面板保证封面颜色和动态背景不会透过正文」）。
+
+            ★ **四角全圆、离窗口边留出边距**，是一张浮起来的卡片，不是贴边的侧板：
+              贴边那种只有左侧圆角，右下两侧顶在窗口边上，视觉上更像把内容区切了一刀。
+              边距与评论抽屉同量级（右 12）。
+        -->
+        <Grid
+            x:Name="QueueOverlay"
+            Grid.Row="1"
+            Visibility="{x:Bind local:Formats.Visible(Queue.IsOpen), Mode=OneWay}">
+            <Rectangle Fill="Transparent" Tapped="OnQueueDismissTapped" />
+            <Border
+                x:Name="QueuePane"
+                Width="380"
+                Margin="0,8,12,12"
+                HorizontalAlignment="Right"
+                Background="{ThemeResource CommentPanelBackgroundBrush}"
+                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+                <controls:PlayQueuePanel
+                    ClearRequested="OnClearQueueRequested"
+                    CloseRequested="OnQueueCloseRequested"
+                    ViewModel="{x:Bind Queue}" />
+            </Border>
+        </Grid>
 
         <ContentControl
             x:Name="ImmersiveHost"

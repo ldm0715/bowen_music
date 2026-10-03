@@ -920,3 +920,83 @@ WinUI 构建通过，0 错误、1 个既有 `AiPlaylistPage.xaml:27` WMC1506 警
 已改正并实测启动一次：进程存活 14 秒、事件日志无新崩溃记录。
 **但「正在播放」那一支（`Start`）还没有被真实播放触发过** —— 起伏动画的实际观感、
 三态切换有没有横向跳动、容器回收后有没有残留，都待用户手动验收。
+
+## 18. 播放模式按钮与播放队列抽屉（2026-10-03）
+
+底部播放栏的传输组从三键扩到五键，右侧工具区交出「播放列表」；那颗按钮点开的不再是 Flyout，
+而是主窗口右侧的抽屉。队列结构、三个模式的行为与命令见 [`play-queue.md`](play-queue.md)，
+这一节只记几何、图标与接线。
+
+### 18.1 传输组从三键到五键
+
+```
+播放模式 · 上一首 · 播放/暂停 · 下一首 · 播放列表
+```
+
+**播放键仍在正中**：左右两栏等宽的约束没变，往这一组里加按钮不用动别处。
+右侧工具区只剩 `音质 · 歌词 · 音量`。
+
+### 18.2 三个模式图标：自绘 PathIcon 叠层
+
+一个按钮循环切换三个模式，三个图标叠在同一格里靠 `Visibility` 选一个显示 ——
+写法与旁边那颗播放/暂停按钮完全一致（两个 `FontIcon` 叠层）。
+
+- **不用 Segoe MDL2 字形**：那个字体有 `RepeatAll`（E8EE）与 `Shuffle`（E8B1），
+  唯独没有「顺序播放」；常被当成「列表」的 E8FD 其实是 `BulletedList`。
+- 路径按 **24 单位视框**画，外面套一层 `Viewbox` 缩到 `SizeIconMd`（20）。
+  `PathIcon` 另给同样的 24×24 自然尺寸，**两个数都显式写死**，不依赖 `PathIcon` 到底缩不缩放。
+- 图标来源、MIT 许可与「SVG 隐式分隔必须规范化」那个坑，见
+  [`play-queue.md`](play-queue.md) §7。
+
+### 18.3 抽屉：浮起来的卡片，不贴边
+
+面板挂在主窗口第 1 行（内容区）的覆盖层上，**不跨第 0 / 2 行**：
+
+| | |
+| --- | --- |
+| 位置 | `Grid.Row="1"` + `HorizontalAlignment="Right"` |
+| 尺寸 | 宽 380，`SizeChanged` 时压到 `窗口宽 - 32` |
+| 边距 | `Margin="0,8,12,12"` |
+| 圆角 | `CornerRadius="16"`，四角全圆 |
+| 描边 | `BorderThickness="1"`，`SurfaceStrokeColorDefaultBrush` |
+| 背景 | `CommentPanelBackgroundBrush` |
+
+这两条都是按用户反馈改过一轮的：
+
+1. **背景不能用 `ThemeFlyoutBackground`**：那是 `#CC` 的半透明，铺满一整条抽屉时底下的正文
+   会透出来。换成 `CommentPanelBackgroundBrush` —— 那块实色面板与评论抽屉同源，
+   理由也在那边（「实色面板保证封面颜色和动态背景不会透过正文」）。
+   一列曲目铺在 80% 不透明的底上，读起来是糊的。
+2. **四角全圆、右边留 12 的边距，不贴窗口边**：贴边那种只有左侧两个圆角、右下两侧顶在
+   窗口边上，视觉上更像把内容区切了一刀。改成浮起的卡片，与评论抽屉同一档边距。
+
+### 18.4 覆盖层与接线
+
+```xml
+<Grid x:Name="QueueOverlay" Grid.Row="1"
+      Visibility="{x:Bind local:Formats.Visible(Queue.IsOpen), Mode=OneWay}">
+    <Rectangle Fill="Transparent" Tapped="OnQueueDismissTapped" />
+    <Border x:Name="QueuePane" ...>
+        <controls:PlayQueuePanel ClearRequested="OnClearQueueRequested"
+                                 CloseRequested="OnQueueCloseRequested"
+                                 ViewModel="{x:Bind Queue}" />
+    </Border>
+</Grid>
+```
+
+- 放在 `ImmersiveHost` **之前**：全屏歌词页要盖住它；那时播放条本来也不可见，进不来。
+- **`PlayerBar` 不再持有队列 VM**，那颗按钮只抛 `PlaylistRequested`。
+  抽屉的开合、滑入动画与清空确认框都归 `MainWindow` —— 抽屉要盖住内容区，
+  而播放条自己就占着窗口最下面那一行，在这一层放不下。
+- 滑入动画与评论抽屉同一套：`ElementCompositionPreview.SetIsTranslationEnabled` +
+  220 ms 的 `Translation.X` 从 28 到 0。**收起时不放动画** —— 元素马上就 Collapsed 了，看不着。
+- `Esc` 在 `OnShellKeyDown` 里**先收抽屉**，再轮到搜索浮层。
+- 窄窗口的宽度钳制挂在既有的 `ShellRoot.SizeChanged` 上：`Math.Min(380, 窗口宽 - 32)`，
+  32 已经含了右边距 12，不会顶出窗口。
+
+> ★ **透明遮罩铺满整个内容区（含侧栏）**，所以抽屉开着时点侧栏是「收起抽屉」而不是导航。
+> 与评论抽屉同一行为。要让侧栏仍可点，把遮罩从整行收成只盖右侧那一条即可。
+
+### 18.5 验证
+
+见 [`play-queue.md`](play-queue.md) §8。界面部分待用户手动验收。

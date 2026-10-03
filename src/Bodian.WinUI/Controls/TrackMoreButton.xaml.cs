@@ -133,6 +133,16 @@ public sealed partial class TrackMoreButton : UserControl
                 await viewModel.ToggleFavoriteAsync();
                 break;
 
+            case TrackMenuAction.PlayNext:
+                MoreFlyout.Hide();
+                await viewModel.PlayNextAsync();
+                break;
+
+            case TrackMenuAction.AddToQueue:
+                MoreFlyout.Hide();
+                await viewModel.AddToQueueAsync();
+                break;
+
             case TrackMenuAction.AddToPlaylist:
                 // 这一项不关菜单，改成在同一个弹层里选出目标歌单。
                 await viewModel.LoadPlaylistsAsync();

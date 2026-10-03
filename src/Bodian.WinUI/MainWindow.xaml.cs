@@ -13,6 +13,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
@@ -84,6 +85,7 @@ public sealed partial class MainWindow : Window
         IBodianLogin login,
         PlayerViewModel playerViewModel,
         LyricsViewModel lyricsViewModel,
+        PlayQueueViewModel queueViewModel,
         AccountViewModel account,
         SidebarViewModel sidebar,
         SearchViewModel search,
@@ -96,6 +98,7 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(login);
         ArgumentNullException.ThrowIfNull(playerViewModel);
         ArgumentNullException.ThrowIfNull(lyricsViewModel);
+        ArgumentNullException.ThrowIfNull(queueViewModel);
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(sidebar);
         ArgumentNullException.ThrowIfNull(search);
@@ -111,6 +114,7 @@ public sealed partial class MainWindow : Window
         _playlistDetailFactory = playlistDetailFactory;
 
         Player = playerViewModel;
+        Queue = queueViewModel;
         Account = account;
         Search = search;
         Theme = theme;
@@ -123,6 +127,7 @@ public sealed partial class MainWindow : Window
         ShellRoot.SizeChanged += (_, _) =>
         {
             if (SearchPanel.Visibility == Visibility.Visible) PositionSearchPanel();
+            QueuePane.Width = Math.Max(0, Math.Min(QueuePaneWidth, ShellRoot.ActualWidth - 32));
         };
         Activated += (_, args) =>
         {
@@ -164,7 +169,12 @@ public sealed partial class MainWindow : Window
         _navigation.Attach(PageHost, page => page is LyricsPage ? ImmersiveHost : PageHost);
         _navigation.Navigated += OnNavigated;
 
-        PlayerHost.Content = new PlayerBar(playerViewModel, lyricsViewModel, navigation);
+        var playerBar = new PlayerBar(playerViewModel, lyricsViewModel, navigation);
+        playerBar.PlaylistRequested += (_, _) => ToggleQueue();
+        PlayerHost.Content = playerBar;
+
+        // 抽屉的滑入用 Translation 独立于布局（与歌词页的评论面板同一套），先打开这个通道。
+        ElementCompositionPreview.SetIsTranslationEnabled(QueuePane, true);
 
         _login.AccountChanged += OnAccountChanged;
         PageHost.Loaded += OnHostLoaded;
@@ -172,6 +182,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>给 <c>x:Bind</c> 用。</summary>
     public PlayerViewModel Player { get; }
+
+    /// <summary>右侧播放队列抽屉。绑在 <c>QueueOverlay</c> 的显隐上。</summary>
+    public PlayQueueViewModel Queue { get; }
 
     /// <summary>标题栏账号入口的数据源。</summary>
     public AccountViewModel Account { get; }
@@ -448,10 +461,79 @@ public sealed partial class MainWindow : Window
     private void OnShellKeyDown(object sender, KeyRoutedEventArgs args)
     {
         if (args.Key != Windows.System.VirtualKey.Escape) return;
+
+        // 抽屉盖在最上面，Esc 先收它。
+        if (Queue.IsOpen)
+        {
+            CloseQueue();
+            args.Handled = true;
+            return;
+        }
+
         if (SearchPanel.Visibility != Visibility.Visible && !SearchBox.IsSuggestionListOpen) return;
         DismissSearchUi();
         SearchBox.Focus(FocusState.Programmatic);
         args.Handled = true;
+    }
+
+    /// <summary>抽屉的宽度上限。窄窗口下会被 <c>SizeChanged</c> 压到窗口内。</summary>
+    private const double QueuePaneWidth = 380;
+
+    private void ToggleQueue()
+    {
+        if (Queue.IsOpen)
+        {
+            CloseQueue();
+            return;
+        }
+
+        Queue.IsOpen = true;
+
+        // Translation 独立于 XAML 布局，只给抽屉一个轻微的滑入动画。收起时不放动画：
+        // 元素马上就 Collapsed 了，看不着。
+        var visual = ElementCompositionPreview.GetElementVisual(QueuePane);
+        using var slide = visual.Compositor.CreateScalarKeyFrameAnimation();
+        slide.InsertKeyFrame(0, 28);
+        slide.InsertKeyFrame(1, 0);
+        slide.Duration = TimeSpan.FromMilliseconds(220);
+        visual.StartAnimation("Translation.X", slide);
+    }
+
+    private void CloseQueue() => Queue.IsOpen = false;
+
+    private void OnQueueDismissTapped(object sender, TappedRoutedEventArgs args)
+    {
+        CloseQueue();
+        args.Handled = true;
+    }
+
+    private void OnQueueCloseRequested(object? sender, EventArgs args) => CloseQueue();
+
+    /// <summary>
+    /// 清空队列。
+    /// </summary>
+    /// <remarks>
+    /// 确认框放在窗口而不是 ViewModel：那是一个界面决策（要不要弹、按钮怎么摆），
+    /// 而 <c>XamlRoot</c> 也拿不到 ViewModel 里去。做法与 <c>RecentPage</c> 清空播放记录一致。
+    /// </remarks>
+    private async void OnClearQueueRequested(object? sender, EventArgs args)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = ShellRoot.XamlRoot,
+            Title = "清空播放列表？",
+            Content = "只会清掉这一份播放队列，正在播的这首会继续放完。",
+            PrimaryButtonText = "清空",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        Queue.Clear();
     }
 
     private void DismissSearchUi()

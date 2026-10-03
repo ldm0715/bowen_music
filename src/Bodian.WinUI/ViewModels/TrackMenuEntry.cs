@@ -2,10 +2,17 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Bodian.WinUI.ViewModels;
 
-/// <summary>「更多」菜单里能做的四件事。</summary>
+/// <summary>「更多」菜单里能做的事。</summary>
 public enum TrackMenuAction
 {
     Favorite,
+
+    /// <summary>插到播放队列的当前曲目之后。</summary>
+    PlayNext,
+
+    /// <summary>加到播放队列的队尾。</summary>
+    AddToQueue,
+
     AddToPlaylist,
     Artist,
     Album,

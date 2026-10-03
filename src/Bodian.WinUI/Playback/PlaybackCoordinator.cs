@@ -25,6 +25,7 @@ public sealed class PlaybackCoordinator : IDisposable
     private readonly IPlayHistoryStore _history;
     private readonly ILogger<PlaybackCoordinator> _logger;
     private readonly IAudioQualitySettingsStore? _qualitySettings;
+    private readonly IPlaybackSettingsStore? _playbackSettings;
     private readonly SemaphoreSlim _loadGate = new(1, 1);
     private CancellationTokenSource? _operation;
     private bool _disposed;
@@ -41,7 +42,8 @@ public sealed class PlaybackCoordinator : IDisposable
         IPlaybackService engine,
         IPlayHistoryStore history,
         ILogger<PlaybackCoordinator>? logger = null,
-        IAudioQualitySettingsStore? qualitySettings = null)
+        IAudioQualitySettingsStore? qualitySettings = null,
+        IPlaybackSettingsStore? playbackSettings = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(engine);
@@ -52,8 +54,12 @@ public sealed class PlaybackCoordinator : IDisposable
         _history = history;
         _logger = logger ?? NullLogger<PlaybackCoordinator>.Instance;
         _qualitySettings = qualitySettings;
+        _playbackSettings = playbackSettings;
         var preference = qualitySettings?.Load() ?? AudioQuality.Lossless;
         PreferredQuality = Enum.IsDefined(preference) ? preference : AudioQuality.Lossless;
+        Queue.Mode = playbackSettings?.Load() is { } savedMode && Enum.IsDefined(savedMode)
+            ? savedMode
+            : PlayMode.Sequential;
 
         _engine.Ended += OnEngineEnded;
         _engine.Failed += OnEngineFailed;
@@ -129,6 +135,85 @@ public sealed class PlaybackCoordinator : IDisposable
     /// <summary>重播当前曲目。被拒绝或出错后重试时用，会重新取一次地址。</summary>
     public Task ReplayCurrentAsync(CancellationToken cancellationToken = default)
         => PlayCurrentAsync(cancellationToken);
+
+    /// <summary>当前播放模式。</summary>
+    public PlayMode Mode => Queue.Mode;
+
+    /// <summary>切到指定模式，并记住。</summary>
+    public void SetPlayMode(PlayMode mode)
+    {
+        if (Queue.Mode == mode)
+        {
+            return;
+        }
+
+        Queue.Mode = mode;
+        _playbackSettings?.Save(mode);
+        _logger.LogDebug("播放模式切到 {Mode}", mode.DisplayName());
+    }
+
+    /// <summary>按「顺序播放 → 列表循环 → 列表随机 → 顺序播放」切到下一个。</summary>
+    public void CyclePlayMode() => SetPlayMode(Queue.Mode.Next());
+
+    /// <summary>
+    /// 加到队尾。
+    /// </summary>
+    /// <remarks>
+    /// <b>队列原本是空的时候直接开播</b>：否则加了没有任何反应，用户会以为没生效 ——
+    /// 而「队列是空的」恰恰是第一次用这个入口时最常见的状态。
+    /// </remarks>
+    public Task AddToQueueAsync(Track track, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        var wasEmpty = Queue.Count == 0;
+        Queue.Append(track);
+
+        return wasEmpty ? PlayCurrentAsync(cancellationToken) : Task.CompletedTask;
+    }
+
+    /// <summary>插到当前曲目之后。队列为空时等同于 <see cref="AddToQueueAsync"/>。</summary>
+    public Task PlayNextAsync(Track track, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        var wasEmpty = Queue.Count == 0;
+        Queue.InsertNext(track);
+
+        return wasEmpty ? PlayCurrentAsync(cancellationToken) : Task.CompletedTask;
+    }
+
+    /// <summary>跳到队列里第 <paramref name="itemIndex"/> 首并开始播。</summary>
+    public Task PlayQueueItemAsync(int itemIndex, CancellationToken cancellationToken = default)
+        => Queue.MoveToItem(itemIndex) ? PlayCurrentAsync(cancellationToken) : Task.CompletedTask;
+
+    /// <summary>
+    /// 从队列里删掉第 <paramref name="itemIndex"/> 首。
+    /// </summary>
+    /// <remarks>
+    /// <b>只有删掉的正好是当前曲目时才换歌。</b> 界面把正在播放那一行的删除按钮置灰，
+    /// 所以这个分支正常走不到；留着是因为队列是共享状态，别处也会改它。
+    /// 队列被删空时 <see cref="PlayCurrentAsync"/> 自己会直接返回，正在放的那首不受影响。
+    /// </remarks>
+    public Task RemoveQueueItemAsync(int itemIndex, CancellationToken cancellationToken = default)
+    {
+        var wasCurrent = Queue.CurrentIndex == itemIndex;
+
+        if (!Queue.RemoveItem(itemIndex) || !wasCurrent)
+        {
+            return Task.CompletedTask;
+        }
+
+        return PlayCurrentAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// 清空队列。
+    /// </summary>
+    /// <remarks>
+    /// <b>正在播的那一首不打断</b>，让它自然放完 ——「清空列表」说的是列表，不是「停止播放」。
+    /// </remarks>
+    public void ClearQueue() => Queue.Clear();
 
     /// <summary>解析并播放当前队列项。</summary>
     private async Task PlayCurrentAsync(CancellationToken cancellationToken = default)
