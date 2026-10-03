@@ -36,8 +36,9 @@ internal sealed class PlaybackApiStub : IBodianApi
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Func<long, CancellationToken, Task<Track?>> GetTrack { get; set; } = (_, _) => throw new NotSupportedException();
         public Task<Track?> GetTrackAsync(long musicId, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+            => GetTrack(musicId, cancellationToken);
 
         public Func<Track, AudioQuality, CancellationToken, Task<PlaybackResolution>> Resolve { get; set; } =
             (_, _, _) => throw new NotSupportedException();

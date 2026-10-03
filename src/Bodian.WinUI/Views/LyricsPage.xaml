@@ -83,9 +83,20 @@
             </TitleBar>
             <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top" IsHitTestVisible="False">
                 <StackPanel VerticalAlignment="Center" Spacing="1">
-                    <TextBlock Text="{x:Bind SongHeading(Player.Title, Player.ArtistText), Mode=OneWay}"
-                        TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="SemiBold"
-                        Foreground="#CCFFFFFF" />
+                    <Grid HorizontalAlignment="Center" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{x:Bind SongHeading(Player.Title, Player.ArtistText), Mode=OneWay}"
+                            TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="SemiBold"
+                            VerticalAlignment="Center" Foreground="#CCFFFFFF" />
+                        <Border x:Name="PayBadge" Grid.Column="1" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
+                            Background="#24FFFFFF" BorderBrush="#35FFFFFF" BorderThickness="1"
+                            Visibility="{x:Bind local:Formats.Visible(Player.HasPayLabel), Mode=OneWay}">
+                            <TextBlock Text="{x:Bind Player.PayLabel, Mode=OneWay}" FontSize="10" FontWeight="SemiBold" Foreground="#CCFFFFFF" />
+                        </Border>
+                    </Grid>
                     <TextBlock Text="{x:Bind Player.AlbumText, Mode=OneWay}" TextAlignment="Center"
                         TextTrimming="CharacterEllipsis" FontSize="11" Foreground="#80FFFFFF" />
                 </StackPanel>
@@ -141,8 +152,18 @@
                     </Button>
                 </StackPanel>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
-                    <TextBlock Text="{x:Bind Player.PayLabel, Mode=OneWay}" Foreground="#70FFFFFF" FontSize="12" />
-                    <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
+                    <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;" Foreground="#CCFFFFFF"
+                        IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                        Label="{x:Bind Player.Statistics.FavoriteAutomationName, Mode=OneWay}"
+                        BadgeText="{x:Bind Player.Statistics.FavoriteBadgeText, Mode=OneWay}"
+                        HasBadgeCount="{x:Bind Player.Statistics.HasFavoriteCount, Mode=OneWay}" />
+                    <controls:TrackStatisticButton x:Name="ShareButton" Glyph="&#xE72D;" Foreground="#CCFFFFFF"
+                        IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                        Label="{x:Bind Player.Statistics.ShareAutomationName, Mode=OneWay}"
+                        BadgeText="{x:Bind Player.Statistics.ShareBadgeText, Mode=OneWay}"
+                        HasBadgeCount="{x:Bind Player.Statistics.HasShareCount, Mode=OneWay}" />
+                    <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" VerticalAlignment="Center"
+                        Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
                 </StackPanel>
                 <StackPanel x:Name="VolumeDeck" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
                     <Button x:Name="CommentsButton" Width="58" Click="OnCommentsClick" Style="{StaticResource LyricsChromeButtonStyle}"

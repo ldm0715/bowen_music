@@ -13,6 +13,7 @@ namespace Bodian.WinUI.ViewModels;
 public sealed partial class SongCommentsViewModel : ObservableObject
 {
     private readonly IBodianApi _api;
+    private readonly TrackStatisticsViewModel? _statistics;
     private readonly BodianSession _session;
     private readonly ILogger<SongCommentsViewModel> _logger;
     private readonly HashSet<long> _seenIds = [];
@@ -32,11 +33,13 @@ public sealed partial class SongCommentsViewModel : ObservableObject
     private int _contextGeneration;
     private int _composerGeneration;
 
-    public SongCommentsViewModel(IBodianApi api, BodianSession session, ILogger<SongCommentsViewModel>? logger = null)
+    public SongCommentsViewModel(IBodianApi api, BodianSession session, ILogger<SongCommentsViewModel>? logger = null,
+        TrackStatisticsViewModel? statistics = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(session);
         _api = api;
+        _statistics = statistics;
         _session = session;
         _logger = logger ?? NullLogger<SongCommentsViewModel>.Instance;
     }
@@ -67,7 +70,9 @@ public sealed partial class SongCommentsViewModel : ObservableObject
         var generation = ++_badgeGeneration;
         try
         {
-            var track = await _api.GetTrackAsync(musicId, request.Token);
+            var track = _statistics is null
+                ? await _api.GetTrackAsync(musicId, request.Token)
+                : await _statistics.GetDetailsAsync(musicId, request.Token);
             if (generation != _badgeGeneration || request.IsCancellationRequested || _badgeMusicId != musicId) return;
             BadgeCount = track?.CommentCount;
         }

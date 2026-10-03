@@ -1214,6 +1214,8 @@ public sealed class BodianApi : IBodianApi
             Id = dto.Id,
             Title = dto.Name ?? dto.SongName ?? "(未知曲目)",
             CommentCount = dto.Comment is { } count ? Math.Max(0, count) : null,
+            FavoriteCount = dto.Favorite is { } favorites ? Math.Max(0, favorites) : null,
+            ShareCount = dto.Share is { } shares ? Math.Max(0, shares) : null,
             ArtistText = dto.Artist ?? JoinArtists(dto.Artists),
             Artists = dto.Artists?.Select(a => new TrackArtist(a.Id, a.Name ?? "", ToHttpUri(a.Pic))).ToArray() ?? [],
             AlbumName = dto.Album,

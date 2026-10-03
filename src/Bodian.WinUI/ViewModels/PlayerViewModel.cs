@@ -26,10 +26,13 @@ public sealed partial class PlayerViewModel : ObservableObject
     public PlayerViewModel(
         PlaybackCoordinator coordinator,
         IPlaybackService engine,
+        TrackStatisticsViewModel statistics,
         ILogger<PlayerViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(engine);
+        ArgumentNullException.ThrowIfNull(statistics);
+        Statistics = statistics;
 
         _coordinator = coordinator;
         _engine = engine;
@@ -56,6 +59,8 @@ public sealed partial class PlayerViewModel : ObservableObject
         _engine.Failed += OnEngineFailed;
         RefreshQualityOptions();
     }
+
+    public TrackStatisticsViewModel Statistics { get; }
 
     public ObservableCollection<AudioQualityOption> QualityOptions { get; } = [];
 
@@ -293,10 +298,11 @@ public sealed partial class PlayerViewModel : ObservableObject
     private void OnStarted(object? sender, PlaybackStartedEventArgs e)
     {
         HasTrack = true;
-        CurrentTrackId = e.Track.Id;
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
+        // 先启动共享详情请求，再通知歌词页切歌，评论角标才能复用同一请求。
+        CurrentTrackId = e.Track.Id;
         IsAudition = e.Policy.IsAudition;
         QualityText = AudioQualityTable.Describe(e.Source, e.Policy.IsAudition);
         PositionSeconds = 0;
@@ -314,10 +320,11 @@ public sealed partial class PlayerViewModel : ObservableObject
     private void OnBlocked(object? sender, PlaybackBlockedEventArgs e)
     {
         HasTrack = true;
-        CurrentTrackId = e.Track.Id;
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
+        // 先启动共享详情请求，再通知歌词页切歌，评论角标才能复用同一请求。
+        CurrentTrackId = e.Track.Id;
         QualityText = "";
         IsPlaying = false;
         IsAudition = false;
@@ -377,6 +384,7 @@ public sealed partial class PlayerViewModel : ObservableObject
         PayLabel = track.RequiresVip ? "VIP"
             : track.RequiresPurchase ? "付费"
             : "";
+        _ = Statistics.LoadAsync(track);
     }
 
 }

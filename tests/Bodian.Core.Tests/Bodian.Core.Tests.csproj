@@ -36,6 +36,7 @@
     <!-- 评论 ViewModel 不依赖 WinUI，链接源文件验证请求取消和迟到响应，不加载 UI 运行时。 -->
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentsViewModel.cs" Link="ViewModels\SongCommentsViewModel.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentRow.cs" Link="ViewModels\SongCommentRow.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\ViewModels\TrackStatisticsViewModel.cs" Link="ViewModels\TrackStatisticsViewModel.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Playback\PlaybackCoordinator.cs" Link="Playback\PlaybackCoordinator.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Playback\PlaybackTypes.cs" Link="Playback\PlaybackTypes.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Playback\PlayQueue.cs" Link="Playback\PlayQueue.cs" />

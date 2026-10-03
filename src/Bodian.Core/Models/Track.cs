@@ -77,6 +77,12 @@ public sealed record Track
     /// </remarks>
     public TrackLyricInfo? Lyrics { get; init; }
 
+    /// <summary>全站收藏总数，不代表当前用户的喜欢状态；缺失时为 null。</summary>
+    public long? FavoriteCount { get; init; }
+
+    /// <summary>全站分享总数；缺失时为 null。</summary>
+    public long? ShareCount { get; init; }
+
     /// <summary>评论总数。部分曲目列表未提供时为 null，不能当成零评论。</summary>
     public long? CommentCount { get; init; }
 

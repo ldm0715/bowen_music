@@ -118,6 +118,7 @@ public partial class App : Application
         builder.Services.AddSingleton<MainWindow>();
 
         // 播放条与侧栏常驻，所以这几个 ViewModel 是单例；页面则每次导航新建。
+        builder.Services.AddSingleton<TrackStatisticsViewModel>();
         builder.Services.AddSingleton<PlayerViewModel>();
         builder.Services.AddSingleton<LyricsViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();

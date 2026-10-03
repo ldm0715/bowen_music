@@ -79,7 +79,7 @@
                         <AdaptiveTrigger MinWindowWidth="0" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="SongInfo.Width" Value="144" />
+                        <Setter Target="TrackInfoGroup.MaxWidth" Value="300" />
                     </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="WidePlayer">
@@ -98,77 +98,68 @@
             </Grid.ColumnDefinitions>
 
             <!-- 左右两栏等宽，播放按钮始终位于窗口正中。 -->
-            <StackPanel
-                Grid.Column="0"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="12">
-                <Button
-                    x:Name="CoverButton"
-                    Width="{StaticResource SizeCoverRow}"
-                    Height="{StaticResource SizeCoverRow}"
-                    MinWidth="0"
-                    Padding="0"
-                    VerticalAlignment="Center"
-                    AutomationProperties.Name="打开歌词页"
-                    Click="OnLyricsClick"
-                    CornerRadius="{StaticResource RadiusMd}"
-                    IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
-                    Style="{StaticResource SubtleButtonStyle}"
+            <Grid x:Name="TrackInfoGroup" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                MaxWidth="376" MinWidth="0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="CoverButton" Width="{StaticResource SizeCoverRow}" Height="{StaticResource SizeCoverRow}"
+                    MinWidth="0" Padding="0" VerticalAlignment="Center" AutomationProperties.Name="打开歌词页"
+                    Click="OnLyricsClick" CornerRadius="{StaticResource RadiusMd}"
+                    IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}" Style="{StaticResource SubtleButtonStyle}"
                     ToolTipService.ToolTip="打开歌词页">
-                    <Border
-                        Width="{StaticResource SizeCoverRow}"
-                        Height="{StaticResource SizeCoverRow}"
-                        Background="{ThemeResource ControlFillColorDefaultBrush}"
-                        CornerRadius="{StaticResource RadiusMd}">
-                        <Image
-                            Source="{x:Bind ViewModel.CoverImage, Mode=OneWay}"
-                            Stretch="UniformToFill" />
+                    <Border Width="{StaticResource SizeCoverRow}" Height="{StaticResource SizeCoverRow}"
+                        Background="{ThemeResource ControlFillColorDefaultBrush}" CornerRadius="{StaticResource RadiusMd}">
+                        <Image Source="{x:Bind ViewModel.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
                     </Border>
                 </Button>
-
-                <StackPanel
-                    x:Name="SongInfo"
-                    Width="{x:Bind local:Formats.PlayerInfoBlockWidth}"
-                    VerticalAlignment="Center"
-                    Spacing="4">
-                    <!-- 标题与徽标紧邻，长标题为徽标留出空间。 -->
-                    <StackPanel
-                        HorizontalAlignment="Left"
-                        Orientation="Horizontal"
-                        Spacing="{x:Bind local:Formats.PlayerBadgeSpacing}">
-                        <TextBlock
-                            MaxWidth="{x:Bind local:Formats.PlayerTitleMaxWidth(SongInfo.Width, ViewModel.IsAudition, ViewModel.HasPayLabel), Mode=OneWay}"
-                            VerticalAlignment="Center"
-                            FontSize="{StaticResource FontSizeBodyLarge}"
-                            FontWeight="SemiBold"
-                            Text="{x:Bind ViewModel.Title, Mode=OneWay}"
-                            TextTrimming="CharacterEllipsis" />
-                        <Border
-                            Padding="6,1"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
-                            CornerRadius="4"
+                <Grid x:Name="SongInfo" Grid.Column="1" MinWidth="0"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Center" RowSpacing="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid ColumnSpacing="4" MinWidth="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock MinWidth="0" VerticalAlignment="Center" FontSize="{StaticResource FontSizeBodyLarge}"
+                            FontWeight="SemiBold" Text="{x:Bind ViewModel.Title, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                        <Border Grid.Column="1" Padding="6,1" VerticalAlignment="Center"
+                            Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" CornerRadius="4"
                             Visibility="{x:Bind ViewModel.IsAudition, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock FontSize="11" Text="试听" />
                         </Border>
-                        <Border
-                            Padding="6,1"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
-                            CornerRadius="4"
+                        <Border Grid.Column="2" Padding="6,1" VerticalAlignment="Center"
+                            Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}" CornerRadius="4"
                             Visibility="{x:Bind ViewModel.HasPayLabel, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock FontSize="11" Text="{x:Bind ViewModel.PayLabel, Mode=OneWay}" />
                         </Border>
-                    </StackPanel>
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+
+                    </Grid>
+                    <TextBlock Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Text="{x:Bind local:Formats.ArtistLine(ViewModel.ArtistText, ViewModel.AlbumText), Mode=OneWay}"
                         TextTrimming="CharacterEllipsis" />
+                </Grid>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0">
+                    <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;"
+                        IsEnabled="{x:Bind ViewModel.HasTrack, Mode=OneWay}"
+                        Label="{x:Bind ViewModel.Statistics.FavoriteAutomationName, Mode=OneWay}"
+                        BadgeText="{x:Bind ViewModel.Statistics.FavoriteBadgeText, Mode=OneWay}"
+                        HasBadgeCount="{x:Bind ViewModel.Statistics.HasFavoriteCount, Mode=OneWay}" />
+                    <controls:TrackStatisticButton x:Name="ShareButton" Glyph="&#xE72D;"
+                        IsEnabled="{x:Bind ViewModel.HasTrack, Mode=OneWay}"
+                        Label="{x:Bind ViewModel.Statistics.ShareAutomationName, Mode=OneWay}"
+                        BadgeText="{x:Bind ViewModel.Statistics.ShareBadgeText, Mode=OneWay}"
+                        HasBadgeCount="{x:Bind ViewModel.Statistics.HasShareCount, Mode=OneWay}" />
                 </StackPanel>
-            </StackPanel>
+            </Grid>
 
             <StackPanel
                 Grid.Column="1"

@@ -137,9 +137,9 @@ internal sealed class TrackDto
     [JsonPropertyName("language")] public string? Language { get; init; }
 
     /// <summary>全站收藏数，**不是**「当前用户是否已收藏」。</summary>
-    [JsonPropertyName("favorite")] public long Favorite { get; init; }
+    [JsonPropertyName("favorite")] public long? Favorite { get; init; }
 
-    [JsonPropertyName("share")] public long Share { get; init; }
+    [JsonPropertyName("share")] public long? Share { get; init; }
 
     [JsonPropertyName("comment")] public long? Comment { get; init; }
 
