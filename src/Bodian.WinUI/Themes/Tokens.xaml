@@ -209,11 +209,27 @@
     <x:Double x:Key="SpaceRow">8</x:Double>
 
     <!--
-        发现页卡片之间的横向间隔。写在每个卡片容器的右边距上，不是容器的内边距 ——
-        内边距会把悬停底色也撑宽，间隔跟着一起被涂上颜色。
-        ★ 与上面几个卡片宽度一起组成「一步」的宽度:XAML 只读它排版，代码读两者算一页放几张。
+        卡片在容器里让出的空白：卡片缩进去，容器铺的悬停底就比卡片四周大出这一圈
+        （与歌手页的专辑卡同一套做法，那边是容器的 Padding，效果一样）。
+        ★ 写在卡片自己的 Margin 上而不是容器的 Padding 上：容器的底色是铺在
+          「去掉 Padding 之后的那块」还是「整个容器」，两种实现不一样，Margin 两边都成立。
+        ★ 它同时是「一步」的一部分：容器宽 = 卡片宽 + 两侧这份空白，
+          代码算一页放几张时要一起加，见 HomeSectionView.Step。
     -->
-    <Thickness x:Key="SpaceHomeCardGap">0,0,12,0</Thickness>
+    <Thickness x:Key="SpaceHomeCardMargin">12</Thickness>
+
+    <!--
+        卡片悬停底比卡片大出的那一圈（负 Margin 让底溢出卡片四边）。
+        ★ 不能靠容器：容器的底色只有高度跟着内容走，宽度不跟，横向永远不会变宽。
+        ★ 16 < 卡片间隔 24，两张卡的底不会碰到一起。
+    -->
+    <Thickness x:Key="SpaceHomeCardHoverMargin">-16</Thickness>
+
+    <!--
+        容器右边距。卡片之间的实际间隔 = 它 + 两侧的空白（4 + 8 + 8 = 20）。
+        ★ 与上面几个卡片宽度一起组成「一步」的宽度:XAML 只读它排版，代码读它算一页放几张。
+    -->
+    <Thickness x:Key="SpaceHomeCardGap">0,0,4,0</Thickness>
 
     <!-- 字号阶梯 -->
     <x:Double x:Key="FontSizeCaption">11</x:Double>

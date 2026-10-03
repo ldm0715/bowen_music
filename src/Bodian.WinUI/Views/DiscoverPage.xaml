@@ -9,8 +9,8 @@
 
     <Page.Resources>
         <DataTemplate x:Key="DiscoverHeaderTemplate" x:DataType="vm:ListSectionHeader">
-            <!-- 左边缘与下面卡片区对齐：封面列表为了给翻页按钮腾地方，左边留了 28。 -->
-            <TextBlock Margin="28,12,0,8" Style="{StaticResource BodianModuleTitle}" Text="{x:Bind Title}" />
+            <!-- 左边缘与上面卡片区的封面左沿对齐：28（给翻页按钮腾的留白）+ 12（卡片让出的空白）。 -->
+            <TextBlock Margin="40,12,0,8" Style="{StaticResource BodianModuleTitle}" Text="{x:Bind Title}" />
         </DataTemplate>
         <DataTemplate x:Key="DiscoverSectionTemplate" x:DataType="home:HomeSection">
             <controls:HomeSectionView Margin="0,0,0,16" CardInvoked="OnCardInvoked" Section="{x:Bind}" />

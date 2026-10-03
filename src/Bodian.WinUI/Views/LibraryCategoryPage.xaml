@@ -111,13 +111,30 @@
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="models:Album">
                     <StackPanel Width="132" Spacing="6">
-                        <Border
-                            Width="132"
-                            Height="132"
-                            Background="{ThemeResource ControlFillColorDefaultBrush}"
-                            CornerRadius="8">
-                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                        </Border>
+                        <Grid>
+                            <Border
+                                Width="132"
+                                Height="132"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="8">
+                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                            </Border>
+
+                            <!-- 曲目数角标压在封面右下角，与歌手页专辑卡上那个同一个样式。 -->
+                            <Border
+                                Margin="0,0,8,8"
+                                Padding="7,1,7,2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                                CornerRadius="{StaticResource RadiusSm}"
+                                Visibility="{x:Bind local:Formats.HasTracks(MusicCount)}">
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                                    Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                            </Border>
+                        </Grid>
 
                         <TextBlock
                             MaxLines="2"

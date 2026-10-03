@@ -40,13 +40,30 @@
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="models:MusicCategoryGroup">
                     <StackPanel Width="150" Spacing="6">
-                        <Border
-                            Width="{StaticResource SizeCoverGrid}"
-                            Height="{StaticResource SizeCoverGrid}"
-                            Background="{ThemeResource ControlFillColorDefaultBrush}"
-                            CornerRadius="{StaticResource RadiusMd}">
-                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                        </Border>
+                        <Grid>
+                            <Border
+                                Width="{StaticResource SizeCoverGrid}"
+                                Height="{StaticResource SizeCoverGrid}"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="{StaticResource RadiusMd}">
+                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                            </Border>
+
+                            <!-- 专辑数角标压在封面右下角，与歌手页专辑卡上的曲目数角标同一个样式。 -->
+                            <Border
+                                Margin="0,0,8,8"
+                                Padding="7,1,7,2"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                                CornerRadius="{StaticResource RadiusSm}"
+                                Visibility="{x:Bind local:Formats.HasTracks(AlbumCount)}">
+                                <TextBlock
+                                    FontSize="12"
+                                    Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                                    Text="{x:Bind local:Formats.AlbumTotal(AlbumCount)}" />
+                            </Border>
+                        </Grid>
 
                         <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
 
@@ -56,11 +73,6 @@
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Text="{x:Bind Title}"
                             TextTrimming="CharacterEllipsis" />
-
-                        <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="{x:Bind local:Formats.AlbumCount(AlbumCount)}" />
                     </StackPanel>
                 </DataTemplate>
             </GridView.ItemTemplate>

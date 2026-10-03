@@ -64,11 +64,12 @@ public sealed partial class HomeSectionView : UserControl
     private ObservableCollection<object> PageItems => _pageItems;
 
     /// <summary>
-    /// 一步的横向宽度：这一组卡片的宽度 + 卡片间隔。
+    /// 一步的横向宽度：这一组卡片的宽度 + 卡片两侧让出的空白 + 容器间隔。
     /// </summary>
     /// <remarks>
     /// 四种排法的卡片宽度各不相同（见 Tokens.xaml 里 SizeHome* 那一族），
     /// 所以步长得跟着 <see cref="HomeSection.Layout"/> 走。
+    /// ★ 卡片让出的空白也要算进来：容器比卡片宽出来的就是那两段（悬停底铺在上面）。
     /// </remarks>
     private double Step => Token(Section?.Layout switch
     {
@@ -76,7 +77,7 @@ public sealed partial class HomeSectionView : UserControl
         HomeSectionLayout.PlaylistPreview => "SizeHomePreviewCard",
         HomeSectionLayout.PlaylistMosaic => "SizeHomeMosaicCard",
         _ => "SizeHomeCoverCard",
-    }) + Token("SpaceHomeCardGap");
+    }) + 2 * Token("SpaceHomeCardMargin") + Token("SpaceHomeCardGap");
 
     /// <summary>
     /// 卡片区真正能放卡片的宽度。
@@ -194,11 +195,11 @@ public sealed partial class HomeSectionView : UserControl
     }
 
     /// <summary>单曲行亮起悬停底色。底色是行模板里的第一层，切换它的不透明度即可。</summary>
-    private void OnTrackPointerEntered(object sender, PointerRoutedEventArgs e) => SetRowHover(sender, 1);
+    private void OnHoverPointerEntered(object sender, PointerRoutedEventArgs e) => SetHoverOpacity(sender, 1);
 
-    private void OnTrackPointerExited(object sender, PointerRoutedEventArgs e) => SetRowHover(sender, 0);
+    private void OnHoverPointerExited(object sender, PointerRoutedEventArgs e) => SetHoverOpacity(sender, 0);
 
-    private static void SetRowHover(object sender, double opacity)
+    private static void SetHoverOpacity(object sender, double opacity)
     {
         if (sender is Panel panel && panel.Children.Count > 0 && panel.Children[0] is Border hover)
         {

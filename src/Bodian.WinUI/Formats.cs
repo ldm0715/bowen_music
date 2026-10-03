@@ -77,12 +77,16 @@ public static class Formats
     /// <summary>专辑条目右侧的曲目数。0 时留空 —— 「0 首」在列表里只是噪音。</summary>
     public static string AlbumCount(int count) => count > 0 ? $"{count} 首" : "";
 
+    /// <summary>分类卡角标里的专辑数。同样是 0 留空。</summary>
+    public static string AlbumTotal(int count) => count > 0 ? $"{count} 张" : "";
+
     /// <summary>
-    /// 曲目数角标要不要显示。
+    /// 封面右下角那个角标要不要显示。
     /// </summary>
     /// <remarks>
-    /// 曲目数为 0 表示这个来源没给这个字段（不是「这张专辑是空的」），
+    /// 数为 0 表示这个来源没给这个字段（不是「这张专辑是空的」），
     /// 那时连角标本身都不该出现 —— 只让文字留空的话，封面上会浮一个空的胶囊。
+    /// 曲目数与专辑数共用这一条判据，两处角标长得一样、隐现也该一样。
     /// </remarks>
     public static Visibility HasTracks(int count) => Visible(count > 0);
 
