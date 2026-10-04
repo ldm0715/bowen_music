@@ -65,6 +65,18 @@ public sealed record PlayHistoryEntry
 
     public bool RequiresPurchase { get; init; }
 
+    /// <summary>
+    /// 写下这条记录时这首歌有没有 MV。
+    /// </summary>
+    /// <remarks>
+    /// <b>不存就永远不亮。</b> MV 角标与「播放 MV」入口的判据都是 <see cref="Track.HasMv"/>，
+    /// 而那个属性只在接口 DTO 那一层被赋值（<c>IsMv == 1 || Vid &gt; 0</c>）——
+    /// 本页的数据全部来自这份快照，不存的话角标与菜单项永远是暗的。
+    /// 与 <see cref="AlbumId"/> 同一套：早于这个字段的历史文件里没有这个键，
+    /// 反序列化后是 <c>false</c>，那些旧条目要重播一次才有角标。
+    /// </remarks>
+    public bool HasMv { get; init; }
+
     /// <summary>从「这次真正播起来了」的曲目造一条记录。</summary>
     public static PlayHistoryEntry From(Track track, DateTimeOffset playedAt)
     {
@@ -84,6 +96,7 @@ public sealed record PlayHistoryEntry
             AudioVariants = track.AudioVariants.Where(AudioQualityTable.IsSupportedVariant).ToArray(),
             RequiresVip = track.RequiresVip,
             RequiresPurchase = track.RequiresPurchase,
+            HasMv = track.HasMv,
         };
     }
 
@@ -108,5 +121,6 @@ public sealed record PlayHistoryEntry
         AudioVariants = AudioVariants.Where(AudioQualityTable.IsSupportedVariant).ToArray(),
         RequiresVip = RequiresVip,
         RequiresPurchase = RequiresPurchase,
+        HasMv = HasMv,
     };
 }

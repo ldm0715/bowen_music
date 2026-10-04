@@ -234,6 +234,27 @@ public sealed class PlayHistoryStoreTests : IDisposable
     }
 
     /// <summary>
+    /// MV 标记也要存下来。
+    /// </summary>
+    /// <remarks>
+    /// 「最近播放」用的就是这份快照。不存的话那一页永远不显示 MV 角标，
+    /// 「更多」菜单里的「播放 MV」也永远灰着 —— 两处的判据都是 <c>Track.HasMv</c>，
+    /// 而它只在接口 DTO 那一层被赋值。
+    /// </remarks>
+    [Fact]
+    public async Task MvFlag_SurvivesRoundTrip()
+    {
+        var clock = new Clock(Origin);
+        var store = NewStore(clock);
+
+        await store.RecordAsync(TrackWith(1) with { HasMv = true }, Ct);
+
+        var restored = Assert.Single(await NewStore(clock).GetRecentAsync(1, Ct)).ToTrack();
+
+        Assert.True(restored.HasMv);
+    }
+
+    /// <summary>
     /// 枚举写成字符串，不是数字。
     /// </summary>
     /// <remarks>
