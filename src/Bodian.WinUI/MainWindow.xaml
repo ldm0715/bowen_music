@@ -150,8 +150,9 @@
                         </Border>
 
                         <Button.Flyout>
-                            <!-- 右对齐：顶栏在窗口右上角，默认居中会往左偏出去 -->
-                            <Flyout Placement="BottomEdgeAlignedRight">
+                            <!-- 正下方居中，与主题弹层一致。之前用 BottomEdgeAlignedRight，
+                                 弹窗比头像按钮宽得多，右对齐会把整块甩到头像左边去。 -->
+                            <Flyout Opening="OnAccountFlyoutOpening" Placement="Bottom">
                                 <StackPanel MinWidth="200" Spacing="12">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <Border
@@ -168,17 +169,130 @@
                                                 Text="{x:Bind Account.AccountText, Mode=OneWay}"
                                                 TextTrimming="CharacterEllipsis" />
 
-                                            <!-- 会员徽标只是展示：播放权限一律以服务端 checkRight 为准 -->
-                                            <Border
-                                                Padding="5,0"
-                                                HorizontalAlignment="Left"
-                                                Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
-                                                CornerRadius="3"
-                                                Visibility="{x:Bind Account.IsVip, Mode=OneWay}">
-                                                <TextBlock FontSize="11" Text="VIP" />
-                                            </Border>
+                                            <!--
+                                                会员徽标只是展示：播放权限一律以服务端 checkRight 为准。
+                                                胶囊 = 图标 + 档位名，按档位三选一，每档一套配色（金 / 银 / 浅绿，
+                                                见 Themes/VipBadge.xaml）；非会员三个都不显示。
+
+                                                ★ 图标必须是 Path 而不是 PathIcon：PathIcon 按几何的原始尺寸
+                                                  出图，不缩放到 Width/Height，超出部分会被裁掉（皇冠会只剩一半）。
+                                                  Path 的 Stretch 才真的缩放。写法同 SongCommentsPanel.xaml。
+                                            -->
+                                            <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                                <!-- 大会员：金，皇冠 + 顶星 -->
+                                                <Border
+                                                    Padding="6,2"
+                                                    Background="{ThemeResource VipBadgeBigBackgroundBrush}"
+                                                    CornerRadius="10"
+                                                    Visibility="{x:Bind Account.BigVipVisibility, Mode=OneWay}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <Path
+                                                            Width="11"
+                                                            Height="13"
+                                                            VerticalAlignment="Center"
+                                                            Data="M 2,9 L 6,13.5 L 10,7 L 14,13.5 L 18,9 L 16.5,21 L 3.5,21 Z M 10,0.1 L 10.85,2.33 L 13.23,2.45 L 11.38,3.95 L 12,6.25 L 10,4.95 L 8,6.25 L 8.62,3.95 L 6.77,2.45 L 9.15,2.33 Z"
+                                                            Fill="{ThemeResource VipBadgeBigForegroundBrush}"
+                                                            Stretch="Uniform" />
+                                                        <TextBlock
+                                                            FontSize="11"
+                                                            VerticalAlignment="Center"
+                                                            Foreground="{ThemeResource VipBadgeBigForegroundBrush}"
+                                                            Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- 畅听会员：银，三尖皇冠 -->
+                                                <Border
+                                                    Padding="6,2"
+                                                    Background="{ThemeResource VipBadgeStandardBackgroundBrush}"
+                                                    CornerRadius="10"
+                                                    Visibility="{x:Bind Account.StandardVipVisibility, Mode=OneWay}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <Path
+                                                            Width="15"
+                                                            Height="13"
+                                                            VerticalAlignment="Center"
+                                                            Data="M 2,5 L 6,9.5 L 10,3 L 14,9.5 L 18,5 L 16.5,17 L 3.5,17 Z"
+                                                            Fill="{ThemeResource VipBadgeStandardForegroundBrush}"
+                                                            Stretch="Uniform" />
+                                                        <TextBlock
+                                                            FontSize="11"
+                                                            VerticalAlignment="Center"
+                                                            Foreground="{ThemeResource VipBadgeStandardForegroundBrush}"
+                                                            Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- 福利会员：浅绿，礼物盒 -->
+                                                <Border
+                                                    Padding="6,2"
+                                                    Background="{ThemeResource VipBadgeWelfareBackgroundBrush}"
+                                                    CornerRadius="10"
+                                                    Visibility="{x:Bind Account.WelfareVipVisibility, Mode=OneWay}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <Path
+                                                            Width="15"
+                                                            Height="13"
+                                                            VerticalAlignment="Center"
+                                                            Data="M 1.5,9 L 22.5,9 L 22.5,12.8 L 1.5,12.8 Z M 3,14.4 L 21,14.4 L 21,21 L 3,21 Z M 12,8.8 C 11,4.6 8.5,2.6 7,4 C 5.5,5.4 7.5,8.8 12,8.8 Z M 12,8.8 C 13,4.6 15.5,2.6 17,4 C 18.5,5.4 16.5,8.8 12,8.8 Z"
+                                                            Fill="{ThemeResource VipBadgeWelfareForegroundBrush}"
+                                                            Stretch="Uniform" />
+                                                        <TextBlock
+                                                            FontSize="11"
+                                                            VerticalAlignment="Center"
+                                                            Foreground="{ThemeResource VipBadgeWelfareForegroundBrush}"
+                                                            Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!--
+                                                    到期时间：胶囊同一行的小字。
+                                                    数据来自登录响应 payInfo 的到期字段（取最晚的一个，见 VipStatus.LatestExpiry），
+                                                    **不需要额外接口**；老凭据里没存时整块收掉。
+                                                -->
+                                                <TextBlock
+                                                    Margin="6,0,0,0"
+                                                    FontSize="11"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    Text="{x:Bind Account.VipExpiryText, Mode=OneWay}"
+                                                    Visibility="{x:Bind Account.VipExpiryVisibility, Mode=OneWay}" />
+                                            </StackPanel>
                                         </StackPanel>
                                     </StackPanel>
+
+                                    <!--
+                                        账号统计：关注数 / 听歌总时长。两条接口各自独立，谁先回来谁先显示；
+                                        两个都拿不到时整块收掉，不留一行「—  —」。
+                                    -->
+                                    <Grid ColumnSpacing="16" Visibility="{x:Bind Account.StatsVisibility, Mode=OneWay}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock
+                                                FontSize="16"
+                                                FontWeight="SemiBold"
+                                                Text="{x:Bind Account.FollowedArtistCountText, Mode=OneWay}" />
+                                            <TextBlock
+                                                FontSize="11"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Text="关注歌手" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock
+                                                FontSize="16"
+                                                FontWeight="SemiBold"
+                                                Text="{x:Bind Account.ListenTimeText, Mode=OneWay}" />
+                                            <TextBlock
+                                                FontSize="11"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Text="听歌时长" />
+                                        </StackPanel>
+                                    </Grid>
 
                                     <Button
                                         HorizontalAlignment="Stretch"

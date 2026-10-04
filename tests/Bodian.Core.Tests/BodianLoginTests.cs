@@ -1,4 +1,5 @@
 using Bodian.Core.Api;
+using Bodian.Core.Models.Account;
 using Bodian.Core.Models.Login;
 using Bodian.Core.Services.Abstractions;
 using Bodian.Core.Services.Implementations;
@@ -288,6 +289,40 @@ public sealed class BodianLoginTests : IDisposable
         Assert.False(_login.TryRestorePersistedSession());
         Assert.False(_session.IsAuthenticated);
         Assert.False(_login.IsAuthenticated);
+    }
+
+    /// <summary>
+    /// <c>VipBadge</c> 是后加的字段，老凭据里没有它（读出来是 <c>None</c>）。
+    /// 直接采用会让老会话**一个会员图标都不显示**，所以按「是会员但档位认不出来」退回大会员。
+    /// </summary>
+    [Fact]
+    public void TryRestore_MemberWithoutBadge_FallsBackToBig()
+    {
+        _credentials.Save(new BodianCredential("50303440", "tok_secret", "小音波", IsVip: true));
+
+        Assert.True(_login.TryRestorePersistedSession());
+        Assert.Equal(VipBadgeKind.Big, _login.Account?.VipBadge);
+    }
+
+    /// <summary>非会员不该被这条回落误伤 —— 回落的前提是「确实是会员」。</summary>
+    [Fact]
+    public void TryRestore_NonMember_StaysWithoutBadge()
+    {
+        _credentials.Save(new BodianCredential("50303440", "tok_secret", "小音波", IsVip: false));
+
+        Assert.True(_login.TryRestorePersistedSession());
+        Assert.Equal(VipBadgeKind.None, _login.Account?.VipBadge);
+    }
+
+    /// <summary>凭据里存了档位就照用，不要被回落覆盖。</summary>
+    [Fact]
+    public void TryRestore_UsesStoredBadge()
+    {
+        _credentials.Save(new BodianCredential(
+            "50303440", "tok_secret", "小音波", IsVip: true, VipBadge: VipBadgeKind.Welfare));
+
+        Assert.True(_login.TryRestorePersistedSession());
+        Assert.Equal(VipBadgeKind.Welfare, _login.Account?.VipBadge);
     }
 
     [Fact]

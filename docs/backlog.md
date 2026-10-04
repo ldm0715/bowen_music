@@ -256,6 +256,39 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留（逆向结�
 其余为 `PlaylistApiTests` / `CollectionApiTests` / `ShareLinkTests` 的改写与补充）。
 界面验收与 `source=5` / `13` 的真机确认由用户手动进行。
 
+### 账号下拉框（2026-10-04）
+
+标题栏账号弹层从「头像 + 昵称 + 绿底 VIP 文字 + 退出登录」补成三块：**会员档位图标**、
+**关注歌手 / 听歌时长两列统计**、退出登录。
+
+- **胶囊** = 图标 + 档位名，按档位三选一，每档一套配色（大会员金 / 畅听会员银 / 福利会员浅绿，
+  见 `Themes/VipBadge.xaml`）。图标用 `<Path Stretch="Uniform">` 自绘 ——
+  **不能用 `PathIcon`**：它按几何原始尺寸出图、不缩放到 `Width`/`Height`，超出部分会被裁掉
+  （表现为皇冠只剩一半，实测踩过）。没用 APK 里的官方 PNG ——
+  `README.md` 的「非官方声明」禁止分发官方客户端的图标，这条红线与 license 无关。
+- **统计**两条接口此前都只有反编译证据，本轮用探针实测确认并落盘 fixture：
+  `service/users/{uid}/metadata`（关注 / 粉丝 / 关注歌手 / 获赞）与
+  `ucenter/playdata/user_data`（播放次数 + 听歌时长，**单位为秒**）。
+  桌面头 + 桌面签名直接通，不需要移动端签名。见
+  [14 号 findings](../reverse/findings/14-account-vip-badge-and-stats.md)。
+- 弹层**每次打开都重拉**（初版做成「一个会话只拉一次」，那是错的：点开一次之后永远显示旧数）。
+  拿不到时显示「—」，两个都没有则整块收掉。
+- **档位图标与到期时间也是实时的**：它们原本只是登录响应 `payInfo` 算出的快照，
+  登录期间会员变了界面不跟。现在每次打开多打一条 `ucenter/users/pub/{uid}`
+  （`data` 与登录响应同构），用它的 `payInfo` 重算；`users/pub` 拿不到时才退回凭据里的快照。
+  共 3 个请求，且**不改写凭据**。
+- 「关注」显示的是 **`followArtistCount`（关注的歌手数）**，不是 `followCount`（关注的用户数）。
+- 胶囊同一行跟一小字到期时间（只要日期）。数据来自登录响应 `payInfo` 的到期字段
+  （`VipStatus.LatestExpiry` 取最晚的一个），**没有为它新增接口**。
+- **老凭据的坑**：`VipBadge` 是后加的字段，改动之前写下的 `session.dat` 里没有它，
+  读出来是 `None`，会让老会话**一个图标都不显示**。`TryRestorePersistedSession` 因此加了回落：
+  是会员但档位认不出来时退回畅听档，**准确档位要重新登录一次才会写进凭据**。
+
+**档位判据已用两个账号校准**：大号（`vipType=1`）是大会员、小号（`vipType=2`）是福利会员，
+两者都是实测锚点。**踩过的坑**：最初只拿小号一份样本推，把 crown 分支认成了畅听会员 ——
+一份样本推不出映射。剩下 `payVipType==2` 的「畅听会员」一档没有账号可对照，
+是按排除法定的，见 [14 号 findings](../reverse/findings/14-account-vip-badge-and-stats.md) §1.4。
+
 ## 做事的规矩
 
 1. **动手前先说明要做什么**，尤其是外部请求、写操作、装工具、改配置。多步操作先给清单（含预计请求数/副作用），等确认再做

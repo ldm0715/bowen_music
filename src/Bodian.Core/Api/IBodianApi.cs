@@ -1,5 +1,6 @@
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
+using Bodian.Core.Models.Account;
 using Bodian.Core.Models.Home;
 using Bodian.Core.Models.Lyrics;
 
@@ -584,4 +585,35 @@ public interface IBodianApi
     /// <summary>v3 点赞或取消点赞（op=1/2）；回复的 parentId 为所属主评论 id。</summary>
     Task SetSongCommentLikeAsync(long musicId, long commentId, bool liked, long parentId = 0,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前账号的社交计数（关注数 / 粉丝数 / 关注歌手数 / 获赞数）。
+    /// </summary>
+    /// <returns>
+    /// 读取失败或服务端没给数据时返回 <c>null</c>，**不抛** —— 这是纯展示数据，
+    /// 一个计数拉不到不该让整个下拉框炸掉。未登录时抛 <see cref="InvalidOperationException"/>。
+    /// </returns>
+    /// <remarks>
+    /// <c>service/users/{uid}/metadata</c>。uid 由会话隐含，不给参数 —— 现在只有「我的账号」
+    /// 一处要用，将来做别人的主页再加带 uid 的重载。
+    /// </remarks>
+    Task<AccountMetadata?> GetAccountMetadataAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前账号的听歌统计（播放次数、听歌时长）。失败返回 <c>null</c>，不抛。
+    /// </summary>
+    /// <remarks>
+    /// <c>ucenter/playdata/user_data</c>。时长单位是秒，见 <see cref="ListenTimeLabel"/>。
+    /// </remarks>
+    Task<AccountPlayData?> GetAccountPlayDataAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前账号的会员档位与到期时间，**实时**。失败返回 <c>null</c>，不抛。
+    /// </summary>
+    /// <remarks>
+    /// <c>ucenter/users/pub/{uid}</c> 的 <c>payInfo</c>。登录时算出的
+    /// <c>BodianAccount.VipBadge</c> / <c>VipExpiresAt</c> 是**那一瞬间的快照**，
+    /// 登录期间不会变；这条用来在下拉框打开时重算，避免会员变了界面不跟。
+    /// </remarks>
+    Task<AccountVipInfo?> GetAccountVipInfoAsync(CancellationToken cancellationToken = default);
 }

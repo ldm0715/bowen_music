@@ -2,6 +2,7 @@ using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Lyrics;
 using Bodian.Core.Models;
+using Bodian.Core.Models.Account;
 using Bodian.Core.Models.Home;
 using Bodian.Core.Models.Lyrics;
 
@@ -210,6 +211,18 @@ internal sealed class PlaybackApiStub : IBodianApi
         public Task<PagedResult<Track>> GetBangTracksAsync(
             long bangId,
             PagedCursor cursor,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<AccountMetadata?> GetAccountMetadataAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<AccountPlayData?> GetAccountPlayDataAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<AccountVipInfo?> GetAccountVipInfoAsync(
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }

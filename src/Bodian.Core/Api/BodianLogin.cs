@@ -166,12 +166,21 @@ public sealed class BodianLogin : IBodianLogin
 
         _session.Set(credential.Uid, credential.Token);
 
+        // VipBadge 是后加的字段：老凭据里没有它，读出来是 None。
+        // 直接采用会让老会话一个图标都不显示，所以按「是会员但档位认不出来」处理 ——
+        // 退回大会员，与 VipStatus.ResolveBadge 的回落口径一致。
+        // 准确档位要等下一次登录才会写进凭据。
+        var badge = credential.IsVip && credential.VipBadge == VipBadgeKind.None
+            ? VipBadgeKind.Big
+            : credential.VipBadge;
+
         Account = new BodianAccount(
             credential.Uid,
             credential.Nickname,
             HttpUrl.TryParse(credential.AvatarUrl),
             credential.IsVip,
-            credential.VipExpiresAt);
+            credential.VipExpiresAt,
+            badge);
 
         RaiseAccountChanged();
 
@@ -213,13 +222,15 @@ public sealed class BodianLogin : IBodianLogin
         var uidText = uid.Value.ToString(CultureInfo.InvariantCulture);
         var userInfo = data.UserInfo;
         var (isVip, vipExpiresAt) = VipStatus.Resolve(data.PayInfo);
+        var vipBadge = VipStatus.ResolveBadge(data.PayInfo);
 
         var account = new BodianAccount(
             uidText,
             userInfo?.NickName,
             HttpUrl.TryParse(userInfo?.HeadImg),
             isVip,
-            vipExpiresAt);
+            vipExpiresAt,
+            vipBadge);
 
         // 先落盘再改内存会话：落盘失败宁可没有会话，也不要出现「内存里登录了、重启就没了」。
         // 头像与会员状态也一并存下来 —— 否则下次从磁盘恢复时界面就只剩一个昵称。
@@ -229,7 +240,8 @@ public sealed class BodianLogin : IBodianLogin
             account.Nickname,
             account.Avatar?.ToString(),
             account.IsVip,
-            account.VipExpiresAt));
+            account.VipExpiresAt,
+            account.VipBadge));
 
         _session.Set(uidText, data.Token);
         Account = account;

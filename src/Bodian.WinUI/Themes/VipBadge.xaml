@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    会员胶囊的三套配色：大会员金 / 畅听会员银 / 福利会员浅绿。
+
+    ★ 这里**不放进 Theme.xaml 的 ThemeDictionaries**，因为这三套是品牌色而不是主题色面：
+      浅底 + 深字的搭配在深浅两个主题下同样成立，不需要各写一遍。放进主题字典反而要
+      在 Light / Dark / HighContrast 三节里各抄一遍，还容易漏掉高对比度那一节
+      （漏了会在高对比度下解析失败，见 Theme.xaml 顶部的说明）。
+
+    每套都是「深字压浅底」，对比度均在 6:1 以上，高对比度模式下也可读。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 大会员：金 -->
+    <SolidColorBrush x:Key="VipBadgeBigBackgroundBrush" Color="#FFE0B24C" />
+    <SolidColorBrush x:Key="VipBadgeBigForegroundBrush" Color="#FF3B2A00" />
+
+    <!-- 畅听会员：银 -->
+    <SolidColorBrush x:Key="VipBadgeStandardBackgroundBrush" Color="#FFD3D9E2" />
+    <SolidColorBrush x:Key="VipBadgeStandardForegroundBrush" Color="#FF2A313C" />
+
+    <!-- 福利会员：浅绿 -->
+    <SolidColorBrush x:Key="VipBadgeWelfareBackgroundBrush" Color="#FFCBEBD6" />
+    <SolidColorBrush x:Key="VipBadgeWelfareForegroundBrush" Color="#FF113625" />
+
+</ResourceDictionary>

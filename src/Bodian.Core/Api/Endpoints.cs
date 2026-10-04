@@ -400,6 +400,52 @@ internal static class Endpoints
     /// <remarks>见文档 2.8：链接是客户端本地拼的，不走接口。</remarks>
     public const string ShareHost = "https://h5app.kuwo.cn/m/bodian/";
 
+    // ── 账号统计：已实测 ✅（2026-10-04，桌面头 + 桌面签名直接通）──────────────
+
+    /// <summary>
+    /// 账号的社交计数：关注数 / 粉丝数 / 关注歌手数 / 获赞数。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// uid <b>在路径上</b>（官方客户端拼 <c>"service/users/" + uid + "/metadata"</c>）。
+    /// 安卓那边另带一个 query <c>uid</c>，<b>本项目不用自己拼</b> —— 传输层对每个请求
+    /// 都补 <c>uid</c>，自己再加会得到重复键。
+    /// </para>
+    /// <para>响应字段见 <c>Dto/UserStatsPayloads.cs</c>；样本见 <c>fixtures/users-metadata.json</c>。</para>
+    /// </remarks>
+    public static string UserMetadata(long uid) =>
+        string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"service/users/{uid}/metadata");
+
+    /// <summary>
+    /// 用户公开资料。uid <b>在路径上</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 响应的 <c>data</c> 与登录响应<b>同构</b>（<c>id</c> / <c>userInfo</c> / <c>payInfo</c> /
+    /// <c>bid</c> / …），所以 <c>payInfo</c> 可以直接复用 <see cref="Dto.AccountPayInfoDto"/>。
+    /// </para>
+    /// <para>
+    /// 本项目只用它取<b>当前账号的会员档位与到期时间</b>——登录响应里的那两个值是一份快照，
+    /// 登录期间不会变；要「点开下拉框即最新」就得靠这条重取。
+    /// </para>
+    /// </remarks>
+    public static string UserPub(long uid) =>
+        string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"ucenter/users/pub/{uid}");
+
+    /// <summary>
+    /// 听歌统计：播放次数 + 听歌时长。参数只有 <c>userId</c>。
+    /// </summary>
+    /// <remarks>
+    /// 响应 <c>data</c> 直接是 <c>{playcnt, playTime}</c>，不套壳。
+    /// <c>playTime</c> 的<b>单位是秒</b>（实测 <c>186344 / 1110 ≈ 168</c> 秒/首），
+    /// 见 <c>Models/Account/ListenTimeLabel</c>；样本见 <c>fixtures/playdata-user-data.json</c>。
+    /// </remarks>
+    public const string UserPlayData = "ucenter/playdata/user_data";
+
     // ── 歌曲评论（android 请求头，读取、发布与点赞使用 v3）────────────────────────
 
     public const string SongCommentsRecommended = "comments/v3/hot";

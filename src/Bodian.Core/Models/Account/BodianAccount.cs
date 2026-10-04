@@ -23,9 +23,14 @@ namespace Bodian.Core.Models.Account;
 /// <param name="Avatar">头像地址。</param>
 /// <param name="IsVip">登录时是否会员。</param>
 /// <param name="VipExpiresAt">会员最晚到期时刻。</param>
+/// <param name="VipBadge">
+/// 会员档位。<b>后加的字段</b>，老凭据文件里没有它，读出来是 <see cref="VipBadgeKind.None"/> ——
+/// 界面回落到文字徽标。
+/// </param>
 public sealed record BodianAccount(
     string Uid,
     string? Nickname,
     Uri? Avatar,
     bool IsVip,
-    DateTimeOffset? VipExpiresAt);
+    DateTimeOffset? VipExpiresAt,
+    VipBadgeKind VipBadge = VipBadgeKind.None);

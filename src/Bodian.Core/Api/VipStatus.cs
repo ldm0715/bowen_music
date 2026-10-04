@@ -1,4 +1,5 @@
 using Bodian.Core.Api.Dto;
+using Bodian.Core.Models.Account;
 
 namespace Bodian.Core.Api;
 
@@ -45,6 +46,43 @@ internal static class VipStatus
             || payInfo.ActVipType > 0;
 
         return (isVip, LatestExpiry(payInfo));
+    }
+
+    /// <summary>
+    /// 判读该用哪一个会员徽标。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 分支结构照官方客户端 <c>vipLogo</c>（<c>vip_public_util.dart:0x104d70c</c>）：
+    /// <c>x3 == 1 ? (x2 == 2 ? ct : crown) : (x3 == 2 ? free : gray)</c>，
+    /// 其中 <c>x3 = vipType</c>、<c>x2 = payVipType</c>。
+    /// </para>
+    /// <para>
+    /// <b>档位名是实测校准过的</b>（见 <c>reverse/findings/14</c> §1）：
+    /// 本机账号（<c>vipType=1 / payVipType=1 / isBigVipBoolean=true</c>）在官方客户端是**大会员**，
+    /// 所以 <c>vipType==1</c> 这个 crown 分支就是大会员；<c>vipType==2</c> 的活动会员是福利会员。
+    /// 剩下 <c>payVipType==2</c> 的 ct 分支归畅听会员（该档本机没有可对照的账号）。
+    /// </para>
+    /// <para>
+    /// <b>是会员但档位认不出来时退回大会员，不画灰标</b>：灰标在安卓那边表达的是
+    /// 「没有会员」，拿它去标一个确实是会员的账号会读成相反的结论。退回 crown 分支
+    /// 也与反编译里「默认走 crown」的结构一致。
+    /// </para>
+    /// </remarks>
+    public static VipBadgeKind ResolveBadge(AccountPayInfoDto? payInfo)
+    {
+        if (payInfo is null || !Resolve(payInfo).IsVip)
+        {
+            return VipBadgeKind.None;
+        }
+
+        // 与安卓同序：先分 vipType，再看 payVipType 是不是畅听那一档。
+        if (payInfo.VipType == 1)
+        {
+            return payInfo.PayVipType == 2 ? VipBadgeKind.Standard : VipBadgeKind.Big;
+        }
+
+        return payInfo.VipType == 2 ? VipBadgeKind.Welfare : VipBadgeKind.Big;
     }
 
     /// <summary>

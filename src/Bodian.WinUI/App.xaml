@@ -19,6 +19,9 @@
                 <!-- 主题无关标量：尺寸 / 圆角 / 间距 / 字号 -->
                 <ResourceDictionary Source="ms-appx:///Themes/Tokens.xaml" />
 
+                <!-- 会员胶囊的三套品牌配色。与主题无关，理由见该文件顶部 -->
+                <ResourceDictionary Source="ms-appx:///Themes/VipBadge.xaml" />
+
                 <!-- 浅色 / 深色 / 高对比度三套颜色 -->
                 <ResourceDictionary Source="ms-appx:///Themes/Theme.xaml" />
 

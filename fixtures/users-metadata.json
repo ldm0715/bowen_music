@@ -1,0 +1,15 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "202711ee3543d0a6765963478fd5b24c",
+  "data": {
+    "praised": 0,
+    "followCount": 0,
+    "fansCount": 1,
+    "resourceCount": 0,
+    "followArtistCount": 23,
+    "privateFriendsCnt": 0
+  },
+  "profileId": "site",
+  "curTime": 1791078136114
+}

@@ -1,3 +1,5 @@
+using Bodian.Core.Models.Account;
+
 namespace Bodian.Core.Services.Abstractions;
 
 /// <summary>
@@ -20,13 +22,18 @@ namespace Bodian.Core.Services.Abstractions;
 /// 真正的播放权限永远以服务端返回的 <c>checkRight</c> 为准，这里只用于界面展示。
 /// </param>
 /// <param name="VipExpiresAt">会员到期时刻；服务端没给或为 0 时为 <c>null</c>。</param>
+/// <param name="VipBadge">
+/// 登录那一刻的会员档位。**后加的字段**，老凭据文件里没有它，读出来是
+/// <see cref="VipBadgeKind.None"/> —— 界面回落到文字徽标。与 <see cref="IsVip"/> 一样只是快照。
+/// </param>
 public sealed record BodianCredential(
     string Uid,
     string Token,
     string? Nickname,
     string? AvatarUrl = null,
     bool IsVip = false,
-    DateTimeOffset? VipExpiresAt = null)
+    DateTimeOffset? VipExpiresAt = null,
+    VipBadgeKind VipBadge = VipBadgeKind.None)
 {
     public bool IsAuthenticated => Uid.Length > 0 && Uid != "-1";
 }

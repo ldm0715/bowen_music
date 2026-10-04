@@ -6,6 +6,7 @@ using Bodian.Core.Api.Dto.Requests;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Lyrics;
 using Bodian.Core.Models;
+using Bodian.Core.Models.Account;
 using Bodian.Core.Models.Home;
 using Bodian.Core.Models.Lyrics;
 using Bodian.Core.Services;
@@ -1910,6 +1911,92 @@ public sealed class BodianApi : IBodianApi
             ? [.. categories.Select(c => new MusicCategory(c.Id, c.Name ?? ""))]
             : [],
     };
+
+    /// <inheritdoc />
+    public Task<AccountMetadata?> GetAccountMetadataAsync(CancellationToken cancellationToken = default)
+        => FetchAccountAsync(
+            Endpoints.UserMetadata(RequireUid()),
+            query: null,
+            BodianJsonContext.Default.UserMetadataDto,
+            dto => new AccountMetadata(dto.FollowCount, dto.FansCount, dto.FollowArtistCount, dto.Praised),
+            "账号统计",
+            cancellationToken);
+
+    /// <inheritdoc />
+    public Task<AccountPlayData?> GetAccountPlayDataAsync(CancellationToken cancellationToken = default)
+        => FetchAccountAsync(
+            Endpoints.UserPlayData,
+            query: [UidPair()],
+            BodianJsonContext.Default.UserPlayDataDto,
+            dto => new AccountPlayData(dto.PlayCount, dto.PlaySeconds),
+            "听歌统计",
+            cancellationToken);
+
+    /// <inheritdoc />
+    public Task<AccountVipInfo?> GetAccountVipInfoAsync(CancellationToken cancellationToken = default)
+        => FetchAccountAsync(
+            Endpoints.UserPub(RequireUid()),
+            query: null,
+            BodianJsonContext.Default.UserPubDto,
+            dto => new AccountVipInfo(
+                VipStatus.ResolveBadge(dto.PayInfo),
+                VipStatus.Resolve(dto.PayInfo).ExpiresAt),
+            "会员档位",
+            cancellationToken);
+
+    /// <summary>
+    /// 账号统计类读取的公共形状：**失败返回 <c>null</c>，不抛**。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="GetPlaylistInfoAsync"/> 同款口径。调用点是下拉框的 <c>Opening</c>，
+    /// 拉不到一个计数不该让整个下拉框炸掉。取消照常抛出。
+    /// </remarks>
+    private async Task<TModel?> FetchAccountAsync<TDto, TModel>(
+        string path,
+        IReadOnlyList<KeyValuePair<string, string>>? query,
+        JsonTypeInfo<TDto> typeInfo,
+        Func<TDto, TModel> map,
+        string operation,
+        CancellationToken cancellationToken)
+        where TDto : class
+        where TModel : class
+    {
+        try
+        {
+            var envelope = await _transport.SendAsync(
+                new BodianRequest
+                {
+                    Path = path,
+                    Query = query ?? [],
+                    Signed = true,
+                },
+                typeInfo,
+                cancellationToken).ConfigureAwait(false);
+
+            return envelope.Data is { } dto ? map(dto) : null;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "读取{Operation}失败", operation);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 会话 uid 的数字形态。<b>路径里要数字</b>，非数字说明会话被写坏了。
+    /// </summary>
+    private long RequireUid()
+    {
+        RequireAuthenticated();
+
+        return long.TryParse(_session.Uid, NumberStyles.None, CultureInfo.InvariantCulture, out var uid)
+            ? uid
+            : throw new InvalidOperationException($"会话 uid 不是数字：{_session.Uid}");
+    }
 
     /// <summary>
     /// 账号类查询的 <c>userId</c>。

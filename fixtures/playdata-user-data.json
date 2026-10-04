@@ -1,0 +1,14 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "ed8d12208e1ec00cf6da3f2ceccc06ef",
+  "data": {
+    "playTime": 186344,
+    "playcnt": 1110,
+    "regTime": 1754561129000,
+    "visitCnt": 0,
+    "newVisitCnt": 0
+  },
+  "profileId": "site",
+  "curTime": 1791078143558
+}

@@ -278,6 +278,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private void OnThemeFlyoutOpening(object sender, object args) => SyncThemeSelection();
 
+    /// <summary>
+    /// 账号下拉框打开时补拉统计。
+    /// </summary>
+    /// <remarks>
+    /// <b>不 await</b>：Opening 是同步事件，这里等一个网络往返会把下拉框卡住。
+    /// 异常由 <see cref="AccountViewModel.RefreshStatsAsync"/> 自己吞掉 ——
+    /// 漏出去会变成 UnobservedTaskException，被 App 记成 Critical 日志。
+    /// </remarks>
+    private void OnAccountFlyoutOpening(object sender, object args) => _ = Account.RefreshStatsAsync();
+
     private void SyncThemeSelection() => ThemeOptions.SelectedItem = Theme.Current switch
     {
         AppTheme.Light => LightThemeOption,
