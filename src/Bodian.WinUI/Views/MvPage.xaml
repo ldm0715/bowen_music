@@ -118,8 +118,13 @@
                 </Slider>
 
                 <Grid Grid.Row="1" Margin="0,8,0,0">
-                    <TextBlock x:Name="PositionText" HorizontalAlignment="Left" VerticalAlignment="Center"
-                        FontSize="12" Foreground="#CCFFFFFF" Text="0:00" />
+                    <!--
+                        当前与总时长贴在一起写成一串。原来总时长挂在右边那簇控件最左，
+                        离当前位置隔了大半个窗口，读的时候要横跨整条控制条去对。
+                        格式与播放条、歌词页那两处一致：「当前 / 总」。
+                    -->
+                    <TextBlock x:Name="ProgressTimeText" HorizontalAlignment="Left" VerticalAlignment="Center"
+                        FontSize="12" Foreground="#CCFFFFFF" Text="0:00 / 0:00" />
                     <Button x:Name="PlayPauseButton" HorizontalAlignment="Center" Click="OnPlayPauseClick"
                         Style="{StaticResource PlayerAccentButtonStyle}"
                         IsEnabled="{x:Bind ViewModel.HasSource, Mode=OneWay}"
@@ -136,9 +141,6 @@
                         而 MV 走的是另一套引擎（MediaPlayer），音量是独立的。滑条直接绑 MV 自己的 Volume。
                     -->
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock x:Name="DurationText" VerticalAlignment="Center"
-                            FontSize="12" Foreground="#80FFFFFF" Text="0:00" />
-
                         <!-- 音/视频互切：同一首曲子翻回「只听」。与右边那颗同样是文字按钮。 -->
                         <Button x:Name="SwitchToAudioButton" Click="OnSwitchToAudioClick"
                             Background="Transparent" BorderThickness="0" Padding="10,4" CornerRadius="6"

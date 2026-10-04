@@ -250,13 +250,13 @@ public sealed partial class MvPage : Page, INavigationAware
 
     private void UpdateTimes()
     {
-        if (PositionText is null || DurationText is null)
+        if (ProgressTimeText is null)
         {
             return;
         }
 
-        PositionText.Text = Formats.Seconds(_viewModel.PositionSeconds);
-        DurationText.Text = Formats.Seconds(_viewModel.DurationSeconds);
+        ProgressTimeText.Text =
+            $"{Formats.Seconds(_viewModel.PositionSeconds)} / {Formats.Seconds(_viewModel.DurationSeconds)}";
     }
 
     // ── 进度 ────────────────────────────────────────────────────────────────
