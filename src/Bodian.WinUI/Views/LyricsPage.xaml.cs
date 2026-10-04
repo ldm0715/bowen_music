@@ -279,6 +279,35 @@ public sealed partial class LyricsPage : Page, INavigationAware
             }
         }
         if (args.PropertyName == nameof(PlayerViewModel.Title) && Comments.IsOpen) Comments.SongTitle = Player.Title;
+
+        // 付费徽标出现/消失会占掉一截宽度，上限跟着变。
+        if (args.PropertyName == nameof(PlayerViewModel.HasPayLabel)) UpdateHeadingWidth();
+    }
+
+    private void OnHeadingHostSizeChanged(object sender, SizeChangedEventArgs e) => UpdateHeadingWidth();
+
+    /// <summary>
+    /// 标题的宽度上限。**在代码里算，不用 <c>x:Bind</c> 绑 <c>ActualWidth</c>。**
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与播放条那处同一个病：<c>x:Bind</c> 对 <c>ActualWidth</c> 的依赖属性回调
+    /// **在首轮测量（宽度还是 0）之后没有再触发**，函数绑定就停在下限 160px（约 11 个字）上，
+    /// 十来个字的标题也被截 —— 实测「想把我唱给你听——老狼&amp;王婧」（2026-10-04）。
+    /// </para>
+    /// <para>
+    /// 首轮布局与每次尺寸变化都会走到这里，算出来的才是真的。宽度还没量到时直接返回，
+    /// 免得把 0 当成真实宽度算出下限。
+    /// </para>
+    /// </remarks>
+    private void UpdateHeadingWidth()
+    {
+        if (HeadingHost.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        HeadingTitle.MaxWidth = Formats.LyricsHeadingMaxWidth(HeadingHost.ActualWidth, Player.HasPayLabel);
     }
 
     private void UpdateCoverScale()

@@ -50,7 +50,7 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
-        <Grid Grid.Row="1" MinHeight="78" Padding="20,12" ColumnSpacing="16">
+        <Grid x:Name="TransportRow" Grid.Row="1" MinHeight="78" Padding="20,12" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -88,9 +88,12 @@
                     -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left"
                         Spacing="{x:Bind local:Formats.PlayerBadgeSpacing}">
-                        <TextBlock MinWidth="0" VerticalAlignment="Center" FontSize="{StaticResource FontSizeBodyLarge}"
+                        <!--
+                            宽度上限由 code-behind 在尺寸变化时设（UpdateTitleWidth），**不在这里绑** ——
+                            原因见那个方法的说明（绑 ActualWidth 的回调不触发，会把上限锁死在下限）。
+                        -->
+                        <TextBlock x:Name="TitleText" MinWidth="0" VerticalAlignment="Center" FontSize="{StaticResource FontSizeBodyLarge}"
                             FontWeight="SemiBold" Text="{x:Bind ViewModel.Title, Mode=OneWay}"
-                            MaxWidth="{x:Bind local:Formats.PlayerTitleMaxWidth(SongInfo.ActualWidth, ViewModel.IsAudition, ViewModel.HasPayLabel), Mode=OneWay}"
                             ToolTipService.ToolTip="{x:Bind ViewModel.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
                         <Border Padding="6,1" VerticalAlignment="Center"
                             Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" CornerRadius="4"

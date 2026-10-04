@@ -36,7 +36,24 @@ public static class Formats
     /// <b>徽标宽度是按字号 11 + 左右内边距 6 估的</b>，改徽标样式时要一起改，否则又会被顶出去。
     /// </para>
     /// </remarks>
-    public static double PlayerTitleMaxWidth(double infoBlockWidth, bool hasAuditionBadge, bool hasPayBadge)
+    /// <param name="rowColumnWidth">
+    /// 播放条那一行**左栏**的实际宽度（<c>PlayerBar.xaml</c> 里
+    /// <c>TransportRow.ColumnDefinitions[0].ActualWidth</c>）。
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// ★ <b>入参不能是信息块自己的宽度。</b> 信息块是内容自适应的
+    /// （<c>HorizontalAlignment="Left"</c>，徽标才会紧跟曲名），它的宽度反过来取决于曲名被限到多宽 ——
+    /// 拿它当上限就成了循环：首轮测量时是 0，落在下面的下限上之后再涨不回来。
+    /// 曾经因此把**每一首歌名**都卡在 4 个字（2026-10-04 发现）。
+    /// 左栏宽度由窗口决定、与内容无关，用它才稳定。
+    /// </para>
+    /// <para>
+    /// 徽标宽度按「字号 11 + 左右内边距 6」估（见 <c>PlayerBar.xaml</c> 里那两个 Border）；
+    /// <c>PlayerInfoBlockChrome</c> 那几项同理，改 <c>PlayerBar.xaml</c> 时要一起改。
+    /// </para>
+    /// </remarks>
+    public static double PlayerTitleMaxWidth(double rowColumnWidth, bool hasAuditionBadge, bool hasPayBadge)
     {
         // 徽标宽度是按「字号 11 + 左右内边距 6」估的（见 PlayerBar.xaml 里那两个 Border），
         // 改徽标样式时要一起改，否则又会被顶出去。
@@ -54,8 +71,21 @@ public static class Formats
             used += hasAuditionBadge ? badge + PlayerBadgeSpacing : badge;
         }
 
-        return Math.Max(60, infoBlockWidth - used);
+        var infoBlock = Math.Min(PlayerInfoBlockMaxWidth, rowColumnWidth) - PlayerInfoBlockChrome;
+        return Math.Max(60, infoBlock - used);
     }
+
+    /// <summary>信息块能占的最大宽度。与 <c>PlayerBar.xaml</c> 里 <c>TrackInfoGroup.MaxWidth</c> 一致。</summary>
+    public static double PlayerInfoBlockMaxWidth => 376;
+
+    /// <summary>
+    /// 信息块里除曲名之外的固定占位：封面 48 + 两段列间距 12×2 + 收藏/分享各 32 + 间距 4。
+    /// </summary>
+    /// <remarks>
+    /// 这几项都写在 <c>PlayerBar.xaml</c> 里，改那边时要一起改 —— 数值估错的表现是
+    /// 曲名把徽标或统计按钮顶出去。
+    /// </remarks>
+    private const double PlayerInfoBlockChrome = 48 + 12 + 12 + 32 + 32 + 4;
 
     /// <summary>
     /// 歌词页标题行曲名的最大宽度：标题行可用宽度减去付费徽标与行内间距。

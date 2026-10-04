@@ -49,7 +49,11 @@ public sealed partial class PlayerBar : UserControl
         PositionSlider.LostFocus += (_, _) => UpdateProgressAppearance();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
-        SizeChanged += (_, _) => ClosePopups();
+        SizeChanged += (_, _) =>
+        {
+            ClosePopups();
+            UpdateTitleWidth();
+        };
     }
 
     public PlayerViewModel ViewModel { get; }
@@ -89,7 +93,38 @@ public sealed partial class PlayerBar : UserControl
         }
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => ViewModel.PropertyChanged += OnPlayerPropertyChanged;
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        ViewModel.PropertyChanged += OnPlayerPropertyChanged;
+        UpdateTitleWidth();
+    }
+
+    /// <summary>
+    /// 曲名的宽度上限。**在代码里算，不用 <c>x:Bind</c> 绑 <c>ActualWidth</c>。**
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 实测 <c>x:Bind</c> 对 <c>ActualWidth</c> 的依赖属性回调**在首轮测量（宽度还是 0）之后
+    /// 没有再触发**，函数绑定就停在下限上不走了 —— 表现是**每首歌名都被截到 4 个字**
+    /// （2026-10-04 发现：「答应不爱你」显示成「答应不…」）。同样的写法在 MV 页与歌词页的
+    /// 标题上也用过，那两处同样是坏的。
+    /// </para>
+    /// <para>
+    /// 尺寸变化与首次布局都会走到这里，算出来的才是真的。列宽还没量到时直接返回，
+    /// 免得把 0 当成真实宽度算出下限。
+    /// </para>
+    /// </remarks>
+    private void UpdateTitleWidth()
+    {
+        var columnWidth = TransportRow.ColumnDefinitions[0].ActualWidth;
+        if (columnWidth <= 0)
+        {
+            return;
+        }
+
+        TitleText.MaxWidth = Formats.PlayerTitleMaxWidth(
+            columnWidth, ViewModel.IsAudition, ViewModel.HasPayLabel);
+    }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
@@ -110,6 +145,12 @@ public sealed partial class PlayerBar : UserControl
         if (e.PropertyName == nameof(PlayerViewModel.DurationSeconds) && ProgressTimePopup.IsOpen)
         {
             UpdateProgressTime();
+        }
+
+        // 徽标出现/消失会占掉一截宽度，上限跟着变。
+        if (e.PropertyName is nameof(PlayerViewModel.IsAudition) or nameof(PlayerViewModel.HasPayLabel))
+        {
+            UpdateTitleWidth();
         }
     }
 

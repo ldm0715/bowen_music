@@ -74,16 +74,17 @@
                     </Button>
                 </TitleBar.RightHeader>
             </TitleBar>
-            <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top" IsHitTestVisible="False">
+            <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top"
+                IsHitTestVisible="False" SizeChanged="OnHeadingHostSizeChanged">
                 <StackPanel VerticalAlignment="Center" Spacing="1">
                     <!--
                         标题与付费徽标放同一个横向 StackPanel，徽标才会紧跟标题。
                         用 `*`/`Auto` 两列时 `*` 列会吃满标题行，徽标被推到最右边、和标题拉开一大截。
-                        代价是 StackPanel 不约束子元素，标题要自己带上限（见 MaxWidth）。
+                        代价是 StackPanel 不约束子元素，标题要自己带上限 ——
+                        **上限由 code-behind 在尺寸变化时设，不在这里绑**，原因见 UpdateHeadingWidth。
                     -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                        <TextBlock Text="{x:Bind SongHeading(Player.Title, Player.ArtistText), Mode=OneWay}"
-                            MaxWidth="{x:Bind local:Formats.LyricsHeadingMaxWidth(HeadingHost.ActualWidth, Player.HasPayLabel), Mode=OneWay}"
+                        <TextBlock x:Name="HeadingTitle" Text="{x:Bind SongHeading(Player.Title, Player.ArtistText), Mode=OneWay}"
                             TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="SemiBold"
                             VerticalAlignment="Center" Foreground="#CCFFFFFF" />
                         <Border x:Name="PayBadge" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
