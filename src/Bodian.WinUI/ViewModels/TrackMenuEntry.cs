@@ -30,8 +30,12 @@ public sealed partial class TrackMenuEntry : ObservableObject
 {
     public required TrackMenuAction Action { get; init; }
 
+    /// <summary>
+    /// 图标在 <c>Themes/Icons.xaml</c> 里的**资源键**（形如 <c>IconHeart</c>），不是路径、不是码位。
+    /// XAML 用 <c>Formats.IconPaths</c> 把键换成路径文本。
+    /// </summary>
     [ObservableProperty]
-    public partial string Glyph { get; set; } = "";
+    public partial string IconKey { get; set; } = "";
 
     [ObservableProperty]
     public partial string Text { get; set; } = "";

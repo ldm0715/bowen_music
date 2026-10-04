@@ -492,7 +492,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         var wasOpen = Comments.IsOpen;
         Comments.Close();
-        if (wasOpen && restoreFocus) CommentsButton.FocusButton(FocusState.Keyboard);
+        // ★ 用 Programmatic 而不是 Keyboard：Keyboard 会画出焦点框，收起评论后那颗按钮上
+        //   留一圈光圈，看着像选中态没清掉。Programmatic 同样把焦点移回去（键盘继续往下走不受影响），
+        //   只是不画那圈框。
+        if (wasOpen && restoreFocus) CommentsButton.FocusButton(FocusState.Programmatic);
         ScheduleChromeHide();
     }
 

@@ -46,6 +46,13 @@
                         <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
                             HorizontalAlignment="Left" Margin="16,0,0,0"
                             AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
+                            <Button.Resources>
+                                <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                    盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                            </Button.Resources>
+
                             <controls:Icon Data="{StaticResource IconChevronDown}" Size="{StaticResource SizeIconMd}" />
                         </Button>
                     </Grid>
@@ -56,6 +63,13 @@
                 <TitleBar.RightHeader>
                     <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
                         AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
+                        <Button.Resources>
+                            <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
+
                         <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
                     </Button>
                 </TitleBar.RightHeader>
@@ -211,6 +225,13 @@
                         HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
                         IsEnabled="{x:Bind Player.CanChangeQuality, Mode=OneWay}" AutomationProperties.Name="音质切换"
                         ToolTipService.ToolTip="{x:Bind Player.QualityText, Mode=OneWay}">
+                        <Button.Resources>
+                            <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
+
                         <controls:AudioQualityChip
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Center"

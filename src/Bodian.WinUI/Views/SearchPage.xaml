@@ -86,13 +86,7 @@
                         Text="{x:Bind OrdinalText}"
                         Visibility="{x:Bind IndexVisibility, Mode=OneWay}" />
 
-                    <FontIcon
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                        Glyph="&#xE768;"
-                        Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
+                    <controls:Icon HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}" Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" Size="14" Data="{StaticResource IconPlay}" />
 
                     <controls:PlayingBars
                         HorizontalAlignment="Center"

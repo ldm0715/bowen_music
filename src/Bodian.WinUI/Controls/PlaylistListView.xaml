@@ -54,10 +54,7 @@
                             Background="#99000000"
                             CornerRadius="0,0,4,4"
                             Visibility="{x:Bind local:Formats.Visible(IsPrivate)}">
-                            <FontIcon
-                                FontSize="9"
-                                Foreground="White"
-                                Glyph="&#xE72E;" />
+                            <controls:Icon Foreground="White" Size="9" Data="{StaticResource IconRemove}" />
                         </Border>
                     </Grid>
 

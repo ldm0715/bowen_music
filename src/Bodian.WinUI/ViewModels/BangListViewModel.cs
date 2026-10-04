@@ -169,13 +169,13 @@ public sealed class BangSectionViewModel : ObservableCollection<BangItemViewMode
 
             _isExpanded = value;
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(IsExpanded)));
-            OnPropertyChanged(new PropertyChangedEventArgs(nameof(IconGlyph)));
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(IconKey)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderAutomationName)));
         }
     }
 
     /// <summary>表头左边的折叠箭头。展开时朝下、收起时朝右。</summary>
-    public string IconGlyph => IsExpanded ? "\uE70D" : "\uE76C";
+    public string IconKey => IsExpanded ? "IconChevronDown" : "IconChevronRight";
 
     /// <summary>
     /// 表头的无障碍名称。

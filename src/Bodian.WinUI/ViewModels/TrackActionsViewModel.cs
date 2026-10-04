@@ -26,25 +26,25 @@ namespace Bodian.WinUI.ViewModels;
 public sealed partial class TrackActionsViewModel : ObservableObject
 {
     /// <summary>空心心形。与播放条上那颗喜欢按钮同一对码位。</summary>
-    private const string UnlikedGlyph = "\uEB51";
+    private const string UnlikedIcon = "IconHeart";
 
     /// <summary>实心心形。</summary>
-    private const string LikedGlyph = "\uEB52";
+    private const string LikedIcon = "IconHeartFilled";
 
     /// <summary>加号。「添加到歌单」用它。</summary>
-    private const string AddToPlaylistGlyph = "\uE710";
+    private const string AddToPlaylistIcon = "IconAdd";
 
     /// <summary>人像轮廓，与搜索页的歌手结果同一个意象。</summary>
-    private const string ArtistGlyph = "\uE77B";
+    private const string ArtistIcon = "IconPerson";
 
     /// <summary>唱片。</summary>
-    private const string AlbumGlyph = "\uE8FD";
+    private const string AlbumIcon = "IconAlbum";
 
     /// <summary>下一首。与播放条上那颗「下一首」同一码位。</summary>
-    private const string PlayNextGlyph = "\uE893";
+    private const string PlayNextIcon = "IconNext";
 
     /// <summary>播放列表。与播放条上那颗「播放列表」同一码位。</summary>
-    private const string AddToQueueGlyph = "\uE142";
+    private const string AddToQueueIcon = "IconQueue";
 
     private readonly Track _track;
     private readonly IBodianApi _api;
@@ -57,42 +57,42 @@ public sealed partial class TrackActionsViewModel : ObservableObject
     private readonly TrackMenuEntry _favoriteEntry = new()
     {
         Action = TrackMenuAction.Favorite,
-        Glyph = UnlikedGlyph,
+        IconKey = UnlikedIcon,
         Text = "我喜欢",
     };
 
     private readonly TrackMenuEntry _playNextEntry = new()
     {
         Action = TrackMenuAction.PlayNext,
-        Glyph = PlayNextGlyph,
+        IconKey = PlayNextIcon,
         Text = "下一首播放",
     };
 
     private readonly TrackMenuEntry _addToQueueEntry = new()
     {
         Action = TrackMenuAction.AddToQueue,
-        Glyph = AddToQueueGlyph,
+        IconKey = AddToQueueIcon,
         Text = "加入播放队列",
     };
 
     private readonly TrackMenuEntry _playlistEntry = new()
     {
         Action = TrackMenuAction.AddToPlaylist,
-        Glyph = AddToPlaylistGlyph,
+        IconKey = AddToPlaylistIcon,
         Text = "添加到歌单",
     };
 
     private readonly TrackMenuEntry _artistEntry = new()
     {
         Action = TrackMenuAction.Artist,
-        Glyph = ArtistGlyph,
+        IconKey = ArtistIcon,
         Text = "查看歌手",
     };
 
     private readonly TrackMenuEntry _albumEntry = new()
     {
         Action = TrackMenuAction.Album,
-        Glyph = AlbumGlyph,
+        IconKey = AlbumIcon,
         Text = "查看专辑",
     };
 
@@ -452,7 +452,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
 
     private void UpdateFavoriteEntry()
     {
-        _favoriteEntry.Glyph = IsLiked ? LikedGlyph : UnlikedGlyph;
+        _favoriteEntry.IconKey = IsLiked ? LikedIcon : UnlikedIcon;
         _favoriteEntry.Text = IsLiked ? "取消喜欢" : "我喜欢";
     }
 }

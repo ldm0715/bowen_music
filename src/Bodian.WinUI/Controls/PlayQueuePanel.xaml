@@ -62,7 +62,7 @@
                 Click="OnCloseClick"
                 CornerRadius="{StaticResource RadiusSm}"
                 ToolTipService.ToolTip="收起">
-                <FontIcon FontSize="12" Glyph="&#xE711;" />
+                <controls:Icon Size="12" Data="{StaticResource IconDismiss}" />
             </Button>
         </Grid>
 
@@ -160,7 +160,7 @@
                                 IsEnabled="{x:Bind CanRemove, Mode=OneWay}"
                                 ToolTipService.ToolTip="从播放队列中移除"
                                 VerticalAlignment="Center">
-                                <FontIcon FontSize="12" Glyph="&#xE711;" />
+                                <controls:Icon Size="12" Data="{StaticResource IconDismiss}" />
                             </Button>
                         </Grid>
                     </DataTemplate>

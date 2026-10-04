@@ -88,9 +88,8 @@
                         CornerRadius="{StaticResource ControlCornerRadius}"
                         MinWidth="0">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon
-                                FontSize="14"
-                                Glyph="{x:Bind local:Formats.FollowGlyph(ViewModel.IsFollowed), Mode=OneWay}" />
+                            <controls:Icon Size="14"
+                                Data="{x:Bind local:Formats.FollowIcon(ViewModel.IsFollowed), Mode=OneWay}" />
                             <TextBlock Text="{x:Bind local:Formats.FollowLabel(ViewModel.IsFollowed), Mode=OneWay}" />
                         </StackPanel>
                     </Button>
@@ -102,7 +101,7 @@
                         CornerRadius="{StaticResource ControlCornerRadius}"
                         MinWidth="0">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon FontSize="14" Glyph="&#xE72D;" />
+                            <controls:Icon Size="14" Data="{StaticResource IconShare}" />
                             <TextBlock Text="分享" />
                         </StackPanel>
                     </Button>

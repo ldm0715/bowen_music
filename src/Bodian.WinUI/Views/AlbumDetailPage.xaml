@@ -97,7 +97,7 @@
                         Command="{x:Bind ViewModel.PlayAllCommand}"
                         Style="{StaticResource AccentButtonStyle}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon FontSize="14" Glyph="&#xE768;" />
+                            <controls:Icon Size="14" Data="{StaticResource IconPlay}" />
                             <TextBlock Text="播放全部" />
                         </StackPanel>
                     </Button>
@@ -110,9 +110,8 @@
                         AutomationProperties.Name="收藏"
                         Click="OnCollectClick">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon
-                                FontSize="14"
-                                Glyph="{x:Bind local:Formats.CollectGlyph(ViewModel.IsCollected), Mode=OneWay}" />
+                            <controls:Icon Size="14"
+                                Data="{x:Bind local:Formats.CollectIcon(ViewModel.IsCollected), Mode=OneWay}" />
                             <TextBlock Text="{x:Bind local:Formats.CollectLabel(ViewModel.IsCollected), Mode=OneWay}" />
                         </StackPanel>
                     </Button>
@@ -121,7 +120,7 @@
                         AutomationProperties.Name="分享"
                         Command="{x:Bind ViewModel.ShareCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon FontSize="14" Glyph="&#xE72D;" />
+                            <controls:Icon Size="14" Data="{StaticResource IconShare}" />
                             <TextBlock Text="分享" />
                         </StackPanel>
                     </Button>

@@ -56,7 +56,6 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-
             <!-- 左右两栏等宽，播放按钮始终位于窗口正中。 -->
             <Grid x:Name="TrackInfoGroup" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                 MaxWidth="376" MinWidth="0" ColumnSpacing="12">
@@ -231,6 +230,13 @@
                     IsEnabled="{x:Bind ViewModel.CanChangeQuality, Mode=OneWay}"
                     Style="{StaticResource PlayerRoundIconButtonStyle}"
                     ToolTipService.ToolTip="{x:Bind ViewModel.QualityText, Mode=OneWay}">
+                    <Button.Resources>
+                        <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                            盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                    </Button.Resources>
+
                     <!-- 音质按钮回到扁平药丸那一版：36 宽、圆角 8，胶囊横向撑满、纵向居中。 -->
                     <controls:AudioQualityChip
                         HorizontalAlignment="Stretch"
@@ -257,6 +263,13 @@
                     IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
                     Style="{StaticResource PlayerRoundIconButtonStyle}"
                     ToolTipService.ToolTip="歌词">
+                    <Button.Resources>
+                        <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                            盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                    </Button.Resources>
+
                     <!-- 歌词页入口：矢量路径，与旁边音量同尺寸，不再需要字号补偿。 -->
                     <controls:Icon Data="{StaticResource IconLyrics}" Size="16" />
                 </Button>

@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 
@@ -23,7 +24,29 @@ namespace Bodian.WinUI.Controls;
 /// </remarks>
 internal static class IconGeometry
 {
-    /// <summary>把路径文本转成几何；文本为空或转换失败时返回 <c>null</c>（图标画成空白）。</summary>
+    /// <summary>
+    /// 按资源键取路径文本；键不存在时返回空串（图标画成空白）。
+    /// </summary>
+    /// <remarks>
+    /// 给「XAML 里写不出 <c>{StaticResource}</c>」的场合用 —— 图标由 ViewModel 按状态选。
+    /// 见 <see cref="Bodian.WinUI.Formats.IconPaths"/>。
+    /// </remarks>
+    internal static string Paths(string? key)
+        => !string.IsNullOrEmpty(key)
+            && Application.Current is { } app
+            && app.Resources.TryGetValue(key, out var value)
+            && value is string pathData
+                ? pathData
+                : "";
+
+    /// <summary>
+    /// 把路径文本转成几何；文本为空或转换失败时返回 <c>null</c>（那颗图标画成空白）。
+    /// </summary>
+    /// <remarks>
+    /// 两条路：先走 XAML 的类型转换器（快，通常就够）；拿不到再退回 <see cref="XamlReader"/> 直接
+    /// 解析一次 —— 后者就是资源字典里 <c>&lt;Geometry&gt;M ...&lt;/Geometry&gt;</c> 当年走过的那条路，
+    /// 确定能吃路径简写，作为兜底不会白屏。
+    /// </remarks>
     internal static Geometry? From(string? pathData)
     {
         if (string.IsNullOrWhiteSpace(pathData))
@@ -33,11 +56,23 @@ internal static class IconGeometry
 
         try
         {
-            return XamlBindingHelper.ConvertValue(typeof(Geometry), pathData) as Geometry;
+            if (XamlBindingHelper.ConvertValue(typeof(Geometry), pathData) is Geometry converted)
+            {
+                return converted;
+            }
         }
         catch (Exception)
         {
-            // 路径文本有问题时不让它炸主窗口：那颗图标留空，别的地方照常。
+            // 落到下面的兜底；两条都不行时返回 null，不让它炸主窗口。
+        }
+
+        try
+        {
+            var xaml = $"<Geometry xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\">{pathData}</Geometry>";
+            return XamlReader.Load(xaml) as Geometry;
+        }
+        catch (Exception)
+        {
             return null;
         }
     }

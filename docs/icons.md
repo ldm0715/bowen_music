@@ -169,12 +169,30 @@ WinUI **不提供图标库**。它只有 `SymbolIcon` / `FontIcon` 两条路，�
 
 每步一个提交，可独立验收。
 
-1. **基建** —— 新建 `Themes/Icons.xaml` + `Controls/Icon`；把现有的三个播放模式路径迁进来（观感不变，
-   纯粹换存放位置）；`App.xaml` 注册字典。
-2. **播放条 + 歌词页** —— 用户最先看到、也是现在补丁最密的地方（「词」和音量那两条 `Margin` 在这个
-   阶段删掉）。这一步做完，「对不齐 / 调不了大小」应当肉眼可见地消失。
-3. **曲目列表 + 工具栏 + 评论面板**。
-4. **侧栏 + 标题栏 + 账号菜单 + 其余页面**。
+| 步 | 内容 | 状态 |
+| --- | --- | --- |
+| 1 | 基建：`Themes/Icons.xaml` + `Controls/Icon` + `IconGeometry`；现有三颗播放模式路径迁入 | ✅ |
+| 2 | 播放条 + 歌词页（补丁最密的地方，那两条 `Margin` 补偿删掉） | ✅ |
+| 3 | 曲目列表 + 工具栏 + 评论面板 | ✅ |
+| 4 | 侧栏 + 标题栏 + 其余页面 + 动态字形（收藏/关注/主题/展开箭头/曲目菜单） | ✅ |
+
+**完成后全项目状态**：`Themes/Icons.xaml` 42 条路径；XAML 里 `FontIcon` 0 处；
+C# 里码位字符串 0 处；构建 0 错误 0 警告；1062 项离线测试通过。
+图标几何转换有一条启动自检记录（成功 30 / 失败 0），验证后已撤掉。
+
+### 4.1 动态字形怎么接
+
+有 6 处图标由 ViewModel 按状态选，XAML 里写不出 `{StaticResource}`。做法是
+**ViewModel 只给出资源键**（如 `IconHeart`），XAML 用 `Formats.IconPaths(key)` 换成路径文本
+（见 §5 里为什么不能函数套函数）。
+
+| 位置 | ViewModel 侧 | XAML 侧 |
+| --- | --- | --- |
+| 收藏两态（专辑 / 歌单） | — | `Formats.CollectIcon(bool?)` |
+| 关注两态 | — | `Formats.FollowIcon(bool?)` |
+| 主题三态 | `ThemeViewModel.CurrentIcon` | `Formats.IconPaths(...)` |
+| 榜单展开箭头 | `BangListViewModel.IconKey` | 同上 |
+| 曲目「更多」菜单 | `TrackMenuEntry.IconKey` | 同上 |
 
 ---
 
@@ -204,6 +222,25 @@ WinUI **不提供图标库**。它只有 `SymbolIcon` / `FontIcon` 两条路，�
   生成的 `*.g.cs` 还在按旧类型转换，报一堆 `CS1503 无法从 string 转换为 Geometry`，
   夹杂 `WMC9999 未将对象引用设置到对象的实例`。**清掉 `obj/` 重建**才恢复
   （清 `obj` 会连 `project.assets.json` 一起删掉，要重新还原一次包）。
+- ★ **`x:Bind` 的函数绑定不支持函数套函数**（实施时踩到）。
+  `Data="{x:Bind Formats.IconPaths(Formats.CollectIconKey(x))}"` 生成的是缺参数的代码，
+  编译期报一堆 `CS0103: 名称 p0 不存在` / `obj 不存在`，报错指在 `*.g.cs` 里，看不出是哪儿。
+  **两级要合成一个函数**（`Formats.CollectIcon(bool?)` 内部自己去查资源）。
+- **`MenuFlyoutItem.Icon` 只接受 `IconElement`**：我们的 `Controls/Icon` 是 `UserControl`，塞不进去。
+  这类位置（歌单的「编辑 / 删除」两项）沿用 `PathIcon` —— 实测 **`PathIcon.Data="{StaticResource IconX}`
+  吃字符串资源是可以的**，XAML 解析器会做那一次转换。（P.S. `PathIcon` 不会按 `Width/Height` 缩放，
+  所以它只用在菜单里这种固定尺寸的场合。）
+- **`Geometry` 来自资源不行，但 `PathIcon.Data="M ..."` 这种字面量一直是可以的** ——
+  这是两者的分界：字面量走类型转换器，资源引用走的是另一条路。
+- ★★ **批量替换 `FontIcon` 时必须带上原来的全部属性**（实施时踩到，代价是三个可见缺陷）。
+  第一版脚本按 `<FontIcon …/>` 重建元素时**只保留字号与字形**，把
+  `Visibility` / `Foreground` / `HorizontalAlignment` / `VerticalAlignment` 全丢了 ——
+  编译期毫无征兆，症状是：
+  - 曲目行的播放键**不再随悬停显隐**，序号也不消失（两态叠在一起）
+  - 评论空态、侧栏移除键的**颜色**变成默认前景色
+
+  事后用「逐颗比对改前改后的属性」做了一次审计，6 个文件共找回 **19 个属性**。
+  **教训：凡是脚本重建 XAML 元素，写完必须拿改前改后逐元素 diff 一遍属性。**
 - **路径文本的写法**：值里不能出现 `<` `>` `&` `"`，Fluent 的路径只含 `M L C A Z` 与数字、逗号、空格，
   安全。写成 `<PathGeometry Figures="M ..."/>` 则编译不过 —— `PathFigureCollection` 没有路径简写的
   类型转换器，报 `WMC0055`。
@@ -217,7 +254,18 @@ WinUI **不提供图标库**。它只有 `SymbolIcon` / `FontIcon` 两条路，�
 
 ```powershell
 dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --no-restore --verbosity minimal
+dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore --verbosity minimal
 ```
+
+**已完成**：构建 0 错误 0 警告；1062 项离线测试通过。
+
+**转换这一步怎么验的**：图标画不画得出来，构建通过说明不了 —— `IconGeometry` 失败时是把那颗
+图标留空、**不抛异常**。所以做了一次**启动自检**：在 `IconGeometry` 里数成功 / 失败次数，
+`App.OnLaunched` 里写一行日志，实跑读到「成功 30 失败 0」，确认后自检代码已撤掉。
+`PathIcon` 那条路（歌单菜单的两颗）单独插了一个隐藏 `PathIcon` 到播放条里跑了一次，确认不炸。
+
+> 想截图看观感的路子在这个环境下走不通（`CopyFromScreen` 拿回来整屏全白），
+> 所以**墨水量与观感始终只有人工验收**。
 
 界面部分逐页过一遍（自动检查覆盖不到）：
 

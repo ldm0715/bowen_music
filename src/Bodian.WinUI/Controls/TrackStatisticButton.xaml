@@ -16,12 +16,26 @@
           字体字形要按基线做上移补偿，路径的墨水本来就居中，不需要。
     -->
     <Grid>
+        <!--
+            ★ Command / CommandParameter 两行不能少：收藏与分享走的是命令，
+              少了它们按钮只会抛 Click，而只有评论入口接了 Click —— 症状是「点了没反应」。
+              实测踩过：重写这个控件时漏掉过。
+        -->
         <Button
             x:Name="InnerButton"
             Style="{StaticResource PlayerRoundIconButtonStyle}"
+            Command="{x:Bind Command, Mode=OneWay}"
+            CommandParameter="{x:Bind CommandParameter, Mode=OneWay}"
             Click="OnInnerClick"
             AutomationProperties.Name="{x:Bind Label, Mode=OneWay}"
             ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}">
+            <Button.Resources>
+                <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                    盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+            </Button.Resources>
+
             <Grid>
                 <!-- 未激活：轮廓图标，沿用外层给的前景色。 -->
                 <controls:Icon

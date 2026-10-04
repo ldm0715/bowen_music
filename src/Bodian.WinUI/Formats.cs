@@ -1,5 +1,6 @@
 using System.Globalization;
 using Bodian.Core.Models;
+using Bodian.WinUI.Controls;
 using Bodian.WinUI.Media;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -256,12 +257,38 @@ public static class Formats
     /// <summary>歌单收藏按钮文案。</summary>
     public static string CollectLabel(bool? collected) => collected == true ? "已收藏" : "收藏";
 
-    /// <summary>歌单收藏按钮图标：空心星（未收藏）/ 实心星（已收藏）。</summary>
-    public static string CollectGlyph(bool? collected) => collected == true ? "\uE735" : "\uE734";
+    /// <summary>
+    /// 歌单收藏按钮的图标路径：空心星（未收藏）/ 实心星（已收藏）。
+    /// </summary>
+    /// <remarks>
+    /// 直接返回路径文本而不是「键」，因为 <c>x:Bind</c> 的函数绑定**不支持函数套函数**
+    /// （<c>IconPaths(CollectIconKey(x))</c> 会生成缺参数的代码，编译期报 <c>p0 不存在</c>）。
+    /// </remarks>
+    public static string CollectIcon(bool? collected)
+        => IconPaths(collected == true ? "IconStarFilled" : "IconStar");
 
     /// <summary>歌手关注按钮文案。</summary>
     public static string FollowLabel(bool? followed) => followed == true ? "已关注" : "关注";
 
-    /// <summary>歌手关注按钮图标：人形（未关注）/ 对勾（已关注）。</summary>
-    public static string FollowGlyph(bool? followed) => followed == true ? "\uE73E" : "\uE8FA";
+    /// <summary>歌手关注按钮的图标路径：加人（未关注）/ 实心加人（已关注）。同上，不套函数。</summary>
+    public static string FollowIcon(bool? followed)
+        => IconPaths(followed == true ? "IconPersonAddFilled" : "IconPersonAdd");
+
+    /// <summary>
+    /// 按资源键取图标的**路径文本**，给 <c>Controls/Icon</c> 的 <c>Data</c> 用。
+    /// </summary>
+    /// <remarks>
+    /// 只有一个场景需要它：**XAML 里写不出静态资源** —— 图标由 ViewModel 按状态选
+    /// （收藏两态、关注两态、主题三态、展开箭头、曲目菜单）。于是 ViewModel 只给出一个符号键，
+    /// 这里再把键换成路径文本。
+    /// <para>
+    /// <b>ViewModel 只存键、不存路径</b>：路径是几 KB 的几何数据，塞进 ViewModel 会跟着数据流
+    /// 到处走；键是一行字符串，还能被离线测试断言。
+    /// </para>
+    /// <para>
+    /// 图标几何与主题无关、颜色一律走 Foreground 继承，所以这里查
+    /// <see cref="Application.Current"/> 不触犯 ui-refresh.md §7（那条禁的是**跟随主题的颜色**）。
+    /// </para>
+    /// </remarks>
+    public static string IconPaths(string key) => IconGeometry.Paths(key);
 }

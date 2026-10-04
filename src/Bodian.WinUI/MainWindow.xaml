@@ -110,10 +110,18 @@
                         Click="OnBackClick"
                         AutomationProperties.Name="返回上一级"
                         ToolTipService.ToolTip="返回上一级">
-                        <FontIcon
-                            FontSize="{StaticResource SizeIconSm}"
-                            Glyph="&#xE72B;"
-                            IsTextScaleFactorEnabled="False" />
+                        <Button.Resources>
+                            <!--
+                                ★ 默认模板的 Disabled 态会把背景铺成 ButtonBackgroundDisabled，
+                                  盖住上面那句 Background="Transparent" —— 症状是「能点的时候没底色、
+                                  不能点的时候反而有底色」。把它连同描边一起置空，
+                                  禁用只体现在前景色变淡（那才是这个按钮该有的反馈）。
+                                  旁边的主题 / 账号按钮没有 IsEnabled 绑定，所以从来没露过这个问题。
+                            -->
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
+                        <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconBack}" />
                     </Button>
                     <AutoSuggestBox
                         x:Name="SearchBox"
@@ -321,9 +329,8 @@
                         BorderThickness="0"
                         ToolTipService.ToolTip="{x:Bind Theme.CurrentLabel, Mode=OneWay}"
                         AutomationProperties.Name="切换主题">
-                        <FontIcon
-                            FontSize="{StaticResource SizeIconSm}"
-                            Glyph="{x:Bind Theme.CurrentGlyph, Mode=OneWay}" />
+                        <controls:Icon Size="{StaticResource SizeIconSm}"
+                            Data="{x:Bind local:Formats.IconPaths(Theme.CurrentIcon), Mode=OneWay}" />
                         <Button.Flyout>
                             <Flyout Opening="OnThemeFlyoutOpening" Placement="Bottom">
                                 <Flyout.FlyoutPresenterStyle>
@@ -357,31 +364,19 @@
                                     </ListView.ItemContainerStyle>
                                     <ListViewItem x:Name="SystemThemeOption" AutomationProperties.Name="跟随系统">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <FontIcon
-                                                Width="20"
-                                                Height="20"
-                                                FontSize="{StaticResource SizeIconSm}"
-                                                Glyph="&#xE770;" />
+                                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeAuto}" />
                                             <TextBlock VerticalAlignment="Center" Text="跟随系统" />
                                         </StackPanel>
                                     </ListViewItem>
                                     <ListViewItem x:Name="LightThemeOption" AutomationProperties.Name="浅色">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <FontIcon
-                                                Width="20"
-                                                Height="20"
-                                                FontSize="{StaticResource SizeIconSm}"
-                                                Glyph="&#xE706;" />
+                                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeLight}" />
                                             <TextBlock VerticalAlignment="Center" Text="浅色" />
                                         </StackPanel>
                                     </ListViewItem>
                                     <ListViewItem x:Name="DarkThemeOption" AutomationProperties.Name="深色">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <FontIcon
-                                                Width="20"
-                                                Height="20"
-                                                FontSize="{StaticResource SizeIconSm}"
-                                                Glyph="&#xE708;" />
+                                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeDark}" />
                                             <TextBlock VerticalAlignment="Center" Text="深色" />
                                         </StackPanel>
                                     </ListViewItem>
@@ -571,7 +566,7 @@
                             CornerRadius="{StaticResource RadiusSm}"
                             IsEnabled="{x:Bind _sidebar.CanRefresh, Mode=OneWay}"
                             ToolTipService.ToolTip="刷新">
-                            <FontIcon FontSize="12" Glyph="&#xE72C;" />
+                            <controls:Icon Size="12" Data="{StaticResource IconRefresh}" />
                         </Button>
 
                         <Button
@@ -587,7 +582,7 @@
                             Click="OnCreatePlaylistClick"
                             CornerRadius="{StaticResource RadiusSm}"
                             ToolTipService.ToolTip="新建歌单">
-                            <FontIcon FontSize="12" Glyph="&#xE710;" />
+                            <controls:Icon Size="12" Data="{StaticResource IconAdd}" />
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -745,7 +740,7 @@
                                 CornerRadius="{StaticResource RadiusSm}"
                                 IsEnabled="{x:Bind _sidebar.CanRefresh, Mode=OneWay}"
                                 ToolTipService.ToolTip="刷新">
-                                <FontIcon FontSize="12" Glyph="&#xE72C;" />
+                                <controls:Icon Size="12" Data="{StaticResource IconRefresh}" />
                             </Button>
 
                             <Button
@@ -761,7 +756,7 @@
                                 Click="OnCreatePlaylistClick"
                                 CornerRadius="{StaticResource RadiusSm}"
                                 ToolTipService.ToolTip="新建歌单">
-                                <FontIcon FontSize="12" Glyph="&#xE710;" />
+                                <controls:Icon Size="12" Data="{StaticResource IconAdd}" />
                             </Button>
 
                             <!--
@@ -781,7 +776,7 @@
                                 Click="OnPlaylistsCloseClick"
                                 CornerRadius="{StaticResource RadiusSm}"
                                 ToolTipService.ToolTip="收起">
-                                <FontIcon FontSize="12" Glyph="&#xE711;" />
+                                <controls:Icon Size="12" Data="{StaticResource IconDismiss}" />
                             </Button>
                         </StackPanel>
                     </Grid>

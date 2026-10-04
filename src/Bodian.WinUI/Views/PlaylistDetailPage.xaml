@@ -97,7 +97,7 @@
                         Command="{x:Bind ViewModel.PlayAllCommand}"
                         Style="{StaticResource AccentButtonStyle}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon FontSize="14" Glyph="&#xE768;" />
+                            <controls:Icon Size="14" Data="{StaticResource IconPlay}" />
                             <TextBlock Text="播放全部" />
                         </StackPanel>
                     </Button>
@@ -113,9 +113,8 @@
                         Click="OnCollectClick"
                         Visibility="{x:Bind local:Formats.Visible(ViewModel.CanCollect), Mode=OneWay}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon
-                                FontSize="14"
-                                Glyph="{x:Bind local:Formats.CollectGlyph(ViewModel.IsCollected), Mode=OneWay}" />
+                            <controls:Icon Size="14"
+                                Data="{x:Bind local:Formats.CollectIcon(ViewModel.IsCollected), Mode=OneWay}" />
                             <TextBlock Text="{x:Bind local:Formats.CollectLabel(ViewModel.IsCollected), Mode=OneWay}" />
                         </StackPanel>
                     </Button>
@@ -124,7 +123,7 @@
                         AutomationProperties.Name="分享"
                         Command="{x:Bind ViewModel.ShareCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon FontSize="14" Glyph="&#xE72D;" />
+                            <controls:Icon Size="14" Data="{StaticResource IconShare}" />
                             <TextBlock Text="分享" />
                         </StackPanel>
                     </Button>
@@ -155,7 +154,7 @@
                 CornerRadius="{StaticResource RadiusSm}"
                 ToolTipService.ToolTip="更多"
                 Visibility="{x:Bind local:Formats.Visible(ViewModel.IsOwnPlaylist), Mode=OneWay}">
-                <FontIcon FontSize="14" Glyph="&#xE712;" />
+                <controls:Icon Size="14" Data="{StaticResource IconMore}" />
 
                 <Button.Flyout>
                     <!--
@@ -184,13 +183,13 @@
 
                         <MenuFlyoutItem Click="OnEditPlaylistClick" Text="编辑">
                             <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE70F;" />
+                                <PathIcon Data="{StaticResource IconEdit}" />
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
 
                         <MenuFlyoutItem Click="OnDeletePlaylistClick" Text="删除">
                             <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE74D;" />
+                                <PathIcon Data="{StaticResource IconDelete}" />
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
                     </MenuFlyout>

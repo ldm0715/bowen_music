@@ -349,7 +349,7 @@
             Style="{StaticResource BodianCardPagerButton}"
             ToolTipService.ToolTip="上一页"
             Visibility="Collapsed">
-            <FontIcon FontSize="12" Glyph="&#xE76B;" />
+            <controls:Icon Size="12" Data="{StaticResource IconChevronLeft}" />
         </Button>
 
         <Button
@@ -360,7 +360,7 @@
             Style="{StaticResource BodianCardPagerButton}"
             ToolTipService.ToolTip="下一页"
             Visibility="Collapsed">
-            <FontIcon FontSize="12" Glyph="&#xE76C;" />
+            <controls:Icon Size="12" Data="{StaticResource IconChevronRight}" />
         </Button>
     </Grid>
 </UserControl>

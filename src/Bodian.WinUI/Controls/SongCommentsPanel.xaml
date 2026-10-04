@@ -111,7 +111,7 @@
                     <Button x:Name="ThreadBackButton" Command="{x:Bind ViewModel.CloseThreadCommand}"
                         Style="{StaticResource CommentIconButtonStyle}" AutomationProperties.Name="返回评论列表"
                         Visibility="{x:Bind local:Formats.Visible(ViewModel.IsThreadOpen), Mode=OneWay}">
-                        <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                        <controls:Icon Size="14" Data="{StaticResource IconBack}" />
                     </Button>
                     <TextBlock Text="{x:Bind ViewModel.PanelTitle, Mode=OneWay}" FontSize="21" FontWeight="SemiBold" Foreground="{ThemeResource CommentPrimaryTextBrush}" />
                     <TextBlock Text="{x:Bind ViewModel.TotalText, Mode=OneWay}" FontSize="12"
@@ -123,11 +123,11 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Spacing="4">
                 <Button Command="{x:Bind ViewModel.RefreshCommand}" Style="{StaticResource CommentIconButtonStyle}"
                     AutomationProperties.Name="刷新评论" ToolTipService.ToolTip="刷新">
-                    <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                    <controls:Icon Size="14" Data="{StaticResource IconRefresh}" />
                 </Button>
                 <Button x:Name="CloseButton" Click="OnCloseClick" Style="{StaticResource CommentIconButtonStyle}"
                     AutomationProperties.Name="关闭评论" ToolTipService.ToolTip="关闭评论 (Esc)">
-                    <FontIcon Glyph="&#xE711;" FontSize="12" />
+                    <controls:Icon Size="12" Data="{StaticResource IconDismiss}" />
                 </Button>
             </StackPanel>
         </Grid>
@@ -186,13 +186,13 @@
             </StackPanel>
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12"
                 Visibility="{x:Bind local:Formats.Visible(ViewModel.IsEmpty), Mode=OneWay}">
-                <FontIcon Glyph="&#xE90A;" FontSize="30" Foreground="{ThemeResource CommentPlaceholderBrush}" />
+                <controls:Icon Foreground="{ThemeResource CommentPlaceholderBrush}" Size="30" Data="{StaticResource IconComment}" />
                 <TextBlock Text="还没有评论" FontSize="16" Foreground="{ThemeResource CommentPrimaryTextBrush}" HorizontalAlignment="Center" />
                 <TextBlock Text="先听听这首歌吧" FontSize="12" Foreground="{ThemeResource CommentSecondaryTextBrush}" HorizontalAlignment="Center" />
             </StackPanel>
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" MaxWidth="280"
                 Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowInitialError), Mode=OneWay}">
-                <FontIcon Glyph="&#xE8CD;" FontSize="28" Foreground="{ThemeResource CommentSecondaryTextBrush}" />
+                <controls:Icon Foreground="{ThemeResource CommentSecondaryTextBrush}" Size="28" Data="{StaticResource IconChat}" />
                 <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" FontSize="13"
                     Foreground="{ThemeResource CommentErrorBrush}" TextWrapping="Wrap" TextAlignment="Center" />
                 <Button Content="重试" Command="{x:Bind ViewModel.RetryCommand}" HorizontalAlignment="Center"
@@ -251,7 +251,7 @@
                         TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Command="{x:Bind ViewModel.ClearReplyTargetCommand}"
                         Style="{StaticResource CommentIconButtonStyle}" AutomationProperties.Name="取消指定回复对象">
-                        <FontIcon Glyph="&#xE711;" FontSize="10" />
+                        <controls:Icon Size="10" Data="{StaticResource IconDismiss}" />
                     </Button>
                 </Grid>
                 <TextBox x:Name="CommentEditor" Text="{x:Bind ViewModel.DraftText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="1000"

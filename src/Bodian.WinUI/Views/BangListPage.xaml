@@ -341,12 +341,11 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- 折叠箭头：展开朝下、收起朝右。次级色，不跟标题抢。 -->
-                                    <FontIcon
-                                        Grid.Column="0"
+                                    <controls:Icon Grid.Column="0"
                                         VerticalAlignment="Center"
-                                        FontSize="12"
+                                        Size="12"
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Glyph="{x:Bind IconGlyph, Mode=OneWay}" />
+                                        Data="{x:Bind local:Formats.IconPaths(IconKey), Mode=OneWay}" />
 
                                     <TextBlock
                                         Grid.Column="1"

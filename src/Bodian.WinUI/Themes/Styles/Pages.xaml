@@ -103,7 +103,7 @@
     </Style>
 
     <!--
-        28×28 的图标按钮：透明底、无边框、RadiusSm，内容由调用方给 FontIcon。
+        28×28 的图标按钮：透明底、无边框、RadiusSm，内容由调用方给一个 <c>controls:Icon</c>。
         列表工具栏、侧栏的刷新/新建、行尾的「更多」都是这一套，别再各写一份 Setter。
 
         ★ MinWidth/MinHeight 必须清零：Button 默认 MinWidth 是 120，不清零会被撑成长条。
