@@ -2,6 +2,7 @@
     x:Class="Bodian.WinUI.Controls.AudioQualityPicker"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI"
     xmlns:vm="using:Bodian.WinUI.ViewModels">
     <StackPanel Width="160" Spacing="2">
@@ -23,6 +24,13 @@
             <ListView.Resources>
                 <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
                 <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+                <!--
+                    当前档由档位色胶囊表示，不要再生效一个灰底 —— 两个「选中」信号会打架。
+                    悬停 / 按下保留。
+                -->
+                <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
             </ListView.Resources>
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
@@ -41,9 +49,11 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{x:Bind Name}" FontSize="13" VerticalAlignment="Center" />
+                        <!-- 档位名做成彩色胶囊，当前档摆满、其余收暗；大小仍在行尾右对齐。 -->
+                        <controls:AudioQualityChip Label="{x:Bind Name}" Quality="{x:Bind Quality}"
+                            IsCurrent="{x:Bind IsCurrent}" HorizontalAlignment="Left" />
                         <TextBlock Grid.Column="1" Text="{x:Bind SizeText}" VerticalAlignment="Center"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="11" />
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10" />
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

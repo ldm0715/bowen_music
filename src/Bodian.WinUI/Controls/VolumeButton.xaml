@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.VolumeButton"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives">
+
+    <UserControl.Resources>
+        <!-- 音量保留完整原生模板，避免轨道布局影响百分比与滑块行程。 -->
+        <Style x:Key="VolumeSliderStyle" TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="112" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="IsThumbToolTipEnabled" Value="False" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <!--
+            音量：一颗图标按钮，悬停或点击才在上方展开竖向滑条。
+            按钮外观与右区其它按钮共用一套（PlayerRoundIconButtonStyle），播放条和歌词页因此长得一样。
+        -->
+        <Button
+            x:Name="IconButton"
+            AutomationProperties.Name="音量"
+            Click="OnVolumeClick"
+            Style="{StaticResource PlayerRoundIconButtonStyle}">
+            <!--
+                16 号而不是 SizeIconMd(20)：右区旁边那颗「词」是 14 号汉字（墨水约 13），
+                MDL2 音量的墨水约 0.85×字号，16 号正好也是 13 —— 两颗看起来一样大。
+                按 20 号写会比旁边明显大一圈。
+
+                上移 2（Margin 负值的一半）是为了和旁边那颗矩形块形状的音质标签对齐：
+                字形按基线摆，墨水本来就比字身框中心线低一点。
+            -->
+            <FontIcon Margin="0,-4,0,0" FontSize="16" Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" />
+        </Button>
+
+        <!-- 透明桥接区与延迟关闭让鼠标能从按钮连续移入上方的细音量滑条。 -->
+        <primitives:Popup x:Name="VolumePopup" HorizontalAlignment="Left" VerticalAlignment="Top">
+            <Border
+                x:Name="VolumePopupHost"
+                Padding="0,0,0,8"
+                Background="Transparent"
+                KeyDown="OnVolumeKeyDown"
+                LostFocus="OnVolumeLostFocus"
+                PointerExited="OnVolumePointerExited">
+                <Border
+                    Padding="12"
+                    Background="{ThemeResource ToolTipBackground}"
+                    BorderBrush="{ThemeResource ToolTipBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <StackPanel HorizontalAlignment="Center" Spacing="8">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            Foreground="{ThemeResource ToolTipForeground}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind local:Formats.Percent(ViewModel.Volume), Mode=OneWay}" />
+                        <Slider
+                            x:Name="VolumeSlider"
+                            AutomationProperties.Name="音量滑条"
+                            Maximum="100"
+                            Minimum="0"
+                            Orientation="Vertical"
+                            Style="{StaticResource VolumeSliderStyle}"
+                            Value="{x:Bind ViewModel.Volume, Mode=TwoWay}">
+                            <Slider.Resources>
+                                <x:Double x:Key="SliderTrackThemeHeight">2</x:Double>
+                                <x:Double x:Key="SliderVerticalWidth">22</x:Double>
+                                <x:Double x:Key="SliderPreContentMargin">10</x:Double>
+                                <x:Double x:Key="SliderPostContentMargin">10</x:Double>
+                                <x:Double x:Key="SliderVerticalThumbWidth">8</x:Double>
+                                <x:Double x:Key="SliderVerticalThumbHeight">8</x:Double>
+                                <x:Double x:Key="SliderInnerThumbWidth">4</x:Double>
+                                <x:Double x:Key="SliderInnerThumbHeight">4</x:Double>
+                            </Slider.Resources>
+                        </Slider>
+                    </StackPanel>
+                </Border>
+            </Border>
+        </primitives:Popup>
+    </Grid>
+</UserControl>

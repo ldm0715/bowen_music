@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    播放控制按钮的外观：播放条与歌词页共用这一套。
+
+    ★ 不要再各写一份。之前播放条是端部全圆的圆钮（圆角 18）、歌词页是圆角方钮（圆角 8），
+      同一颗「上一首」在两个页面长得不一样，改一处还会漏另一处。
+
+    ★ 分三级，不是一刀切，这是照参照物 LyciaMusic 的 PlayerFooter 抄的结构：
+        传输区  裸图标，静止无底无框，悬停放大；整排只有播放键有形状
+        右区    32×32 圆钮，图标 16~20
+        播放键  44 圆 + 强调色
+      「全都做成一样大的方块」排出来是一排方格，眼睛没有落点，任何一点字形差异都会被放大；
+      分级的排法把差异交给层级去解释。尺寸、间距的对照见 ui-refresh.md §23。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        裸图标按钮：传输区的播放模式 / 上一首 / 下一首 / 播放列表。
+
+        静止时**没有底色、没有边框**，悬停放大 1.1、按下缩到 0.95 —— 与参照物
+        `hover:scale-110 active:scale-95` 同一套。所以它不写死宽高：命中区 = 图标 + 四周 6 内边距。
+
+        ★ 缩放走模板里的 Storyboard 动画 ScaleTransform（依赖属性，UI 线程），
+          不用 Composition 的 StartAnimation —— 那条路上 `StartAnimation(name, null)`
+          会直接访问违例（见 ui-refresh.md §17.2）。
+      -->
+    <Style x:Key="PlayerBareIconButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <!-- Padding 必须由模板转出去，否则它不进布局、命中区就只剩图标那点。 -->
+                    <Grid Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter
+                            x:Name="BareIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            RenderTransformOrigin="0.5,0.5">
+                            <ContentPresenter.RenderTransform>
+                                <ScaleTransform />
+                            </ContentPresenter.RenderTransform>
+                        </ContentPresenter>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <Storyboard>
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="BareIcon"
+                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                            To="1.1"
+                                            Duration="0:0:0.2" />
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="BareIcon"
+                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                            To="1.1"
+                                            Duration="0:0:0.2" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <Storyboard>
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="BareIcon"
+                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                            To="0.95"
+                                            Duration="0:0:0.1" />
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="BareIcon"
+                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                            To="0.95"
+                                            Duration="0:0:0.1" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <Storyboard>
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="BareIcon"
+                                            Storyboard.TargetProperty="Opacity"
+                                            To="0.4"
+                                            Duration="0:0:0" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 右区的图标按钮：32×32 圆，静止透明，悬停一层淡底。 -->
+    <Style x:Key="PlayerRoundIconButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusPill}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- 播放 / 暂停：整排唯一有形状的一颗，44 圆 + 强调色填充。 -->
+    <Style x:Key="PlayerAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="44" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusPill}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+</ResourceDictionary>

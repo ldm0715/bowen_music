@@ -2,7 +2,6 @@ using System.ComponentModel;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -10,7 +9,6 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.Foundation;
-using VirtualKey = Windows.System.VirtualKey;
 
 namespace Bodian.WinUI.Controls;
 
@@ -18,14 +16,11 @@ namespace Bodian.WinUI.Controls;
 public sealed partial class PlayerBar : UserControl
 {
     private readonly INavigationService _navigation;
-    private readonly DispatcherQueueTimer _volumeCloseTimer;
     private FrameworkElement? _progressThumb;
     private Rectangle? _progressTrack;
     private Rectangle? _progressFill;
     private bool _isProgressPointerOver;
     private double _progressPointerX;
-    private bool _isVolumePointerOver;
-    private bool _isVolumeDragging;
 
     public PlayerBar(PlayerViewModel viewModel, LyricsViewModel lyrics, INavigationService navigation)
     {
@@ -39,35 +34,14 @@ public sealed partial class PlayerBar : UserControl
 
         InitializeComponent();
 
-        _volumeCloseTimer = DispatcherQueue.CreateTimer();
-        _volumeCloseTimer.Interval = TimeSpan.FromMilliseconds(250);
-        _volumeCloseTimer.IsRepeating = false;
-        _volumeCloseTimer.Tick += (_, _) =>
-        {
-            if (!_isVolumePointerOver && !_isVolumeDragging && VolumeSlider.FocusState != FocusState.Keyboard)
-            {
-                VolumePopup.IsOpen = false;
-            }
-        };
-
         // Slider 会处理内部指针事件，仍需接收它们以更新气泡和拖动状态。
         PositionSlider.AddHandler(PointerEnteredEvent, new PointerEventHandler(OnProgressPointerEntered), true);
         PositionSlider.AddHandler(PointerExitedEvent, new PointerEventHandler(OnProgressPointerExited), true);
-        VolumeButton.AddHandler(PointerEnteredEvent, new PointerEventHandler(OnVolumePointerEntered), true);
-        VolumeButton.AddHandler(PointerExitedEvent, new PointerEventHandler(OnVolumePointerExited), true);
-        VolumeButton.AddHandler(PointerMovedEvent, new PointerEventHandler(OnVolumePointerMoved), true);
-        VolumePopupHost.AddHandler(PointerEnteredEvent, new PointerEventHandler(OnVolumePointerEntered), true);
-        VolumePopupHost.AddHandler(PointerExitedEvent, new PointerEventHandler(OnVolumePointerExited), true);
-        VolumePopupHost.AddHandler(PointerMovedEvent, new PointerEventHandler(OnVolumePointerMoved), true);
         PositionSlider.AddHandler(PointerPressedEvent, new PointerEventHandler(OnSliderPressed), true);
         PositionSlider.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnSliderReleased), true);
         PositionSlider.AddHandler(PointerMovedEvent, new PointerEventHandler(OnProgressPointerMoved), true);
         PositionSlider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnProgressCaptureLost), true);
         PositionSlider.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnProgressCaptureLost), true);
-        VolumeSlider.AddHandler(PointerPressedEvent, new PointerEventHandler(OnVolumeSliderPressed), true);
-        VolumeSlider.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
-        VolumeSlider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
-        VolumeSlider.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
 
         PositionSlider.Loaded += OnProgressSliderLoaded;
         PositionSlider.GotFocus += (_, _) => UpdateProgressAppearance();
@@ -102,16 +76,13 @@ public sealed partial class PlayerBar : UserControl
         ViewModel.PropertyChanged -= OnPlayerPropertyChanged;
         ViewModel.IsSeeking = false;
         _isProgressPointerOver = false;
-        _isVolumePointerOver = false;
-        _isVolumeDragging = false;
         ClosePopups();
     }
 
     private void ClosePopups()
     {
-        _volumeCloseTimer.Stop();
         ProgressTimePopup.IsOpen = false;
-        VolumePopup.IsOpen = false;
+        VolumeControl.ClosePopup();
     }
 
     private void OnPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -261,97 +232,6 @@ public sealed partial class PlayerBar : UserControl
             Math.Max(8, XamlRoot.Size.Width - size.Width - 8)) - hostOrigin.X;
         ProgressTimePopup.VerticalOffset = Math.Max(0, origin.Y - size.Height - 6) - hostOrigin.Y;
         ProgressTimePopup.IsOpen = true;
-    }
-
-    private void OnVolumePointerEntered(object sender, PointerRoutedEventArgs e)
-    {
-        _isVolumePointerOver = true;
-        ShowVolumePopup();
-    }
-
-    private void OnVolumePointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        var target = (FrameworkElement)sender;
-        var point = e.GetCurrentPoint(target).Position;
-        _isVolumePointerOver = point.X >= 0 && point.X <= target.ActualWidth
-            && point.Y >= 0 && point.Y <= target.ActualHeight;
-        if (_isVolumePointerOver)
-        {
-            ShowVolumePopup();
-        }
-        else
-        {
-            ScheduleVolumeClose();
-        }
-    }
-
-    private void OnVolumePointerExited(object sender, PointerRoutedEventArgs e)
-    {
-        _isVolumePointerOver = false;
-        ScheduleVolumeClose();
-    }
-
-    private void OnVolumeClick(object sender, RoutedEventArgs e)
-    {
-        ShowVolumePopup();
-        if (VolumeButton.FocusState == FocusState.Keyboard)
-        {
-            VolumeSlider.Focus(FocusState.Keyboard);
-        }
-    }
-
-    private void ShowVolumePopup()
-    {
-        _volumeCloseTimer.Stop();
-        if (XamlRoot is null)
-        {
-            return;
-        }
-
-        ProgressTimePopup.IsOpen = false;
-        VolumePopupHost.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var origin = VolumeButton.TransformToVisual(null).TransformPoint(new Point());
-        var hostOrigin = TransformToVisual(null).TransformPoint(new Point());
-        var size = VolumePopupHost.DesiredSize;
-        VolumePopup.XamlRoot = XamlRoot;
-        VolumePopup.HorizontalOffset = Math.Clamp(
-            origin.X + VolumeButton.ActualWidth / 2 - size.Width / 2,
-            8,
-            Math.Max(8, XamlRoot.Size.Width - size.Width - 8)) - hostOrigin.X;
-        VolumePopup.VerticalOffset = Math.Max(0, origin.Y - size.Height) - hostOrigin.Y;
-        VolumePopup.IsOpen = true;
-    }
-
-    private void OnVolumeSliderPressed(object sender, PointerRoutedEventArgs e)
-    {
-        _isVolumeDragging = true;
-        _volumeCloseTimer.Stop();
-    }
-
-    private void OnVolumeSliderReleased(object sender, PointerRoutedEventArgs e)
-    {
-        _isVolumeDragging = false;
-        ScheduleVolumeClose();
-    }
-
-    private void ScheduleVolumeClose()
-    {
-        if (!_isVolumePointerOver && !_isVolumeDragging)
-        {
-            _volumeCloseTimer.Start();
-        }
-    }
-
-    private void OnVolumeLostFocus(object sender, RoutedEventArgs e) => ScheduleVolumeClose();
-
-    private void OnVolumeKeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key == VirtualKey.Escape)
-        {
-            ClosePopups();
-            VolumeButton.Focus(FocusState.Keyboard);
-            e.Handled = true;
-        }
     }
 
     /// <summary>封面和「词」按钮共用歌词页导航。</summary>

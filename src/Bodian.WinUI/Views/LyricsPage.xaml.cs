@@ -44,7 +44,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private bool _keyboardSeeking;
     private bool _chromeVisible = true;
     private bool _pointerOverChrome;
-    private bool _volumeSeeking;
+    private bool _volumePopupOpen;
     private FrameworkElement? _progressThumb;
     private Rectangle? _progressTrack;
     private Rectangle? _progressFill;
@@ -112,10 +112,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         PositionSlider.Loaded += OnProgressLoaded;
         PositionSlider.GotFocus += (_, _) => UpdateProgressAppearance();
         PositionSlider.LostFocus += (_, _) => UpdateProgressAppearance();
-        VolumeSlider.AddHandler(PointerPressedEvent, new PointerEventHandler(OnVolumePressed), true);
-        VolumeSlider.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnVolumeReleased), true);
-        VolumeSlider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnVolumeReleased), true);
-        VolumeSlider.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnVolumeReleased), true);
+        // 音量滑条在弹层里，由控件自己管；这里只要跟着开合把控制台钉住。
+        VolumeControl.PopupStateChanged += OnVolumePopupChanged;
         Loaded += (_, _) => UpdateLayoutSizing();
     }
 
@@ -162,7 +160,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _window.RenderingStateChanged -= OnWindowRenderingStateChanged;
         _window.AppWindow.Changed -= OnAppWindowChanged;
         Player.PropertyChanged -= OnPlayerChanged;
-        _volumeSeeking = false;
+        _volumePopupOpen = false;
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
         Lyrics.IsOpen = false;
@@ -239,7 +237,6 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ReflectionView.Height = size * 0.55;
         Canvas.SetTop(ReflectionView, size + 2);
         _canvas.SetFontSize(Math.Max(ActualHeight * 0.05, ActualWidth * 0.025));
-        VolumeControls.Visibility = ActualWidth < 900 ? Visibility.Collapsed : Visibility.Visible;
         CommentsPane.Width = Math.Max(0, Math.Min(420, ActualWidth - 32));
         UpdateChromeInsets();
         UpdateCoverScale();
@@ -386,7 +383,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         _chromeTimer.Stop();
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || !_chromeVisible || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumeSeeking || HasChromeKeyboardFocus()) return;
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || HasChromeKeyboardFocus()) return;
         _chromeTimer.Start();
     }
 
@@ -400,7 +397,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void HideChrome()
     {
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumeSeeking || HasChromeKeyboardFocus())
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || HasChromeKeyboardFocus())
             return;
         SetChromeVisibility(false);
     }
@@ -432,16 +429,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         UpdateProgressAppearance();
     }
 
-    private void OnVolumePressed(object sender, PointerRoutedEventArgs args)
+    /// <summary>音量弹层开着时控制台不能自己收走，否则展开的那颗按钮会跟着消失。</summary>
+    private void OnVolumePopupChanged(object? sender, EventArgs args)
     {
-        _volumeSeeking = true;
-        ShowChrome();
-    }
-
-    private void OnVolumeReleased(object sender, PointerRoutedEventArgs args)
-    {
-        _volumeSeeking = false;
-        ScheduleChromeHide();
+        _volumePopupOpen = VolumeControl.IsPopupOpen;
+        if (_volumePopupOpen) ShowChrome();
+        else ScheduleChromeHide();
     }
 
     private void OnAppThemeChanged(FrameworkElement sender, object args) => SyncCommentsTheme();
@@ -465,7 +458,6 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (Player.CurrentTrackId is not > 0) return;
         var loading = Comments.ShowAsync(Player.CurrentTrackId.Value, Player.Title);
         ProgressTimePopup.IsOpen = false;
-        CommentsIcon.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 243, 176));
         ShowChrome();
         _chromeTimer.Stop();
         // Translation 独立于 XAML 布局，只给抽屉一个轻微的滑入动画。
@@ -486,8 +478,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         var wasOpen = Comments.IsOpen;
         Comments.Close();
-        CommentsIcon.ClearValue(IconElement.ForegroundProperty);
-        if (wasOpen && restoreFocus) CommentsButton.Focus(FocusState.Keyboard);
+        if (wasOpen && restoreFocus) CommentsButton.FocusButton(FocusState.Keyboard);
         ScheduleChromeHide();
     }
 
@@ -531,7 +522,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     }
     private void OnPlayPauseInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (Comments.IsOpen || PositionSlider.FocusState == FocusState.Keyboard || VolumeSlider.FocusState == FocusState.Keyboard) return;
+        if (Comments.IsOpen || PositionSlider.FocusState == FocusState.Keyboard || VolumeControl.IsPopupOpen) return;
         Player.TogglePlayPauseCommand.Execute(null);
         ShowChrome();
         args.Handled = true;

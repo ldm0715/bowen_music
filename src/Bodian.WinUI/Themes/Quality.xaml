@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    音质三档的标签配色：标准灰 / HQ 蓝 / SQ 金。
+
+    ★ 与 VipBadge.xaml 同一个理由，**不放进 Theme.xaml 的 ThemeDictionaries**：
+      这是档位色而不是主题色面，实色底 + 白字在深浅两个主题下同样成立，不需要各写一遍；
+      放进主题字典反而要在 Light / Dark / HighContrast 三节里各抄一遍，
+      漏掉高对比度那一节会在该模式下解析失败（见 Theme.xaml 顶部说明）。
+
+    ★ 底色调成中深一档，是为了让**白字读得出来**：照着参照物的浅底 + 白字来，
+      对比度只有 2 出头。这三个色号对白字都在 4.7:1 以上，够 WCAG AA——
+      浅色主题下压在浅色面板上、深色主题下压在深色面板上都不虚。
+      想更贴近参照物那种淡彩，把色号提亮即可，但白字会开始糊。
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 标准：灰。对白字 4.87:1 -->
+    <SolidColorBrush x:Key="QualityStandardBackgroundBrush" Color="#FF6B7280" />
+
+    <!-- HQ：蓝。对白字 4.68:1 -->
+    <SolidColorBrush x:Key="QualityHighBackgroundBrush" Color="#FF2A78BE" />
+
+    <!-- SQ：金。对白字 4.85:1 -->
+    <SolidColorBrush x:Key="QualityLosslessBackgroundBrush" Color="#FF96690F" />
+
+    <SolidColorBrush x:Key="QualityChipForegroundBrush" Color="#FFFFFFFF" />
+
+</ResourceDictionary>

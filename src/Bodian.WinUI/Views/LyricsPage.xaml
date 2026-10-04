@@ -5,23 +5,7 @@
     xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI" RequestedTheme="Dark">
     <Page.Resources>
-        <Style x:Key="LyricsButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
-            <Setter Property="Width" Value="44" />
-            <Setter Property="Height" Value="44" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Foreground" Value="#DBFFFFFF" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="12" />
-        </Style>
-        <Style x:Key="LyricsChromeButtonStyle" TargetType="Button" BasedOn="{StaticResource LyricsButtonStyle}">
-            <Setter Property="Width" Value="36" />
-            <Setter Property="Height" Value="36" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
+        <!-- 按钮外观不再单写：与播放条共用 Themes/Styles/Player.xaml 那一套。 -->
         <Style TargetType="FontIcon">
             <Setter Property="FontSize" Value="20" />
             <Setter Property="IsTextScaleFactorEnabled" Value="False" />
@@ -63,10 +47,10 @@
                 </TitleBar.Resources>
                 <TitleBar.LeftHeader>
                     <Grid x:Name="LeftChromeHost" Width="186">
-                        <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource LyricsChromeButtonStyle}"
+                        <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
                             HorizontalAlignment="Left" Margin="16,0,0,0"
                             AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
-                            <FontIcon Glyph="&#xE70D;" FontSize="22" Width="24" Height="24" />
+                            <FontIcon Glyph="&#xE70D;" FontSize="{StaticResource SizeIconMd}" />
                         </Button>
                     </Grid>
                 </TitleBar.LeftHeader>
@@ -74,29 +58,30 @@
                     <Grid />
                 </TitleBar.Content>
                 <TitleBar.RightHeader>
-                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource LyricsChromeButtonStyle}"
-                        Width="48" Height="48"
+                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
                         AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
-                        <FontIcon x:Name="FullscreenIcon" Glyph="&#xE740;" FontSize="16" Width="20" Height="20" />
+                        <FontIcon x:Name="FullscreenIcon" Glyph="&#xE740;" FontSize="{StaticResource SizeIconMd}" />
                     </Button>
                 </TitleBar.RightHeader>
             </TitleBar>
             <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top" IsHitTestVisible="False">
                 <StackPanel VerticalAlignment="Center" Spacing="1">
-                    <Grid HorizontalAlignment="Center" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <!--
+                        标题与付费徽标放同一个横向 StackPanel，徽标才会紧跟标题。
+                        用 `*`/`Auto` 两列时 `*` 列会吃满标题行，徽标被推到最右边、和标题拉开一大截。
+                        代价是 StackPanel 不约束子元素，标题要自己带上限（见 MaxWidth）。
+                    -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
                         <TextBlock Text="{x:Bind SongHeading(Player.Title, Player.ArtistText), Mode=OneWay}"
-                            TextAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="SemiBold"
+                            MaxWidth="{x:Bind local:Formats.LyricsHeadingMaxWidth(HeadingHost.ActualWidth, Player.HasPayLabel), Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" FontSize="14" FontWeight="SemiBold"
                             VerticalAlignment="Center" Foreground="#CCFFFFFF" />
-                        <Border x:Name="PayBadge" Grid.Column="1" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
+                        <Border x:Name="PayBadge" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
                             Background="#24FFFFFF" BorderBrush="#35FFFFFF" BorderThickness="1"
                             Visibility="{x:Bind local:Formats.Visible(Player.HasPayLabel), Mode=OneWay}">
                             <TextBlock Text="{x:Bind Player.PayLabel, Mode=OneWay}" FontSize="10" FontWeight="SemiBold" Foreground="#CCFFFFFF" />
                         </Border>
-                    </Grid>
+                    </StackPanel>
                     <TextBlock Text="{x:Bind Player.AlbumText, Mode=OneWay}" TextAlignment="Center"
                         TextTrimming="CharacterEllipsis" FontSize="11" Foreground="#80FFFFFF" />
                 </StackPanel>
@@ -137,18 +122,18 @@
                     <RowDefinition Height="48" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-                    <Button Style="{StaticResource LyricsButtonStyle}" Command="{x:Bind Player.PreviousCommand}"
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="24">
+                    <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.PreviousCommand}"
                         IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
-                        <FontIcon Glyph="&#xE892;" FontSize="22" />
+                        <FontIcon Glyph="&#xE892;" FontSize="28" />
                     </Button>
-                    <Button Style="{StaticResource LyricsButtonStyle}" Command="{x:Bind Player.TogglePlayPauseCommand}"
+                    <Button Style="{StaticResource PlayerAccentButtonStyle}" Command="{x:Bind Player.TogglePlayPauseCommand}"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}" AutomationProperties.Name="播放 / 暂停" ToolTipService.ToolTip="播放 / 暂停 (Space)">
-                        <FontIcon Glyph="{x:Bind PlayPauseGlyph(Player.IsPlaying), Mode=OneWay}" FontSize="30" />
+                        <FontIcon Glyph="{x:Bind PlayPauseGlyph(Player.IsPlaying), Mode=OneWay}" FontSize="24" />
                     </Button>
-                    <Button Style="{StaticResource LyricsButtonStyle}" Command="{x:Bind Player.NextCommand}"
+                    <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.NextCommand}"
                         IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}" AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
-                        <FontIcon Glyph="&#xE893;" FontSize="22" />
+                        <FontIcon Glyph="&#xE893;" FontSize="28" />
                     </Button>
                 </StackPanel>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
@@ -169,26 +154,36 @@
                     <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" VerticalAlignment="Center"
                         Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
                 </StackPanel>
-                <StackPanel x:Name="VolumeDeck" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="12">
-                    <Button x:Name="CommentsButton" Width="58" Click="OnCommentsClick" Style="{StaticResource LyricsChromeButtonStyle}"
+                <!--
+                    ★ Spacing 16 而不是左边那组的 8：音质标签是撑满按钮的方块，
+                      旁边「评论」「音量」都是外圈留白的图标按钮 —— 数值一样时，
+                      方块那侧的视觉空隙只有一半，看着就挤。
+                      左边收藏 / 分享两颗都是图标按钮，没有这个问题，保持 8。
+                -->
+                <StackPanel x:Name="VolumeDeck" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="16">
+                    <!--
+                        评论入口与左下角的收藏 / 分享用同一个控件，尺寸和角标样式天然一致；
+                        面板打开时用 IsActive 换成强调色图标，不再由代码改前景色。
+                    -->
+                    <controls:TrackStatisticButton x:Name="CommentsButton" Glyph="&#xE90A;" ActiveGlyph="&#xE90A;"
+                        Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
-                        AutomationProperties.Name="{x:Bind Comments.BadgeAutomationName, Mode=OneWay}"
-                        ToolTipService.ToolTip="{x:Bind Comments.BadgeAutomationName, Mode=OneWay}">
-                        <Grid Width="54" Height="36">
-                            <FontIcon x:Name="CommentsIcon" Glyph="&#xE90A;" FontSize="19" HorizontalAlignment="Left" Margin="6,5,0,0" />
-                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,0,0"
-                                MinWidth="16" MaxWidth="42" Padding="4,1" CornerRadius="7"
-                                Background="#FF202632" BorderBrush="#35FFFFFF" BorderThickness="1"
-                                Visibility="{x:Bind local:Formats.Visible(Comments.HasBadgeCount), Mode=OneWay}">
-                                <TextBlock Text="{x:Bind Comments.BadgeText, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
-                                    Foreground="#FFF1F4FA" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
-                            </Border>
-                        </Grid>
-                    </Button>
-                    <Button x:Name="QualityButton" Width="56" Padding="8,0" Style="{StaticResource LyricsChromeButtonStyle}"
+                        IsActive="{x:Bind Comments.IsOpen, Mode=OneWay}"
+                        Click="OnCommentsClick"
+                        Label="{x:Bind Comments.BadgeAutomationName, Mode=OneWay}"
+                        BadgeText="{x:Bind Comments.BadgeText, Mode=OneWay}"
+                        HasBadgeCount="{x:Bind Comments.HasBadgeCount, Mode=OneWay}" />
+                    <!-- 音质按钮回到扁平药丸那一版：36 宽、圆角 8，胶囊横向撑满、纵向居中。 -->
+                    <Button x:Name="QualityButton" Width="36" Height="36" CornerRadius="8" Padding="0"
+                        Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
                         IsEnabled="{x:Bind Player.CanChangeQuality, Mode=OneWay}" AutomationProperties.Name="音质切换"
                         ToolTipService.ToolTip="{x:Bind Player.QualityText, Mode=OneWay}">
-                        <TextBlock Text="{x:Bind Player.QualityLabel, Mode=OneWay}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                        <controls:AudioQualityChip
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center"
+                            Label="{x:Bind Player.QualityLabel, Mode=OneWay}"
+                            Quality="{x:Bind Player.CurrentQuality, Mode=OneWay}" />
                         <Button.Flyout>
                             <Flyout x:Name="QualityFlyout" Placement="Top">
                                 <Flyout.FlyoutPresenterStyle>
@@ -203,10 +198,10 @@
                             </Flyout>
                         </Button.Flyout>
                     </Button>
-                    <StackPanel x:Name="VolumeControls" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
-                        <FontIcon Glyph="{x:Bind Player.VolumeGlyph, Mode=OneWay}" FontSize="16" Foreground="#99FFFFFF" />
-                        <Slider x:Name="VolumeSlider" Width="96" MinWidth="0" Maximum="100" Value="{x:Bind Player.Volume, Mode=TwoWay}" AutomationProperties.Name="音量" />
-                    </StackPanel>
+                    <!-- 与播放条同一个音量控件：一颗图标按钮，悬停才在上方展开竖向滑条，不外显。 -->
+                    <controls:VolumeButton
+                        x:Name="VolumeControl"
+                        ViewModel="{x:Bind Player, Mode=OneWay}" />
                 </StackPanel>
                 <TextBlock Grid.Row="1" Text="{x:Bind Player.Notice, Mode=OneWay}" FontSize="12"
                     Foreground="#BCFFFFFF" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"

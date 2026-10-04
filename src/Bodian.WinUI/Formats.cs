@@ -56,6 +56,24 @@ public static class Formats
         return Math.Max(60, infoBlockWidth - used);
     }
 
+    /// <summary>
+    /// 歌词页标题行曲名的最大宽度：标题行可用宽度减去付费徽标与行内间距。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="PlayerTitleMaxWidth"/> 同一个理由 —— 标题与徽标在横向
+    /// <see cref="StackPanel"/> 里才会紧贴，代价是 StackPanel 不约束子元素宽度，
+    /// 所以曲名必须自己带上限，否则长标题会把徽标顶出屏幕。
+    /// <b>徽标宽度按字号 10 + 左右内边距 6 + 边框估</b>，改徽标样式时要一起改。
+    /// </remarks>
+    public static double LyricsHeadingMaxWidth(double availableWidth, bool hasPayBadge)
+    {
+        const double badge = 52;
+        const double spacing = 8;
+
+        var reserved = hasPayBadge ? badge + spacing : 0;
+        return Math.Max(160, availableWidth - reserved);
+    }
+
     /// <summary>播放条信息块的常规宽度。窄窗口会缩短，曲名按当前宽度为徽标留位。</summary>
     public static double PlayerInfoBlockWidth => 220;
 

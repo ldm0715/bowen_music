@@ -83,6 +83,10 @@ public sealed partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     public partial AudioQualityOption? SelectedQualityOption { get; set; }
 
+    /// <summary>当前正在用的档位，供音质胶囊取色。还没取到音源时为 <c>null</c>。</summary>
+    [ObservableProperty]
+    public partial AudioQuality? CurrentQuality { get; set; }
+
     [ObservableProperty]
     public partial bool CanChangeQuality { get; set; } = true;
 
@@ -102,6 +106,7 @@ public sealed partial class PlayerViewModel : ObservableObject
         var current = _coordinator.CurrentSource is { } source
             ? AudioQualityTable.ServedQuality(source) : _coordinator.PreferredQuality;
         CanChangeQuality = !busy;
+        CurrentQuality = current;
         QualityStatus = busy ? "正在切换音质…" : audition ? "试听片段不支持音质切换" : "";
         SelectedQualityOption = null;
         QualityOptions.Clear();
@@ -115,7 +120,8 @@ public sealed partial class PlayerViewModel : ObservableObject
             var size = variant?.SizeBytes ?? 0;
             if (current == quality && _coordinator.CurrentSource is { SizeBytes: > 0 } actual) { size = actual.SizeBytes; }
             var option = new AudioQualityOption(quality, AudioQualityTable.DisplayName(quality),
-                available ? AudioQualityTable.FormatSize(size) : "暂无音源", available && !audition && !busy);
+                available ? AudioQualityTable.FormatSize(size) : "暂无音源", available && !audition && !busy,
+                current == quality);
             QualityOptions.Add(option);
             if (current == quality) { selected = option; }
         }
@@ -517,4 +523,6 @@ public sealed partial class PlayerViewModel : ObservableObject
 
 }
 
-public sealed record AudioQualityOption(AudioQuality Quality, string Name, string SizeText, bool IsEnabled);
+/// <summary>音质弹层里的一档。</summary>
+/// <param name="IsCurrent">是否当前正在用的档位。弹层里当前档摆满、其余收暗。</param>
+public sealed record AudioQualityOption(AudioQuality Quality, string Name, string SizeText, bool IsEnabled, bool IsCurrent);

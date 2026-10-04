@@ -49,4 +49,14 @@ public sealed partial class TrackStatisticButton : UserControl
 
     public ICommand? Command { get => (ICommand?)GetValue(CommandProperty); set => SetValue(CommandProperty, value); }
     public object? CommandParameter { get => GetValue(CommandParameterProperty); set => SetValue(CommandParameterProperty, value); }
+
+    /// <summary>
+    /// 内部按钮的点按事件。走命令的用法不需要它；评论入口没有命令，靠它接页面处理器。
+    /// </summary>
+    public event RoutedEventHandler? Click;
+
+    /// <summary>把键盘焦点交给内部按钮，供收起浮层后归还焦点。</summary>
+    public bool FocusButton(FocusState state) => InnerButton.Focus(state);
+
+    private void OnInnerClick(object sender, RoutedEventArgs args) => Click?.Invoke(this, args);
 }

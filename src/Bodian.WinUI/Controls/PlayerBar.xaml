@@ -12,10 +12,12 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
         <conv:BoolToVisibilityConverter x:Key="NotBoolToVisibility" Invert="True" />
 
-        <!-- 固定图标显示区域，文字图标也使用 FontIcon，避免 TextBlock 行高造成下沉。 -->
+        <!--
+            ★ 这里**不写 Width / Height**：图标现在按角色分三档（播放模式 20 / 上下一首 28 /
+              队列 22），写死一个 20×20 的显示区会把 28 号的字形裁掉一块，症状就是「按钮显示不全」。
+              字号由每颗图标自己给，默认 20。
+        -->
         <Style TargetType="FontIcon">
-            <Setter Property="Width" Value="20" />
-            <Setter Property="Height" Value="20" />
             <Setter Property="FontSize" Value="20" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -24,35 +26,12 @@
 
         <!--
             播放模式的三个图标是自绘路径（见下面传输组里那段注释），路径按 24 单位视框画，
-            这里给 PathIcon 一个同样 24×24 的自然尺寸，再由外面那层 Viewbox 缩到 SizeIconMd。
+            这里给 PathIcon 一个同样 24×24 的自然尺寸，再由外面那层 Viewbox 缩放。
             显式写死这两个数，是为了不依赖 PathIcon 自己缩不缩放。
         -->
         <Style TargetType="PathIcon">
             <Setter Property="Width" Value="24" />
             <Setter Property="Height" Value="24" />
-        </Style>
-
-        <x:Double x:Key="PlayerButtonSize">36</x:Double>
-
-        <Style x:Key="PlayerUtilityButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
-            <Setter Property="Width" Value="{StaticResource PlayerButtonSize}" />
-            <Setter Property="Height" Value="{StaticResource PlayerButtonSize}" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="CornerRadius" Value="18" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
-        <Style x:Key="PlayerPlayButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
-            <Setter Property="Width" Value="{StaticResource PlayerButtonSize}" />
-            <Setter Property="Height" Value="{StaticResource PlayerButtonSize}" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="CornerRadius" Value="18" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
 
         <!-- 细进度条保留完整原生模板，轨道与滑块外观在控件加载后调整。 -->
@@ -65,13 +44,6 @@
             <Setter Property="IsThumbToolTipEnabled" Value="False" />
         </Style>
 
-        <!-- 音量保留完整原生模板，避免轨道布局影响百分比与滑块行程。 -->
-        <Style x:Key="PlayerVolumeSliderStyle" TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
-            <Setter Property="Width" Value="22" />
-            <Setter Property="Height" Value="112" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="IsThumbToolTipEnabled" Value="False" />
-        </Style>
     </UserControl.Resources>
 
     <!-- 延续页面的氛围背景，由横贯窗口的播放进度划分内容区与播放栏。 -->
@@ -131,33 +103,36 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid ColumnSpacing="4" MinWidth="0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <!--
+                        曲名与徽标放同一个横向 StackPanel，徽标才会紧跟曲名 ——
+                        换成 `*`/`Auto` 两列的 Grid 时，`*` 列会吃掉整个信息块，
+                        徽标被钉在最右边界，曲名一短就和它拉开一大截。
+                        代价是 StackPanel 不约束子元素，曲名要自己带上限（见下面的 MaxWidth）。
+                    -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left"
+                        Spacing="{x:Bind local:Formats.PlayerBadgeSpacing}">
                         <TextBlock MinWidth="0" VerticalAlignment="Center" FontSize="{StaticResource FontSizeBodyLarge}"
                             FontWeight="SemiBold" Text="{x:Bind ViewModel.Title, Mode=OneWay}"
+                            MaxWidth="{x:Bind local:Formats.PlayerTitleMaxWidth(SongInfo.ActualWidth, ViewModel.IsAudition, ViewModel.HasPayLabel), Mode=OneWay}"
                             ToolTipService.ToolTip="{x:Bind ViewModel.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
-                        <Border Grid.Column="1" Padding="6,1" VerticalAlignment="Center"
+                        <Border Padding="6,1" VerticalAlignment="Center"
                             Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" CornerRadius="4"
                             Visibility="{x:Bind ViewModel.IsAudition, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock FontSize="11" Text="试听" />
                         </Border>
-                        <Border Grid.Column="2" Padding="6,1" VerticalAlignment="Center"
+                        <Border Padding="6,1" VerticalAlignment="Center"
                             Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}" CornerRadius="4"
                             Visibility="{x:Bind ViewModel.HasPayLabel, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock FontSize="11" Text="{x:Bind ViewModel.PayLabel, Mode=OneWay}" />
                         </Border>
-
-                    </Grid>
+                    </StackPanel>
                     <TextBlock Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Text="{x:Bind local:Formats.ArtistLine(ViewModel.ArtistText, ViewModel.AlbumText), Mode=OneWay}"
                         TextTrimming="CharacterEllipsis" />
                 </Grid>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="0">
+                <!-- 收藏 / 分享：紧跟信息块右侧，各自 32 圆 + 右上角计数角标。 -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
                     <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;" ActiveGlyph="&#xEB52;"
                         IsEnabled="{x:Bind ViewModel.HasTrack, Mode=OneWay}"
                         IsActive="{x:Bind ViewModel.Statistics.IsFavorite, Mode=OneWay}"
@@ -184,7 +159,7 @@
                 Grid.Column="1"
                 VerticalAlignment="Center"
                 Orientation="Horizontal"
-                Spacing="12">
+                Spacing="24">
                 <!--
                     播放模式：一个按钮循环切换三种模式，三个图标叠在同一格里靠 Visibility 选一个显示，
                     写法与右边那颗播放/暂停按钮一致。
@@ -197,9 +172,16 @@
                 <Button
                     AutomationProperties.Name="播放模式"
                     Command="{x:Bind ViewModel.CyclePlayModeCommand}"
-                    Style="{StaticResource PlayerUtilityButtonStyle}"
+                    Style="{StaticResource PlayerBareIconButtonStyle}"
                     ToolTipService.ToolTip="{x:Bind ViewModel.PlayModeText, Mode=OneWay}">
-                    <Viewbox Width="{StaticResource SizeIconMd}" Height="{StaticResource SizeIconMd}">
+                    <!--
+                        ★ 尺寸写 26 而不是 SizeIconMd(20)：
+                          这三个自绘路径是按 24 单位视框画的，但墨水只占其中 17×13 ——
+                          缩到 20 之后实际只有 14×11，比旁边 28 号的上一首/下一首小一半，看着格格不入。
+                          26 时墨水约 18×14，和队列那颗(22 号，墨水约 19)同量级，又仍小于上一首/下一首。
+                          改这三个路径的坐标时要一起重算这个数。
+                    -->
+                    <Viewbox Width="26" Height="26">
                         <Grid Width="24" Height="24">
                             <PathIcon
                                 Data="M 3.5,6.75 L 15.5,6.75 L 15.5,5.6 L 20.5,7.5 L 15.5,9.4 L 15.5,8.25 L 3.5,8.25 L 3.5,6.75 M 3.5,15.75 L 15.5,15.75 L 15.5,14.6 L 20.5,16.5 L 15.5,18.4 L 15.5,17.25 L 3.5,17.25 L 3.5,15.75"
@@ -217,22 +199,22 @@
                     AutomationProperties.Name="上一首"
                     Command="{x:Bind ViewModel.PreviousCommand}"
                     IsEnabled="{x:Bind ViewModel.CanGoPrevious, Mode=OneWay}"
-                    Style="{StaticResource PlayerUtilityButtonStyle}"
+                    Style="{StaticResource PlayerBareIconButtonStyle}"
                     ToolTipService.ToolTip="上一首">
-                    <FontIcon FontSize="{StaticResource SizeIconMd}" Glyph="&#xE892;" />
+                    <FontIcon FontSize="28" Glyph="&#xE892;" />
                 </Button>
                 <Button
                     AutomationProperties.Name="播放 / 暂停"
                     Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
-                    Style="{StaticResource PlayerPlayButtonStyle}"
+                    Style="{StaticResource PlayerAccentButtonStyle}"
                     ToolTipService.ToolTip="播放 / 暂停">
                     <Grid>
                         <FontIcon
-                            FontSize="{StaticResource SizeIconMd}"
+                            FontSize="24"
                             Glyph="&#xE768;"
                             Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource NotBoolToVisibility}}" />
                         <FontIcon
-                            FontSize="{StaticResource SizeIconMd}"
+                            FontSize="24"
                             Glyph="&#xE769;"
                             Visibility="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
@@ -241,9 +223,9 @@
                     AutomationProperties.Name="下一首"
                     Command="{x:Bind ViewModel.NextCommand}"
                     IsEnabled="{x:Bind ViewModel.CanGoNext, Mode=OneWay}"
-                    Style="{StaticResource PlayerUtilityButtonStyle}"
+                    Style="{StaticResource PlayerBareIconButtonStyle}"
                     ToolTipService.ToolTip="下一首">
-                    <FontIcon FontSize="{StaticResource SizeIconMd}" Glyph="&#xE893;" />
+                    <FontIcon FontSize="28" Glyph="&#xE893;" />
                 </Button>
                 <!--
                     播放列表：弹出的是内存播放队列，不是服务器歌单。
@@ -253,9 +235,9 @@
                     x:Name="PlaylistButton"
                     AutomationProperties.Name="播放列表"
                     Click="OnPlaylistClick"
-                    Style="{StaticResource PlayerUtilityButtonStyle}"
+                    Style="{StaticResource PlayerBareIconButtonStyle}"
                     ToolTipService.ToolTip="播放列表">
-                    <FontIcon FontSize="{StaticResource SizeIconMd}" Glyph="&#xE142;" />
+                    <FontIcon FontSize="22" Glyph="&#xE142;" />
                 </Button>
             </StackPanel>
 
@@ -264,18 +246,32 @@
                 HorizontalAlignment="Right"
                 VerticalAlignment="Center"
                 Orientation="Horizontal"
-                Spacing="8">
-                <!-- 播放栏只显示当前档位，面板保留各档大小。 -->
+                Spacing="16">
+                <!--
+                    播放栏只显示当前档位，面板保留各档大小。
+                    当前档用档位色标签表示（标准灰 / HQ 蓝 / SQ 金），与面板里那三行同一个控件。
+
+                    ★ Spacing 16：音质标签是撑满按钮的方块，另外两颗是外圈留白的图标按钮。
+                      数值取 8 时方块那侧的视觉空隙只有一半，看着挤；16 才和左区那颗图标按钮的间距等效。
+                -->
                 <Button
                     x:Name="QualityButton"
-                    Width="56"
-                    Padding="8,0"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="8"
+                    Padding="0"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Center"
                     AutomationProperties.Name="音质切换"
                     IsEnabled="{x:Bind ViewModel.CanChangeQuality, Mode=OneWay}"
-                    Style="{StaticResource PlayerUtilityButtonStyle}"
+                    Style="{StaticResource PlayerRoundIconButtonStyle}"
                     ToolTipService.ToolTip="{x:Bind ViewModel.QualityText, Mode=OneWay}">
-                    <TextBlock FontSize="12" Text="{x:Bind ViewModel.QualityLabel, Mode=OneWay}"
-                        TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <!-- 音质按钮回到扁平药丸那一版：36 宽、圆角 8，胶囊横向撑满、纵向居中。 -->
+                    <controls:AudioQualityChip
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        Label="{x:Bind ViewModel.QualityLabel, Mode=OneWay}"
+                        Quality="{x:Bind ViewModel.CurrentQuality, Mode=OneWay}" />
                     <Button.Flyout>
                         <Flyout x:Name="QualityFlyout" Placement="Top">
                             <Flyout.FlyoutPresenterStyle>
@@ -294,17 +290,24 @@
                     AutomationProperties.Name="歌词"
                     Click="OnLyricsClick"
                     IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
-                    Style="{StaticResource PlayerUtilityButtonStyle}"
+                    Style="{StaticResource PlayerRoundIconButtonStyle}"
                     ToolTipService.ToolTip="歌词">
-                    <FontIcon FontFamily="Microsoft YaHei UI" Glyph="词" />
+                    <!--
+                        汉字图标：字号要压到比 Segoe MDL2 小一档 ——
+                        汉字把整个字身框占满，MDL2 的图标只占字身框的八成左右，
+                        同样字号写出来「词」会明显大一圈，和旁边那几颗不是一套。
+                    -->
+                    <!--
+                        上移 2：字形按基线摆，墨水落在字身框中心线下面一点；
+                        旁边那颗音质标签是个矩形块、几何居中，两颗并排就能看出差半格。
+                        Margin 是负的，VerticalAlignment=Center 下负的上边距会把元素上移其一半。
+                    -->
+                    <FontIcon Margin="0,-4,0,0" FontFamily="Microsoft YaHei UI" FontSize="14" Glyph="词" />
                 </Button>
-                <Button
-                    x:Name="VolumeButton"
-                    AutomationProperties.Name="音量"
-                    Click="OnVolumeClick"
-                    Style="{StaticResource PlayerUtilityButtonStyle}">
-                    <FontIcon FontSize="{StaticResource SizeIconMd}" Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" />
-                </Button>
+                <!-- 音量与歌词页共用同一个控件。 -->
+                <controls:VolumeButton
+                    x:Name="VolumeControl"
+                    ViewModel="{x:Bind ViewModel}" />
             </StackPanel>
         </Grid>
 
@@ -357,49 +360,5 @@
             </Border>
         </primitives:Popup>
 
-        <!-- 透明桥接区与延迟关闭让鼠标能从按钮连续移入上方的细音量滑条。 -->
-        <primitives:Popup x:Name="VolumePopup" HorizontalAlignment="Left" VerticalAlignment="Top">
-            <Border
-                x:Name="VolumePopupHost"
-                Padding="0,0,0,8"
-                Background="Transparent"
-                KeyDown="OnVolumeKeyDown"
-                LostFocus="OnVolumeLostFocus"
-                PointerExited="OnVolumePointerExited">
-                <Border
-                    Padding="12"
-                    Background="{ThemeResource ToolTipBackground}"
-                    BorderBrush="{ThemeResource ToolTipBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                    <StackPanel HorizontalAlignment="Center" Spacing="8">
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            Foreground="{ThemeResource ToolTipForeground}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="{x:Bind local:Formats.Percent(ViewModel.Volume), Mode=OneWay}" />
-                        <Slider
-                            x:Name="VolumeSlider"
-                            AutomationProperties.Name="音量滑条"
-                            Maximum="100"
-                            Minimum="0"
-                            Orientation="Vertical"
-                            Style="{StaticResource PlayerVolumeSliderStyle}"
-                            Value="{x:Bind ViewModel.Volume, Mode=TwoWay}">
-                            <Slider.Resources>
-                                <x:Double x:Key="SliderTrackThemeHeight">2</x:Double>
-                                <x:Double x:Key="SliderVerticalWidth">22</x:Double>
-                                <x:Double x:Key="SliderPreContentMargin">10</x:Double>
-                                <x:Double x:Key="SliderPostContentMargin">10</x:Double>
-                                <x:Double x:Key="SliderVerticalThumbWidth">8</x:Double>
-                                <x:Double x:Key="SliderVerticalThumbHeight">8</x:Double>
-                                <x:Double x:Key="SliderInnerThumbWidth">4</x:Double>
-                                <x:Double x:Key="SliderInnerThumbHeight">4</x:Double>
-                            </Slider.Resources>
-                        </Slider>
-                    </StackPanel>
-                </Border>
-            </Border>
-        </primitives:Popup>
     </Grid>
 </UserControl>

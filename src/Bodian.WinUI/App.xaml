@@ -22,11 +22,17 @@
                 <!-- 会员胶囊的三套品牌配色。与主题无关，理由见该文件顶部 -->
                 <ResourceDictionary Source="ms-appx:///Themes/VipBadge.xaml" />
 
+                <!-- 音质三档的胶囊配色。同上，与主题无关 -->
+                <ResourceDictionary Source="ms-appx:///Themes/Quality.xaml" />
+
                 <!-- 浅色 / 深色 / 高对比度三套颜色 -->
                 <ResourceDictionary Source="ms-appx:///Themes/Theme.xaml" />
 
                 <!-- 页面骨架的共享样式。必须在 Tokens 之后（要用里面的尺寸 token） -->
                 <ResourceDictionary Source="ms-appx:///Themes/Styles/Pages.xaml" />
+
+                <!-- 播放条与歌词页共用的按钮外观。同样要用 Tokens 里的尺寸 token -->
+                <ResourceDictionary Source="ms-appx:///Themes/Styles/Player.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

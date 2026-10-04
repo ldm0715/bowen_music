@@ -1,34 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
 <UserControl
     x:Class="Bodian.WinUI.Controls.TrackStatisticButton"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Bodian.WinUI"
-    MinWidth="0" Width="42" Height="36">
-    <!-- 可点按钮：图标 + 统计角标。分享按钮不分状态，IsActive 保持 false 即可。 -->
-    <Button Style="{StaticResource SubtleButtonStyle}" MinWidth="0" Padding="0" CornerRadius="6"
-        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-        HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-        Command="{x:Bind Command, Mode=OneWay}" CommandParameter="{x:Bind CommandParameter, Mode=OneWay}"
-        AutomationProperties.Name="{x:Bind Label, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}">
-        <Grid>
-            <!-- 未激活：轮廓图标，沿用外层给的前景色。 -->
-            <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" FontSize="18" Width="20" Height="20"
-                Margin="4,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
-                Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsActive), Mode=OneWay}" />
-            <!-- 已激活：实心图标 + 强调色。两个图标叠在同一格，靠可见性切换。 -->
-            <FontIcon Glyph="{x:Bind ActiveGlyph, Mode=OneWay}" FontSize="18" Width="20" Height="20"
-                Margin="4,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
-                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                Visibility="{x:Bind local:Formats.Visible(IsActive), Mode=OneWay}" />
-            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,0,0"
-                MinWidth="16" MaxWidth="40" Padding="3,1" CornerRadius="7"
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1"
-                Visibility="{x:Bind local:Formats.Visible(HasBadgeCount), Mode=OneWay}">
-                <TextBlock Text="{x:Bind BadgeText, Mode=OneWay}" FontSize="9" FontWeight="SemiBold"
-                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextAlignment="Center"
-                    TextTrimming="CharacterEllipsis" />
-            </Border>
-        </Grid>
-    </Button>
+    MinWidth="0">
+    <!--
+        收藏 / 分享 / 评论入口：一颗 32 圆的图标按钮 + 右上角的计数角标。
+
+        ★ 角标**放在按钮之外**（`Margin="0,-5,-4,0"` + `IsHitTestVisible="False"`）：
+          压在按钮右上角、往外探一点，不盖住图标，也不算进按钮的点击区。
+          抬到图标之上是因为图标居中(18 号,墨水约 y=8..24)，角标压在 y=-5..8 正好错开。
+    -->
+    <Grid>
+        <Button
+            x:Name="InnerButton"
+            Style="{StaticResource PlayerRoundIconButtonStyle}"
+            Click="OnInnerClick"
+            AutomationProperties.Name="{x:Bind Label, Mode=OneWay}"
+            ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}">
+            <Grid>
+                <!--
+                    未激活：轮廓图标，沿用外层给的前景色。
+                    `Margin="0,-4,0,0"` 是上移 2（Center 对齐下负上边距只生效一半）：
+                    字形按基线摆，墨水比字身框中心线低一点；紧挨着音质标签（矩形块、几何居中）时能看出差半格。
+                -->
+                <FontIcon
+                    Margin="0,-4,0,0"
+                    FontSize="18"
+                    Glyph="{x:Bind Glyph, Mode=OneWay}"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsActive), Mode=OneWay}" />
+                <!-- 已激活：实心图标 + 强调色。两个图标叠在同一格，靠可见性切换。 -->
+                <FontIcon
+                    Margin="0,-4,0,0"
+                    FontSize="18"
+                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                    Glyph="{x:Bind ActiveGlyph, Mode=OneWay}"
+                    Visibility="{x:Bind local:Formats.Visible(IsActive), Mode=OneWay}" />
+            </Grid>
+        </Button>
+        <Border
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Margin="0,-5,-4,0"
+            MinWidth="16"
+            MaxWidth="36"
+            Padding="3,0"
+            CornerRadius="7"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            IsHitTestVisible="False"
+            Visibility="{x:Bind local:Formats.Visible(HasBadgeCount), Mode=OneWay}">
+            <TextBlock
+                FontSize="9"
+                FontWeight="SemiBold"
+                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                Text="{x:Bind BadgeText, Mode=OneWay}"
+                TextAlignment="Center"
+                TextTrimming="CharacterEllipsis" />
+        </Border>
+    </Grid>
 </UserControl>
