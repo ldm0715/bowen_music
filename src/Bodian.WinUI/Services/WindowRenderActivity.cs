@@ -10,10 +10,11 @@ namespace Bodian.WinUI.Services;
 /// <summary>在 XAML 处理窗口消息前暂停视觉刷新；不改变音频播放状态。</summary>
 internal sealed class WindowRenderActivity : IDisposable
 {
-    private const uint WmSize = 0x0005, WmNcDestroy = 0x0082;
+    private const uint WmSize = 0x0005, WmNcDestroy = 0x0082, WmNcCalcSize = 0x0083;
     private const uint WmEnterSizeMove = 0x0231, WmExitSizeMove = 0x0232;
     private readonly nint _window;
     private readonly NativeMethods.SubclassProc _callback;
+    private readonly bool _extendTopFrame = !OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000);
     private readonly DispatcherQueueTimer _transitionTimer;
     private readonly ILogger _logger;
     private bool _interactive;
@@ -43,6 +44,8 @@ internal sealed class WindowRenderActivity : IDisposable
             ReplayWindowPosition();
             Publish();
         };
+        // SWP_FRAMECHANGED | NOMOVE | NOSIZE | NOZORDER | NOACTIVATE
+        if (_extendTopFrame) NativeMethods.SetWindowPos(window, 0, 0, 0, 0, 0, 0x0037);
     }
 
     public event EventHandler? Changed;
@@ -62,6 +65,20 @@ internal sealed class WindowRenderActivity : IDisposable
 
     private nint OnWindowMessage(nint window, uint message, nuint wParam, nint lParam, nuint id, nuint data)
     {
+        if (_extendTopFrame && message == WmNcCalcSize && wParam != 0 && lParam != 0)
+        {
+            var frameResult = NativeMethods.DefSubclassProc(window, message, wParam, lParam);
+            var style = (long)NativeMethods.GetWindowLongPtr(window, -16);
+            // Cover the 1-physical-pixel top border on Windows 10, including fullscreen.
+            // Preserve the other edges and the system client area for maximized windows.
+            if ((style & 0x01000000L) == 0)
+            {
+                var rect = Marshal.PtrToStructure<NativeMethods.NativeRect>(lParam);
+                rect.Top -= 1;
+                Marshal.StructureToPtr(rect, lParam, false);
+            }
+            return frameResult;
+        }
         try
         {
             switch (message)
