@@ -42,6 +42,19 @@ internal static class Sanitizer
         "car_url", "car_url_https",
     };
 
+    /// <summary>
+    /// 这些键的值是**签名在路径里**的视频直链（形如
+    /// <c>http://host/&lt;签名段&gt;/&lt;签名段&gt;/le/resource/…/x.mp4</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 光去 query 抹不掉它——<see cref="UrlKeys"/> 那条「留 path 去 query」的处理对这里是无效的，
+    /// 凭据正是路径前两段。见 <c>reverse/findings/15-mv.md</c>。
+    /// </remarks>
+    private static readonly HashSet<string> SignedPathUrlKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "highUrl", "lowUrl", "shortLowUrl",
+    };
+
     public static string ForDisplay(string json) => Mask(json, DisplayKeys);
 
     public static string ForFixture(string json, params string[] extraMaskedKeys)
@@ -102,6 +115,12 @@ internal static class Sanitizer
                         continue;
                     }
 
+                    if (child is JsonValue && SignedPathUrlKeys.Contains(key) && child.GetValueKind() == JsonValueKind.String)
+                    {
+                        obj[key] = StripSignedPath(child.GetValue<string>());
+                        continue;
+                    }
+
                     if (child is JsonValue && UrlKeys.Contains(key) && child.GetValueKind() == JsonValueKind.String)
                     {
                         obj[key] = StripQuery(child.GetValue<string>());
@@ -148,6 +167,20 @@ internal static class Sanitizer
         return QueryCredentialPattern.Replace(value, m =>
             m.Groups[2].Value.Length == 0 ? m.Value : $"{m.Groups[1].Value}={Placeholder}");
     }
+
+    /// <summary>
+    /// 把签名在路径里的视频直链压成 scheme + host + 文件名。
+    /// </summary>
+    /// <remarks>
+    /// 文件名是资源 id（与封面 URL 里的 <c>2430535878.webp</c> 同级），不是凭据，可以留；
+    /// 签名段与 query 一并丢掉。
+    /// </remarks>
+    private static string StripSignedPath(string value)
+        => Uri.TryCreate(value, UriKind.Absolute, out var uri)
+           && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+           && uri.Segments.Length > 0
+            ? $"{uri.Scheme}://{uri.Authority}/{uri.Segments[^1]}"
+            : value;
 
     private static string StripQuery(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri)
