@@ -26,8 +26,9 @@ namespace Bodian.WinUI.ViewModels;
 /// 生成器要给它生成 setter，<c>init</c> 会让那行生成代码编不过（CS8852）。
 /// </para>
 /// <para>
-/// 序号列是三态互斥的：<b>正在播放 → 起伏条；鼠标悬停 → 播放键；其余 → 序号</b>。
-/// 前两者由本类算，绑定方不必自己拼条件；起伏条自己管显隐（见 <c>Controls/PlayingBars</c>）。
+/// 序号列是四态互斥的：<b>多选 → 复选框；正在播放 → 起伏条；鼠标悬停 → 播放键；其余 → 序号</b>。
+/// 都由本类算，绑定方不必自己拼条件；起伏条自己管显隐（见 <c>Controls/PlayingBars</c>）。
+/// <b>多选态排在最前面</b>：勾选过程中看到起伏条或播放键会让人以为点错了。
 /// </para>
 /// <para>
 /// 行尾的「更多」按钮同样由本类算：<b>悬停或菜单开着时可见</b>，见 <see cref="MoreVisibility"/>。
@@ -91,18 +92,41 @@ public sealed partial class TrackRow : ObservableObject
 
     /// <summary>这一行是不是当前正在播放的那首。</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility))]
+    [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility), nameof(ShowPlayingBars))]
     public partial bool IsCurrent { get; set; }
 
-    // 正在播放那一态的显隐不在这里：起伏条是 Controls/PlayingBars，它自己按 IsPlaying 管显隐，
-    // 行模板直接把 IsCurrent 绑上去。多算一个 Visibility 反而多一处要同步的状态。
+    /// <summary>
+    /// 列表是不是处在多选态。
+    /// </summary>
+    /// <remarks>
+    /// 由 <c>TrackListView</c> 在切换多选时统一下发到每一行 —— 行自己不知道列表的状态。
+    /// <b>它不是容器状态而是行状态</b>，这样虚拟化回收时不用做任何事：容器去装另一行时
+    /// <c>x:Bind</c> 自然重读那一行的值。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility),
+        nameof(MoreVisibility), nameof(SelectionCheckVisibility), nameof(ShowPlayingBars))]
+    public partial bool IsSelectionMode { get; set; }
 
-    public Visibility PlayGlyphVisibility => Vis(!IsCurrent && IsPointerOver);
+    /// <summary>多选态下这一行有没有被勾上。</summary>
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
 
-    public Visibility IndexVisibility => Vis(!IsCurrent && !IsPointerOver);
+    // 起伏条的显隐不在这里：它是 Controls/PlayingBars，自己按传来的布尔值管显隐，
+    // 行模板绑 ShowPlayingBars。多算一个 Visibility 反而多一处要同步的状态。
 
-    /// <summary>行尾「更多」按钮：悬停或菜单开着时可见。</summary>
-    public Visibility MoreVisibility => Vis(IsPointerOver || IsMenuOpen);
+    /// <summary>起伏条要不要出现。多选态下让位给复选框。</summary>
+    public bool ShowPlayingBars => IsCurrent && !IsSelectionMode;
+
+    public Visibility PlayGlyphVisibility => Vis(!IsSelectionMode && !IsCurrent && IsPointerOver);
+
+    public Visibility IndexVisibility => Vis(!IsSelectionMode && !IsCurrent && !IsPointerOver);
+
+    /// <summary>行尾「更多」按钮：悬停或菜单开着时可见，<b>多选态一律收起</b>（点它没有意义，还会误触）。</summary>
+    public Visibility MoreVisibility => Vis(!IsSelectionMode && (IsPointerOver || IsMenuOpen));
+
+    /// <summary>多选态下的勾选框。</summary>
+    public Visibility SelectionCheckVisibility => Vis(IsSelectionMode);
 
     private static Visibility Vis(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 }

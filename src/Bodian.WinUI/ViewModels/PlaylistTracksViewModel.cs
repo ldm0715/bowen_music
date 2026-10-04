@@ -78,6 +78,14 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     [ObservableProperty]
     public partial Track? CurrentTrack { get; set; }
 
+    /// <summary>
+    /// 当前歌单的服务端 id；还没解析出来（或歌单不存在）时是 <c>0</c>。
+    /// </summary>
+    /// <remarks>
+    /// 工具栏的「批量移出」要用它 —— 值为 0 时那颗按钮整个收起来，不会出现「点了没反应」。
+    /// </remarks>
+    public long PlaylistId => _playlistId ?? 0;
+
     /// <summary>页头显示的歌单名。拿不到歌单时是子类给的兜底名字。</summary>
     [ObservableProperty]
     public partial string Title { get; set; } = "";
@@ -136,11 +144,13 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
             if (playlist is null)
             {
                 _playlistId = null;
+                OnPropertyChanged(nameof(PlaylistId));
                 StatusText = MissingText;
                 return;
             }
 
             _playlistId = playlist.Id;
+            OnPropertyChanged(nameof(PlaylistId));
             Title = playlist.Name;
 
             await AppendNextPageAsync(cancellationToken).ConfigureAwait(true);
@@ -236,7 +246,9 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     /// 点播某一行。
     /// </summary>
     /// <remarks>
-    /// 队列就是这个列表本身：点第 N 行 → 整页入队并从第 N 首开始，所以「下一首」在页内有效。
+    /// <b>只把这一首排进队列并立即播放它</b>：点一首歌不该把整个列表拖进队列。
+    /// 要一次排进整个列表，走工具栏的「全部加入播放列表」（追加，不打断正在播的），
+    /// 或者页头的「播放全部」（整表替换并从头播）。
     /// </remarks>
     [RelayCommand]
     private async Task PlayAsync(Track? track)
@@ -246,16 +258,9 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
             return;
         }
 
-        var index = Tracks.IndexOf(track);
-
-        if (index < 0)
-        {
-            return;
-        }
-
         CurrentTrack = track;
 
-        await Coordinator.PlayFromAsync([.. Tracks], index).ConfigureAwait(true);
+        await Coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
     }
 
     private async Task AppendNextPageAsync(CancellationToken cancellationToken)

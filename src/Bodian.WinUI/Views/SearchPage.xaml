@@ -174,6 +174,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -189,13 +190,24 @@
             SelectedIndex="{x:Bind ViewModel.SelectedCategory, Mode=TwoWay}" />
 
         <!--
+            工具栏**只在歌曲页签出现**：综合页签是混合结果列表（歌单/专辑/歌手混在一起），
+            多选与「加入歌单」那套对它没有意义。
+        -->
+        <controls:TrackListToolbar
+            Grid.Row="2"
+            Margin="0,0,0,8"
+            ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            Target="{x:Bind SearchTracksList}"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsTrackTab), Mode=OneWay}" />
+
+        <!--
             五个页签的内容都留在可视树上，只切可见性（原来是 Pivot，切走就整个卸载）。
             ★ 未选中的那些不会跟着翻页：Collapsed 的元素不进布局、容器不被实现，
               而自动翻页正是挂在 ContainerContentChanging 上的（见 docs/list-paging.md）。
             四个分页页签各自挂一份末尾提示，天然跟着当前选中的那个走；「综合」不分页，不挂。
         -->
         <controls:VirtualizedListView
-            Grid.Row="2"
+            Grid.Row="3"
             x:Name="OverviewList"
             ContainerContentChanging="OnOverviewContainerContentChanging"
             IsItemClickEnabled="True"
@@ -216,7 +228,8 @@
         </controls:VirtualizedListView>
 
         <controls:TrackListView
-            Grid.Row="2"
+            x:Name="SearchTracksList"
+            Grid.Row="3"
             HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Results}"
             LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
@@ -231,7 +244,7 @@
         </controls:TrackListView>
 
         <controls:VirtualizedListView
-            Grid.Row="2"
+            Grid.Row="3"
             IsItemClickEnabled="True"
             ItemClick="OnPlaylistClick"
             ItemTemplate="{StaticResource SearchPlaylistTemplate}"
@@ -249,7 +262,7 @@
         </controls:VirtualizedListView>
 
         <controls:VirtualizedListView
-            Grid.Row="2"
+            Grid.Row="3"
             IsItemClickEnabled="True"
             ItemClick="OnAlbumClick"
             ItemTemplate="{StaticResource SearchAlbumTemplate}"
@@ -267,7 +280,7 @@
         </controls:VirtualizedListView>
 
         <controls:VirtualizedListView
-            Grid.Row="2"
+            Grid.Row="3"
             IsItemClickEnabled="True"
             ItemClick="OnArtistClick"
             ItemTemplate="{StaticResource SearchArtistTemplate}"
@@ -284,7 +297,7 @@
             </controls:VirtualizedListView.Footer>
         </controls:VirtualizedListView>
 
-        <Grid Grid.Row="3" Style="{StaticResource BodianPageFooter}">
+        <Grid Grid.Row="4" Style="{StaticResource BodianPageFooter}">
             <ProgressRing Style="{StaticResource BodianPageBusyRing}" IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
         </Grid>
     </Grid>

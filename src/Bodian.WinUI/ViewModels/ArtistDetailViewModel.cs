@@ -112,17 +112,12 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         await LoadFollowStateAsync(cancellationToken).ConfigureAwait(true);
     }
 
-    /// <summary>点播。队列是当前已加载的歌曲列表。</summary>
+    /// <summary>点播：加到队尾并立即播放它。要一次排进整个列表，走工具栏的「全部加入播放列表」。</summary>
     public async Task PlayAsync(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
 
-        var index = Tracks.Items.IndexOf(track);
-
-        if (index >= 0)
-        {
-            await _coordinator.PlayFromAsync([.. Tracks.Items], index).ConfigureAwait(true);
-        }
+        await _coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
     }
 
     /// <summary>

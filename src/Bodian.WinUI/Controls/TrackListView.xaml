@@ -77,12 +77,15 @@
                     </Grid.ColumnDefinitions>
 
                     <!--
-                        序号列：三态互斥。正在播放 → 起伏条；悬停 → 播放键；其余 → 序号。
-                        后两个 Visibility 由 TrackRow 算好（起伏条自己管显隐，见 PlayingBars）。
+                        序号列：四态互斥。多选 → 复选框；正在播放 → 起伏条；悬停 → 播放键；其余 → 序号。
+                        后三个 Visibility 由 TrackRow 算好（起伏条自己管显隐，见 PlayingBars）。
 
-                        ★ 三种状态**必须落在同一个位置上**，所以一律 Center：
+                        ★ 四种状态**必须落在同一个位置上**，所以一律 Center：
                           早先序号是右对齐的，和居中的播放键差半个列宽，鼠标一进一出
                           整个图标就横向跳一下。
+
+                        ★ 复选框是**纯显示**（IsHitTestVisible=False）：勾选由整行点击驱动。
+                          给它自己接点击的话，「勾上了但计数没变」这类不一致就有了两个来源。
                     -->
                     <Grid Grid.Column="0">
                         <TextBlock
@@ -104,7 +107,16 @@
                         <controls:PlayingBars
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
+                            IsPlaying="{x:Bind ShowPlayingBars, Mode=OneWay}" />
+
+                        <CheckBox
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            MinWidth="0"
+                            IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                            IsHitTestVisible="False"
+                            IsTabStop="False"
+                            Visibility="{x:Bind SelectionCheckVisibility, Mode=OneWay}" />
                     </Grid>
 
                     <!-- 封面。没有封面时留一块底色，行高不跳。 -->

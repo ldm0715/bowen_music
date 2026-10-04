@@ -141,7 +141,8 @@ https://h5app.kuwo.cn/m/bodian/playMusic.html?uid={分享者uid}&musicId={歌曲
 ## 曲目行「更多」菜单（2026-10-03）
 
 列表行尾的「更多」按钮（悬停才出现）把喜欢与「添加到歌单」下沉到了列表里，
-另外两项是跳转：查看歌手、查看专辑。几何、悬停状态与已知取舍见
+另两项队列动作（下一首播放、加入播放队列）见 [`play-queue.md`](play-queue.md) §5，
+剩下两项是跳转：查看歌手、查看专辑。菜单共六项，几何、悬停状态与已知取舍见
 [`ui-refresh.md`](ui-refresh.md) §15。
 
 | 项 | 走什么 |
@@ -152,6 +153,18 @@ https://h5app.kuwo.cn/m/bodian/playMusic.html?uid={分享者uid}&musicId={歌曲
 | 查看专辑 | 曲目自带的 `albumId` —— 这一轮才把它从 DTO 映射进 `Track` |
 
 **写入接口是通用的**：落点是红心歌单还是自建歌单，只差一个 `playlistId`。
+
+### 批量路径（2026-10-04）
+
+上面这几条都是**单首**。列表工具栏上的多选批量走另一条路：
+
+| 批量动作 | 走什么 |
+| --- | --- |
+| 加入喜欢 / 移出喜欢 | `ILikedSongsService.SetLikedManyAsync` —— **必须走它**，直连歌单接口会让它手里的喜欢状态缓存与服务端长期对不上 |
+| 加入歌单 / 移出歌单 | `ITrackBatchActions` → `Bodian.Core/Services/PlaylistMusicWriter.cs` |
+
+节奏控制（默认逐首、失败继续、进度回调）与「多元素尚未实测」那条保留意见，
+见 [`track-list-toolbar.md`](track-list-toolbar.md) §4。
 「新建歌单」2026-10-03 已补上（侧栏入口，见 [`create-playlist.md`](create-playlist.md)），
 本菜单里的这份歌单列表仍是只读的。
 

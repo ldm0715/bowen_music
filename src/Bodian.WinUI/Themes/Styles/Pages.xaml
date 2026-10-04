@@ -108,6 +108,28 @@
     </Style>
 
     <!--
+        28×28 的图标按钮：透明底、无边框、RadiusSm，内容由调用方给 FontIcon。
+        列表工具栏、侧栏的刷新/新建、行尾的「更多」都是这一套，别再各写一份 Setter。
+
+        ★ MinWidth/MinHeight 必须清零：Button 默认 MinWidth 是 120，不清零会被撑成长条。
+        ★ 想要别的边长（行尾「更多」是 32）在调用点上写 Width/Height 覆盖即可。
+        ★ 不复用 BodianCardPagerButton：那个是半透明黑底、给封面上的翻页箭头用的，
+          压在浅色页面上会消失。
+        ★ ToolTip / AutomationProperties.Name / Click / Command 是语义不是外观，留在各调用点。
+    -->
+    <Style x:Key="BodianIconButton" TargetType="Button">
+        <Setter Property="Width" Value="{StaticResource SizeIconButton}" />
+        <Setter Property="Height" Value="{StaticResource SizeIconButton}" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
         发现页卡片区两侧的翻页箭头。它压封面上，底色不能用 SubtleButton 那一套
         （悬停底只有 4~6%，一悬停就没了，白箭头压在浅色封面上会消失），
         用自己的 CardPagerButton* 画刷：深浅两套是同一档半透明黑，高对比度跟系统走。

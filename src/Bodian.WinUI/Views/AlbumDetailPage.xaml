@@ -10,6 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -143,9 +144,15 @@
             </ScrollViewer>
         </Expander>
 
-        <controls:TrackListView
+        <controls:TrackListToolbar
             Grid.Row="2"
-            Margin="0,16,0,0"
+            Margin="0,16,0,8"
+            ReloadCommand="{x:Bind ViewModel.Tracks.ReloadCommand}"
+            Target="{x:Bind AlbumTracksList}" />
+
+        <controls:TrackListView
+            x:Name="AlbumTracksList"
+            Grid.Row="3"
             HasMore="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks.Items}"
             LoadMoreCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}"
@@ -158,7 +165,7 @@
             </controls:TrackListView.Footer>
         </controls:TrackListView>
 
-        <Grid Grid.Row="3" Style="{StaticResource BodianPageFooter}">
+        <Grid Grid.Row="4" Style="{StaticResource BodianPageFooter}">
             <ProgressRing
                 Style="{StaticResource BodianPageBusyRing}"
                 IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />

@@ -406,4 +406,89 @@ public sealed class PlayQueueTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => queue.Mode = (PlayMode)99);
     }
+
+    // ── 批量追加与去重 ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Append_WhenTheTrackIsAlreadyQueued_DoesNothing()
+    {
+        var queue = Queue(1, 2);
+
+        Assert.False(queue.Append(Track(2)));
+
+        Assert.Equal(new long[] { 1, 2 }, queue.Items.Select(t => t.Id));
+    }
+
+    [Fact]
+    public void Append_WhenTheTrackIsNew_ReportsAdded()
+    {
+        var queue = Queue(1, 2);
+
+        Assert.True(queue.Append(Track(3)));
+
+        Assert.Equal(new long[] { 1, 2, 3 }, queue.Items.Select(t => t.Id));
+    }
+
+    [Fact]
+    public void AppendRange_SkipsWhatIsAlreadyQueued_AndDuplicatesWithinTheBatch()
+    {
+        var queue = Queue(1, 2);
+
+        var added = queue.AppendRange([Track(2), Track(3), Track(3), Track(4)]);
+
+        Assert.Equal(2, added);
+        Assert.Equal(new long[] { 1, 2, 3, 4 }, queue.Items.Select(t => t.Id));
+        AssertCoversEveryTrackOnce(queue);
+    }
+
+    [Fact]
+    public void AppendRange_OnEmptyQueue_StartsAtTheFirstAdded()
+    {
+        var queue = new PlayQueue();
+
+        var added = queue.AppendRange([Track(4), Track(5)]);
+
+        Assert.Equal(2, added);
+        Assert.Equal(4, queue.Current!.Id);
+        Assert.Equal(0, queue.CurrentIndex);
+        Assert.True(queue.HasNext);
+    }
+
+    /// <summary>没有有效 Id 的曲目加进去也播不了，而且无从去重，直接跳过。</summary>
+    [Fact]
+    public void AppendRange_SkipsTracksWithoutAValidId()
+    {
+        var queue = Queue(1);
+
+        var added = queue.AppendRange([Track(0), Track(-1), Track(2)]);
+
+        Assert.Equal(1, added);
+        Assert.Equal(new long[] { 1, 2 }, queue.Items.Select(t => t.Id));
+    }
+
+    [Fact]
+    public void AppendRange_AddingNothing_LeavesTheQueueAndTheCursorAlone()
+    {
+        var queue = Queue(1, 2);
+
+        var changes = 0;
+        queue.Changed += (_, _) => changes++;
+
+        Assert.Equal(0, queue.AppendRange([Track(1), Track(2)]));
+        Assert.Equal(0, changes);
+        Assert.Equal(1, queue.Current!.Id);
+    }
+
+    [Fact]
+    public void AppendRange_KeepsTheCurrentTrackAndRaisesChangedOnce()
+    {
+        var queue = Queue(1, 2);
+        queue.MoveNext();
+
+        Assert.Equal(1, CountChanges(queue, q => q.AppendRange([Track(3), Track(4)])));
+
+        Assert.Equal(2, queue.Current!.Id);
+        Assert.Equal(new long[] { 1, 2, 3, 4 }, queue.Items.Select(t => t.Id));
+        AssertCoversEveryTrackOnce(queue);
+    }
 }

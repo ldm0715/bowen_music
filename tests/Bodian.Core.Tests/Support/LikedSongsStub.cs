@@ -1,3 +1,4 @@
+using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
 
 namespace Bodian.Core.Tests.Support;
@@ -30,5 +31,33 @@ internal sealed class LikedSongsStub : ILikedSongsService
         if (liked) Liked.Add(musicId);
         else Liked.Remove(musicId);
         return Task.FromResult(LikedSongsOutcome.Succeeded);
+    }
+
+    public Task<LikedSongsBatchOutcome> SetLikedManyAsync(
+        IReadOnlyList<long> musicIds, bool liked = true,
+        IProgress<BatchProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var id in musicIds)
+        {
+            Requests.Add((id, liked));
+        }
+
+        if (Next != LikedSongsOutcome.Succeeded)
+        {
+            return Task.FromResult(new LikedSongsBatchOutcome(Next, 0, 0, false));
+        }
+
+        foreach (var id in musicIds)
+        {
+            if (liked) Liked.Add(id);
+            else Liked.Remove(id);
+        }
+
+        // 假的就一次报完：真实的逐首实现会一条一条报，这里只验调用方对进度的反应。
+        progress?.Report(new BatchProgress(musicIds.Count, musicIds.Count));
+
+        return Task.FromResult(new LikedSongsBatchOutcome(
+            LikedSongsOutcome.Succeeded, musicIds.Count, 0, false));
     }
 }

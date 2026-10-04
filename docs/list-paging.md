@@ -100,7 +100,8 @@
 
 | 位置 | 挂法 |
 | --- | --- |
-| 我喜欢的、歌单详情、专辑详情、榜单详情、歌手详情的歌曲、搜索的「单曲」页签 | `TrackListView` / `AlbumListView` 的 `HasMore` + `LoadMoreCommand` + `Footer` |
+| 我喜欢的、歌单详情、专辑详情、榜单详情、歌手详情的歌曲、搜索的「单曲」页签 | `TrackListView` / `AlbumListView` 的 `HasMore` + `LoadMoreCommand` + `Footer`。
+2026-10-04 起，这一列的**歌曲列表页**上方还各挂了一条 `TrackListToolbar`（`Target` 指向同一个 `TrackListView`），见 [`track-list-toolbar.md`](track-list-toolbar.md) |
 | 发现页、搜索的「歌单/专辑/歌手」页签 | `VirtualizedListView` 上直接挂 `AutoPaging` 附加属性，`Footer` 就地写 |
 | 歌手详情的专辑 | 原生 `GridView`（格子尺寸在代码里按可用宽度算，见 [`ui-refresh.md`](ui-refresh.md) §16.3），挂附加属性 + `GridView.Footer` |
 | 音乐库大类详情 | 专辑用原生 `GridView`，同样挂附加属性。`GridView` 的默认模板确实把 `Header`/`Footer` 转发给了 `ItemsPresenter`（查过 WinUI 的 `generic.xaml`） |

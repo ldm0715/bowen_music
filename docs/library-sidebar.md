@@ -480,7 +480,7 @@ type 11（你的主题歌单）的分组**压根没有 id 字段**，反序列�
 | `WinUI/ViewModels/PlaylistTracksViewModel.cs` | 「一个歌单的曲目列表」的共同部分（分页/点播/状态），子类只回答「展示哪个歌单」 |
 | `WinUI/ViewModels/{Favorites,PlaylistDetail,Search}ViewModel.cs` | 三页 |
 | `WinUI/Views/{Favorites,PlaylistDetail}Page.xaml(.cs)` | 两个新根页 |
-| `WinUI/Controls/TrackListView.xaml(.cs)` | 曲目列表控件，三个页面共用同一套行模板（原先只搜索页有） |
+| `WinUI/Controls/TrackListView.xaml(.cs)` | 曲目列表控件，当时三个页面共用同一套行模板（原先只搜索页有）。**2026-10-04 起已铺到八个页面**，序号列也多了一态（多选复选框），见 [`track-list-toolbar.md`](track-list-toolbar.md) |
 | `WinUI/Services/INavigationService.cs` | 见 §4 |
 
 **搜索入口的落地方式**：搜索框与单例 `SearchViewModel` 共用状态，避免「框里是 A、结果是 B」。

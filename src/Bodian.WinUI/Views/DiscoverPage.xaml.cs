@@ -65,9 +65,9 @@ public sealed partial class DiscoverPage : Page, INavigationAware
     {
         if (card.Track is { } track)
         {
-            // 队列就是这一张卡片所在的模块 —— 发现页的卡片来自不同模块，
-            // 没有一个「整个页面的列表」可以当队列，所以单曲成队。
-            await _coordinator.PlayFromAsync([track], 0);
+            // 发现页的卡片来自不同模块，没有一个「整个页面的列表」可以排进队列，
+            // 所以只排这一首 —— 与列表页点行的语义正好一致，直接走同一个入口。
+            await _coordinator.EnqueueAndPlayAsync(track);
             return;
         }
 

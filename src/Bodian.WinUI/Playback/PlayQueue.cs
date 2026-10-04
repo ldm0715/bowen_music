@@ -116,26 +116,96 @@ public sealed class PlayQueue
     }
 
     /// <summary>
-    /// 加到队尾。
+    /// 加到队尾。队列里已经有同一首（按 Id）时不重复添加。
     /// </summary>
     /// <remarks>
     /// 队列原本是空的时候把这一首放上去并落游标 —— 调用方据此决定要不要开播，
     /// 见 <c>PlaybackCoordinator.AddToQueueAsync</c>。
     /// </remarks>
-    public void Append(Track track)
+    /// <returns>加进去了返回 <c>true</c>；队列里已有同一首返回 <c>false</c>，且不抛 <see cref="Changed"/>。</returns>
+    public bool Append(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
 
         if (_items.Count == 0)
         {
             FillEmptyQueue(track);
-            return;
+            return true;
+        }
+
+        // 没有有效 Id 的曲目无从去重（上游已挡掉，见 TrackActionsViewModel.AddToQueueAsync），
+        // 所以只在有 Id 时比对。
+        if (track.Id > 0 && _items.Any(item => item.Id == track.Id))
+        {
+            return false;
         }
 
         _items.Add(track);
         _order.Add(_items.Count - 1);
 
         Changed?.Invoke(this, EventArgs.Empty);
+
+        return true;
+    }
+
+    /// <summary>
+    /// 追加一批到队尾，跳过队列里已有的（按 Id）与没有有效 Id 的曲目。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>批内也去重</b>：同一次传入里的重复只留第一条。
+    /// </para>
+    /// <para>
+    /// <b>整批只抛一次 <see cref="Changed"/></b>：逐条走 <see cref="Append"/> 会让队列面板
+    /// 跟着重建 N 次，几百首的列表会卡住。「空队列时第一首落游标」的逻辑与
+    /// <see cref="FillEmptyQueue"/> 相同，这里内联是因为后者自己会抛事件，整批就抛两次了。
+    /// </para>
+    /// </remarks>
+    /// <returns>实际追加的条数；全都重复或都没有效 Id 时返回 <c>0</c>。</returns>
+    public int AppendRange(IReadOnlyList<Track> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        var wasEmpty = _items.Count == 0;
+
+        // 去重表既装队列已有的，也装本批新加的 —— 后者靠 Add 的返回值判断。
+        var seen = new HashSet<long>();
+
+        foreach (var item in _items)
+        {
+            if (item.Id > 0)
+            {
+                seen.Add(item.Id);
+            }
+        }
+
+        var added = 0;
+
+        foreach (var track in items)
+        {
+            if (track.Id <= 0 || !seen.Add(track.Id))
+            {
+                continue;
+            }
+
+            _items.Add(track);
+            _order.Add(_items.Count - 1);
+            added++;
+        }
+
+        if (added == 0)
+        {
+            return 0;
+        }
+
+        if (wasEmpty)
+        {
+            _cursor = 0;
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+
+        return added;
     }
 
     /// <summary>插到当前曲目之后。队列为空或没有当前曲目时等同于 <see cref="Append"/>。</summary>

@@ -4,6 +4,7 @@ using Bodian.Core.Models;
 using Bodian.Core.Models.Home;
 using Bodian.WinUI.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -68,6 +69,7 @@ public sealed partial class AiPlaylistViewModel : ObservableObject
     [ObservableProperty]
     public partial string StatusText { get; set; } = "";
 
+    /// <summary>首次进入时调。<b>已经加载过就什么都不做。</b></summary>
     public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
     {
         if (IsBusy || Tracks.Count > 0)
@@ -75,6 +77,31 @@ public sealed partial class AiPlaylistViewModel : ObservableObject
             return;
         }
 
+        await LoadCoreAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// 刷新：丢掉已有的曲目重拉一次。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能直接调 <see cref="EnsureLoadedAsync"/></b>：它见 <c>Tracks.Count &gt; 0</c> 就早退，
+    /// 而「刷新」恰恰是在有内容的时候按下去的，那样会什么都不发生。
+    /// </remarks>
+    [RelayCommand]
+    private async Task ReloadAsync(CancellationToken cancellationToken)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        Tracks.Clear();
+
+        await LoadCoreAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    private async Task LoadCoreAsync(CancellationToken cancellationToken)
+    {
         IsBusy = true;
         StatusText = "正在加载…";
 
@@ -116,18 +143,11 @@ public sealed partial class AiPlaylistViewModel : ObservableObject
         }
     }
 
-    /// <summary>点播。队列就是这个歌单，所以「下一首」在歌单内有效。</summary>
+    /// <summary>点播：加到队尾并立即播放它。要一次排进整个列表，走工具栏的「全部加入播放列表」。</summary>
     public async Task PlayAsync(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
 
-        var index = Tracks.IndexOf(track);
-
-        if (index < 0)
-        {
-            return;
-        }
-
-        await _coordinator.PlayFromAsync([.. Tracks], index).ConfigureAwait(true);
+        await _coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
     }
 }

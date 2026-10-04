@@ -10,6 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -212,9 +213,17 @@
             </ScrollViewer>
         </Expander>
 
-        <controls:TrackListView
+        <!-- RemovablePlaylistId 只在自建歌单上非 0（归属是异步算出来的，所以用 OneWay）。 -->
+        <controls:TrackListToolbar
             Grid.Row="2"
-            Margin="0,16,0,0"
+            Margin="0,16,0,8"
+            ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            RemovablePlaylistId="{x:Bind ViewModel.RemovablePlaylistId, Mode=OneWay}"
+            Target="{x:Bind PlaylistTracksList}" />
+
+        <controls:TrackListView
+            x:Name="PlaylistTracksList"
+            Grid.Row="3"
             HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks}"
             LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
@@ -227,17 +236,10 @@
             </controls:TrackListView.Footer>
         </controls:TrackListView>
 
-        <!-- ★「重新加载」是歌单页比专辑页多的东西，改版别把它弄丢。 -->
-        <Grid Grid.Row="3" Style="{StaticResource BodianPageFooter}">
-            <StackPanel
-                HorizontalAlignment="Left"
-                Orientation="Horizontal"
-                Spacing="12">
-                <ProgressRing
-                    Style="{StaticResource BodianPageBusyRing}"
-                    IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
-                <Button Command="{x:Bind ViewModel.ReloadCommand}" Content="重新加载" />
-            </StackPanel>
-        </Grid>
+        <!-- 页脚只剩进度环：刷新入口已经挪到上面的工具栏，「重新加载」按钮删掉了。 -->
+        <ProgressRing
+            Grid.Row="4"
+            Style="{StaticResource BodianPageBusyRing}"
+            IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
     </Grid>
 </Page>

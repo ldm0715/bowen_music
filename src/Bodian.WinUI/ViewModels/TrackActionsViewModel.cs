@@ -263,7 +263,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         }
     }
 
-    /// <summary>加到播放队列的队尾。空队列时同样会直接开播。</summary>
+    /// <summary>加到播放队列的队尾。空队列时同样会直接开播；队列里已有这一首时只提示、不重复添加。</summary>
     public async Task AddToQueueAsync()
     {
         if (_queue is null || _track.Id <= 0 || _busy)
@@ -274,8 +274,8 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         _busy = true;
         try
         {
-            await _queue.AddToQueueAsync(_track).ConfigureAwait(true);
-            _notice.Show("已加入播放队列");
+            var added = await _queue.AddToQueueAsync(_track).ConfigureAwait(true);
+            _notice.Show(added ? "已加入播放队列" : "这首歌已经在播放队列里");
         }
         finally
         {

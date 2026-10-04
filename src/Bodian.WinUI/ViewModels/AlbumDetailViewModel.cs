@@ -114,19 +114,12 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
         await LoadCollectStateAsync(cancellationToken).ConfigureAwait(true);
     }
 
-    /// <summary>点播。队列就是这张专辑，所以「下一首」在专辑内有效。</summary>
+    /// <summary>点播：加到队尾并立即播放它。要整张专辑入队走工具栏的「全部加入播放列表」或页头的「播放全部」。</summary>
     public async Task PlayAsync(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
 
-        var index = Tracks.Items.IndexOf(track);
-
-        if (index < 0)
-        {
-            return;
-        }
-
-        await _coordinator.PlayFromAsync([.. Tracks.Items], index).ConfigureAwait(true);
+        await _coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
     }
 
     /// <summary>

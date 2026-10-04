@@ -109,6 +109,8 @@
     <!-- 图标与按钮 -->
     <x:Double x:Key="SizeIconSm">16</x:Double>
     <x:Double x:Key="SizeIconMd">20</x:Double>
+    <!-- 图标按钮的方形边长。BodianIconButton 用它；行尾「更多」是 32，靠本地 Width/Height 覆写。 -->
+    <x:Double x:Key="SizeIconButton">28</x:Double>
     <x:Double x:Key="SizePlayButton">44</x:Double>
     <x:Double x:Key="SizeTransportIcon">28</x:Double>
     <x:Double x:Key="SizeRoundButton">32</x:Double>

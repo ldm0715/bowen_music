@@ -8,6 +8,7 @@
     <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -19,8 +20,17 @@
                 Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" />
         </StackPanel>
 
-        <controls:TrackListView
+        <!-- 多选栏里的「移出喜欢」走取消喜欢那条路（要同步喜欢状态缓存，不能直连歌单接口）。 -->
+        <controls:TrackListToolbar
             Grid.Row="1"
+            Margin="0,12,0,8"
+            IsLikedPlaylist="True"
+            ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            Target="{x:Bind FavoritesTracksList}" />
+
+        <controls:TrackListView
+            x:Name="FavoritesTracksList"
+            Grid.Row="2"
             HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks}"
             LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
@@ -33,16 +43,10 @@
             </controls:TrackListView.Footer>
         </controls:TrackListView>
 
-        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
-            <StackPanel
-                HorizontalAlignment="Left"
-                Orientation="Horizontal"
-                Spacing="12">
-                <ProgressRing
-                    Style="{StaticResource BodianPageBusyRing}"
-                    IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
-                <Button Command="{x:Bind ViewModel.ReloadCommand}" Content="重新加载" />
-            </StackPanel>
-        </Grid>
+        <!-- 页脚只剩进度环：刷新入口已经挪到上面的工具栏，「重新加载」按钮删掉了。 -->
+        <ProgressRing
+            Grid.Row="3"
+            Style="{StaticResource BodianPageBusyRing}"
+            IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
     </Grid>
 </Page>

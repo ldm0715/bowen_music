@@ -6,6 +6,11 @@
 在此之前，队列是一个**只能整页替换**的 `List<Track>` 快照，下一首是纯顺序、到头即停，
 没有任何循环或随机逻辑，也没有「加入队列」这样的概念 —— 点行就是「整页入队并从这一首开始」。
 
+> **2026-10-04 更新：点行的语义反过来了。** 现在是「把这一首**追加到队尾**并立即播它」，
+> 队列里原有的歌全部保留（`EnqueueAndPlayAsync`）。整页替换只剩「播放全部」一个入口，
+> 见 [`track-list-toolbar.md`](track-list-toolbar.md) §1。下面 §1 / §3 / §5 里凡是「整页入队」
+> 的措辞都已按新语义改写，但**整页替换本身仍然是 `Replace` 的语义**，只是不再由点行触发。
+
 ## 1. 队列的内部结构：排列 + 游标
 
 `src/Bodian.WinUI/Playback/PlayQueue.cs` 从「单个 `_index`」改成三个字段：
@@ -34,17 +39,26 @@ _mode     : PlayMode
 > 出错不会立刻炸，只会让「下一首」跳到意料之外的地方。单测从**外部行为**上验这条不变量
 > （顺序模式走一遍必须不重不漏地覆盖每一首），而不是去读那个私有字段。
 
-队列的变更方法只有五个，都触发 `Changed`：
+队列的变更方法有六个，都触发 `Changed`（**只有一个例外，见下**）：
 
 | 方法 | 语义 |
 | --- | --- |
-| `Replace(items, startIndex)` | 整页替换（原有的点播路径，语义不变） |
-| `Append(track)` | 加到队尾 |
+| `Replace(items, startIndex)` | 整页替换并落到第 N 首（**现在只由「播放全部」用**） |
+| `Append(track)` | 加到队尾；**队列里已有同一首（按 Id）时不加，返回 `false` 且不抛 `Changed`** |
+| `AppendRange(items)` | 批量追加，返回实际加进去几条；去重、跳过 `Id <= 0`、**整批只抛一次 `Changed`** |
 | `InsertNext(track)` | 插到当前曲目之后 |
 | `MoveToItem(itemIndex)` | 跳到第 N 首（抽屉点行用） |
 | `RemoveItem(itemIndex)` | 删第 N 首 |
 
-后四个都在**空队列上做了兜底**：前两个把这一首放上去并落游标，后两个返回 `false`。
+> ★ **`Append` 是唯一会「什么都不做」的变更方法。** 它返回 `bool` 就是为了让调用方
+> 知道这次到底加没加进去 —— 行菜单的「加入播放队列」据此把提示从「已加入播放队列」
+> 换成「这首歌已经在播放队列里」，而不是骗人说加成功了。
+
+`Append` / `AppendRange` / `InsertNext` 都在**空队列上做了兜底**：把这一首放上去并落游标。
+`MoveToItem` / `RemoveItem` 越界时返回 `false`。
+
+**为什么 `AppendRange` 不能逐条走 `Append`**：队列面板是整表重建的，每抛一次 `Changed` 就重建一次，
+几百首的列表会卡住。整批合并成一次事件是它存在的全部理由。
 
 ## 2. 三种播放模式
 
@@ -72,7 +86,10 @@ _mode     : PlayMode
 | 方法 | 说明 |
 | --- | --- |
 | `SetPlayMode` / `CyclePlayMode` | 设模式并**落盘**；按钮按 `顺序 → 循环 → 随机 → 顺序` 轮换 |
-| `AddToQueueAsync(track)` | 加队尾 |
+| `EnqueueAndPlayAsync(track)` | **点行的入口**：追加到队尾并立即播它；队里已有则不重复加，跳到原来那一份 |
+| `PlayFromAsync(list, index)` | 整表替换并从第 N 首播。**现在只剩「播放全部」两个调用点** |
+| `AddToQueueAsync(track)` | 加队尾，返回是否真的加进去了 |
+| `AddToQueueAsync(tracks)` | 批量加队尾，返回实际追加数 |
 | `PlayNextAsync(track)` | 插到当前之后 |
 | `PlayQueueItemAsync(itemIndex)` | 跳到第 N 首 |
 | `RemoveQueueItemAsync(itemIndex)` | 删第 N 首 |
@@ -80,8 +97,10 @@ _mode     : PlayMode
 
 三条行为上的决定：
 
-1. **队列原本为空时，前两个命令直接开播。** 否则加了没有任何反应，用户会以为没生效 ——
-   而「队列是空的」恰恰是第一次用这两个入口时最常见的状态。
+1. **队列原本为空时，加队的几条命令直接开播。** 否则加了没有任何反应，用户会以为没生效 ——
+   而「队列是空的」恰恰是第一次用这些入口时最常见的状态。
+   批量版的判断是「追加数 > 0 且原本为空」：一首都没加进去（全是重复）时不开播，
+   空队列没什么可播的。
 2. **删掉的正好是当前曲目时才换歌**，其余情况不碰引擎。界面上正在播放那一行的删除按钮是置灰的，
    正常走不到这个分支；留着是因为队列是共享状态。
 3. **清空不打断播放。** 正在放的那一首自然放完 ——「清空列表」说的是列表，不是「停止播放」。
@@ -114,7 +133,22 @@ _mode     : PlayMode
 真实实现在 `TrackActionsService` 里落到协调器。
 这样 `TrackActionsViewModel` 仍然只依赖 Core 模型与自制接口，**六条动作全都能离屏测**。
 
+> `IQueueSink.AddToQueueAsync` 返回 `Task<bool>`（加进去了没有），调用方据此换提示文案。
+
 `musicId <= 0` 时两条都置灰，与「查看专辑」缺 `albumId` 时同一套处理。
+
+## 5.1 另一条入口：列表工具栏
+
+列表级的两条队列动作在 `Controls/TrackListToolbar` 上，走另一个自制接口
+`Services/ITrackBatchActions.cs`（同样由 `TrackActionsService` 兼任，走 App 资源键
+`BodianTrackActions`）：
+
+| 按钮 | 行为 |
+| --- | --- |
+| 全部加入播放列表（普通态） | 把列表里**已加载的**全部追加到队尾，不打断正在播的 |
+| 加入播放列表（多选态） | 只追加选中的那些 |
+
+两条都只碰队列、不碰引擎当前曲目。详见 [`track-list-toolbar.md`](track-list-toolbar.md) §4。
 
 ## 6. 界面
 
@@ -193,6 +227,10 @@ WinUI 构建通过，0 错误、0 警告（`AiPlaylistPage.xaml:27` 那条既有
 | `PlayQueueTests`（27 项） | 三种模式的进度真值表（含单曲队列）、增删后的排列重映射不变量、空队列边界、`Changed` 触发时机 |
 | `PlayQueueCommandTests`（14 项） | 六条命令的队列副作用、空队列直接开播、清空不打断播放、切模式后自动续播走对分支、模式落盘与重启读回 |
 | `TrackActionsViewModelTests`（+5 项） | 菜单六项及顺序、两条动作确实调到 `IQueueSink`、缺 id 置灰、离线宿主不假装成功 |
+
+> **2026-10-04 更新：**`PlayQueueTests` 与 `PlayQueueCommandTests` 又在
+> [_track-list-toolbar.md_](track-list-toolbar.md) §1 那一轮里扩过（追加去重、`AppendRange`、
+> `EnqueueAndPlayAsync`），上表记的是本轮当时的状态。当前总数见那份文档的 §7。
 
 界面部分按惯例由用户手动验收：
 

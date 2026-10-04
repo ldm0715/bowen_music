@@ -90,8 +90,46 @@ public sealed partial class TrackListView : UserControl
             typeof(TrackListView),
             new PropertyMetadata(null, OnFooterChanged));
 
+    /// <summary>
+    /// 列表是不是处在多选态。置 <c>false</c> 会连选择一起清掉（「退出多选 = 取消选择」）。
+    /// </summary>
+    /// <remarks>
+    /// 双向：工具栏写它进/出多选，页面也可以绑出去显示状态。
+    /// </remarks>
+    public static readonly DependencyProperty IsSelectionModeProperty =
+        DependencyProperty.Register(
+            nameof(IsSelectionMode),
+            typeof(bool),
+            typeof(TrackListView),
+            new PropertyMetadata(false, OnIsSelectionModeChanged));
+
+    /// <summary>已选条数。工具栏的「已选 N 首」绑它。</summary>
+    /// <remarks>
+    /// <b>对外只读靠 <c>private set</c>，不用 <c>RegisterReadOnly</c></b>：后者要的
+    /// <c>DependencyPropertyKey</c> 这个 WinUI 版本里取不到（仓库里也没有先例）。
+    /// <c>x:Bind</c> 的 OneWay 只读不写，这样够用。
+    /// </remarks>
+    public static readonly DependencyProperty SelectionCountProperty =
+        DependencyProperty.Register(
+            nameof(SelectionCount), typeof(int), typeof(TrackListView), new PropertyMetadata(0));
+
+    /// <summary>已加载的行是不是全被选上了（列表为空时为 <c>false</c>）。「全选 / 取消全选」按钮据此切文案。</summary>
+    public static readonly DependencyProperty IsAllSelectedProperty =
+        DependencyProperty.Register(
+            nameof(IsAllSelected), typeof(bool), typeof(TrackListView), new PropertyMetadata(false));
+
     private INotifyCollectionChanged? _observed;
     private PlayerViewModel? _nowPlaying;
+
+    /// <summary>
+    /// 选中的行。
+    /// </summary>
+    /// <remarks>
+    /// <b>存行对象，不存曲目 id。</b> id 有两点不够：<c>Id &lt;= 0</c> 的行（搜索页的性能样本、
+    /// 播放历史重建的 Track）根本没法建键；同一首歌在列表里出现两次时按 id 存会两行一起选中。
+    /// 代价是列表重建后引用失效 —— 那正是「刷新要退出多选」这条约定的由来，见 <see cref="Rebuild"/>。
+    /// </remarks>
+    private readonly HashSet<TrackRow> _selected = [];
 
     public TrackListView()
     {
@@ -101,8 +139,11 @@ public sealed partial class TrackListView : UserControl
         Unloaded += OnUnloaded;
     }
 
-    /// <summary>用户点了某一行。参数是被点的曲目。</summary>
+    /// <summary>用户点了某一行。参数是被点的曲目。<b>多选态下不触发</b>，那时点行是勾选。</summary>
     public event EventHandler<Track>? TrackInvoked;
+
+    /// <summary>选中项或选择模式变了。</summary>
+    public event EventHandler? SelectionChanged;
 
     /// <summary>投影出来的行。绑到内部 <c>ListView.ItemsSource</c>。</summary>
     public ObservableCollection<TrackRow> Rows { get; } = [];
@@ -135,6 +176,92 @@ public sealed partial class TrackListView : UserControl
     {
         get => GetValue(FooterProperty);
         set => SetValue(FooterProperty, value);
+    }
+
+    public bool IsSelectionMode
+    {
+        get => (bool)GetValue(IsSelectionModeProperty);
+        set => SetValue(IsSelectionModeProperty, value);
+    }
+
+    public int SelectionCount
+    {
+        get => (int)GetValue(SelectionCountProperty);
+        private set => SetValue(SelectionCountProperty, value);
+    }
+
+    public bool IsAllSelected
+    {
+        get => (bool)GetValue(IsAllSelectedProperty);
+        private set => SetValue(IsAllSelectedProperty, value);
+    }
+
+    /// <summary>
+    /// 当前列表里的全部曲目，按显示顺序。
+    /// </summary>
+    /// <remarks>
+    /// 工具栏的「全部加入播放列表」用它 —— <b>只算已经加载进来的</b>，不再回头翻页拉全，
+    /// 所以按钮是瞬时响应的；提示里会带上真实条数，不让用户以为加的是整个歌单。
+    /// </remarks>
+    public IReadOnlyList<Track> SourceTracks
+    {
+        get
+        {
+            var tracks = new List<Track>(Rows.Count);
+
+            foreach (var row in Rows)
+            {
+                tracks.Add(row.Source);
+            }
+
+            return tracks;
+        }
+    }
+
+    /// <summary>被勾上的曲目，<b>按列表顺序</b>而不是点击顺序 —— 加进歌单后看到的是列表原本的次序。</summary>
+    public IReadOnlyList<Track> GetSelectedTracks()
+    {
+        var tracks = new List<Track>(_selected.Count);
+
+        foreach (var row in Rows)
+        {
+            if (_selected.Contains(row))
+            {
+                tracks.Add(row.Source);
+            }
+        }
+
+        return tracks;
+    }
+
+    /// <summary>全选<b>已加载</b>的行。之后滚出来的新行不会被自动选上，计数会跟着变大。</summary>
+    public void SelectAll()
+    {
+        foreach (var row in Rows)
+        {
+            _selected.Add(row);
+            row.IsSelected = true;
+        }
+
+        SyncSelectionState();
+    }
+
+    /// <summary>清空选择，<b>但不退出多选态</b>。</summary>
+    public void ClearSelection()
+    {
+        if (_selected.Count == 0)
+        {
+            return;
+        }
+
+        _selected.Clear();
+
+        foreach (var row in Rows)
+        {
+            row.IsSelected = false;
+        }
+
+        SyncSelectionState();
     }
 
     private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -178,9 +305,13 @@ public sealed partial class TrackListView : UserControl
                     // 追加只初始化新行；每个 CollectionChanged 都扫描已加载的
                     // 全部曲目会让分页开销随总结果数平方增长。
                     row.IsCurrent = row.Source.Id == _nowPlaying?.CurrentTrackId;
+                    row.IsSelectionMode = IsSelectionMode;
                     Rows.Add(row);
                 }
             }
+
+            // 行数变了，「是不是全选」可能跟着变（新行默认没选中）。
+            SyncSelectionState();
 
             return;
         }
@@ -190,6 +321,9 @@ public sealed partial class TrackListView : UserControl
 
     private void Rebuild()
     {
+        // 重建会换掉全部 TrackRow，选择集合里存的旧引用随之失效 —— 直接丢掉。
+        // 这也是「刷新前必须先退出多选」那条约定的由来：留着计数就是错的。
+        _selected.Clear();
         Rows.Clear();
 
         if (ItemsSource is IEnumerable items)
@@ -200,6 +334,8 @@ public sealed partial class TrackListView : UserControl
             {
                 if (ToRow(item, ordinal) is { } row)
                 {
+                    // 重建时列表可能正处在多选态（换了 ItemsSource 但没退出），新行要跟上。
+                    row.IsSelectionMode = IsSelectionMode;
                     Rows.Add(row);
                     ordinal++;
                 }
@@ -209,6 +345,7 @@ public sealed partial class TrackListView : UserControl
         // 重建时每一行都是新对象，IsPointerOver 天然回到 false ——
         // 容器回收时 PointerExited 可能没送达，留下的悬停态就是这么清掉的。
         SyncCurrent();
+        SyncSelectionState();
     }
 
     /// <summary>
@@ -309,6 +446,10 @@ public sealed partial class TrackListView : UserControl
     {
         // 回收时要连菜单状态一起清：容器接着会去装别的曲目，
         // 留着 IsMenuOpen 会让那一行的「更多」按钮一直显示。
+        //
+        // ★ 唯独**不要清 IsSelected**。它是行（数据对象）的状态，不是容器的 ——
+        //   容器去装另一行时 x:Bind 自然重读那一行的值，本来就不会串。
+        //   顺手清一下反而会把滚出视野的勾选全丢掉。
         if (args.InRecycleQueue && args.Item is TrackRow row)
         {
             row.IsPointerOver = false;
@@ -318,9 +459,61 @@ public sealed partial class TrackListView : UserControl
 
     private void OnItemClick(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is TrackRow row)
+        if (e.ClickedItem is not TrackRow row)
         {
-            TrackInvoked?.Invoke(this, row.Source);
+            return;
         }
+
+        // 多选态下点行是勾选，不是播放 —— 这里不抛 TrackInvoked，
+        // 否则页面收到会走成「播这一首」，勾选变成误播。
+        if (IsSelectionMode)
+        {
+            ToggleSelection(row);
+            return;
+        }
+
+        TrackInvoked?.Invoke(this, row.Source);
+    }
+
+    // ── 选择 ────────────────────────────────────────────────────────────────
+
+    private static void OnIsSelectionModeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((TrackListView)d).ApplySelectionMode();
+
+    /// <summary>
+    /// 把多选态下发给每一行。进出多选都清空选择 —— 进多选从零开始，退多选本来就该丢掉。
+    /// </summary>
+    private void ApplySelectionMode()
+    {
+        var on = IsSelectionMode;
+
+        _selected.Clear();
+
+        foreach (var row in Rows)
+        {
+            row.IsSelectionMode = on;
+            row.IsSelected = false;
+        }
+
+        SyncSelectionState();
+    }
+
+    private void ToggleSelection(TrackRow row)
+    {
+        if (!_selected.Remove(row))
+        {
+            _selected.Add(row);
+        }
+
+        row.IsSelected = _selected.Contains(row);
+        SyncSelectionState();
+    }
+
+    /// <summary>把计数、「是不是全选」刷出去，并通知订阅方。</summary>
+    private void SyncSelectionState()
+    {
+        SelectionCount = _selected.Count;
+        IsAllSelected = Rows.Count > 0 && _selected.Count == Rows.Count;
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 }

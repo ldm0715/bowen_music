@@ -20,6 +20,6 @@ public interface IQueueSink
     /// <summary>插到当前曲目之后。队列为空时会直接开播。</summary>
     Task PlayNextAsync(Track track);
 
-    /// <summary>加到队尾。队列为空时会直接开播。</summary>
-    Task AddToQueueAsync(Track track);
+    /// <summary>加到队尾。队列为空时会直接开播。<b>队列里已有同一首时不重复添加</b>，返回 <c>false</c>。</summary>
+    Task<bool> AddToQueueAsync(Track track);
 }

@@ -86,7 +86,9 @@ POST service/playlist   signed   新建歌单
 **浮层里建完不关浮层。** 浮层那份列表绑的就是 `_sidebar.Playlists`，新行当场出现在最上面 ——
 这就是成功反馈；收起态（48 DIP 图标轨）没有别的地方能显示它。
 
-**`TrackActionsViewModel` 没动。** 曲目行「添加到歌单」那份歌单缓存是**每行新建、行回收即丢**的
+**`TrackActionsViewModel` 没动。**（2026-10-04 注：这个类后来因批量动作改过，
+`TrackActionsService` 现在还兼任 `ITrackBatchActions`；下面这条关于歌单缓存生命周期的结论不受影响。）
+曲目行「添加到歌单」那份歌单缓存是**每行新建、行回收即丢**的
 （`TrackActionsService.Create`），生命周期只有该行菜单打开期间，新建歌单后基本会自然刷新。
 只有「同一行反复开合菜单」这种窄情形会看到旧列表，不值得为它上一套版本号失效机制。
 

@@ -1,6 +1,7 @@
 using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
+using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
 using Bodian.Core.Services.Implementations;
 using Bodian.Core.Tests.Support;
@@ -41,6 +42,9 @@ public sealed class LikedSongsServiceTests
 
         public Exception? WriteError { get; set; }
 
+        /// <summary>只让这几首写失败，用来验「单首失败不中断」。</summary>
+        public HashSet<long> FailingIds { get; } = [];
+
         public int FondCalls { get; private set; }
 
         public int TrackCalls { get; private set; }
@@ -72,6 +76,7 @@ public sealed class LikedSongsServiceTests
             {
                 AddCalls++;
                 if (WriteError is { } error) return Task.FromException(error);
+                if (musicIds.Any(FailingIds.Contains)) return Task.FromException(new HttpRequestException("这首歌写不了"));
                 foreach (var id in musicIds)
                 {
                     if (!LikedIds.Contains(id)) LikedIds.Add(id);
@@ -83,6 +88,7 @@ public sealed class LikedSongsServiceTests
             {
                 RemoveCalls++;
                 if (WriteError is { } error) return Task.FromException(error);
+                if (musicIds.Any(FailingIds.Contains)) return Task.FromException(new HttpRequestException("这首歌写不了"));
                 foreach (var id in musicIds) LikedIds.Remove(id);
                 return Task.CompletedTask;
             };
@@ -221,6 +227,165 @@ public sealed class LikedSongsServiceTests
 
         Assert.Equal(LikedSongsOutcome.NoLikedPlaylist, await _service.SetLikedAsync(7, liked: true, Ct));
         Assert.Equal(0, _server.AddCalls);
+    }
+
+    // ── 批量喜欢 ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// <b>逐首写，一次一首。</b> 这条断言钉住的是 <c>PlaylistMusicWriter.Strategy</c> ——
+    /// 服务端从未验证过「一次传多首」，所以默认逐首；哪天实测通过、改成分块，
+    /// 这里会红，正好提醒改的人确认服务端确实吃多元素。
+    /// </summary>
+    [Fact]
+    public async Task SetLikedMany_WritesOneRequestPerTrack()
+    {
+        _session.Set(Uid, "test-token");
+
+        var result = await _service.SetLikedManyAsync([1, 2, 3], liked: true, cancellationToken: Ct);
+
+        Assert.Equal(LikedSongsOutcome.Succeeded, result.Outcome);
+        Assert.Equal(3, result.Succeeded);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(3, _server.AddCalls);
+        Assert.Equal([1L, 2L, 3L], _server.LikedIds);
+    }
+
+    /// <summary>全选一个已收藏的歌单时，一首都不该发。</summary>
+    [Fact]
+    public async Task SetLikedMany_SkipsTracksThatAreAlreadyLiked()
+    {
+        _session.Set(Uid, "test-token");
+        _server.LikedIds.AddRange([1, 2]);
+        await _service.IsLikedAsync(1, Ct);
+
+        var result = await _service.SetLikedManyAsync([1, 2, 3], liked: true, cancellationToken: Ct);
+
+        Assert.Equal(1, result.Succeeded);
+        Assert.Equal(1, _server.AddCalls);
+    }
+
+    [Fact]
+    public async Task SetLikedMany_DropsDuplicatesAndNonPositiveIds()
+    {
+        _session.Set(Uid, "test-token");
+
+        var result = await _service.SetLikedManyAsync([5, 5, 0, -3, 6], liked: true, cancellationToken: Ct);
+
+        Assert.Equal(2, result.Succeeded);
+        Assert.Equal(2, _server.AddCalls);
+        Assert.Equal([5L, 6L], _server.LikedIds);
+    }
+
+    [Fact]
+    public async Task SetLikedMany_WithNothingToDo_SucceedsWithoutRequests()
+    {
+        _session.Set(Uid, "test-token");
+
+        var result = await _service.SetLikedManyAsync([], liked: true, cancellationToken: Ct);
+
+        Assert.Equal(LikedSongsOutcome.Succeeded, result.Outcome);
+        Assert.Equal(0, _server.AddCalls);
+    }
+
+    /// <summary>一首写不了不该让剩下的白做；失败数如实回报。</summary>
+    [Fact]
+    public async Task SetLikedMany_KeepsGoingAfterASingleFailure()
+    {
+        _session.Set(Uid, "test-token");
+        _server.FailingIds.Add(2);
+
+        var result = await _service.SetLikedManyAsync([1, 2, 3], liked: true, cancellationToken: Ct);
+
+        Assert.Equal(2, result.Succeeded);
+        Assert.Equal(1, result.Failed);
+        // 三首都发了 —— 第二首失败没有把第三首吞掉。
+        Assert.Equal(3, _server.AddCalls);
+        Assert.Equal([1L, 3L], _server.LikedIds);
+    }
+
+    /// <summary>
+    /// 有失败就不动本地集合、只标脏：下一次判定必须重拉，否则半对半错的缓存会一直骗人。
+    /// </summary>
+    [Fact]
+    public async Task SetLikedMany_LeavesTheLocalSetAloneWhenSomethingFailed()
+    {
+        _session.Set(Uid, "test-token");
+        await _service.IsLikedAsync(1, Ct);
+        _server.FailingIds.Add(2);
+
+        await _service.SetLikedManyAsync([1, 2], liked: true, cancellationToken: Ct);
+
+        Assert.True(await _service.IsLikedAsync(1, Ct));
+        // 1 次是首同步、1 次是这次的重拉。
+        Assert.Equal(2, _server.FondCalls);
+    }
+
+    [Fact]
+    public async Task SetLikedMany_ReportsProgressAsItGoes()
+    {
+        _session.Set(Uid, "test-token");
+        var reports = new List<BatchProgress>();
+
+        await _service.SetLikedManyAsync([1, 2, 3], liked: true,
+            progress: new Progress<BatchProgress>(reports.Add), cancellationToken: Ct);
+
+        // Progress<T> 走同步上下文投递，这里没装上下文，要等一拍才收得到。
+        await Task.Yield();
+
+        Assert.Equal(3, reports.Count);
+        Assert.Equal(new BatchProgress(3, 3), reports[^1]);
+    }
+
+    [Fact]
+    public async Task SetLikedMany_RequiresLogin()
+    {
+        var result = await _service.SetLikedManyAsync([1, 2], liked: true, cancellationToken: Ct);
+
+        Assert.Equal(LikedSongsOutcome.NotAuthenticated, result.Outcome);
+        Assert.Equal(0, _server.AddCalls);
+    }
+
+    [Fact]
+    public async Task SetLikedMany_ReportsAMissingLikedPlaylist()
+    {
+        _session.Set(Uid, "test-token");
+        _server.HasLikedPlaylist = false;
+
+        var result = await _service.SetLikedManyAsync([1, 2], liked: true, cancellationToken: Ct);
+
+        Assert.Equal(LikedSongsOutcome.NoLikedPlaylist, result.Outcome);
+        Assert.Equal(0, _server.AddCalls);
+    }
+
+    /// <summary>取消方向同样跳过「已经是目标状态」的：本来就没喜欢的歌不该白发请求。</summary>
+    [Fact]
+    public async Task SetLikedMany_UnlikeSkipsTracksThatWereNotLiked()
+    {
+        _session.Set(Uid, "test-token");
+        _server.LikedIds.AddRange([1, 2]);
+        await _service.IsLikedAsync(1, Ct);
+
+        // 3 与 4 本来就没喜欢，只有 1、2 需要真的移除。
+        var result = await _service.SetLikedManyAsync([1, 2, 3, 4], liked: false, cancellationToken: Ct);
+
+        Assert.Equal(LikedSongsOutcome.Succeeded, result.Outcome);
+        Assert.Equal(2, result.Succeeded);
+        Assert.Equal(2, _server.RemoveCalls);
+        Assert.Empty(_server.LikedIds);
+    }
+
+    [Fact]
+    public async Task SetLikedMany_CanUnlike()
+    {
+        _session.Set(Uid, "test-token");
+        _server.LikedIds.AddRange([1, 2, 3]);
+        await _service.IsLikedAsync(1, Ct);
+
+        var result = await _service.SetLikedManyAsync([1, 2], liked: false, cancellationToken: Ct);
+
+        Assert.Equal(LikedSongsOutcome.Succeeded, result.Outcome);
+        Assert.Equal(2, _server.RemoveCalls);
+        Assert.Equal([3L], _server.LikedIds);
     }
 
     // ── 会话变更 ────────────────────────────────────────────────────────────

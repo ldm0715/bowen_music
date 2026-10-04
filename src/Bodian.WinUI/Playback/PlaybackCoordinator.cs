@@ -106,6 +106,58 @@ public sealed class PlaybackCoordinator : IDisposable
         return PlayCurrentAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 点播一首：把它放到队尾，并立即播放它。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>这是列表里点行的语义。</b> 队列由用户一首首点出来，点一首就多一首 ——
+    /// 不再像以前那样把<b>整个列表</b>拖进队列。想一次把列表排进去，走工具栏的「全部加入播放列表」。
+    /// </para>
+    /// <para>
+    /// <b>队列里已经有同一首时不重复添加</b>，直接跳到那一首放：点三次同一首歌不该在队列里出现三份。
+    /// </para>
+    /// <para>
+    /// <b>顺序模式下如果这首歌是最后一首，播完即停</b>（下一首触发 <see cref="QueueExhausted"/>）；
+    /// 循环与随机模式下会接着往下走。这是模式本来的语义，有意不去改用户的播放模式。
+    /// </para>
+    /// </remarks>
+    public Task EnqueueAndPlayAsync(Track track, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        _logger.LogDebug("点播：{Title}", track.Title);
+
+        if (Queue.Append(track))
+        {
+            // 新加的那一首就在末尾。
+            Queue.MoveToItem(Queue.Count - 1);
+        }
+        else
+        {
+            // 队列里已经有了（Append 去重挡下来的），跳到原来那一份。
+            Queue.MoveToItem(IndexOfQueueItem(track.Id));
+        }
+
+        return PlayCurrentAsync(cancellationToken);
+    }
+
+    /// <summary>队列里第一条指定曲目 id 的下标；没有返回 <c>-1</c>。</summary>
+    private int IndexOfQueueItem(long musicId)
+    {
+        var items = Queue.Items;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i].Id == musicId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     /// <summary>下一首。没有下一首时触发 <see cref="QueueExhausted"/> 且不做循环。</summary>
     public Task NextAsync(CancellationToken cancellationToken = default)
     {
@@ -156,20 +208,60 @@ public sealed class PlaybackCoordinator : IDisposable
     public void CyclePlayMode() => SetPlayMode(Queue.Mode.Next());
 
     /// <summary>
-    /// 加到队尾。
+    /// 加到队尾。队列里已经有同一首时什么都不做。
     /// </summary>
     /// <remarks>
     /// <b>队列原本是空的时候直接开播</b>：否则加了没有任何反应，用户会以为没生效 ——
     /// 而「队列是空的」恰恰是第一次用这个入口时最常见的状态。
     /// </remarks>
-    public Task AddToQueueAsync(Track track, CancellationToken cancellationToken = default)
+    /// <returns>真的加进去了返回 <c>true</c>；队列里已有同一首返回 <c>false</c>，调用方据此改提示。</returns>
+    public async Task<bool> AddToQueueAsync(Track track, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(track);
 
         var wasEmpty = Queue.Count == 0;
-        Queue.Append(track);
 
-        return wasEmpty ? PlayCurrentAsync(cancellationToken) : Task.CompletedTask;
+        if (!Queue.Append(track))
+        {
+            return false;
+        }
+
+        if (wasEmpty)
+        {
+            await PlayCurrentAsync(cancellationToken).ConfigureAwait(true);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 把一批曲目加到队尾，队列里已有的（按 Id）与本批内重复的都跳过。
+    /// </summary>
+    /// <remarks>
+    /// <b>队列原本是空的时候直接开播</b>：沿袭单首版 <see cref="AddToQueueAsync(Track, CancellationToken)"/>
+    /// 的语义，否则加了没有任何反应。<b>非空队列只追加，不动游标</b>，正在播的那首不被打断。
+    /// </remarks>
+    /// <returns>实际追加的条数；全都已在队列里时返回 <c>0</c>。</returns>
+    public async Task<int> AddToQueueAsync(IReadOnlyList<Track> tracks, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+
+        if (tracks.Count == 0)
+        {
+            return 0;
+        }
+
+        var wasEmpty = Queue.Count == 0;
+        var added = Queue.AppendRange(tracks);
+
+        _logger.LogDebug("批量加入队列：追加 {Added} 首（传入 {Count} 首）", added, tracks.Count);
+
+        if (added > 0 && wasEmpty)
+        {
+            await PlayCurrentAsync(cancellationToken).ConfigureAwait(true);
+        }
+
+        return added;
     }
 
     /// <summary>插到当前曲目之后。队列为空时等同于 <see cref="AddToQueueAsync"/>。</summary>

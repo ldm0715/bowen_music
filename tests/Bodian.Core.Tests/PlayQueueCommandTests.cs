@@ -62,6 +62,106 @@ public sealed class PlayQueueCommandTests
     }
 
     [Fact]
+    public async Task AddToQueue_WhenTheTrackIsAlreadyQueued_ReportsNotAdded()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2)], 0, Ct);
+
+        Assert.False(await coordinator.AddToQueueAsync(Track(2), Ct));
+
+        Assert.Equal(2, coordinator.Queue.Count);
+        Assert.Equal(1, engine.LoadCount);
+    }
+
+    /// <summary>
+    /// 点一首歌：排到队尾并立即播放它。<b>队列里原来那些必须留着</b> ——
+    /// 清空队列是上一版的做法，用起来很怪。
+    /// </summary>
+    [Fact]
+    public async Task EnqueueAndPlay_AppendsToTheTailAndPlaysIt()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2)], 0, Ct);
+
+        await coordinator.EnqueueAndPlayAsync(Track(3), Ct);
+
+        Assert.Equal([1L, 2L, 3L], coordinator.Queue.Items.Select(t => t.Id));
+        Assert.Equal(3, coordinator.CurrentTrack!.Id);
+        Assert.Equal(2, coordinator.Queue.CurrentIndex);
+    }
+
+    /// <summary>队列里已经有这一首时不重复添加，跳到原来那一份放。</summary>
+    [Fact]
+    public async Task EnqueueAndPlay_WhenAlreadyQueued_JumpsToItWithoutDuplicating()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
+
+        await coordinator.EnqueueAndPlayAsync(Track(2), Ct);
+
+        Assert.Equal([1L, 2L, 3L], coordinator.Queue.Items.Select(t => t.Id));
+        Assert.Equal(2, coordinator.CurrentTrack!.Id);
+    }
+
+    [Fact]
+    public async Task EnqueueAndPlay_OnAnEmptyQueue_StartsPlaying()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+
+        await coordinator.EnqueueAndPlayAsync(Track(7), Ct);
+
+        Assert.Equal(1, coordinator.Queue.Count);
+        Assert.Equal(7, coordinator.CurrentTrack!.Id);
+    }
+
+    [Fact]
+    public async Task AddToQueueRange_AppendsTheNewOnesOnly()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2)], 0, Ct);
+
+        var added = await coordinator.AddToQueueAsync([Track(2), Track(3), Track(4)], Ct);
+
+        Assert.Equal(2, added);
+        Assert.Equal([1L, 2L, 3L, 4L], coordinator.Queue.Items.Select(t => t.Id));
+        Assert.Equal(1, coordinator.CurrentTrack!.Id);
+        Assert.Equal(1, engine.LoadCount);
+    }
+
+    [Fact]
+    public async Task AddToQueueRange_OnAnEmptyQueue_StartsPlaying()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+
+        var added = await coordinator.AddToQueueAsync([Track(5), Track(6)], Ct);
+
+        Assert.Equal(2, added);
+        Assert.Equal(5, coordinator.CurrentTrack!.Id);
+        Assert.Equal(1, engine.LoadCount);
+    }
+
+    /// <summary>队列是空的但一首都没加进去（全是重复或没有效 Id）时不该开播 —— 空队列没什么可播的。</summary>
+    [Fact]
+    public async Task AddToQueueRange_WhenNothingWasAdded_DoesNotStartPlaying()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+
+        var added = await coordinator.AddToQueueAsync([Track(0), Track(-1)], Ct);
+
+        Assert.Equal(0, added);
+        Assert.Equal(0, coordinator.Queue.Count);
+        Assert.Null(coordinator.CurrentTrack);
+        Assert.Equal(0, engine.LoadCount);
+    }
+
+    [Fact]
     public async Task PlayNext_InsertsRightAfterTheCurrentTrack()
     {
         var engine = new FakePlaybackEngine();

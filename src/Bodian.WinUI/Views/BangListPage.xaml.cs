@@ -135,14 +135,12 @@ public sealed partial class BangListPage : Page, INavigationAware
     private void Open(BangItemViewModel item) => _navigation.Navigate(_detailFactory(item.Bang));
 
     /// <summary>
-    /// 点曲目行：播放它所在**那个榜**。
+    /// 点曲目行：加到队尾并立即播放它。
     /// </summary>
     /// <remarks>
-    /// 队列是这一行所在的榜，不是整页 —— 「下一首」在榜内有效，与搜索页的行为一致。
-    /// <para>
-    /// 行上带的是 <see cref="TrackRow"/>，要反查它属于哪个榜。榜数不多（实测 20 个），
-    /// 线性找足够。行对象是每行一个实例，所以 <c>Contains</c> 走的是引用相等，不会误判。
-    /// </para>
+    /// <b>这里以前会反查「这一行属于哪个榜」再把整个榜入队</b>，为的是让「下一首」在榜内有效。
+    /// 现在点一首就只把这一首排进队列，那个反查连同榜的选取一起删掉了 ——
+    /// 要一次排进整个榜，得走榜详情页的工具栏。
     /// </remarks>
     private async void OnTrackTapped(object sender, TappedRoutedEventArgs e)
     {
@@ -151,23 +149,6 @@ public sealed partial class BangListPage : Page, INavigationAware
             return;
         }
 
-        var bang = ViewModel.Sections
-            .SelectMany(section => section.Bangs)
-            .FirstOrDefault(item => item.Tracks.Contains(row));
-
-        if (bang is null)
-        {
-            return;
-        }
-
-        var index = bang.Tracks.IndexOf(row);
-
-        if (index < 0)
-        {
-            return;
-        }
-
-        // 名次是榜单的展示概念，不进队列 —— 与榜详情页同一条规矩。
-        await _coordinator.PlayFromAsync([.. bang.Tracks.Select(item => item.Source)], index);
+        await _coordinator.EnqueueAndPlayAsync(row.Source);
     }
 }

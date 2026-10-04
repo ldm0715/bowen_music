@@ -332,17 +332,32 @@ public sealed partial class SearchViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 刷新：重跑一次**已经提交的**关键词。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能复用 <c>SearchCommand</c></b>：那个读的是输入框里的 <c>Keyword</c>，用户可能改了词还没提交，
+    /// 而刷新应当重放上一次那次搜索 —— 拿半截输入去搜是另一回事。页签也保持不动。
+    /// </remarks>
+    [RelayCommand]
+    private async Task ReloadAsync()
+    {
+        if (!HasSearch || _searchedKeyword.Length == 0)
+        {
+            return;
+        }
+
+        await SearchCoreAsync(_searchedKeyword);
+    }
+
     [RelayCommand]
     private async Task PlayAsync(Track? track)
     {
         if (track is null) return;
-        var queue = SelectedCategory == 0
-            ? OverviewSections.SelectMany(section => section.Tracks).ToArray()
-            : Results.ToArray();
-        var index = Array.IndexOf(queue, track);
-        if (index < 0) return;
         CurrentTrack = track;
-        await _coordinator.PlayFromAsync(queue, index);
+
+        // 加到队尾并立即播放。综合页签与歌曲页签共用这一处，改的时候别只顾一个。
+        await _coordinator.EnqueueAndPlayAsync(track);
     }
 
     private async Task AppendNextPageAsync(string keyword, int category, PagedCursor cursor, CancellationToken token)

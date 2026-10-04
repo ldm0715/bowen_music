@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.TrackListToolbar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        曲目列表右上角的操作条。两个面互斥，由 code-behind 切 Visibility。
+
+        普通面在右侧三颗图标按钮；多选面把动作挪到左边、右边只留一颗 ✕ 退出 ——
+        动作在左、退出在右，是为了让「选完了做什么」和「不选了」在位置上就分得开。
+
+        ★ 整个控件 HorizontalAlignment=Stretch，交给页面铺满一行。左贴左、右贴右要靠它，
+          控件自己收成内容宽的话两个面会挤在一起。
+    -->
+    <Grid HorizontalAlignment="Stretch">
+        <!-- 普通态：全部加入播放列表 / 多选 / 刷新 -->
+        <StackPanel
+            x:Name="NormalBar"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal"
+            Spacing="2">
+            <Button
+                x:Name="AddAllButton"
+                AutomationProperties.Name="全部加入播放列表"
+                Click="OnAddAllToQueueClick"
+                Style="{StaticResource BodianIconButton}"
+                ToolTipService.ToolTip="全部加入播放列表（只加入已加载的）">
+                <FontIcon FontSize="14" Glyph="&#xE8FD;" />
+            </Button>
+
+            <Button
+                x:Name="MultiSelectButton"
+                AutomationProperties.Name="多选"
+                Click="OnEnterSelectionClick"
+                Style="{StaticResource BodianIconButton}"
+                ToolTipService.ToolTip="多选">
+                <FontIcon FontSize="14" Glyph="&#xE762;" />
+            </Button>
+
+            <Button
+                x:Name="RefreshButton"
+                AutomationProperties.Name="刷新"
+                Click="OnRefreshClick"
+                Style="{StaticResource BodianIconButton}"
+                ToolTipService.ToolTip="刷新">
+                <FontIcon FontSize="14" Glyph="&#xE72C;" />
+            </Button>
+        </StackPanel>
+
+        <!-- 多选态：左动作、右退出 -->
+        <Grid x:Name="SelectionBar" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel
+                Grid.Column="0"
+                HorizontalAlignment="Left"
+                Orientation="Horizontal"
+                Spacing="8"
+                VerticalAlignment="Center">
+                <!--
+                    批量动作是这一条的主内容，用带文字的按钮：纯图标说不清是「加入喜欢」还是「加入歌单」。
+                    刻意**不用** AccentButtonStyle —— 强调色留给页面自己的主操作。
+                -->
+                <Button
+                    x:Name="BatchQueueButton"
+                    MinWidth="0"
+                    AutomationProperties.Name="批量加入播放列表"
+                    Click="OnBatchAddToQueueClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon FontSize="14" Glyph="&#xE8FD;" />
+                        <TextBlock Text="加入播放列表" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    x:Name="BatchLikeButton"
+                    MinWidth="0"
+                    AutomationProperties.Name="批量加入喜欢"
+                    Click="OnBatchLikeClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon FontSize="14" Glyph="&#xEB51;" />
+                        <TextBlock Text="加入喜欢" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    x:Name="BatchPlaylistButton"
+                    MinWidth="0"
+                    AutomationProperties.Name="批量加入歌单"
+                    Click="OnBatchPlaylistClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon FontSize="14" Glyph="&#xE710;" />
+                        <TextBlock Text="加入歌单" />
+                    </StackPanel>
+                </Button>
+
+                <!--
+                    移出。**只在能改的歌单上出现**（自建歌单与「我喜欢的」），
+                    由页面给 RemovablePlaylistId / IsLikedPlaylist 决定，默认收起。
+                    文案两个页面不一样：自建歌单是「移出歌单」，我喜欢的本质是取消喜欢。
+                -->
+                <Button
+                    x:Name="BatchRemoveButton"
+                    MinWidth="0"
+                    AutomationProperties.Name="批量移出"
+                    Click="OnBatchRemoveClick"
+                    Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon FontSize="14" Glyph="&#xE74D;" />
+                        <TextBlock x:Name="BatchRemoveText" Text="移出歌单" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    x:Name="SelectAllButton"
+                    MinWidth="0"
+                    Click="OnToggleSelectAllClick"
+                    Content="全选" />
+
+                <!-- 计数与批量进度共用这一行：两者不会同时出现。 -->
+                <TextBlock
+                    x:Name="CountText"
+                    VerticalAlignment="Center"
+                    Style="{StaticResource BodianPageStatus}"
+                    Text="已选 0 首" />
+            </StackPanel>
+
+            <Button
+                Grid.Column="1"
+                AutomationProperties.Name="退出多选"
+                Click="OnExitSelectionClick"
+                Style="{StaticResource BodianIconButton}"
+                ToolTipService.ToolTip="退出多选">
+                <FontIcon FontSize="12" Glyph="&#xE711;" />
+            </Button>
+        </Grid>
+    </Grid>
+</UserControl>

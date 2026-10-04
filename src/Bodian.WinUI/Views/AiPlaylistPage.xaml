@@ -9,6 +9,7 @@
     <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -47,13 +48,20 @@
 
         </Grid>
 
-        <controls:TrackListView
+        <controls:TrackListToolbar
             Grid.Row="1"
+            Margin="0,0,0,8"
+            ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            Target="{x:Bind AiTracksList}" />
+
+        <controls:TrackListView
+            x:Name="AiTracksList"
+            Grid.Row="2"
             ItemsSource="{x:Bind ViewModel.Tracks}"
             TrackInvoked="OnTrackInvoked" />
 
         <ProgressRing
-            Grid.Row="2"
+            Grid.Row="3"
             Style="{StaticResource BodianPageBusyRing}"
             HorizontalAlignment="Left"
             IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />

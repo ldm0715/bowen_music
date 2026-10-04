@@ -150,6 +150,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanCollect))]
+    [NotifyPropertyChangedFor(nameof(RemovablePlaylistId))]
     public partial bool IsOwnPlaylist { get; set; }
 
     /// <summary>
@@ -159,6 +160,16 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     /// 收藏自己的歌单没有意义，挂在那儿只是给人误点的机会。
     /// </remarks>
     public bool CanCollect => !IsOwnPlaylist;
+
+    /// <summary>
+    /// 工具栏「批量移出」可以作用在哪个歌单上；<c>0</c> 表示这一页不给这个动作。
+    /// </summary>
+    /// <remarks>
+    /// <b>只有自己创建的歌单能改</b>：收藏来的歌单是别人的，移不了。
+    /// 归属是异步算出来的（<see cref="ComputeOwnership"/>），在那之前这里是 0 ——
+    /// 按钮晚一点出现，好过先出现再消失。
+    /// </remarks>
+    public long RemovablePlaylistId => IsOwnPlaylist ? PlaylistId : 0;
 
     // ── 收藏 ────────────────────────────────────────────────────────────
 

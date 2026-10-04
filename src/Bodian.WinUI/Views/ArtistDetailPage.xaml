@@ -120,14 +120,22 @@
         <Grid Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsSongsTab), Mode=OneWay}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Margin="0,0,0,8" Text="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}" />
+            <TextBlock Text="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}" />
+
+            <controls:TrackListToolbar
+                Grid.Row="1"
+                Margin="0,8,0,8"
+                ReloadCommand="{x:Bind ViewModel.Tracks.ReloadCommand}"
+                Target="{x:Bind ArtistTracksList}" />
 
             <controls:TrackListView
-                Grid.Row="1"
+                x:Name="ArtistTracksList"
+                Grid.Row="2"
                 HasMore="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}"
                 ItemsSource="{x:Bind ViewModel.Tracks.Items}"
                 LoadMoreCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}"
@@ -140,14 +148,10 @@
                 </controls:TrackListView.Footer>
             </controls:TrackListView>
 
-            <StackPanel
-                Grid.Row="2"
-                HorizontalAlignment="Left"
-                Orientation="Horizontal"
-                Spacing="12">
-                <ProgressRing IsActive="{x:Bind ViewModel.Tracks.IsBusy, Mode=OneWay}" Style="{StaticResource BodianPageBusyRing}" />
-                <Button Command="{x:Bind ViewModel.Tracks.ReloadCommand}" Content="重新加载" />
-            </StackPanel>
+            <ProgressRing
+                Grid.Row="3"
+                IsActive="{x:Bind ViewModel.Tracks.IsBusy, Mode=OneWay}"
+                Style="{StaticResource BodianPageBusyRing}" />
         </Grid>
 
         <!-- ── 专辑（卡片网格）───────────────────────────────────────────── -->

@@ -94,6 +94,10 @@ public sealed partial class RecentViewModel : ObservableObject
         }
     }
 
+    /// <summary>刷新：重新读一次播放历史。工具栏的刷新按钮用它。</summary>
+    [RelayCommand]
+    private Task ReloadAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
+
     [RelayCommand]
     private async Task PlayAsync(Track? track)
     {
@@ -102,16 +106,10 @@ public sealed partial class RecentViewModel : ObservableObject
             return;
         }
 
-        var index = Tracks.IndexOf(track);
-
-        if (index < 0)
-        {
-            return;
-        }
-
         CurrentTrack = track;
 
-        await _coordinator.PlayFromAsync([.. Tracks], index).ConfigureAwait(true);
+        // 加到队尾并立即播放：整个列表不再被拖进队列，要一次排进去走工具栏的「全部加入播放列表」。
+        await _coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
     }
 
     /// <summary>

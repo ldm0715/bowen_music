@@ -1,4 +1,5 @@
 using Bodian.Core.Models;
+using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
 using Bodian.Core.Tests.Support;
 using Bodian.WinUI.Services;
@@ -446,11 +447,11 @@ public sealed class TrackActionsViewModelTests
             return Task.CompletedTask;
         }
 
-        public Task AddToQueueAsync(Track track)
+        public Task<bool> AddToQueueAsync(Track track)
         {
             Appended.Add(track.Id);
 
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
     }
 
@@ -460,6 +461,12 @@ public sealed class TrackActionsViewModelTests
             => Task.FromResult<bool?>(false);
 
         public Task<LikedSongsOutcome> SetLikedAsync(long musicId, bool liked,
+            CancellationToken cancellationToken = default)
+            => throw new HttpRequestException("网络不可用");
+
+        public Task<LikedSongsBatchOutcome> SetLikedManyAsync(
+            IReadOnlyList<long> musicIds, bool liked = true,
+            IProgress<BatchProgress>? progress = null,
             CancellationToken cancellationToken = default)
             => throw new HttpRequestException("网络不可用");
     }
@@ -476,6 +483,20 @@ public sealed class TrackActionsViewModelTests
         {
             Requests.Add((musicId, liked));
             return Task.FromResult(LikedSongsOutcome.Succeeded);
+        }
+
+        public Task<LikedSongsBatchOutcome> SetLikedManyAsync(
+            IReadOnlyList<long> musicIds, bool liked = true,
+            IProgress<BatchProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (var id in musicIds)
+            {
+                Requests.Add((id, liked));
+            }
+
+            return Task.FromResult(new LikedSongsBatchOutcome(
+                LikedSongsOutcome.Succeeded, musicIds.Count, 0, false));
         }
     }
 }

@@ -58,6 +58,7 @@
 | 列表 / 播放栏封面 | 48，圆角 8 | `SizeCoverRow` / `RadiusMd` |
 | 播放栏图标按钮 | 36 圆形，图标显示区 20×20 | `PlayerButtonSize`（`PlayerBar` 局部资源） |
 | 导航图标 | 16 | `SizeIconSm` |
+| 列表工具栏图标按钮 | 28 | `SizeIconButton`（2026-10-04 加） |
 
 ### 1.3 状态公式
 
@@ -214,6 +215,9 @@ error CS9035: 必须在对象初始值设定项中设置所需的成员 'Track.I
 十三个页面各自写了一遍 `<Grid Padding="24,16" RowSpacing="…">` + 16px 的 `ProgressRing`，
 行间距有三种值（12 / 10 / 8）。现在收敛到 `Themes/Styles/Pages.xaml`：
 `BodianPageRoot` / `BodianPageTitle` / `BodianPageStatus` / `BodianPageBusyRing` / `BodianPageFooter`。
+
+（2026-10-04 再追加 `BodianIconButton` —— 28×28 的透明底图标按钮；
+列表工具栏与侧栏的刷新/新建都用它，见 [`track-list-toolbar.md`](track-list-toolbar.md) §6。）
 
 （2026-10-03 追加 `BodianPageEndNote` —— 列表末尾的「没有更多了哦~」小字，
 由 `Controls/PagingEndNote.xaml` 使用，见 [`list-paging.md`](list-paging.md)。）
@@ -666,8 +670,10 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留，理由与�
 
 ## 15. 曲目行「更多」菜单（2026-10-03）
 
-行尾悬停出现一颗「更多」按钮，点开是四项：我喜欢、添加到歌单、查看歌手、查看专辑。
-四个动作走什么接口见 [`like-share.md`](like-share.md)，这里只记界面、几何与接线。
+行尾悬停出现一颗「更多」按钮，点开是六项：我喜欢、下一首播放、加入播放队列、
+添加到歌单、查看歌手、查看专辑（2026-10-03 晚些时候从四项扩到六项）。
+动作走什么接口见 [`like-share.md`](like-share.md) 与 [`play-queue.md`](play-queue.md) §5，
+这里只记界面、几何与接线。
 
 ### 15.1 几何：时长左移 32 DIP
 
@@ -687,6 +693,10 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留，理由与�
 
 三份行模板都改了：共享 `TrackListView`、搜索页的 `OverviewTrackTemplate`、
 榜单页的 `PreviewTrackTemplate`（那份列宽与内边距自成一档，末尾同样加了一列定宽 32）。
+
+> **2026-10-04：三份不再等价。** 共享 `TrackListView` 的序号列多了一态（多选时显示复选框），
+> 那两份复制模板**不含**这一态 —— 它们所在的列表不参与多选。改共享模板时别顺手去同步它们，
+> 改列宽时才要三份一起改。
 
 ### 15.2 悬停显示：两个状态位，不是一个
 
@@ -863,8 +873,11 @@ WinUI 构建通过，0 错误、1 个既有 `AiPlaylistPage.xaml:27` WMC1506 警
 
 ## 17. 曲目行的序号列与播放动画（2026-10-03）
 
-曲目行的第一列是三态互斥的：**正在播放 → 起伏条；鼠标悬停 → 播放键；其余 → 序号**。
+曲目行的第一列原本是三态互斥的：**正在播放 → 起伏条；鼠标悬停 → 播放键；其余 → 序号**。
 本轮把它改了两处：三态的位置对齐，以及让正在播放那一态真的动起来。
+
+> **2026-10-04：变成四态了** —— 多选态排在**最前面**（多选 → 复选框 优先于 起伏条 / 播放键 / 序号），
+> 见 [`track-list-toolbar.md`](track-list-toolbar.md) §3.1。下面记的仍是三态那一轮的事。
 
 ### 17.1 三态落在同一个位置
 
@@ -922,6 +935,7 @@ WinUI 构建通过，0 错误、1 个既有 `AiPlaylistPage.xaml:27` WMC1506 警
 已改正并实测启动一次：进程存活 14 秒、事件日志无新崩溃记录。
 **但「正在播放」那一支（`Start`）还没有被真实播放触发过** —— 起伏动画的实际观感、
 三态切换有没有横向跳动、容器回收后有没有残留，都待用户手动验收。
+（那一句里的「三态」现在是四态，见本节开头的说明。）
 
 ## 18. 播放模式按钮与播放队列抽屉（2026-10-03）
 
@@ -1176,5 +1190,5 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-buil
 ```
 
 WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:27` 的 `WMC1506` 警告。
-现有测试 990 项全部通过，无失败、无跳过。另已检查两页的固定封面、紧凑文字布局，
+现有测试已到 **1021** 项（本条写于 990 那一轮）；本轮 0 失败、0 跳过。另已检查两页的固定封面、紧凑文字布局，
 以及分类换行模式中的横向滚动禁用设置。自动检查未覆盖实际窗口缩放和最终视觉效果。

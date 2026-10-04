@@ -10,6 +10,7 @@
     <Grid Style="{StaticResource BodianTrackPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -57,8 +58,15 @@
             代价是列的构成统一成曲目列表那套（多了音质列、付费徽标、
             序号列的悬停与「正在播放」三态），这是有意的。
         -->
-        <controls:TrackListView
+        <controls:TrackListToolbar
             Grid.Row="1"
+            Margin="0,0,0,8"
+            ReloadCommand="{x:Bind ViewModel.Tracks.ReloadCommand}"
+            Target="{x:Bind BangTracksList}" />
+
+        <controls:TrackListView
+            x:Name="BangTracksList"
+            Grid.Row="2"
             HasMore="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks.Items}"
             LoadMoreCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}"
@@ -71,7 +79,7 @@
             </controls:TrackListView.Footer>
         </controls:TrackListView>
 
-        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
+        <Grid Grid.Row="3" Style="{StaticResource BodianPageFooter}">
             <ProgressRing
                 Style="{StaticResource BodianPageBusyRing}"
                 IsActive="{x:Bind ViewModel.Tracks.IsBusy, Mode=OneWay}" />
