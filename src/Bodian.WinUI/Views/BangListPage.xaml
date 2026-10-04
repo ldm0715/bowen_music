@@ -4,98 +4,120 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Bodian.WinUI"
-    xmlns:models="using:Bodian.Core.Models"
     xmlns:vm="using:Bodian.WinUI.ViewModels"
     xmlns:controls="using:Bodian.WinUI.Controls">
 
     <Page.Resources>
-        <DataTemplate x:Key="SectionHeaderTemplate" x:DataType="vm:ListSectionHeader">
-            <TextBlock Margin="4,20,0,10" Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Title}" />
-        </DataTemplate>
-        <DataTemplate x:Key="BangHeaderTemplate" x:DataType="vm:BangItemViewModel">
-            <Grid
-                Padding="4,6"
-                ColumnSpacing="10"
-                Background="Transparent"
-                Tag="{x:Bind}"
-                Tapped="OnHeaderTapped">
+        <!--
+            分组表头那一行。整行可点（收起 / 展开），透明底、无边框，悬停只换底色 ——
+            与 BodianCardPagerButton 同一套写法（全仓没有 Storyboard）。
+
+            ★ MinWidth / MinHeight 必须清零：Button 默认 MinWidth 是 120，不清零表头会被撑成长条。
+            ★ HorizontalContentAlignment 必须是 Stretch：换成 Left 的话内容会收缩到标题那么宽，
+              右边那一列（曲目数）就贴不到右侧，整行的可点区域也跟着塌掉。
+            ★ 外边距走 Padding 而不是 Margin：悬停底色要盖住整行（含内边距），
+              压在 Margin 上就只覆盖文字那一小块，看起来很碎。
+        -->
+        <Style x:Key="BangSectionHeaderButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0,12,0,2" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                            <ContentPresenter
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Center"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background"
+                                                    Value="{ThemeResource NavigationViewItemBackgroundPointerOver}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background"
+                                                    Value="{ThemeResource NavigationViewItemBackgroundPressed}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled" />
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            分组表头的容器。**这一条是为了干掉系统画的那条 1px 全宽分隔线。**
+            GridView 给分组表头自动生成的是 GridViewHeaderItem，它自带一套默认模板，
+            模板里有一个 Rectangle —— 那就是表头下面横贯整个宽度的那条线。
+            HeaderTemplate 管不到它（那是内容，这是容器），只有换掉 HeaderContainerStyle 才行。
+
+            ★ 目标类型必须是 GridViewHeaderItem：用 ListView 时才是 ListViewHeaderItem，写错不生效。
+            ★ 内容要 Stretch：默认是 Left，表头那一行就撑不满、右边点不到。
+            ★ 留 Padding 的 TemplateBinding：换模板后外边距仍由样式上的 Padding 决定。
+        -->
+        <Style x:Key="BangHeaderItemStyle" TargetType="GridViewHeaderItem">
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewHeaderItem">
+                        <ContentPresenter
+                            Margin="{TemplateBinding Padding}"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            卡片里的一行：名次 + 「歌名 - 歌手」。
+            **这一行不接任何交互** —— 卡片上只有「进详情」一个动作，点歌名不播放。
+            想听就先点进榜详情页，那边的曲目列表才是能播的地方。
+        -->
+        <DataTemplate x:Key="BangTrackTemplate" x:DataType="vm:TrackRow">
+            <Grid Padding="0,1" ColumnSpacing="6">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="14" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Border
-                    Grid.Column="0"
-                    Width="40"
-                    Height="40"
-                    VerticalAlignment="Center"
-                    Background="{ThemeResource ControlFillColorDefaultBrush}"
-                    CornerRadius="{StaticResource RadiusSm}">
-                    <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                </Border>
-
-                <StackPanel
-                    Grid.Column="1"
-                    VerticalAlignment="Center"
-                    Spacing="2">
-                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind UpdateText}" />
-                </StackPanel>
-
-                <Button
-                    Grid.Column="2"
-                    VerticalAlignment="Center"
-                    Click="OnMoreClick"
-                    Content="更多"
-                    Tag="{x:Bind}"
-                    Visibility="{x:Bind local:Formats.Visible(HasMore)}" />
-            </Grid>
-        </DataTemplate>
-        <DataTemplate x:Key="PreviewTrackTemplate" x:DataType="vm:TrackRow">
-            <!--
-                行可点播。点行 → 这首歌所在的**那个榜**整体入队，
-                所以「下一首」在榜内有效（与搜索页同一套行为）。
-            -->
-            <Grid
-                Padding="4,5,8,5"
-                ColumnSpacing="10"
-                Background="Transparent"
-                PointerEntered="OnPreviewRowPointerEntered"
-                PointerExited="OnPreviewRowPointerExited"
-                Tag="{x:Bind}"
-                Tapped="OnTrackTapped">
-                <!--
-                    这一份与共享列表那份不共用列宽：预览行更矮、时长靠左。
-                    末尾的「更多」列同样定宽，理由见 TrackListView.xaml。
-                -->
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="32" />
-                </Grid.ColumnDefinitions>
-
-                <!-- 名次列三态互斥：正在播放 → 起伏条；悬停 → 播放键；其余 → 名次 -->
+                <!-- 名次（不补零，见 TrackRow.PadOrdinal）；这一首正在播时换成起伏条。 -->
                 <Grid Grid.Column="0">
                     <TextBlock
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
                         Text="{x:Bind OrdinalText}"
                         Visibility="{x:Bind IndexVisibility, Mode=OneWay}" />
-
-                    <FontIcon
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                        Glyph="&#xE768;"
-                        Visibility="{x:Bind PlayGlyphVisibility, Mode=OneWay}" />
 
                     <controls:PlayingBars
                         HorizontalAlignment="Center"
@@ -103,50 +125,140 @@
                         IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
                 </Grid>
 
-                <!-- 封面。没有封面时留一块底色，行高不跳 -->
-                <Border
-                    Grid.Column="1"
-                    Width="36"
-                    Height="36"
-                    VerticalAlignment="Center"
-                    Background="{ThemeResource ControlFillColorDefaultBrush}"
-                    CornerRadius="4">
-                    <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
-                </Border>
+                <!--
+                    歌名与歌手写在同一个 TextBlock 的三个 Run 里，而不是并排两个 TextBlock：
+                    只有同一段文本才会「整行一起截断」—— 分成两个块的话，歌名超长时
+                    后面的「 - 歌手」会留在原地，越界被切掉半截。
 
-                <StackPanel
-                    Grid.Column="2"
-                    VerticalAlignment="Center"
-                    Spacing="2">
-                    <TextBlock
-                        Text="{x:Bind Title}"
-                        TextTrimming="CharacterEllipsis" />
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind ArtistText}"
-                        TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-
+                    ★ TextWrapping 显式写 NoWrap：默认值虽然是 NoWrap，但这条一旦被谁改掉，
+                      长歌名就会折成两行、把 160 高的卡片撑破（卡片根元素是定高的，
+                      撑不出去的部分会被裁掉，看起来像「卡片被撑大又截断」）。
+                -->
                 <TextBlock
-                    Grid.Column="3"
+                    Grid.Column="1"
                     VerticalAlignment="Center"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind DurationText}" />
-
-                <!-- 行根的 Tapped 管点播，按钮会自己吞掉点击 —— 与表头那颗「更多」同一套做法。 -->
-                <controls:TrackMoreButton
-                    Grid.Column="4"
-                    VerticalAlignment="Center"
-                    Row="{x:Bind}" />
+                    Style="{StaticResource BodyTextBlockStyle}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="NoWrap">
+                    <Run Text="{x:Bind Title}" />
+                    <Run Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text=" - " />
+                    <Run Foreground="{ThemeResource TextFillColorTertiaryBrush}" Text="{x:Bind ArtistText}" />
+                </TextBlock>
             </Grid>
         </DataTemplate>
-        <controls:ResultTemplateSelector x:Key="RankTemplateSelector"
-            HeaderTemplate="{StaticResource SectionHeaderTemplate}" BangTemplate="{StaticResource BangHeaderTemplate}"
-            TrackTemplate="{StaticResource PreviewTrackTemplate}" />
+
+        <!-- 一个榜一张卡：榜名 + 更新时间 / 封面 + 前三名 -->
+        <DataTemplate x:Key="BangCardTemplate" x:DataType="vm:BangItemViewModel">
+            <!--
+                悬停底由**卡片自己画**（见 BangItemViewModel.IsPointerOver）：
+                容器那层铺在整格上、又被这张卡的不透明底色盖住，指望它等于没有。
+
+                根元素必须 Background="Transparent"：没有背景的元素在空白处不参与命中测试，
+                标题行右侧那片空档就会既不触发悬停、点了也进不了详情页。
+            -->
+            <Grid
+                Width="{StaticResource SizeBangCard}"
+                Height="{StaticResource SizeBangCardHeight}"
+                Background="Transparent"
+                PointerEntered="OnCardPointerEntered"
+                PointerExited="OnCardPointerExited"
+                Tag="{x:Bind}"
+                Tapped="OnCardTapped">
+
+                <Border
+                    Background="{ThemeResource HomeCardBackgroundBrush}"
+                    CornerRadius="{StaticResource RadiusMd}" />
+
+                <Grid Padding="16" RowSpacing="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock
+                            Grid.Column="0"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            Text="{x:Bind Name}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+
+                        <!--
+                            更新时间直接用响应里的 pubStr（形如 09-30更新）。
+                            ★ 参考图上的「刚刚更新」「每30分钟更新」「更新11首」这一族文案
+                              接口**不返回**，官方客户端自己拼的，本项目不模仿。
+                        -->
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind UpdateText}"
+                            TextWrapping="NoWrap" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border
+                            Grid.Column="0"
+                            Width="{StaticResource SizeBangCardCover}"
+                            Height="{StaticResource SizeBangCardCover}"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                            CornerRadius="{StaticResource RadiusSm}">
+                            <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        </Border>
+
+                        <!--
+                            三个具名槽位，不用 ItemsControl：见 BangItemViewModel.Rank1 的说明 ——
+                            卡片里再套集合控件就是「嵌套的整组渲染」，正是性能契约测试挡掉的那件事。
+                            ContentControl 默认左对齐，不写 Stretch 的话行内容不会撑满宽度、截断也失效。
+                        -->
+                        <StackPanel
+                            Grid.Column="1"
+                            VerticalAlignment="Top"
+                            Spacing="2">
+                            <ContentControl
+                                HorizontalContentAlignment="Stretch"
+                                Content="{x:Bind Rank1}"
+                                ContentTemplate="{StaticResource BangTrackTemplate}" />
+                            <ContentControl
+                                HorizontalContentAlignment="Stretch"
+                                Content="{x:Bind Rank2}"
+                                ContentTemplate="{StaticResource BangTrackTemplate}"
+                                Visibility="{x:Bind Rank2Visibility}" />
+                            <ContentControl
+                                HorizontalContentAlignment="Stretch"
+                                Content="{x:Bind Rank3}"
+                                ContentTemplate="{StaticResource BangTrackTemplate}"
+                                Visibility="{x:Bind Rank3Visibility}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <!--
+                    悬停底：在内容**之上**、卡片边界**之内**。
+                    之上是为了压住不透明的卡片底；之内是为了不可能被父容器或滚动视口裁掉。
+                    IsHitTestVisible=False 让它对指针透明，指针进出仍由根元素收到。
+                -->
+                <Border
+                    Background="{ThemeResource NavigationViewItemBackgroundPointerOver}"
+                    CornerRadius="{StaticResource RadiusMd}"
+                    IsHitTestVisible="False"
+                    Opacity="{x:Bind HoverOpacity, Mode=OneWay}" />
+            </Grid>
+        </DataTemplate>
     </Page.Resources>
-    <!-- 单个滚动视口，虚拟化单位细到每个标题和预览行。 -->
+
     <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -163,21 +275,101 @@
                 TextTrimming="CharacterEllipsis" />
         </StackPanel>
 
-        <controls:VirtualizedListView x:Name="SectionList" Grid.Row="1" SelectionMode="None"
+        <!--
+            分组要挂 CollectionViewSource（ViewModel.GroupedSections），不能直接绑 Sections ——
+            分组表头能占满整行是 ItemsWrapGrid 认得「组」的结果，绑定裸集合时表头会被当成普通项塞进格子。
+            分组还带来一个白拿的好处：表头在滚动时会钉在顶部，随时看得到自己在哪一组。
+        -->
+        <GridView
+            x:Name="SectionList"
+            Grid.Row="1"
             Padding="{StaticResource SpaceVerticalScrollContentPadding}"
-            ItemsSource="{x:Bind ViewModel.Rows}" ItemTemplateSelector="{StaticResource RankTemplateSelector}"
-            ContainerContentChanging="OnContainerContentChanging"
-            ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.VerticalScrollMode="Enabled">
-            <controls:VirtualizedListView.ItemsPanel>
-                <ItemsPanelTemplate><ItemsStackPanel CacheLength="0.5" /></ItemsPanelTemplate>
-            </controls:VirtualizedListView.ItemsPanel>
-            <controls:VirtualizedListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+            ItemTemplate="{StaticResource BangCardTemplate}"
+            ItemsSource="{x:Bind ViewModel.GroupedSections}"
+            ScrollViewer.HorizontalScrollMode="Disabled"
+            ScrollViewer.VerticalScrollMode="Enabled"
+            SelectionMode="None">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <!--
+                        ★ ItemWidth / ItemHeight 必须与 Tokens.xaml 同步：
+                          卡片宽 380 / 高 160，各加上 SpaceBangCardGap 的那一份（20）。
+                          改令牌不改这里，卡片会被格子裁掉或留出空档。
+                        ★ 400 是按默认窗口定的：默认内容区约 825 宽，两张 800 正好放下且右边不留大片空白。
+                        ★ 列数不写死：窗口越宽换出的列越多。
+                    -->
+                    <ItemsWrapGrid
+                        CacheLength="0.5"
+                        ItemHeight="180"
+                        ItemWidth="400"
+                        Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+
+            <GridView.ItemContainerStyle>
+                <!--
+                    ★ Padding=0 是必须的：容器自带的悬停底要**完全藏在卡片后面**。
+                      留出内边距会让它在卡片四周露一圈，跟卡片自己那层叠成两重悬停。
+                    Margin 与 ItemWidth/ItemHeight 里那份空白对应，决定卡片间距。
+                -->
+                <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
                     <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="{StaticResource SpaceBangCardGap}" />
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="MinHeight" Value="0" />
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
                 </Style>
-            </controls:VirtualizedListView.ItemContainerStyle>
-        </controls:VirtualizedListView>
+            </GridView.ItemContainerStyle>
+
+            <GridView.GroupStyle>
+                <GroupStyle HeaderContainerStyle="{StaticResource BangHeaderItemStyle}">
+                    <GroupStyle.HeaderTemplate>
+                        <!-- 整行可点：点一下收起 / 展开这一组（BangSectionViewModel.Toggle）。 -->
+                        <DataTemplate x:DataType="vm:BangSectionViewModel">
+                            <Button
+                                AutomationProperties.Name="{x:Bind HeaderAutomationName, Mode=OneWay}"
+                                Click="OnSectionClick"
+                                Style="{StaticResource BangSectionHeaderButton}"
+                                Tag="{x:Bind}">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 折叠箭头：展开朝下、收起朝右。次级色，不跟标题抢。 -->
+                                    <FontIcon
+                                        Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Glyph="{x:Bind IconGlyph, Mode=OneWay}" />
+
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource BodianModuleTitle}"
+                                        Text="{x:Bind Title}"
+                                        TextWrapping="NoWrap" />
+
+                                    <!-- 这一组有几个榜。收起后仍显示总数，不是当前显示数。 -->
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind CountText}"
+                                        TextWrapping="NoWrap" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </GridView.GroupStyle>
+        </GridView>
 
         <ProgressRing
             Grid.Row="2"

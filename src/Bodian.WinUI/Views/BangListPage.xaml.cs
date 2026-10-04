@@ -5,6 +5,8 @@ using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 
 namespace Bodian.WinUI.Views;
 
@@ -76,35 +78,40 @@ public sealed partial class BangListPage : Page, INavigationAware
     {
         var current = _coordinator.CurrentTrack?.Id;
 
-        foreach (var bang in ViewModel.Sections.SelectMany(section => section.Bangs))
+        // 分组本身就是榜的集合（见 BangSectionViewModel），不用再取一层属性。
+        foreach (var bang in ViewModel.Sections.SelectMany(section => section))
         {
             bang.SetCurrent(current);
         }
     }
 
-    private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-    {
-        if (args.InRecycleQueue && args.Item is TrackRow row)
-        {
-            row.IsPointerOver = false;
-            row.IsMenuOpen = false;
-        }
-    }
+    /// <summary>
+    /// 指针进出卡片。悬停底是卡片自己画的那一层，这里只负责把状态翻过来。
+    /// </summary>
+    /// <remarks>
+    /// 状态放在 <see cref="BangItemViewModel"/> 上而不是容器上：
+    /// 容器那层悬停底铺在整格、还会被卡片的不透明底色盖住，见
+    /// <see cref="BangItemViewModel.IsPointerOver"/> 的说明。
+    /// </remarks>
+    private void OnCardPointerEntered(object sender, PointerRoutedEventArgs e) => SetPointerOver(sender, true);
 
-    private void OnPreviewRowPointerEntered(object sender, PointerRoutedEventArgs e) => SetPointerOver(sender, true);
-
-    private void OnPreviewRowPointerExited(object sender, PointerRoutedEventArgs e) => SetPointerOver(sender, false);
+    private void OnCardPointerExited(object sender, PointerRoutedEventArgs e) => SetPointerOver(sender, false);
 
     private static void SetPointerOver(object sender, bool value)
     {
-        if (sender is FrameworkElement { Tag: TrackRow row })
+        if (sender is FrameworkElement { Tag: BangItemViewModel item })
         {
-            row.IsPointerOver = value;
+            item.IsPointerOver = value;
         }
     }
 
-    /// <summary>「更多」→ 该榜的完整榜单。</summary>
-    private void OnMoreClick(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// 点卡片任意非曲目处 → 进该榜详情。
+    /// </summary>
+    /// <remarks>
+    /// 整张卡都可点，因为整张卡看起来就是可点的；只让某一角可点会让人以为坏了。
+    /// </remarks>
+    private void OnCardTapped(object sender, TappedRoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: BangItemViewModel item })
         {
@@ -113,17 +120,104 @@ public sealed partial class BangListPage : Page, INavigationAware
     }
 
     /// <summary>
-    /// 点榜头（封面 / 名字那一行）也进详情。
+    /// 点分组表头 → 收起 / 展开这一组。
     /// </summary>
     /// <remarks>
-    /// 只让「更多」可点的话，用户点榜名会以为坏了 —— 那一行看起来就是可点的。
+    /// 收起就是把该组清空（见 <see cref="BangSectionViewModel.Toggle"/>）。
+    /// 组清空后表头仍在原地 —— <c>GroupStyle.HidesIfEmpty</c> 默认 false，
+    /// 这是「收起了还点得回来」的前提。
+    /// <para>
+    /// <b>表头被钉在顶部时点不动</b>，见 <see cref="IsHeaderPinned"/>。
+    /// </para>
+    /// <para>
+    /// 展开后要重刷一次「正在播放」：装回来的行是新的绑定目标，
+    /// 而 <see cref="BangItemViewModel.SetCurrent"/> 只在播放状态变化时被调用。
+    /// </para>
     /// </remarks>
-    private void OnHeaderTapped(object sender, TappedRoutedEventArgs e)
+    private void OnSectionClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: BangItemViewModel item })
+        if (sender is not FrameworkElement { Tag: BangSectionViewModel section } header)
         {
-            Open(item);
+            return;
         }
+
+        if (IsHeaderPinned(header))
+        {
+            return;
+        }
+
+        section.Toggle();
+        SyncCurrent();
+    }
+
+    /// <summary>
+    /// 这个表头是不是正被钉在列表顶部。
+    /// </summary>
+    /// <remarks>
+    /// <b>钉住时不许收起</b>：那一组的卡片正显示在下面，一收起面板立刻重排，
+    /// 钉的位置会在「钉这一组」和「钉下一组」之间来回切，看起来就是一阵抽搐。
+    /// 想收这一组，先滚一下让它离开钉住的位置。
+    /// <para>
+    /// 两个条件缺一不可：列表确实滚过，且表头贴在视口顶端。
+    /// 少了前一条，滚到最顶上时的第一个表头也会被判成钉住 —— 那时收起明明没有任何问题。
+    /// 表头的位置由面板负责移动（钉住就是把它挪到顶部），所以取它当下的变换坐标即可。
+    /// </para>
+    /// </remarks>
+    private bool IsHeaderPinned(FrameworkElement header)
+    {
+        if (FindAncestor<GridViewHeaderItem>(header) is not { } item)
+        {
+            return false;
+        }
+
+        if (FindDescendant<ScrollViewer>(SectionList) is not { } scrollViewer || scrollViewer.VerticalOffset <= 0)
+        {
+            return false;
+        }
+
+        // 容差 2px：钉住时它贴着顶端，但不保证正好是 0。
+        var top = item.TransformToVisual(SectionList).TransformPoint(new Point(0, 0)).Y;
+        return Math.Abs(top) < 2;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? node)
+        where T : DependencyObject
+    {
+        for (var current = VisualTreeHelper.GetParent(node); current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject? node)
+        where T : DependencyObject
+    {
+        if (node is null)
+        {
+            return null;
+        }
+
+        var count = VisualTreeHelper.GetChildrenCount(node);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(node, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            if (FindDescendant<T>(child) is { } deeper)
+            {
+                return deeper;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -134,21 +228,6 @@ public sealed partial class BangListPage : Page, INavigationAware
     /// </remarks>
     private void Open(BangItemViewModel item) => _navigation.Navigate(_detailFactory(item.Bang));
 
-    /// <summary>
-    /// 点曲目行：加到队尾并立即播放它。
-    /// </summary>
-    /// <remarks>
-    /// <b>这里以前会反查「这一行属于哪个榜」再把整个榜入队</b>，为的是让「下一首」在榜内有效。
-    /// 现在点一首就只把这一首排进队列，那个反查连同榜的选取一起删掉了 ——
-    /// 要一次排进整个榜，得走榜详情页的工具栏。
-    /// </remarks>
-    private async void OnTrackTapped(object sender, TappedRoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement { Tag: TrackRow row })
-        {
-            return;
-        }
-
-        await _coordinator.EnqueueAndPlayAsync(row.Source);
-    }
+    // 卡片上的曲目行不接点击 —— 卡片只有「进详情」一个动作。
+    // 以前这里有一条「点一行就播这一首」，已按使用者要求删掉：想听就先进榜详情页。
 }
