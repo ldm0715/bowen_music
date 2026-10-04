@@ -158,7 +158,8 @@ public sealed class TrackActionsViewModelTests
     [Fact]
     public void Menu_ListsTheSevenActionsInOrder()
     {
-        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), new Notices());
+        var viewModel = new TrackActionsViewModel(
+            Track(hasMv: true), new PlaybackApiStub(), new Navigator(), new Notices());
 
         Assert.Equal(
             [
@@ -193,19 +194,20 @@ public sealed class TrackActionsViewModelTests
     }
 
     /// <summary>
-    /// 没有 MV 时这一项<b>灰着而不是消失</b>，且点了也不出去。
+    /// 没有 MV 时这一项<b>整项不出现</b>，不是灰着，且点了也不出去。
     /// </summary>
     /// <remarks>
-    /// 与「查看专辑」同一条取舍：菜单项忽多忽少比灰着更让人困惑。
-    /// 注意播放条上那颗 MV 按钮相反 —— 那里是折叠，见 <c>PlayerBar.xaml</c>。
+    /// 与「查看专辑」的取舍相反是有意的：MV 的判据 <c>Track.HasMv</c> 与曲目行上那颗
+    /// MV 角标是同一个 —— 角标已经不显示，菜单里却还挂一项点不动的「播放 MV」，
+    /// 两处说法就矛盾了。播放条上那颗 MV 按钮同样是折叠，三处口径就此统一。
     /// </remarks>
     [Fact]
-    public void Mv_IsDisabledAndInertWithoutMv()
+    public void Mv_IsAbsentWithoutMv()
     {
         var navigator = new Navigator();
         var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), navigator, new Notices());
 
-        Assert.False(Entry(viewModel, TrackMenuAction.Mv).IsEnabled);
+        Assert.DoesNotContain(viewModel.MenuEntries, entry => entry.Action == TrackMenuAction.Mv);
 
         viewModel.OpenMv();
 

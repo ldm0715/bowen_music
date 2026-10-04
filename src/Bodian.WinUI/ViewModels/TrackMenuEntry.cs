@@ -15,7 +15,7 @@ public enum TrackMenuAction
 
     AddToPlaylist,
 
-    /// <summary>打开这首歌的 MV 页。曲目没有 MV 时这一项灰着。</summary>
+    /// <summary>打开这首歌的 MV 页。曲目没有 MV 时这一项<b>不出现</b>。</summary>
     Mv,
 
     Artist,

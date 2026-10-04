@@ -137,23 +137,32 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         // 没带专辑 id 就灰着（点了也去不了，见 Track.AlbumId 的说明）。
         _albumEntry.IsEnabled = track.AlbumId > 0;
 
-        // 没有 MV 就灰着，与「查看专辑」同一取舍。判据是 Track.HasMv（离线推断，不发请求）。
-        _mvEntry.IsEnabled = track.HasMv;
-
         // 没有曲目 id 就送不进队列，与「添加到歌单」同一条判据。
         _playNextEntry.IsEnabled = track.Id > 0;
         _addToQueueEntry.IsEnabled = track.Id > 0;
 
-        MenuEntries =
-        [
+        var entries = new List<TrackMenuEntry>
+        {
             _favoriteEntry,
             _playNextEntry,
             _addToQueueEntry,
             _playlistEntry,
-            _mvEntry,
-            _artistEntry,
-            _albumEntry,
-        ];
+        };
+
+        // **没有 MV 就整项不出现**，不是灰着。判据 Track.HasMv（离线推断，不发请求）
+        // 与曲目行上那颗 MV 角标是同一个 —— 角标已经不显示，菜单里却还挂一项点不动的
+        // 「播放 MV」，两处说法就矛盾了。播放条那颗 MV 按钮同样是折叠，三处口径统一。
+        // 「查看专辑」仍是灰着：它的情况相反 —— 那是个**数据缺失**（旧历史条目没存 albumId），
+        // 项本身该在，只是这次点不了。
+        if (track.HasMv)
+        {
+            entries.Add(_mvEntry);
+        }
+
+        entries.Add(_artistEntry);
+        entries.Add(_albumEntry);
+
+        MenuEntries = entries;
     }
 
     public IReadOnlyList<TrackMenuEntry> MenuEntries { get; }
@@ -336,11 +345,12 @@ public sealed partial class TrackActionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 播放这首歌的 MV。曲目没有 MV 时这一项是灰的，正常点不到。
+    /// 播放这首歌的 MV。没有 MV 时菜单里根本没有这一项，正常点不到。
     /// </summary>
     /// <remarks>
     /// 这里**不取 MV 地址**：那要发请求，点菜单时不该等。目标页自己拉，
     /// 拉不到就按「这首歌没有 MV」收场。
+    /// 开头那道 <c>HasMv</c> 守卫留着：菜单项已经不出现，但命令还能被别处调到。
     /// </remarks>
     public void OpenMv()
     {
