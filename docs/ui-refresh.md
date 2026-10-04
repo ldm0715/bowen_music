@@ -606,6 +606,10 @@ Win2D 走 WIC 在干净的 Win10 上会**静默失败**（开发机装过扩展�
 顶部、底部与右侧边距不变。覆盖我喜欢的、最近播放、搜索、歌单详情、专辑详情、AI 歌单、
 榜单详情和榜单列表；其他页面继续使用原页边距。
 
+> **2026-10-04 已推翻**：左边距改回 24 DIP，`BodianTrackPageRoot` 与 `SpaceTrackPagePadding`
+> 一并删除，这 9 个页面改用 `BodianPageRoot`。12 DIP 让它们比标题栏的返回键 / 搜索框靠前
+> 12 DIP，跨页跳转时左边缘会横跳。理由与落地见 §22.1。
+
 共享 `TrackListView` 移除列表左侧与行容器重复的内边距，右侧单独保留滚动条安全区（见 §12.1）；
 行容器仍继承 `DefaultListViewItemStyle`，
 保持原生点击、焦点与背景状态。行内左边距从 8 DIP 减到 4 DIP，右边距最终保留 16 DIP（见 §12.2）；
@@ -1221,3 +1225,84 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-buil
 WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:27` 的 `WMC1506` 警告。
 现有测试已到 **1021** 项（本条写于 990 那一轮）；本轮 0 失败、0 跳过。另已检查两页的固定封面、紧凑文字布局，
 以及分类换行模式中的横向滚动禁用设置。自动检查未覆盖实际窗口缩放和最终视觉效果。
+
+
+## 22. 左基准线与标题栏对齐（2026-10-04）
+
+四个问题，共同的根是**内容左边缘没有定成一条基准线**。
+
+### 22.1 左基准线统一到 24
+
+改之前全应用有三条左边缘（展开态，侧栏 200 DIP）：
+
+| 位置 | 左内边距 | 实际 x |
+| --- | --- | --- |
+| 返回键 / 搜索框（标题栏 `Content` 的 `Margin` 左值） | 24 | 224 |
+| 卡片页：发现、乐库、收藏的歌单 / 专辑、乐库分类 | 24 | 224 |
+| 曲目列表页：我喜欢的、最近播放、搜索、歌单、专辑、歌手、榜单、榜单详情、AI 歌单 | **12** | 212 |
+
+12 来自 §12 那次「曲目页靠近侧栏」的调整。代价是这 9 个页面比标题栏靠前 12 DIP ——
+从乐库点进歌单详情，左边缘会横跳一下；乐库和发现一直是对的。
+
+**现在只有一个值：24**，含义是「侧栏宽 + 24」：
+展开 `200 + 24 = 224`，收起 `48 + 24 = 72`。标题栏与页面内容在两种侧栏状态下都是同一条竖线，
+不需要按状态另算。右侧本来就是 24，标题栏左右也都是 24，24 才是这个应用的事实标准。
+
+落地：`SpacePagePadding` 成为唯一来源；删掉 `SpaceTrackPagePadding` 与 `BodianTrackPageRoot`
+（合并后它已是个没有 Setter 的空壳），9 个页面改用 `BodianPageRoot`。
+
+曲目行的 `SpaceRowPadding` 左 4 不动：行悬浮背景的左缘与页面标题同线，行内文字再内缩 4。
+那是行内的第二层内边距，不属于基准线。
+
+### 22.2 返回键的尺寸与悬停范围
+
+返回键此前是 `ContentControl`(32×32) 包一个 `SubtleButtonStyle` 按钮。`SubtleButtonStyle`
+自带 `HorizontalAlignment=Left`，外壳上的 `HorizontalContentAlignment=Stretch` 拉不住它，
+按钮缩回图标自身宽度 —— 悬停背景比图标还小，整块也点不着。
+
+改成与右侧主题 / 账号按钮**同一套写法**：显式 `SizeRoundButton`(32×32)、`Padding=0`、
+`MinWidth`/`MinHeight=0`、透明底、无边框，图标字号用 `SizeIconSm`。
+不要再给按钮套 `ContentControl` 外壳，也不要再套 `SubtleButtonStyle`。
+代价是悬停底色从 `SubtleButton` 那套极淡叠加变成相邻按钮的默认按钮底色 —— 这正是「与旁边一致」要的。
+
+### 22.3 收起侧栏时标题栏跟着左移
+
+标题栏在第 0 行，侧栏在第 1 行的 `NavigationView` 里，**两者是独立的**：第 0 行的 `LogoHost`
+原来固定 `SizeSidebarWidth`(200)，侧栏收起后只剩 `CompactPaneLength`(48)，它不会自己跟着变。
+结果搜索框和返回键留在 224 处，中间空出一段被压住的侧栏。
+
+宽度改在 `UpdateSidebarPaneMode()` 里同步 —— 那里已经是 `IsPaneOpen` 变化的唯一收口
+（见 §19.4）。值直接问 `Nav` 要：收起 `Nav.CompactPaneLength`、展开 `Nav.OpenPaneLength`。
+不另抄一份常量，那两个属性就是布局真正在用的值。
+
+宽度变了还要重算标题栏拖拽区：`AutoRefreshDragRegions` 是关掉的，不重算会留下旧边界，
+让搜索框一带被当成可拖拽区。调用排到队列尾 —— 本方法由 `IsPaneOpen` 的属性回调触发，
+此刻模板还在切视觉状态。
+
+### 22.4 发现页进歌单详情的返回键失效
+
+`DiscoverPage.OnCardInvoked` 里公开歌单那支写的是 `NavigateRoot`（换根，历史全丢）：
+栈底就是详情页自己，`CanGoBack` 恒为 false，返回键变灰点不动，侧栏高亮也跟着跑偏。
+
+同一个方法里 AI 歌单那支用的是 `Navigate`（压栈），注释还专门写了理由 —— 公开歌单这支是漏改。
+改成 `Navigate` 后与「收藏的歌单」「搜索结果」点歌单同一个入法（都进同一个
+`PlaylistDetailPage`）。**侧栏项（自建歌单）仍然是 `NavigateRoot`**，那是真正的换根，
+返回键在那里本来就该是灰的。
+
+判据：`NavigateRoot` 只用于侧栏这种「换根」，页面里的卡片、行、搜索结果一律 `Navigate`。
+
+### 22.5 验证
+
+```powershell
+dotnet build src/Bodian.WinUI/Bodian.WinUI.csproj --verbosity minimal
+dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-restore --verbosity minimal
+```
+
+WinUI 构建通过，0 错误，保留原有 `AiPlaylistPage.xaml:28` 的 `WMC1506` 警告。
+测试 **1062** 项，0 失败、0 跳过。第一次全量跑时 `LikedSongsServiceTests.SetLikedMany_ReportsProgressAsItGoes`
+报过一次失败，单独跑与第二次全量跑均通过 —— 并发下的时序抖动，与本轮改动无关。
+
+界面部分待用户手动验收：乐库 ↔ 歌单详情的左边缘不横跳、4 个列表页的行背景左缘与返回键同线、
+返回键悬停范围与相邻按钮一致、收起侧栏后标题栏与页面同步左移、
+发现页「宝藏歌单库」进歌单详情后返回键可用且侧栏仍高亮「发现」。
+自动检查未覆盖实际窗口缩放和最终视觉效果。
