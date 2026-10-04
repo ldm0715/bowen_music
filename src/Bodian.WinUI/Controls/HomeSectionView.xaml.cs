@@ -252,6 +252,14 @@ public sealed partial class HomeSectionView : UserControl
         if (sender is not HomeSectionView view) return;
 
         view._items = view.BuildItems();
+
+        // ★ 顺序不能反：先把上一组的项清掉，再换模板。
+        // 容器回收复用给别的排法时宽度往往还没量到，SyncPage 会在 width <= 0 处早退、
+        // 不填页 —— 那样 ItemsSource 里就留着上一组的项（单曲列是 HomeTrackColumn），
+        // 而模板已经换成按 HomeCard 编译的那种，x:Bind 的 SetDataRoot 强转会抛
+        // ArgumentException，整个进程崩掉（表现是 STATUS_STOWED_EXCEPTION 0xC000027B）。
+        // 早退是允许的（等 SizeChanged 再填），但**不能带着上一组的项早退**。
+        view._pageItems.Clear();
         view.ApplyItemTemplate();
 
         // 换了一组就回第一页。这里不能等宽度：控件不可见时宽度一直是 0，

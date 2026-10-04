@@ -44,6 +44,22 @@ public sealed partial class DiscoverViewModel : ObservableObject
     private int _consumed;
     private bool _layoutLoaded;
 
+    /// <summary>每个标题对应的模块与内容；刷新时就地换掉用。</summary>
+    private readonly Dictionary<ListSectionHeader, LoadedModule> _loaded = [];
+
+    /// <summary>正在刷新的标题。按钮的可用性看它。</summary>
+    private readonly HashSet<ListSectionHeader> _refreshing = [];
+
+    /// <summary>
+    /// 一个标题已经取到的东西。
+    /// </summary>
+    /// <remarks>
+    /// 不挂在 <see cref="ListSectionHeader"/> 上：XAML 的类型信息生成器会为数据类型的
+    /// <b>每个公开属性</b>生成 <c>new 该类型()</c>，而 <see cref="HomeModule"/> 是
+    /// 只有一个位置构造函数的 record，公开它会让整个项目编不过（同 <c>TrackRow.Source</c> 那处）。
+    /// </remarks>
+    private sealed record LoadedModule(HomeModule Module, HomeFeed Feed);
+
     public DiscoverViewModel(IBodianApi api, ILogger<DiscoverViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
@@ -127,6 +143,7 @@ public sealed partial class DiscoverViewModel : ObservableObject
         LoadFailed = false;
         Feeds.Clear();
         Rows.Clear();
+        _loaded.Clear();
 
         await LoadLayoutAsync(cancellationToken).ConfigureAwait(true);
     }
@@ -185,8 +202,19 @@ public sealed partial class DiscoverViewModel : ObservableObject
                     // 而且能保证界面上的顺序与服务端给的布局一致。
                     if (await _api.GetHomeModuleAsync(module, cancellationToken).ConfigureAwait(true) is { } feed)
                     {
+                        var header = new ListSectionHeader { Title = feed.Title };
+
+                        // 只有这两个单曲推荐模块能刷新：重调一次同一个接口就换一批。
+                        if (SupportsRefresh(module))
+                        {
+                            header.RefreshCommand = new AsyncRelayCommand(
+                                () => RefreshModuleAsync(header),
+                                () => !_refreshing.Contains(header));
+                        }
+
+                        _loaded[header] = new LoadedModule(module, feed);
                         Feeds.Add(feed);
-                        Rows.Add(new ListSectionHeader { Title = feed.Title });
+                        Rows.Add(header);
                         foreach (var section in feed.Sections) Rows.Add(section);
                     }
                 }
@@ -206,6 +234,75 @@ public sealed partial class DiscoverViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>这两个模块的内容重取一次就换一批，所以给它们挂刷新按钮。</summary>
+    private static bool SupportsRefresh(HomeModule module) => module.Type is 3 or 10;
+
+    /// <summary>重取一个模块，就地把它的卡片区换成新的一批。</summary>
+    /// <remarks>
+    /// <b>刷新用的就是同一个接口</b>：<c>service/home/module?moduleId=N</c> 没有「换一批」参数，
+    /// 重调一次就是刷新。失败时保持原内容不动 —— 手上有数据，一次网络抖动不该把它清掉。
+    /// </remarks>
+    private async Task RefreshModuleAsync(ListSectionHeader header)
+    {
+        if (!_loaded.TryGetValue(header, out var loaded) || !_refreshing.Add(header))
+        {
+            return;
+        }
+
+        header.RefreshCommand?.NotifyCanExecuteChanged();
+        StatusText = $"正在刷新「{header.Title}」…";
+
+        try
+        {
+            if (await _api.GetHomeModuleAsync(loaded.Module, CancellationToken.None).ConfigureAwait(true) is not { } feed)
+            {
+                return;
+            }
+
+            ReplaceModule(header, loaded, feed);
+            StatusText = $"已刷新「{header.Title}」";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "发现页模块 {Id}（{Name}）刷新失败", loaded.Module.Id, loaded.Module.Name);
+            StatusText = $"刷新失败：{ex.Message}";
+        }
+        finally
+        {
+            _refreshing.Remove(header);
+            header.RefreshCommand?.NotifyCanExecuteChanged();
+        }
+    }
+
+    /// <summary>把标题后面那一组内容换成新的。<b>标题对象本身不换</b> —— 命令挂在它身上。</summary>
+    private void ReplaceModule(ListSectionHeader header, LoadedModule old, HomeFeed feed)
+    {
+        var feedIndex = Feeds.IndexOf(old.Feed);
+        if (feedIndex >= 0)
+        {
+            Feeds[feedIndex] = feed;
+        }
+
+        _loaded[header] = old with { Feed = feed };
+
+        var index = Rows.IndexOf(header);
+        if (index < 0)
+        {
+            return;
+        }
+
+        // 标题之后、下一个标题之前，都是这一组的卡片区。
+        while (index + 1 < Rows.Count && Rows[index + 1] is HomeSection)
+        {
+            Rows.RemoveAt(index + 1);
+        }
+
+        for (var i = 0; i < feed.Sections.Count; i++)
+        {
+            Rows.Insert(index + 1 + i, feed.Sections[i]);
         }
     }
 }

@@ -127,6 +127,80 @@
 容器是圆的（`CornerRadius` = `RadiusMd`），单曲行那一列的悬停还是行自己画的
 （底色用侧栏 Tab 那个键 `NavigationViewItemBackgroundPointerOver`，与卡片同一档）。
 
+## 刷新：两个单曲推荐模块（2026-10-04）
+
+**偶遇心动单曲**（type 3）与**心动收藏相似推荐**（type 10）的标题右侧各加了一颗刷新按钮，
+点了就地重取这个模块。歌单类的三个模块（4 / 5 / 11）**不加**。
+
+### 刷新就是重调同一个接口
+
+`service/home/module?moduleId=N` **没有「换一批」参数，也没有独立的刷新接口** ——
+重调一次就是刷新。逆向产物里这个请求的 `data` 只有一个 `moduleId` 键：
+
+```
+disc_block_base.dart:1370   "moduleId"
+               :1400   "service/home/module"
+               :1407   const [0, 0x4, 0x4, 0x2, data, 0x2, encrypt, 0x3, null]
+```
+
+同族的 `service/finds/module` 形状完全一致（`discovery_default_body_view.dart:3615-3648`、
+`discovery_artist_widget.dart:535-568`）。全仓 grep 也没有 `refresh` / `seed` / `cache` / `ts`
+这类业务参数。路径相对 `reverse/android-5.2.5/blutter/asm/allin/discovery/`。
+
+所以「刷新」在客户端这一侧等价于把那一批 `Rows` 换掉，**不换接口**。
+
+### 按钮挂在哪
+
+`ListSectionHeader` 多了一个可空的 `RefreshCommand` 与一个 `RefreshVisibility` ——
+前者为 `null` 的标题不显示按钮。命令只有 type 3 / 10 会挂。
+
+模块与它当前的内容**不存在标题对象上**，而是放在 `DiscoverViewModel` 的
+`Dictionary<ListSectionHeader, LoadedModule> _loaded` 里。原因是 XAML 的类型信息生成器
+会为数据类型的每个公开属性生成 `new 该类型()`，而 `HomeModule` 是只有位置构造函数的 record，
+公开它整个项目编不过（与 `TrackRow.Source` 同一处坑）。
+
+`ReplaceModule` 按 `header` 在 `Rows` 里的位置删掉它后面连续的 `HomeSection`，
+再插回新的一组；`header` 对象本身不换 —— 命令挂在它身上。刷新失败只写状态文案，
+**不清空原有卡片**：手上有数据，一次网络抖动不该把它清掉。
+
+### 闪退：换组不能带着上一组的项
+
+加了刷新之后，section 第一次会**换实例**，于是踩到 `HomeSectionView` 里一个潜伏已久的 bug。
+
+`OnSectionChanged` 原来的顺序是「先换模板、再填页」：
+
+```csharp
+view._items = view.BuildItems();
+view.ApplyItemTemplate();          // 模板换成按新排法编译的那种
+view.SyncPage(resetToFirst: true); // ← 可能在这里早退
+```
+
+而 `SyncPage` 开头是 `if (width <= 0) return;`（`HomeSectionView.xaml.cs:118-119`）——
+容器刚从回收池取出来、`StripHost` 还没量到宽度时就早退，**不填页**。
+于是 ItemsSource 里留着上一组的项，模板却已经是新排法的：
+
+- 一个先前展示单曲列（`_items` 是 `HomeTrackColumn`）的容器被回收给别的排法的模块
+- 模板换成按 `HomeCard` 编译的那种，ItemsSource 里还是 `HomeTrackColumn`
+- `x:Bind` 的 `SetDataRoot` 强转 → `ArgumentException` → 进程崩
+
+日志里的原话：
+
+```
+The source object type ('Bodian.WinUI.ViewModels.HomeTrackColumn')
+being cast to type 'Bodian.Core.Models.Home.HomeCard' is not a projected type
+   at HomeSectionView.HomeSectionView_obj19_Bindings.SetDataRoot(...)
+```
+
+进程表现为 `STATUS_STOWED_EXCEPTION (0xC000027B)`、故障模块 `Microsoft.UI.Xaml.dll`；
+不打日志就只能看到一句「模块 combase.dll、异常码 E_INVALIDARG」，够不着原因。
+
+**此前不发作**：section 从不换实例，`OnSectionChanged` 只在「null → 第一组」时跑过，
+早退时 ItemsSource 本来就是空的，空列表没东西可渲染。
+
+**修法**：`ApplyItemTemplate()` **之前**先 `view._pageItems.Clear()`。早退仍然允许
+（等 `SizeChanged` 再填），但不能带着上一组的项早退。宽度已量到时清空后会被
+`ApplyPage` 在同一次回调里立刻填满，不会闪。
+
 ## 手动验收
 
 | 项 | 验证重点 |
@@ -144,3 +218,8 @@
 | 窗口拉宽拉窄 / 侧栏收起 | 每页张数跟着变，原来在眼前的那张卡还在，不来回抖 |
 | 主题三态 | 浅/深/高对比度下箭头与卡片底色都读得出来 |
 | 键盘 | Tab 能聚焦箭头、Enter 能翻页，焦点框可见 |
+| 刷新按钮的范围 | **只有**「偶遇心动单曲」「心动收藏相似推荐」两个标题右侧有；其余模块没有 |
+| 点刷新 | 该模块卡片区就地换一批；页面不重排、滚动位置不跳、标题不变 |
+| 连点刷新 | 刷新期间按钮是灰的、点不动，完成后恢复 |
+| 刷新失败 | 断网后点刷新 → **原有卡片不被清空**，只多一条状态文案 |
+| 刷新后滚动 | **第一验收项**：刷新完再上下滚几屏，不闪退（`HomeSectionView` 那个强转崩溃的复现路径） |
