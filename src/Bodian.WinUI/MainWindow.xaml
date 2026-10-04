@@ -89,27 +89,32 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" MaxWidth="400" />
                     </Grid.ColumnDefinitions>
-                    <ContentControl
-                        x:Name="BackButtonHost"
+                    <!--
+                        ★ 尺寸与底色照抄右侧的 ThemeButton / AccountButton，**不要**给按钮套
+                          ContentControl 外壳，也不要用 SubtleButtonStyle：那个样式的
+                          HorizontalAlignment=Left，外壳上的 Stretch 拉不住它，按钮会缩回图标
+                          自身的宽度（悬停背景比图标还小）。显式给 32×32 才是整块可点、整块出底色。
+                    -->
+                    <Button
+                        x:Name="BackButton"
                         Width="{StaticResource SizeRoundButton}"
                         Height="{StaticResource SizeRoundButton}"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        CornerRadius="8"
                         VerticalAlignment="Center"
-                        HorizontalContentAlignment="Stretch"
-                        VerticalContentAlignment="Stretch">
-                        <Button
-                            x:Name="BackButton"
-                            Style="{StaticResource SubtleButtonStyle}"
-                            MinWidth="0"
-                            MinHeight="0"
-                            Padding="0"
-                            CornerRadius="8"
-                            IsEnabled="{x:Bind _navigation.CanGoBack, Mode=OneWay}"
-                            Click="OnBackClick"
-                            AutomationProperties.Name="返回上一级"
-                            ToolTipService.ToolTip="返回上一级">
-                            <FontIcon Glyph="&#xE72B;" FontSize="16" IsTextScaleFactorEnabled="False" />
-                        </Button>
-                    </ContentControl>
+                        Background="Transparent"
+                        BorderThickness="0"
+                        IsEnabled="{x:Bind _navigation.CanGoBack, Mode=OneWay}"
+                        Click="OnBackClick"
+                        AutomationProperties.Name="返回上一级"
+                        ToolTipService.ToolTip="返回上一级">
+                        <FontIcon
+                            FontSize="{StaticResource SizeIconSm}"
+                            Glyph="&#xE72B;"
+                            IsTextScaleFactorEnabled="False" />
+                    </Button>
                     <AutoSuggestBox
                         x:Name="SearchBox"
                         Grid.Column="1"
