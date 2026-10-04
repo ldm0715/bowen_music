@@ -38,6 +38,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
     private readonly INavigationService _navigation;
     private readonly Func<Artist, ArtistDetailPage> _artistFactory;
     private readonly Func<Album, AlbumDetailPage> _albumFactory;
+    private readonly Func<Track, MvPage> _mvFactory;
     private readonly PlayerViewModel _player;
     private readonly PlaybackCoordinator _coordinator;
     private readonly ILoggerFactory _loggerFactory;
@@ -48,6 +49,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
         INavigationService navigation,
         Func<Artist, ArtistDetailPage> artistFactory,
         Func<Album, AlbumDetailPage> albumFactory,
+        Func<Track, MvPage> mvFactory,
         PlayerViewModel player,
         PlaybackCoordinator coordinator,
         ILoggerFactory loggerFactory)
@@ -57,6 +59,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(artistFactory);
         ArgumentNullException.ThrowIfNull(albumFactory);
+        ArgumentNullException.ThrowIfNull(mvFactory);
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(loggerFactory);
@@ -66,6 +69,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
         _navigation = navigation;
         _artistFactory = artistFactory;
         _albumFactory = albumFactory;
+        _mvFactory = mvFactory;
         _player = player;
         _coordinator = coordinator;
         _loggerFactory = loggerFactory;
@@ -89,6 +93,9 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
 
     /// <inheritdoc cref="ITrackNavigator.OpenArtist"/>
     void ITrackNavigator.OpenAlbum(Album album) => _navigation.Navigate(_albumFactory(album));
+
+    /// <inheritdoc cref="ITrackNavigator.OpenArtist"/>
+    void ITrackNavigator.OpenMv(Track track) => _navigation.Navigate(_mvFactory(track));
 
     void INoticeSink.Show(string message) => _player.TransientNotice(message, NoticeDuration);
 

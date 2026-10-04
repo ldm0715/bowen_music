@@ -46,6 +46,9 @@ public sealed partial class TrackActionsViewModel : ObservableObject
     /// <summary>播放列表。与播放条上那颗「播放列表」同一码位。</summary>
     private const string AddToQueueIcon = "IconQueue";
 
+    /// <summary>摄像机。</summary>
+    private const string MvIcon = "IconMv";
+
     private readonly Track _track;
     private readonly IBodianApi _api;
     private readonly ILikedSongsService? _likedSongs;
@@ -89,6 +92,13 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         Text = "查看歌手",
     };
 
+    private readonly TrackMenuEntry _mvEntry = new()
+    {
+        Action = TrackMenuAction.Mv,
+        IconKey = MvIcon,
+        Text = "播放 MV",
+    };
+
     private readonly TrackMenuEntry _albumEntry = new()
     {
         Action = TrackMenuAction.Album,
@@ -127,6 +137,9 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         // 没带专辑 id 就灰着（点了也去不了，见 Track.AlbumId 的说明）。
         _albumEntry.IsEnabled = track.AlbumId > 0;
 
+        // 没有 MV 就灰着，与「查看专辑」同一取舍。判据是 Track.HasMv（离线推断，不发请求）。
+        _mvEntry.IsEnabled = track.HasMv;
+
         // 没有曲目 id 就送不进队列，与「添加到歌单」同一条判据。
         _playNextEntry.IsEnabled = track.Id > 0;
         _addToQueueEntry.IsEnabled = track.Id > 0;
@@ -137,6 +150,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
             _playNextEntry,
             _addToQueueEntry,
             _playlistEntry,
+            _mvEntry,
             _artistEntry,
             _albumEntry,
         ];
@@ -319,6 +333,23 @@ public sealed partial class TrackActionsViewModel : ObservableObject
             ArtistText = _track.ArtistText,
             CoverImage = _track.CoverImage,
         });
+    }
+
+    /// <summary>
+    /// 播放这首歌的 MV。曲目没有 MV 时这一项是灰的，正常点不到。
+    /// </summary>
+    /// <remarks>
+    /// 这里**不取 MV 地址**：那要发请求，点菜单时不该等。目标页自己拉，
+    /// 拉不到就按「这首歌没有 MV」收场。
+    /// </remarks>
+    public void OpenMv()
+    {
+        if (!_track.HasMv)
+        {
+            return;
+        }
+
+        _navigator.OpenMv(_track);
     }
 
     /// <summary>切到歌单选择页，并拉一次自建歌单。</summary>

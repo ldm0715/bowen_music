@@ -67,6 +67,7 @@ namespace Bodian.Core.Api;
 [JsonSerializable(typeof(UserMetadataDto))]
 [JsonSerializable(typeof(UserPlayDataDto))]
 [JsonSerializable(typeof(UserPubDto))]
+[JsonSerializable(typeof(MvInfoPayload))]
 [JsonSerializable(typeof(LyricContentDto))]
 [JsonSerializable(typeof(QrCodeDto))]
 [JsonSerializable(typeof(QrCodeStatusDto))]

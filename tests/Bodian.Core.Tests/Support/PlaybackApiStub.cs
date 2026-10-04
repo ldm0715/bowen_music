@@ -14,6 +14,8 @@ internal sealed class PlaybackApiStub : IBodianApi
             => throw new NotSupportedException();
         public Task<LyricDocument> GetLyricsAsync(Track track, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+        public Task<MvInfo?> GetMvInfoAsync(long musicId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
         public Task<SongCommentPage> GetSongCommentRepliesAsync(long musicId, long parentId, int page = 1,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<long?> PublishSongCommentAsync(long musicId, string content, long parentId = 0, long replyId = 0,

@@ -6,9 +6,10 @@ namespace Bodian.Core.Models;
 /// <remarks>
 /// <para>
 /// <b>只映射真正有消费方的字段。</b> 底层 <c>TrackDto</c> 有六十多个字段，其中搜索角标、
-/// 社交计数、MV 相关、付费位等一律不进来 —— 没有消费方的字段搬上来只是噪音，
+/// 社交计数、付费位等一律不进来 —— 没有消费方的字段搬上来只是噪音，
 /// 而且会诱导后来的人「先填上，以后可能要用」。（歌词轨原本也在这条线外，
-/// P4 要按它决定请求哪一版歌词，所以 <see cref="Lyrics"/> 是带着消费方进来的。）
+/// P4 要按它决定请求哪一版歌词，所以 <see cref="Lyrics"/> 是带着消费方进来的；
+/// MV 标记同理，<see cref="HasMv"/> 要驱动角标与入口。）
 /// </para>
 /// <para>
 /// <see cref="AvailableQualities"/> 在映射阶段就完成了「曲目级」的档位过滤：只保留本项目
@@ -95,5 +96,19 @@ public sealed record Track
 
     /// <summary>评论总数。部分曲目列表未提供时为 null，不能当成零评论。</summary>
     public long? CommentCount { get; init; }
+
+    /// <summary>
+    /// 这首歌有没有 MV。驱动行内角标、「更多」菜单项与播放条按钮。
+    /// </summary>
+    /// <remarks>
+    /// <b>判据是「或」，不能只看 <c>isMv</c>。</b> 列表接口的 <c>isMv</c> 恒为 0，
+    /// 但 <c>vid</c> 是真的：《晴天》在搜索里 <c>isMv=0</c>、在详情里 <c>isMv=1</c>，
+    /// 两处的 <c>vid</c> 都是 8132306。只认 <c>isMv</c> 会把列表里的 MV 全漏掉。
+    /// <para>
+    /// 这是**离线推断的展示判据**，只用来决定入口显不显示。真正能不能播仍由
+    /// <c>GetMvInfoAsync</c> 的返回说了算。实测见 <c>reverse/findings/15-mv.md</c> §4。
+    /// </para>
+    /// </remarks>
+    public bool HasMv { get; init; }
 
 }

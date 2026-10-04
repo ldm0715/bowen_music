@@ -124,6 +124,16 @@
                             Visibility="{x:Bind PayLabelVisibility}">
                             <TextBlock FontSize="{StaticResource FontSizeCaption}" Text="{x:Bind PayLabel}" />
                         </Border>
+
+                        <!-- MV 标记。判据是 isMv == 1 || vid > 0，见 Track.HasMv 的注释。 -->
+                        <Border
+                            Padding="5,0"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                            CornerRadius="{StaticResource RadiusXs}"
+                            Visibility="{x:Bind MvLabelVisibility}">
+                            <TextBlock FontSize="{StaticResource FontSizeCaption}" Text="MV" />
+                        </Border>
                     </StackPanel>
 
                     <TextBlock

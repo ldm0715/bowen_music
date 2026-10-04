@@ -179,6 +179,7 @@ Viewbox(Size) → PathIcon(26×26) → Data
 | `E70F` | 编辑 | 歌单页 | `edit` |
 | `E76B` | 上一页 | 首页横滑 | `chevron_left` |
 | `播放模式 ×3` | 顺序 / 列表循环 / 随机 | 播放条 | 已经是 Fluent 路径，迁进新字典即可 |
+| —— | 新增（没有 MDL2 前身） | 行内 MV 角标、菜单「播放 MV」、播放条 | `video` |
 
 ---
 

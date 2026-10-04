@@ -1788,6 +1788,41 @@ public sealed class BodianApi : IBodianApi
         return BodianLyricParser.Parse(text, track.Duration);
     }
 
+    public async Task<MvInfo?> GetMvInfoAsync(long musicId, CancellationToken cancellationToken = default)
+    {
+        EnsureMusicId(musicId);
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.MvInfo,
+                Query = [MusicIdPair(musicId)],
+
+                // GET 不签名，且 ver 钉在服务端不校验的区间内。见 reverse/findings/15-mv.md。
+                Signed = false,
+
+                // 「这首歌没有 MV」是正常结果，不是错误。
+                AcceptedCodes = [BodianErrorCode.MvUnavailable],
+            },
+            BodianJsonContext.Default.MvInfoPayload,
+            cancellationToken).ConfigureAwait(false);
+
+        var mv = envelope.Data?.Mv;
+        var url = ToHttpUri(mv?.HighUrl);
+
+        if (url is null)
+        {
+            return null;
+        }
+
+        // playLimitTime 用 0 表达「不限」，不是「零秒」。
+        var limit = mv!.PlayLimitSeconds > 0
+            ? TimeSpan.FromSeconds(mv.PlayLimitSeconds)
+            : (TimeSpan?)null;
+
+        return new MvInfo { VideoUrl = url, PreviewLimit = limit };
+    }
+
     private static AudioVariant[] MapAudioVariants(TrackDto dto) => dto.Audios?
         .Select(a => AudioQualityTable.ParseVariant(a.Level, a.Format, a.Bitrate, a.Size))
         .OfType<AudioVariant>().Distinct().ToArray() ?? [];
@@ -1821,6 +1856,9 @@ public sealed class BodianApi : IBodianApi
             Lyrics = dto.LrcInfo is { } lrc
                 ? new TrackLyricInfo(lrc.Lrc == 1, lrc.Lrcx == 1)
                 : null,
+
+            // 判据是「或」：列表接口的 isMv 恒为 0，vid 才是真的。见 Track.HasMv 的注释。
+            HasMv = dto.IsMv == 1 || dto.Vid > 0,
         };
     }
 

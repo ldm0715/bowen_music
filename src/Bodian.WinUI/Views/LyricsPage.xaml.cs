@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
+using Bodian.Core.Models;
 using Bodian.WinUI.Controls;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
@@ -24,6 +25,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
 {
     private void OnQualitySelected(object? sender, EventArgs e) => QualityFlyout.Hide();
     private readonly MainWindow _window;
+    private readonly INavigationService _navigation;
+    private readonly Func<Track, MvPage> _mvFactory;
     private FrameworkElement? _themeRoot;
     private readonly LyricsCanvasView _canvas;
     private readonly AudioSpectrumView _spectrum;
@@ -52,7 +55,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private double _progressPointerX;
 
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
-        LyricsViewModel lyrics, SongCommentsViewModel comments)
+        LyricsViewModel lyrics, SongCommentsViewModel comments,
+        INavigationService navigation, Func<Track, MvPage> mvFactory)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -60,7 +64,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
         ArgumentNullException.ThrowIfNull(comments);
+        ArgumentNullException.ThrowIfNull(navigation);
+        ArgumentNullException.ThrowIfNull(mvFactory);
         _window = window;
+        _navigation = navigation;
+        _mvFactory = mvFactory;
         _logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
         _canvas = canvas;
@@ -151,7 +159,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _pointerOverChrome = false;
         _keyboardInteractionActive = false;
         _lastCursorPoint = null;
-        _window.EnterLyrics(LyricsTitleBar);
+        _window.EnterImmersive(LyricsTitleBar);
         Lyrics.IsOpen = true;
         UpdatePause();
         SyncFullscreen();
@@ -179,7 +187,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Player.IsSeeking = false;
         Lyrics.IsOpen = false;
         UpdatePause();
-        _window.ExitLyrics();
+        _window.ExitImmersive();
     }
 
     private void OnWindowVisibilityChanged(object? sender, WindowVisibilityChangedEventArgs args)
@@ -513,6 +521,18 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void OnBackClick(object sender, RoutedEventArgs args) => _window.GoBack();
 
+    /// <remarks>
+    /// 目标页要带曲目构造，而这里只拿得到 <see cref="PlayerViewModel"/> 上的当前曲目。
+    /// 曲目为空（理论上按钮那时也不可见）时什么都不做。
+    /// </remarks>
+    private void OnMvClick(object sender, RoutedEventArgs args)
+    {
+        if (Player.CurrentTrack is { } track)
+        {
+            _navigation.Navigate(_mvFactory(track));
+        }
+    }
+
     /// <summary>传输组里的队列按钮。抽屉本身归主窗口 —— 它要盖住整个内容区，这一层放不下。</summary>
     private void OnQueueClick(object sender, RoutedEventArgs args) => _window.ToggleQueue();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
@@ -522,7 +542,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         FullscreenButton.IsEnabled = false;
         try
         {
-            await _window.ToggleLyricsFullscreenAsync();
+            await _window.ToggleImmersiveFullscreenAsync();
             if (Lyrics.IsOpen) SyncFullscreen();
         }
         catch (Exception exception) { _logger.LogError(exception, "切换歌词全屏失败"); }

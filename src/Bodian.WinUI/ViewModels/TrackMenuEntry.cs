@@ -14,6 +14,10 @@ public enum TrackMenuAction
     AddToQueue,
 
     AddToPlaylist,
+
+    /// <summary>打开这首歌的 MV 页。曲目没有 MV 时这一项灰着。</summary>
+    Mv,
+
     Artist,
     Album,
 }

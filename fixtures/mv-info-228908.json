@@ -1,0 +1,26 @@
+{
+  "code": 200,
+  "msg": "success",
+  "reqId": "2584658db679eed98872bb17c1fe20a2",
+  "data": {
+    "mv": {
+      "mid": 228908,
+      "name": "晴天",
+      "coverUrl": "https://img3.kuwo.cn/wmvpic/700/s4s75/52/1458871193.jpg",
+      "highUrl": "http://bd-bj.kuwo.cn/552877377.mp4",
+      "lowUrl": "http://bd-bj.kuwo.cn/3517704569.mp4",
+      "mvDuration": 317,
+      "shortLowUrl": "https://bodiancdn.kuwo.cn/adc37ff6d662ed334e8c47989e1c9686.mp4",
+      "shortLrcStartTime": "00:15",
+      "playLimitTime": 0,
+      "playCopyrightTips": "应版权方要求，该mv暂不支持熄屏播放",
+      "bgPlayLimitTime": 0,
+      "highP2pid": "0m38412552877377mp4",
+      "lowP2pid": "0m263683517704569mp4",
+      "highBitrate": 2000,
+      "lowBitrate": 512
+    }
+  },
+  "profileId": "site",
+  "curTime": 1791100128321
+}

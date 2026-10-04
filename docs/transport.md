@@ -477,7 +477,7 @@ internal sealed partial class BodianJsonContext : JsonSerializerContext;
 | `audios` | `Audios` | `AudioEntryDto[]?` | 两者 |
 | `payInfo` | `PayInfo` | `PayInfoDto?` | 两者 |
 | `mediaBasicInfo` | `MediaBasicInfo` | `MediaBasicInfoDto?` | 两者（`gain`/`peak`/`lra` 全 `double`） |
-| `mvInfo` | `MvInfo` | `MvInfoDto?` | 仅 info |
+| ~~`mvInfo`~~ | —— | **不映射** | ⚠️ 2026-10-04 实测修正：**桌面协议的曲目详情不下放这个键**，`TrackDto` 也没有这个属性。MV 数据要单独调 `service/mv/info`，见 [`mv.md`](mv.md) |
 | `lrc_info` | `LrcInfo` | `LrcInfoDto?` | 仅 info —— P4 用它决定请求 `lrcx` 哪一版 |
 | `lrcEffect` | `LrcEffect` | `LrcEffectDto?` | 仅 info |
 | `lrcUpdateTime` | `LrcUpdateTime` | `string?` | 仅 info |

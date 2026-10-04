@@ -71,6 +71,14 @@ public sealed partial class TrackRow : ObservableObject
 
     public string DurationText => Formats.Duration(Source.Duration);
 
+    // ── MV：有 MV 才显示那颗角标 ──
+
+    /// <remarks>
+    /// 判据在 <c>Track.HasMv</c>（<c>isMv == 1 || vid &gt; 0</c>）—— 只看 <c>isMv</c>
+    /// 会让搜索结果里的 MV 全漏掉，见 <c>reverse/findings/15-mv.md</c> §4。
+    /// </remarks>
+    public Visibility MvLabelVisibility => Formats.Visible(Source.HasMv);
+
     // ── 行状态 ──────────────────────────────────────────────────────────────
 
     /// <summary>鼠标是否在这一行上。由行的 <c>PointerEntered</c> / <c>PointerExited</c> 驱动。</summary>

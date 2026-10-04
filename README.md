@@ -32,6 +32,9 @@
 > 加入播放列表、加入喜欢、加入歌单，自建歌单与「我喜欢的」还能批量移出；页脚那颗「重新加载」
 > 已删、刷新挪到工具栏。**列表里点一首歌不再把整个列表拉进队列**，而是把这一首追加到队尾
 > 并立即播放，队列里原有的歌都留着。见 [`docs/track-list-toolbar.md`](docs/track-list-toolbar.md)。
+> **新增 MV 播放**：曲目行角标、「更多」菜单、播放条三处入口，打开一个与歌词页并列的
+> 全窗沉浸 MV 页，带进度、音量、全屏与四种画面比例，并在看 MV 时自动暂停音频、退出恢复。
+> 协议与验收见 [`docs/mv.md`](docs/mv.md)。
 > 进度见 [`docs/roadmap.md`](docs/roadmap.md)，待办见 [`docs/backlog.md`](docs/backlog.md)。
 > P6 桌面悬浮歌词及其 P1.5 透明窗口验证仍未完成。
 
@@ -80,6 +83,7 @@
 | [`collect-follow.md`](docs/collect-follow.md) | 收藏歌单与关注歌手：接口、判定机制、两态按钮与取消确认、验收清单 |
 | [`play-queue.md`](docs/play-queue.md) | 播放队列与播放模式：队列的「排列 + 游标」结构、三种模式语义、加入队列入口、右侧抽屉、图标来源与验证 |
 | [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
+| [`mv.md`](docs/mv.md) | MV 播放：三处入口、沉浸 MV 页、画面比例、音视频互斥与验收 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |
 

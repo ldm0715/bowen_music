@@ -36,6 +36,12 @@ public enum BodianErrorCode
     /// <summary>该曲目不支持分享（分享上报返回，文档 2.8）。**不是失败**，链接照旧能复制。</summary>
     ShareUnsupported = 23006,
 
+    /// <summary>
+    /// 这首歌没有 MV（<c>service/mv/info</c> 返回，文案「获取MV失败」）。**不是失败**，
+    /// 界面该把 MV 入口收起来。见 <c>reverse/findings/15-mv.md</c>。
+    /// </summary>
+    MvUnavailable = 20048,
+
     /// <summary>响应体不是合法的 JSON 信封。</summary>
     MalformedResponse = -2,
 }
@@ -52,6 +58,7 @@ public static class BodianErrorCodeExtensions
         20012 => BodianErrorCode.TrackOffline,
         20018 => BodianErrorCode.NotPlayable,
         23006 => BodianErrorCode.ShareUnsupported,
+        20048 => BodianErrorCode.MvUnavailable,
         _ => BodianErrorCode.Unknown,
     };
 }

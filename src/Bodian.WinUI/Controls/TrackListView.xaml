@@ -143,6 +143,19 @@
                                 Visibility="{x:Bind PayLabelVisibility}">
                                 <TextBlock FontSize="{StaticResource FontSizeCaption}" Text="{x:Bind PayLabel}" />
                             </Border>
+
+                            <!--
+                                MV 标记。**这是标记不是入口** —— 播放走行尾「更多」菜单里的那一项，
+                                这里点它没有反应，与旁边的付费角标同一语义。
+                            -->
+                            <Border
+                                Padding="5,0"
+                                VerticalAlignment="Center"
+                                Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
+                                CornerRadius="{StaticResource RadiusXs}"
+                                Visibility="{x:Bind MvLabelVisibility}">
+                                <TextBlock FontSize="{StaticResource FontSizeCaption}" Text="MV" />
+                            </Border>
                         </StackPanel>
 
                         <TextBlock

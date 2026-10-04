@@ -257,6 +257,23 @@
                         </Flyout>
                     </Button.Flyout>
                 </Button>
+                <!--
+                    MV 入口。**没有 MV 时整颗折叠，不置灰** —— 与「更多」菜单里那一项
+                    灰着不同：工具条上一颗永远点不动的按钮只是占位置。
+                -->
+                <Button
+                    AutomationProperties.Name="播放 MV"
+                    Click="OnMvClick"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.HasMv), Mode=OneWay}"
+                    Style="{StaticResource PlayerRoundIconButtonStyle}"
+                    ToolTipService.ToolTip="播放 MV">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                    </Button.Resources>
+
+                    <controls:Icon Data="{StaticResource IconMv}" Size="16" />
+                </Button>
                 <Button
                     AutomationProperties.Name="歌词"
                     Click="OnLyricsClick"

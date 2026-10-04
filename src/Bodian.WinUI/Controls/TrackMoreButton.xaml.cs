@@ -148,6 +148,11 @@ public sealed partial class TrackMoreButton : UserControl
                 await viewModel.LoadPlaylistsAsync();
                 break;
 
+            case TrackMenuAction.Mv:
+                MoreFlyout.Hide();
+                viewModel.OpenMv();
+                break;
+
             case TrackMenuAction.Artist:
                 MoreFlyout.Hide();
                 await viewModel.OpenArtistAsync();

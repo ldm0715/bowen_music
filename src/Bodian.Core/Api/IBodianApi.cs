@@ -570,6 +570,19 @@ public interface IBodianApi
     /// </remarks>
     Task<LyricDocument> GetLyricsAsync(Track track, CancellationToken cancellationToken = default);
 
+    /// <summary>取这首歌的 MV。</summary>
+    /// <param name="musicId">波点的 musicId，不是酷我 rid。</param>
+    /// <param name="cancellationToken">取消标记。</param>
+    /// <returns>
+    /// MV 信息。**这首歌没有 MV 时返回 <c>null</c>**（服务端回业务码 20048，不是异常）；
+    /// 网络与服务端异常照常抛出，不要在这里吞掉。
+    /// </returns>
+    /// <remarks>
+    /// <b>不能靠曲目详情省掉这一趟</b>：桌面协议的 <c>service/music/info</c> 不下放 MV 直链，
+    /// 只有这个端点有。见 <c>reverse/findings/15-mv.md</c>。
+    /// </remarks>
+    Task<MvInfo?> GetMvInfoAsync(long musicId, CancellationToken cancellationToken = default);
+
     /// <summary>读取歌曲评论。页码从 1 开始，固定每页 30 条以避开 hot 的 rn 缺陷。</summary>
     Task<SongCommentPage> GetSongCommentsAsync(long musicId, SongCommentSort sort, int page = 1,
         CancellationToken cancellationToken = default);

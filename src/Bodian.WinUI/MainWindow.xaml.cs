@@ -102,7 +102,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private bool _lyricsFullscreen;
     private bool _closed;
     private FrameworkElement? _lyricsTitleBar;
-    private bool _lyricsVisible;
+    private bool _immersiveVisible;
     private bool _isChangingLyricsPresenter;
     private bool _isNavigatingBack;
     private bool _lyricsChromeVisible = true;
@@ -123,6 +123,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ThemeViewModel theme,
         IWindowPlacementStore placement,
         Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory,
+        Func<Track, MvPage> mvFactory,
         TrackActionsService trackActions)
     {
         ArgumentNullException.ThrowIfNull(navigation);
@@ -192,16 +193,20 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             if (!_renderActivity.IsInteractive)
                 DispatcherQueue.TryEnqueue(() =>
                 {
-                    if (!IsMinimized && !_lyricsVisible) AppTitleBar.RecomputeDragRegions();
+                    if (!IsMinimized && !_immersiveVisible) AppTitleBar.RecomputeDragRegions();
                 });
         };
         Closed += (_, _) => { _closed = true; _renderActivity.Dispose(); SaveWindowPlacement(); };
 
-        _navigation.Attach(PageHost, page => page is LyricsPage ? ImmersiveHost : PageHost);
+        // 歌词页与 MV 页都是全窗沉浸，进 ImmersiveHost；其余进常规的 PageHost。
+        _navigation.Attach(PageHost, page => page is LyricsPage or MvPage ? ImmersiveHost : PageHost);
         _navigation.Navigated += OnNavigated;
 
         var playerBar = new PlayerBar(playerViewModel, lyricsViewModel, navigation);
         playerBar.PlaylistRequested += (_, _) => ToggleQueue();
+
+        // MV 页要带曲目构造，工厂只有这里拿得到 —— 播放条只抛事件。
+        playerBar.MvRequested += (_, track) => navigation.Navigate(mvFactory(track));
         PlayerHost.Content = playerBar;
 
         // 抽屉的滑入用 Translation 独立于布局（与歌词页的评论面板同一套），先打开这个通道。
@@ -254,8 +259,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void UpdateCaptionButtonColors()
     {
         var titleBar = AppWindow.TitleBar;
-        var isDark = _lyricsVisible || ShellRoot.ActualTheme == ElementTheme.Dark;
-        var foreground = _lyricsVisible ? Colors.White : AppTitleBar.Foreground is SolidColorBrush brush
+        var isDark = _immersiveVisible || ShellRoot.ActualTheme == ElementTheme.Dark;
+        var foreground = _immersiveVisible ? Colors.White : AppTitleBar.Foreground is SolidColorBrush brush
             ? brush.Color
             : isDark ? Colors.White : Colors.Black;
         if (_captionPalette is { } palette && palette.Dark == isDark && palette.Foreground == foreground) return;
@@ -633,6 +638,29 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private void OnBackClick(object sender, RoutedEventArgs args) => GoBack();
 
+    /// <summary>
+    /// 一路退出沉浸，回到进入沉浸之前那个常规页。MV 页左上那颗向下箭头用它。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>退一层不够。</b> 沉浸页是从常规页压上来的，而 MV 又是从歌词页压上来的 ——
+    /// 只退一层会落回歌词页，那还是沉浸页，且和 MV 页上的「只听歌」做的是同一件事。
+    /// 所以退到落点不再是沉浸页为止。
+    /// </para>
+    /// <para>
+    /// 从常规页（播放条那颗 MV 按钮）直接进来的情况自然只退一层：落点本来就不是沉浸页。
+    /// </para>
+    /// </remarks>
+    public void ExitImmersiveToShell()
+    {
+        GoBack();
+
+        while (_navigation.Current is LyricsPage or MvPage && _navigation.CanGoBack)
+        {
+            GoBack();
+        }
+    }
+
     public void GoBack()
     {
         if (_isChangingLyricsPresenter) return;
@@ -764,7 +792,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         // 排到队列尾：本方法由 IsPaneOpen 的属性回调触发，此刻模板还在切视觉状态。
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (!_lyricsVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
+            if (!_immersiveVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
         });
 
         // 展开态自己有那一段，浮层就没用了；收起时反过来，浮层不该留着。
@@ -1093,10 +1121,17 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     public bool IsLyricsFullscreen => _lyricsFullscreen;
 
-    public void EnterLyrics(FrameworkElement titleBar)
+    /// <summary>
+    /// 进入沉浸态：收起外壳（侧栏、播放条、标题栏），只留 <c>ImmersiveHost</c>。
+    /// </summary>
+    /// <remarks>
+    /// 歌词页与 MV 页共用这一套 —— 它做的本来就不是「歌词」的事，只是最早只有歌词页用，
+    /// 才叫了这个名字。两者要隐藏和恢复的东西完全一致。
+    /// </remarks>
+    public void EnterImmersive(FrameworkElement titleBar)
     {
         RestoreNativeCaption();
-        _lyricsVisible = true;
+        _immersiveVisible = true;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = titleBar;
         DismissSearchUi();
@@ -1109,7 +1144,14 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         UpdateCaptionButtonColors();
     }
 
-    public async Task ToggleLyricsFullscreenAsync()
+    /// <summary>
+    /// 在「窗口化」与「无边框全屏」之间切换。
+    /// </summary>
+    /// <remarks>
+    /// 歌词页与 MV 页共用。恢复时把标题栏交还给 <c>_lyricsTitleBar</c> ——
+    /// 那个字段由 <see cref="EnterImmersive"/> 填成当前沉浸页的标题栏，所以对两页都对。
+    /// </remarks>
+    public async Task ToggleImmersiveFullscreenAsync()
     {
         if (_isChangingLyricsPresenter) return;
         var performanceStart = Stopwatch.GetTimestamp();
@@ -1187,11 +1229,12 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             throw new Win32Exception(Marshal.GetLastWin32Error(), "无法恢复窗口边框");
     }
 
-    public void ExitLyrics()
+    /// <summary>退出沉浸态，恢复外壳。与 <see cref="EnterImmersive"/> 成对。</summary>
+    public void ExitImmersive()
     {
         RestoreNativeCaption();
         RestoreLyricsPresenter();
-        _lyricsVisible = false;
+        _immersiveVisible = false;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = null;
         ImmersiveHost.Visibility = Visibility.Collapsed;
@@ -1212,7 +1255,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         {
             RestoreNativeCaption();
         }
-        else if (_lyricsVisible && AppWindow.Presenter is OverlappedPresenter presenter)
+        else if (_immersiveVisible && AppWindow.Presenter is OverlappedPresenter presenter)
         {
             _hiddenCaptionPresenter = presenter;
             _captionRestoreBorder = presenter.HasBorder;
@@ -1232,9 +1275,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void OnNavigated(object? sender, Page page)
     {
         SyncSelection();
-        if (!_lyricsVisible) DispatcherQueue.TryEnqueue(() =>
+        if (!_immersiveVisible) DispatcherQueue.TryEnqueue(() =>
         {
-            if (!_lyricsVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
+            if (!_immersiveVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
         });
     }
 

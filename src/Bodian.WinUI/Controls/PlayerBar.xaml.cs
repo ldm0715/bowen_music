@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Bodian.Core.Models;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
@@ -68,6 +69,25 @@ public sealed partial class PlayerBar : UserControl
     public event EventHandler? PlaylistRequested;
 
     private void OnPlaylistClick(object sender, RoutedEventArgs e) => PlaylistRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// 点了 MV 按钮。载荷就是当前曲目。
+    /// </summary>
+    /// <remarks>
+    /// <b>只抛事件，不自己导航</b>：MV 页要带曲目构造，而那个工厂在容器里、
+    /// 外壳才拿得到。<b>也不能反过来把导航器注入 <c>PlayerViewModel</c></b> ——
+    /// <c>TrackActionsService</c>（导航器的实现）已经依赖 <c>PlayerViewModel</c>，会成环。
+    /// 与 <see cref="PlaylistRequested"/> 是同一种接线。
+    /// </remarks>
+    public event EventHandler<Track>? MvRequested;
+
+    private void OnMvClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentTrack is { } track)
+        {
+            MvRequested?.Invoke(this, track);
+        }
+    }
 
     private void OnLoaded(object sender, RoutedEventArgs e) => ViewModel.PropertyChanged += OnPlayerPropertyChanged;
 

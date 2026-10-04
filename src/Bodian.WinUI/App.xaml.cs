@@ -159,6 +159,17 @@ public partial class App : Application
         builder.Services.AddTransient<SearchPage>();
         builder.Services.AddTransient<SongCommentsViewModel>();
         builder.Services.AddTransient<LyricsPage>();
+
+        // MV 页：ViewModel 必须是 transient —— 它持有 MediaPlayer，页面退出就 Dispose，
+        // 复用同一个实例会在第二次进 MV 页时操作一个已经释放的播放器。
+        builder.Services.AddTransient<MvViewModel>();
+
+        // MV 页要带「哪首歌」构造，DI 解析不出来 —— 用工厂。
+        builder.Services.AddTransient<Func<Track, MvPage>>(sp => track =>
+            new MvPage(
+                sp.GetRequiredService<MainWindow>(),
+                sp.GetRequiredService<MvViewModel>(),
+                track));
         builder.Services.AddTransient<FavoritesViewModel>();
         builder.Services.AddTransient<FavoritesPage>();
         builder.Services.AddTransient<RecentViewModel>();

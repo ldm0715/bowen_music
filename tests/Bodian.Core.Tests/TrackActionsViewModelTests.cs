@@ -19,12 +19,14 @@ public sealed class TrackActionsViewModelTests
         long id = 1,
         string? album = "专辑",
         long albumId = 0,
+        bool hasMv = false,
         params TrackArtist[] artists) => new()
     {
         Id = id,
         Title = $"Song {id}",
         AlbumName = album,
         AlbumId = albumId,
+        HasMv = hasMv,
         Artists = artists,
     };
 
@@ -146,14 +148,15 @@ public sealed class TrackActionsViewModelTests
     // ── 加入播放队列 ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 六项，且顺序固定。
+    /// 七项，且顺序固定。
     /// </summary>
     /// <remarks>
     /// 两条队列动作紧挨「我喜欢」，与写服务器的「添加到歌单」用位置自然隔开 ——
     /// 那两项都带「歌单/列表」字样，挨着摆最容易被点错。
+    /// 「播放 MV」与「查看歌手/专辑」同属「跳到别处」，排在写动作之后。
     /// </remarks>
     [Fact]
-    public void Menu_ListsTheSixActionsInOrder()
+    public void Menu_ListsTheSevenActionsInOrder()
     {
         var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), new Navigator(), new Notices());
 
@@ -163,6 +166,7 @@ public sealed class TrackActionsViewModelTests
                 TrackMenuAction.PlayNext,
                 TrackMenuAction.AddToQueue,
                 TrackMenuAction.AddToPlaylist,
+                TrackMenuAction.Mv,
                 TrackMenuAction.Artist,
                 TrackMenuAction.Album,
             ],
@@ -170,6 +174,42 @@ public sealed class TrackActionsViewModelTests
 
         Assert.Equal("下一首播放", Entry(viewModel, TrackMenuAction.PlayNext).Text);
         Assert.Equal("加入播放队列", Entry(viewModel, TrackMenuAction.AddToQueue).Text);
+    }
+
+    // ── 播放 MV ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Mv_OpensTheTrackThroughTheNavigator()
+    {
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(
+            Track(7, hasMv: true), new PlaybackApiStub(), navigator, new Notices());
+
+        Assert.True(Entry(viewModel, TrackMenuAction.Mv).IsEnabled);
+
+        viewModel.OpenMv();
+
+        Assert.Equal([7L], navigator.OpenedMv);
+    }
+
+    /// <summary>
+    /// 没有 MV 时这一项<b>灰着而不是消失</b>，且点了也不出去。
+    /// </summary>
+    /// <remarks>
+    /// 与「查看专辑」同一条取舍：菜单项忽多忽少比灰着更让人困惑。
+    /// 注意播放条上那颗 MV 按钮相反 —— 那里是折叠，见 <c>PlayerBar.xaml</c>。
+    /// </remarks>
+    [Fact]
+    public void Mv_IsDisabledAndInertWithoutMv()
+    {
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), navigator, new Notices());
+
+        Assert.False(Entry(viewModel, TrackMenuAction.Mv).IsEnabled);
+
+        viewModel.OpenMv();
+
+        Assert.Empty(navigator.OpenedMv);
     }
 
     [Fact]
@@ -422,9 +462,13 @@ public sealed class TrackActionsViewModelTests
 
         public Album? Album { get; private set; }
 
+        public List<long> OpenedMv { get; } = [];
+
         public void OpenArtist(Artist artist) => Artist = artist;
 
         public void OpenAlbum(Album album) => Album = album;
+
+        public void OpenMv(Track track) => OpenedMv.Add(track.Id);
     }
 
     private sealed class Notices : INoticeSink

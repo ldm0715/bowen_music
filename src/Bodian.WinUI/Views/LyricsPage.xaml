@@ -211,6 +211,16 @@
                         评论入口与左下角的收藏 / 分享用同一个控件，尺寸和角标样式天然一致；
                         面板打开时用 IsActive 换成强调色图标，不再由代码改前景色。
                     -->
+                    <!-- MV 入口。与播放条一致：没有 MV 就整颗折叠，不置灰。 -->
+                    <Button x:Name="MvButton" Click="OnMvClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        Visibility="{x:Bind local:Formats.Visible(Player.HasMv), Mode=OneWay}"
+                        AutomationProperties.Name="播放 MV" ToolTipService.ToolTip="播放 MV">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
+                        <controls:Icon Data="{StaticResource IconMv}" Size="16" />
+                    </Button>
                     <controls:TrackStatisticButton x:Name="CommentsButton" Data="{StaticResource IconComment}" ActiveData="{StaticResource IconComment}"
                         Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"

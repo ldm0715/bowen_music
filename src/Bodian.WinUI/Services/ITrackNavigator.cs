@@ -17,4 +17,13 @@ public interface ITrackNavigator
 
     /// <summary>打开专辑详情。同样是压栈。</summary>
     void OpenAlbum(Album album);
+
+    /// <summary>
+    /// 打开这首歌的 MV 页。同样是压栈。
+    /// </summary>
+    /// <remarks>
+    /// 目标页自己负责去取 MV 地址（<c>GetMvInfoAsync</c>）—— 这里只传曲目，
+    /// 因为取地址要发请求，不该在点菜单时阻塞。
+    /// </remarks>
+    void OpenMv(Track track);
 }

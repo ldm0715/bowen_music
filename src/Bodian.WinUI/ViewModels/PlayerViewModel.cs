@@ -132,6 +132,20 @@ public sealed partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     public partial bool HasTrack { get; set; }
 
+    /// <summary>当前这首歌有没有 MV。驱动播放条上那颗 MV 按钮的显隐（没有就折叠，不置灰）。</summary>
+    [ObservableProperty]
+    public partial bool HasMv { get; set; }
+
+    /// <summary>
+    /// 当前曲目。供外壳构造 MV 页用。
+    /// </summary>
+    /// <remarks>
+    /// <b>刻意不是 public</b>：XAML 类型信息生成器会为公开属性里的类型生成激活代码，
+    /// 而 <see cref="Track"/> 有 <c>required</c> 成员 —— 生成器造不出实例，直接编译失败。
+    /// 同一个坑见 <c>MvPage.Track</c>。
+    /// </remarks>
+    internal Track? CurrentTrack { get; private set; }
+
     [ObservableProperty]
     public partial string Title { get; set; } = "";
 
@@ -425,6 +439,8 @@ public sealed partial class PlayerViewModel : ObservableObject
     private void OnStarted(object? sender, PlaybackStartedEventArgs e)
     {
         HasTrack = true;
+        CurrentTrack = e.Track;
+        HasMv = e.Track.HasMv;
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
@@ -447,6 +463,8 @@ public sealed partial class PlayerViewModel : ObservableObject
     private void OnBlocked(object? sender, PlaybackBlockedEventArgs e)
     {
         HasTrack = true;
+        CurrentTrack = e.Track;
+        HasMv = e.Track.HasMv;
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);

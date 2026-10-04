@@ -18,6 +18,12 @@ internal static class Endpoints
 
     public const string MusicInfo = "service/music/info";
 
+    /// <summary>
+    /// MV 详情。GET + query <c>musicId</c>，无 MV 时业务码 <c>20048</c>。
+    /// 证据：<c>reverse/findings/15-mv.md</c>（实网验证过）。
+    /// </summary>
+    public const string MvInfo = "service/mv/info";
+
     public const string SearchMusicList = "search/music/list";
     public const string SearchComprehensive = "search/comprehensive/v2/list";
     public const string SearchAlbumList = "search/album/list";
