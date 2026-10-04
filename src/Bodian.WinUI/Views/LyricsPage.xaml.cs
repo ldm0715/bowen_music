@@ -120,9 +120,23 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public PlayerViewModel Player { get; }
     public LyricsViewModel Lyrics { get; }
     public SongCommentsViewModel Comments { get; }
-    public string PlayPauseGlyph(bool playing) => playing ? "\uE769" : "\uE768";
     public string SongHeading(string title, string artist)
         => string.IsNullOrWhiteSpace(artist) ? title : $"{title} - {artist}";
+
+    /// <summary>
+    /// 从应用资源里取一条图标**路径文本**（<c>Themes/Icons.xaml</c>）。
+    /// 只有需要由代码切图标的地方（全屏两态）才用它 ——
+    /// 其余都是 XAML 里 <c>Data="{StaticResource IconX}"</c>，不需要经手代码。
+    /// </summary>
+    /// <remarks>
+    /// 返回的是字符串而不是 <c>Geometry</c>：资源字典里的 Geometry 赋不进 Geometry 属性，
+    /// 见 <see cref="Controls.IconGeometry"/>。路径与主题无关、颜色一律走 Foreground 继承，
+    /// 所以这里查资源不触犯 ui-refresh.md §7（那条禁的是**跟随主题的颜色**）。
+    /// </remarks>
+    private static string ResourceIcon(string key)
+        => Application.Current is { } app && app.Resources.TryGetValue(key, out var value)
+            ? value as string ?? ""
+            : "";
 
     public void OnNavigatedTo()
     {
@@ -300,7 +314,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         var start = Stopwatch.GetTimestamp();
         _fullscreen = _window.IsLyricsFullscreen;
-        FullscreenIcon.Glyph = _window.IsLyricsFullscreen ? "\uE73F" : "\uE740";
+        FullscreenIcon.Data = ResourceIcon(_window.IsLyricsFullscreen ? "IconExitFullScreen" : "IconFullScreen");
         ToolTipService.SetToolTip(FullscreenButton, _window.IsLyricsFullscreen ? "退出全屏 (F11)" : "进入全屏 (F11)");
         UpdateChromeInsets();
         if (Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1")
@@ -495,6 +509,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
     }
 
     private void OnBackClick(object sender, RoutedEventArgs args) => _window.GoBack();
+
+    /// <summary>传输组里的队列按钮。抽屉本身归主窗口 —— 它要盖住整个内容区，这一层放不下。</summary>
+    private void OnQueueClick(object sender, RoutedEventArgs args) => _window.ToggleQueue();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
     private async Task ToggleFullscreenAsync()
     {

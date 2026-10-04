@@ -5,11 +5,7 @@
     xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI" RequestedTheme="Dark">
     <Page.Resources>
-        <!-- 按钮外观不再单写：与播放条共用 Themes/Styles/Player.xaml 那一套。 -->
-        <Style TargetType="FontIcon">
-            <Setter Property="FontSize" Value="20" />
-            <Setter Property="IsTextScaleFactorEnabled" Value="False" />
-        </Style>
+        <!-- 按钮外观与图标都不再单写：外观在 Themes/Styles/Player.xaml，图标走 Controls/Icon。 -->
     </Page.Resources>
     <Page.KeyboardAccelerators>
         <KeyboardAccelerator Key="Escape" Invoked="OnEscapeInvoked" />
@@ -50,7 +46,7 @@
                         <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
                             HorizontalAlignment="Left" Margin="16,0,0,0"
                             AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
-                            <FontIcon Glyph="&#xE70D;" FontSize="{StaticResource SizeIconMd}" />
+                            <controls:Icon Data="{StaticResource IconChevronDown}" Size="{StaticResource SizeIconMd}" />
                         </Button>
                     </Grid>
                 </TitleBar.LeftHeader>
@@ -60,7 +56,7 @@
                 <TitleBar.RightHeader>
                     <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
                         AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
-                        <FontIcon x:Name="FullscreenIcon" Glyph="&#xE740;" FontSize="{StaticResource SizeIconMd}" />
+                        <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
                     </Button>
                 </TitleBar.RightHeader>
             </TitleBar>
@@ -122,22 +118,51 @@
                     <RowDefinition Height="48" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
+                <!--
+                    传输组：播放模式 · 上一首 · 播放/暂停 · 下一首 · 播放列表。
+                    与底部播放条**同一组五颗、同一套尺寸**（模式 26 / 上下一首 28 / 播放 24 / 队列 22）。
+                    改这里时播放条也要一起改，两边别各走各的。
+                -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="24">
+                    <Button AutomationProperties.Name="播放模式"
+                        Command="{x:Bind Player.CyclePlayModeCommand}"
+                        Style="{StaticResource PlayerBareIconButtonStyle}"
+                        ToolTipService.ToolTip="{x:Bind Player.PlayModeText, Mode=OneWay}">
+                        <Grid>
+                            <controls:Icon Data="{StaticResource IconSequential}" Size="26"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsSequentialMode), Mode=OneWay}" />
+                            <controls:Icon Data="{StaticResource IconListLoop}" Size="26"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsListLoopMode), Mode=OneWay}" />
+                            <controls:Icon Data="{StaticResource IconShuffle}" Size="26"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsShuffleMode), Mode=OneWay}" />
+                        </Grid>
+                    </Button>
                     <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.PreviousCommand}"
                         IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}" AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
-                        <FontIcon Glyph="&#xE892;" FontSize="28" />
+                        <controls:Icon Data="{StaticResource IconPrevious}" Size="28" />
                     </Button>
                     <Button Style="{StaticResource PlayerAccentButtonStyle}" Command="{x:Bind Player.TogglePlayPauseCommand}"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}" AutomationProperties.Name="播放 / 暂停" ToolTipService.ToolTip="播放 / 暂停 (Space)">
-                        <FontIcon Glyph="{x:Bind PlayPauseGlyph(Player.IsPlaying), Mode=OneWay}" FontSize="24" />
+                        <Grid>
+                            <controls:Icon Size="24" Data="{StaticResource IconPlay}"
+                                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsPlaying), Mode=OneWay}" />
+                            <controls:Icon Size="24" Data="{StaticResource IconPause}"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsPlaying), Mode=OneWay}" />
+                        </Grid>
                     </Button>
                     <Button Style="{StaticResource PlayerBareIconButtonStyle}" Command="{x:Bind Player.NextCommand}"
                         IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}" AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
-                        <FontIcon Glyph="&#xE893;" FontSize="28" />
+                        <controls:Icon Data="{StaticResource IconNext}" Size="28" />
+                    </Button>
+                    <!-- 队列抽屉归主窗口管（要盖住内容区），这里只抛给它去开合。 -->
+                    <Button AutomationProperties.Name="播放列表" Click="OnQueueClick"
+                        Style="{StaticResource PlayerBareIconButtonStyle}"
+                        ToolTipService.ToolTip="播放列表">
+                        <controls:Icon Data="{StaticResource IconQueue}" Size="22" />
                     </Button>
                 </StackPanel>
                 <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="8">
-                    <controls:TrackStatisticButton x:Name="FavoriteButton" Glyph="&#xEB51;" ActiveGlyph="&#xEB52;"
+                    <controls:TrackStatisticButton x:Name="FavoriteButton" Data="{StaticResource IconHeart}" ActiveData="{StaticResource IconHeartFilled}"
                         Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
                         IsActive="{x:Bind Player.Statistics.IsFavorite, Mode=OneWay}"
@@ -145,7 +170,7 @@
                         Label="{x:Bind Player.Statistics.FavoriteAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind Player.Statistics.FavoriteBadgeText, Mode=OneWay}"
                         HasBadgeCount="{x:Bind Player.Statistics.HasFavoriteCount, Mode=OneWay}" />
-                    <controls:TrackStatisticButton x:Name="ShareButton" Glyph="&#xE72D;" Foreground="#CCFFFFFF"
+                    <controls:TrackStatisticButton x:Name="ShareButton" Data="{StaticResource IconShare}" Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
                         Command="{x:Bind Player.ShareCommand}"
                         Label="{x:Bind Player.Statistics.ShareAutomationName, Mode=OneWay}"
@@ -165,7 +190,7 @@
                         评论入口与左下角的收藏 / 分享用同一个控件，尺寸和角标样式天然一致；
                         面板打开时用 IsActive 换成强调色图标，不再由代码改前景色。
                     -->
-                    <controls:TrackStatisticButton x:Name="CommentsButton" Glyph="&#xE90A;" ActiveGlyph="&#xE90A;"
+                    <controls:TrackStatisticButton x:Name="CommentsButton" Data="{StaticResource IconComment}" ActiveData="{StaticResource IconComment}"
                         Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
                         IsActive="{x:Bind Comments.IsOpen, Mode=OneWay}"

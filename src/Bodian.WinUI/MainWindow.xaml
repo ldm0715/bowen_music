@@ -622,6 +622,13 @@
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch" />
 
+
+        <ContentControl
+            x:Name="ImmersiveHost"
+            Grid.RowSpan="3"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            Visibility="Collapsed" />
         <!--
             播放队列抽屉。
 
@@ -629,7 +636,11 @@
             要暂停 / 切歌不用先收起抽屉。上面那行标题栏也保留，搜索框还能用。
 
             空白处点一下收起，Esc 也收（见 OnShellKeyDown），右上角另有收起按钮。
-            放在 ImmersiveHost 之前：全屏歌词页要盖住它，那时播放条本来也不可见，进不来。
+
+            ★ **放在 ImmersiveHost 之后**（即抽屉压在歌词页之上）。
+              2026-10-04 之前是反过来的 —— 那时只有播放条能开抽屉，而歌词页盖住整个窗口，
+              抽屉开在下面也没人看得见。现在歌词页自己的传输组也有队列按钮了，
+              再让它排在下面就是「点了没反应」。
 
             ★ 背景用 CommentPanelBackgroundBrush 而不是 ThemeFlyoutBackground：后者是 #CC 的
               半透明，铺满一整条抽屉时底下的正文会透出来。这块实色面板与评论抽屉同源，
@@ -794,13 +805,6 @@
                 </Grid>
             </Border>
         </Grid>
-
-        <ContentControl
-            x:Name="ImmersiveHost"
-            Grid.RowSpan="3"
-            HorizontalContentAlignment="Stretch"
-            VerticalContentAlignment="Stretch"
-            Visibility="Collapsed" />
         <!-- 非模态浮层：搜索框保留键盘焦点，外部指针事件继续交给原控件。 -->
         <Border
             x:Name="SearchPanel"

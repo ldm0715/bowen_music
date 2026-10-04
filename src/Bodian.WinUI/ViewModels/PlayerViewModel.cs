@@ -218,11 +218,10 @@ public sealed partial class PlayerViewModel : ObservableObject
     public double ProgressMaximum => Math.Max(DurationSeconds, 1);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(VolumeGlyph))]
+    [NotifyPropertyChangedFor(nameof(IsMuted))]
     public partial double Volume { get; set; } = 100;
-
-    /// <summary>音量按钮上的图标。静音与有声用两个字形，按钮才不只是个「点我」的方块。</summary>
-    public string VolumeGlyph => Volume <= 0 ? "\uE74F" : "\uE767";
+    /// <summary>是否静音。音量按钮据此在中/静音两个图标之间切。</summary>
+    public bool IsMuted => Volume <= 0;
 
     [ObservableProperty]
     public partial bool CanGoNext { get; set; }

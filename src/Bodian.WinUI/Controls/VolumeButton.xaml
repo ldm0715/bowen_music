@@ -3,6 +3,7 @@
     x:Class="Bodian.WinUI.Controls.VolumeButton"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI"
     xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives">
 
@@ -26,15 +27,13 @@
             AutomationProperties.Name="音量"
             Click="OnVolumeClick"
             Style="{StaticResource PlayerRoundIconButtonStyle}">
-            <!--
-                16 号而不是 SizeIconMd(20)：右区旁边那颗「词」是 14 号汉字（墨水约 13），
-                MDL2 音量的墨水约 0.85×字号，16 号正好也是 13 —— 两颗看起来一样大。
-                按 20 号写会比旁边明显大一圈。
-
-                上移 2（Margin 负值的一半）是为了和旁边那颗矩形块形状的音质标签对齐：
-                字形按基线摆，墨水本来就比字身框中心线低一点。
-            -->
-            <FontIcon Margin="0,-4,0,0" FontSize="16" Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" />
+            <!-- 矢量路径：与旁边「歌词」同尺寸即同样大，不再需要字号换算与上移补偿。 -->
+            <Grid>
+                <controls:Icon Size="16" Data="{StaticResource IconVolume}"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.IsMuted), Mode=OneWay}" />
+                <controls:Icon Size="16" Data="{StaticResource IconVolumeMute}"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.IsMuted), Mode=OneWay}" />
+            </Grid>
         </Button>
 
         <!-- 透明桥接区与延迟关闭让鼠标能从按钮连续移入上方的细音量滑条。 -->

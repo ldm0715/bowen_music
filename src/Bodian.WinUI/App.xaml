@@ -25,6 +25,9 @@
                 <!-- 音质三档的胶囊配色。同上，与主题无关 -->
                 <ResourceDictionary Source="ms-appx:///Themes/Quality.xaml" />
 
+                <!-- 图标几何（Fluent System Icons，MIT）。与主题无关，颜色走 Foreground -->
+                <ResourceDictionary Source="ms-appx:///Themes/Icons.xaml" />
+
                 <!-- 浅色 / 深色 / 高对比度三套颜色 -->
                 <ResourceDictionary Source="ms-appx:///Themes/Theme.xaml" />
 

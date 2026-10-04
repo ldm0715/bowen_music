@@ -539,7 +539,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <summary>抽屉的宽度上限。窄窗口下会被 <c>SizeChanged</c> 压到窗口内。</summary>
     private const double QueuePaneWidth = 380;
 
-    private void ToggleQueue()
+    /// <summary>开合播放队列抽屉。播放条与歌词页的队列按钮都走这里。</summary>
+    public void ToggleQueue()
     {
         if (Queue.IsOpen)
         {

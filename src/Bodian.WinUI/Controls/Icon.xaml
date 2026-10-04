@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.Icon"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        一颗图标：<controls:Icon Data="{StaticResource IconShuffle}" Size="26" />
+
+        ★ 外面这层 Viewbox 不能省。`PathIcon` 只按几何的原始尺寸出图、不缩放到 Width/Height
+          （ui-refresh.md §18.2 记过这个坑，皇冠会被裁掉一半），所以几何一律按 24 单位画，
+          由 Viewbox 缩到 Size。收进控件里，用点就不必每处自己写这层了。
+
+        ★ 颜色走 Foreground 继承，不写死 —— 深浅主题和高对比度下自动跟随。
+    -->
+    <Viewbox x:Name="Scaler" Width="16" Height="16">
+        <PathIcon x:Name="Glyph" Width="24" Height="24" />
+    </Viewbox>
+</UserControl>
