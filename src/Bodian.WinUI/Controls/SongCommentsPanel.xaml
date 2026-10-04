@@ -263,8 +263,15 @@
                 <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+                        <!--
+                            ★ Padding 与 VerticalContentAlignment 必须一起写：
+                              默认模板把方框居中、内容却按 Top 摆，还带 5px 上内边距，
+                              小字号时文字中心比方框中心高几像素，看着就是歪的。
+                              改成「内容居中 + 无垂直内边距」两边的中心才对得上。
+                        -->
                         <CheckBox Content="匿名" IsChecked="{x:Bind ViewModel.IsAnonymous, Mode=TwoWay}"
-                            IsEnabled="{x:Bind ViewModel.IsComposerEnabled, Mode=OneWay}" FontSize="12" MinWidth="0" />
+                            IsEnabled="{x:Bind ViewModel.IsComposerEnabled, Mode=OneWay}"
+                            FontSize="12" MinWidth="0" Padding="8,0,0,0" VerticalContentAlignment="Center" />
                         <TextBlock Text="{x:Bind ViewModel.DraftCount, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource CommentTertiaryTextBrush}"
                             VerticalAlignment="Center" />
                     </StackPanel>

@@ -113,7 +113,14 @@
             <ContentControl x:Name="SpectrumHost" Grid.Row="1" Height="64" Margin="20,0,20,12"
                 VerticalAlignment="Bottom" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                 IsHitTestVisible="False" />
-            <Grid x:Name="ControlDeck" Grid.Row="2" Margin="24,12,24,8">
+            <!--
+                ★ 上边距 17 是为了让播放键**落在和播放条同一个高度**上 ——
+                  点封面进歌词页时那颗键不该跳。算式：
+                    播放条   进度行 2 + 内容区 78/2 = 距窗口底部 39
+                    这一页   行高 80 − 上边距 − 传输行 48/2 = 距窗口底部 39  →  上边距 = 80 − 39 − 24 = 17
+                  改播放条的 78 或这里的 80 / 48 时，这个数要跟着重算。
+            -->
+            <Grid x:Name="ControlDeck" Grid.Row="2" Margin="24,17,24,8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="48" />
                     <RowDefinition Height="*" />
