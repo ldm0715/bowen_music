@@ -7,13 +7,18 @@
     <!--
         一颗图标：<controls:Icon Data="{StaticResource IconShuffle}" Size="26" />
 
-        ★ 外面这层 Viewbox 不能省。`PathIcon` 只按几何的原始尺寸出图、不缩放到 Width/Height
-          （ui-refresh.md §18.2 记过这个坑，皇冠会被裁掉一半），所以几何一律按 24 单位画，
-          由 Viewbox 缩到 Size。收进控件里，用点就不必每处自己写这层了。
+        ★ 外层 Viewbox 把「几何自己的尺寸」整体缩到 Size，**颜色由 PathIcon 自己处理** ——
+          它是 Control，Foreground 的继承、主题切换、禁用变淡都走系统那一套，不用我们操心。
 
-        ★ 颜色走 Foreground 继承，不写死 —— 深浅主题和高对比度下自动跟随。
+        ★★ 内层给 **26** 而不是几何用的 24：`PathIcon` 按几何**自身的包围盒**裁切，
+          而我们的路径是从 (2,2) 画到 (22,22) 的 —— 框按 24 给，右下各丢 2 格，
+          症状就是「图标底部被裁掉一点点」。26 留出了这个余量。
+          （另一条路是用 Path + 自己接 Foreground，试过：颜色不跟主题走，退回来了。
+            宁可尺寸上做补偿，也不自己重造颜色继承。）
+
+        ★ 视觉尺寸 ≈ 几何占比 × Size × (24/26)。改 Size 时记住这个 26 会再缩 8%。
     -->
-    <Viewbox x:Name="Scaler" Width="16" Height="16">
-        <PathIcon x:Name="Glyph" Width="24" Height="24" />
+    <Viewbox x:Name="Scaler" Width="16" Height="16" Stretch="Uniform">
+        <PathIcon x:Name="Glyph" Width="26" Height="26" />
     </Viewbox>
 </UserControl>

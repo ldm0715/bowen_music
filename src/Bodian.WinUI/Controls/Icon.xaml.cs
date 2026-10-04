@@ -20,6 +20,7 @@ public sealed partial class Icon : UserControl
     public Icon()
     {
         InitializeComponent();
+
         Apply();
     }
 

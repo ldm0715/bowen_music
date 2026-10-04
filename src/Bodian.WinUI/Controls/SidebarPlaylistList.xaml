@@ -105,7 +105,7 @@
                                 Background="#99000000"
                                 CornerRadius="0,0,4,4"
                                 Visibility="{x:Bind local:Formats.Visible(IsPrivate)}">
-                                <controls:Icon Foreground="White" Size="9" Data="{StaticResource IconRemove}" />
+                                <controls:Icon Foreground="White" Size="9" Data="{StaticResource IconLock}" />
                             </Border>
                         </Grid>
 

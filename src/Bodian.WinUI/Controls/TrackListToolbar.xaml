@@ -27,7 +27,7 @@
                 Click="OnAddAllToQueueClick"
                 Style="{StaticResource BodianIconButton}"
                 ToolTipService.ToolTip="全部加入播放列表（只加入已加载的）">
-                <controls:Icon Size="14" Data="{StaticResource IconPlaylistAdd}" />
+                <controls:Icon Size="16" Data="{StaticResource IconPlaylistAdd}" />
             </Button>
 
             <Button
@@ -36,7 +36,7 @@
                 Click="OnEnterSelectionClick"
                 Style="{StaticResource BodianIconButton}"
                 ToolTipService.ToolTip="多选">
-                <controls:Icon Size="14" Data="{StaticResource IconSelect}" />
+                <controls:Icon Size="16" Data="{StaticResource IconSelect}" />
             </Button>
 
             <Button
@@ -45,7 +45,7 @@
                 Click="OnRefreshClick"
                 Style="{StaticResource BodianIconButton}"
                 ToolTipService.ToolTip="刷新">
-                <controls:Icon Size="14" Data="{StaticResource IconRefresh}" />
+                <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
             </Button>
         </StackPanel>
 
@@ -72,7 +72,7 @@
                     AutomationProperties.Name="批量加入播放列表"
                     Click="OnBatchAddToQueueClick">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <controls:Icon Size="14" Data="{StaticResource IconPlaylistAdd}" />
+                        <controls:Icon Size="16" Data="{StaticResource IconPlaylistAdd}" />
                         <TextBlock Text="加入播放列表" />
                     </StackPanel>
                 </Button>
@@ -83,7 +83,7 @@
                     AutomationProperties.Name="批量加入喜欢"
                     Click="OnBatchLikeClick">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <controls:Icon Size="14" Data="{StaticResource IconHeart}" />
+                        <controls:Icon Size="16" Data="{StaticResource IconHeart}" />
                         <TextBlock Text="加入喜欢" />
                     </StackPanel>
                 </Button>
@@ -94,7 +94,7 @@
                     AutomationProperties.Name="批量加入歌单"
                     Click="OnBatchPlaylistClick">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <controls:Icon Size="14" Data="{StaticResource IconAdd}" />
+                        <controls:Icon Size="16" Data="{StaticResource IconAdd}" />
                         <TextBlock Text="加入歌单" />
                     </StackPanel>
                 </Button>
@@ -111,7 +111,7 @@
                     Click="OnBatchRemoveClick"
                     Visibility="Collapsed">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <controls:Icon Size="14" Data="{StaticResource IconDelete}" />
+                        <controls:Icon Size="16" Data="{StaticResource IconDelete}" />
                         <TextBlock x:Name="BatchRemoveText" Text="移出歌单" />
                     </StackPanel>
                 </Button>
@@ -136,7 +136,7 @@
                 Click="OnExitSelectionClick"
                 Style="{StaticResource BodianIconButton}"
                 ToolTipService.ToolTip="退出多选">
-                <controls:Icon Size="12" Data="{StaticResource IconDismiss}" />
+                <controls:Icon Size="14" Data="{StaticResource IconDismiss}" />
             </Button>
         </Grid>
     </Grid>
