@@ -147,7 +147,7 @@
             TrackTemplate="{StaticResource PreviewTrackTemplate}" />
     </Page.Resources>
     <!-- 单个滚动视口，虚拟化单位细到每个标题和预览行。 -->
-    <Grid Style="{StaticResource BodianTrackPageRoot}">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />

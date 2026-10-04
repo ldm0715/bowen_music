@@ -198,9 +198,16 @@
     <x:Double x:Key="SliderInnerThumbHeight">0</x:Double>
 
     <!-- 间距 -->
+    <!--
+        ★ 页面左内边距 = 内容左基准线，全应用只有一个值：24。
+          它必须等于标题栏 Content 的左边距（MainWindow.xaml 里 SearchBarHost 的 Margin 左值），
+          否则页内内容和返回键 / 搜索框对不齐 —— 收起侧栏时两者都从栏宽起算，
+          48 + 24，所以展开态与收起态都是同一条竖线，不用另算。
+
+          曾经这里是唯一一处特例：曲目页左侧给 12（"靠近侧栏"），
+          结果 9 个列表页比标题栏靠前 12px，乐库跳歌单详情时左边缘会横跳一下。
+      -->
     <Thickness x:Key="SpacePagePadding">24,16</Thickness>
-    <!-- 曲目页靠近侧栏；保留右侧与上下的原有留白 -->
-    <Thickness x:Key="SpaceTrackPagePadding">12,16,24,16</Thickness>
     <!-- 行悬浮背景内侧留 8px。原本是 16，为的是让时间不贴住背景圆角；
          行尾加了「更多」按钮后，紧贴圆角的是那颗按钮（它自带静默热区），
          于是收回 8px，让图标右边缘落在时间原先结束的位置。 -->

@@ -11,7 +11,7 @@
         「专辑」页签是一格一张封面的卡片网格，与乐库分类页的专辑网格同形
         （GridView + 132 封面 + AutoPaging + PagingEndNote 挂在 GridView.Footer 上）。
     -->
-    <Grid Style="{StaticResource BodianTrackPageRoot}">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />

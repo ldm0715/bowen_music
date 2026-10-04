@@ -170,7 +170,7 @@
             PlaylistTemplate="{StaticResource SearchPlaylistTemplate}" AlbumTemplate="{StaticResource SearchAlbumTemplate}"
             ArtistTemplate="{StaticResource SearchArtistTemplate}" />
     </Page.Resources>
-    <Grid Style="{StaticResource BodianTrackPageRoot}">
+    <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
