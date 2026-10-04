@@ -156,8 +156,13 @@
             <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#24000000" />
             <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2E000000" />
 
-            <!-- 主题弹层深浅色均为 80% 不透明度，以同样比例透出窗口内的氛围背景。 -->
-            <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#CCFAFAFA" />
+            <!--
+                ── 弹层与浮层面板的底色（主题 / 搜索 / 音质 / 登录卡片 / 各处菜单）──
+                **实色**。曾经是 80% 不透明（#CC），想透出窗口的氛围背景；但那让浮层里的
+                文字压在页面上发虚 —— 尤其登录卡片这种整屏面板。现在与 AppSurfaceBrush
+                同色（#FAFAFA），靠外圈阴影与描边分层，不再靠透明度。
+            -->
+            <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#FFFAFAFA" />
 
             <!-- ── 压在封面图上的小角标（曲目数这类）──
                  底色不是主题无关的：它压在图片上，深浅两个主题用同一档半透明黑，
@@ -291,8 +296,11 @@
             <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#24FFFFFF" />
             <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2EFFFFFF" />
 
-            <!-- 主题弹层深浅色均为 80% 不透明度，以同样比例透出窗口内的氛围背景。 -->
-            <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#CC202020" />
+            <!--
+                弹层与浮层面板的底色，理由与浅色那份同（实色、不再透出氛围背景）。
+                比 AppSurfaceBrush（#121212）亮一档，浮层才「浮」得起来。
+            -->
+            <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="#FF202020" />
 
             <!-- 压在封面图上的小角标，与浅色同一档：它压在图片上，不跟窗口底色走。 -->
             <SolidColorBrush x:Key="MediaOverlayBackgroundBrush" Color="#B3000000" />
