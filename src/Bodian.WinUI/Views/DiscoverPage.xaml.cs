@@ -73,7 +73,9 @@ public sealed partial class DiscoverPage : Page, INavigationAware
 
         // 「个性化歌单」与「你的主题歌单」的卡片：卡上那几首只是预览，点整张卡打开完整的那个歌单
         // （实测都是 30 首）。
-        // ★ 用压栈（Navigate）不是换根：AI 歌单页压在「发现」上面，侧栏该继续高亮「发现」。
+        // ★ 下面两支都用压栈（Navigate）不是换根：详情页压在「发现」上面，侧栏该继续高亮「发现」，
+        //   返回键也该能退回发现页。写成 NavigateRoot 会把「发现」从栈里丢掉 ——
+        //   栈底就是详情页自己，CanGoBack 恒为 false，返回键直接变灰点不动（宝藏歌单库那张卡踩过）。
         if (card.Ai is { } ai)
         {
             _navigation.Navigate(_aiPlaylistFactory(ai, card.Title));
@@ -87,7 +89,7 @@ public sealed partial class DiscoverPage : Page, INavigationAware
             //   缺失时（0）退到 4 —— 那是文档里公开集合的默认值，但**未实测**。
             var source = playlist.SourceType > 0 ? playlist.SourceType : 4;
 
-            _navigation.NavigateRoot(_playlistDetailFactory(playlist, source));
+            _navigation.Navigate(_playlistDetailFactory(playlist, source));
         }
     }
 }
