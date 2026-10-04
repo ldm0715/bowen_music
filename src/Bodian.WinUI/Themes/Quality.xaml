@@ -27,4 +27,20 @@
 
     <SolidColorBrush x:Key="QualityChipForegroundBrush" Color="#FFFFFFFF" />
 
+    <!--
+        MV 画质三档的标签配色。**色号与上面那三张完全相同** —— 两个选择器要读成一套东西，
+        灰 / 蓝 / 金 的「档位高低」含义一致。之所以另起三个键而不是直接复用：
+        那边叫 Standard / High / Lossless，是**音质**的档位名，视频档位套上去会误导读的人。
+        ★ 改配色时六张一起改。
+    -->
+
+    <!-- 流畅：灰 -->
+    <SolidColorBrush x:Key="MvQualityLowBackgroundBrush" Color="#FF6B7280" />
+
+    <!-- 标清：蓝 -->
+    <SolidColorBrush x:Key="MvQualityStandardBackgroundBrush" Color="#FF2A78BE" />
+
+    <!-- 高清：金 -->
+    <SolidColorBrush x:Key="MvQualityHighBackgroundBrush" Color="#FF96690F" />
+
 </ResourceDictionary>

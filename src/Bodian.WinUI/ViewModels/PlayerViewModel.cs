@@ -21,7 +21,7 @@ namespace Bodian.WinUI.ViewModels;
 /// 因为是单例，<b>不要在页面卸载时退订引擎事件</b> —— 那会导致从别的页面回来后进度条不动。
 /// 订阅在构造函数里做一次，生命周期与进程一致。
 /// </remarks>
-public sealed partial class PlayerViewModel : ObservableObject
+public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 {
     private readonly PlaybackCoordinator _coordinator;
     private readonly IPlaybackService _engine;

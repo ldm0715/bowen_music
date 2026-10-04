@@ -1788,7 +1788,10 @@ public sealed class BodianApi : IBodianApi
         return BodianLyricParser.Parse(text, track.Duration);
     }
 
-    public async Task<MvInfo?> GetMvInfoAsync(long musicId, CancellationToken cancellationToken = default)
+    public async Task<MvInfo?> GetMvInfoAsync(
+        long musicId,
+        MvQuality quality = MvQuality.High,
+        CancellationToken cancellationToken = default)
     {
         EnsureMusicId(musicId);
 
@@ -1796,7 +1799,15 @@ public sealed class BodianApi : IBodianApi
             new BodianRequest
             {
                 Path = Endpoints.MvInfo,
-                Query = [MusicIdPair(musicId)],
+
+                // wifi 就是画质档位：3/2/0 分别对应 2000/1000/512 kbps。官方客户端还发一个
+                // 写死的 noWifi=2，实测不发也一样（见 MvQuality 的说明）。
+                Query =
+                [
+                    MusicIdPair(musicId),
+                    new KeyValuePair<string, string>(
+                        "wifi", ((int)quality).ToString(CultureInfo.InvariantCulture)),
+                ],
 
                 // GET 不签名，且 ver 钉在服务端不校验的区间内。见 reverse/findings/15-mv.md。
                 Signed = false,

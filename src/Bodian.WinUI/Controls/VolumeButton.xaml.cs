@@ -13,8 +13,15 @@ namespace Bodian.WinUI.Controls;
 /// 音量入口：一颗图标按钮，悬停或点击才在上方展开竖向滑条。
 /// </summary>
 /// <remarks>
-/// 播放条与歌词页共用这一份 —— 两处的音量交互本来就该一样，
-/// 差别只有按钮本身长什么样，由宿主的 <see cref="ButtonStyle"/> 决定。
+/// <para>
+/// 播放条、歌词页与 MV 页共用这一份 —— <b>音量交互本来就该一样</b>：一颗图标按钮，
+/// 悬停或点击才在上方展开竖向滑条。三处的音量数值互不相干（前两处走 libmpv、
+/// MV 走 <c>MediaPlayer</c>），把它们接到一起的是 <see cref="IVolumeSource"/>。
+/// </para>
+/// <para>
+/// ★ <b>任何一个宿主页都不许把这个交互改成横向外显的滑条</b> —— MV 页早先就是这么写的，
+/// 用户明确要求过不许这样。
+/// </para>
 /// </remarks>
 public sealed partial class VolumeButton : UserControl
 {
@@ -56,11 +63,11 @@ public sealed partial class VolumeButton : UserControl
         => ((VolumeButton)sender).Bindings.Update();
 
     public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(
-        nameof(ViewModel), typeof(PlayerViewModel), typeof(VolumeButton), new PropertyMetadata(null, OnDisplayChanged));
+        nameof(ViewModel), typeof(IVolumeSource), typeof(VolumeButton), new PropertyMetadata(null, OnDisplayChanged));
 
-    public PlayerViewModel ViewModel
+    public IVolumeSource ViewModel
     {
-        get => (PlayerViewModel)GetValue(ViewModelProperty);
+        get => (IVolumeSource)GetValue(ViewModelProperty);
         set => SetValue(ViewModelProperty, value);
     }
 

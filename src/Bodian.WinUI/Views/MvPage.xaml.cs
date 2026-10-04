@@ -21,7 +21,7 @@ namespace Bodian.WinUI.Views;
 /// 恢复只针对「本次进来时是自己暂停的」那一种，用户本来按了暂停就不去动它 ——
 /// 见 <see cref="MvViewModel.PauseAudioForVideo"/>。
 /// </remarks>
-public sealed partial class MvPage : Page, INavigationAware
+public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
 {
     private readonly MainWindow _window;
     private readonly MvViewModel _viewModel;
@@ -93,8 +93,49 @@ public sealed partial class MvPage : Page, INavigationAware
         _viewModel.Dispose();
     }
 
+    /// <summary>
+    /// 窗口正在关闭：**只做「赶在容器释放之前把播放器与元素解绑」这一件事**。
+    /// </summary>
+    /// <remarks>
+    /// 关窗口不走导航，<see cref="OnNavigatedFrom"/> 不会执行；而容器会在 <c>_host.Dispose()</c>
+    /// 时释放这个瞬态 ViewModel（<see cref="MediaPlayer"/> 随之释放），那时
+    /// <see cref="VideoSurface"/> 还持着它 —— 就是「播放 MV 时点关闭卡死」的成因。
+    /// <b>不恢复音频、不退沉浸态</b>：关机时那两件事没有意义，前者还会反过来把音频放起来。
+    /// </remarks>
+    public void OnShuttingDown()
+    {
+        _viewModel.PropertyChanged -= OnViewModelChanged;
+
+        // ★ 与 OnNavigatedFrom 同一条硬约束：**先解绑元素，再释放播放器**。
+        VideoSurface.SetMediaPlayer(null);
+        _viewModel.Dispose();
+    }
+
+    /// <summary>
+    /// 画质菜单里点了一档。
+    /// </summary>
+    /// <remarks>
+    /// 这里只改 ViewModel 的档位，**换源与续播由 <see cref="MvViewModel"/> 接走** ——
+    /// 页面不该知道「换档要重新请求」这件事。
+    /// </remarks>
+    private void OnQualityOptionClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is MvQualityOption option)
+        {
+            ViewModel.Quality = option.Quality;
+        }
+    }
+
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs args)
     {
+        // 换画质时 ViewModel 会把准备好的播放器扶正，这里跟着重新绑定。
+        // 通知是同步的，所以这一句跑完旧实例就已经从元素上摘下来了 ——
+        // ViewModel 之后才释放它（顺序不能反，见 MvViewModel.Promote）。
+        if (args.PropertyName is nameof(MvViewModel.Player))
+        {
+            VideoSurface.SetMediaPlayer(ViewModel.Player);
+        }
+
         if (args.PropertyName is nameof(MvViewModel.PositionSeconds) or nameof(MvViewModel.DurationSeconds))
         {
             UpdateTimes();

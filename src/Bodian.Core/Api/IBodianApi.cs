@@ -572,6 +572,10 @@ public interface IBodianApi
 
     /// <summary>取这首歌的 MV。</summary>
     /// <param name="musicId">波点的 musicId，不是酷我 rid。</param>
+    /// <param name="quality">
+    /// 画质档位。默认 <see cref="MvQuality.High"/> —— 也是不传参数时服务端给的那一档。
+    /// <b>这是请求参数，不是本地筛选</b>：三档是三条不同的 mp4，换档要重新请求一次。
+    /// </param>
     /// <param name="cancellationToken">取消标记。</param>
     /// <returns>
     /// MV 信息。**这首歌没有 MV 时返回 <c>null</c>**（服务端回业务码 20048，不是异常）；
@@ -581,7 +585,10 @@ public interface IBodianApi
     /// <b>不能靠曲目详情省掉这一趟</b>：桌面协议的 <c>service/music/info</c> 不下放 MV 直链，
     /// 只有这个端点有。见 <c>reverse/findings/15-mv.md</c>。
     /// </remarks>
-    Task<MvInfo?> GetMvInfoAsync(long musicId, CancellationToken cancellationToken = default);
+    Task<MvInfo?> GetMvInfoAsync(
+        long musicId,
+        MvQuality quality = MvQuality.High,
+        CancellationToken cancellationToken = default);
 
     /// <summary>读取歌曲评论。页码从 1 开始，固定每页 30 条以避开 hot 的 rn 缺陷。</summary>
     Task<SongCommentPage> GetSongCommentsAsync(long musicId, SongCommentSort sort, int page = 1,

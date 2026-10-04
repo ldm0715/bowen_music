@@ -20,7 +20,12 @@
     <Grid>
         <!--
             音量：一颗图标按钮，悬停或点击才在上方展开竖向滑条。
-            按钮外观与右区其它按钮共用一套（PlayerRoundIconButtonStyle），播放条和歌词页因此长得一样。
+            按钮外观与右区其它按钮共用一套（PlayerRoundIconButtonStyle），
+            播放条、歌词页与 MV 页因此长得一样。
+
+            ★ 三处的音量数值互不相干（前两处走 libmpv、MV 走 MediaPlayer），
+              把它们接到一起的是 IVolumeSource；**任何一个宿主页都不许把这个交互
+              改成横向外显的滑条** —— MV 页早先就是那样写的，用户明确要求过不许。
         -->
         <Button
             x:Name="IconButton"

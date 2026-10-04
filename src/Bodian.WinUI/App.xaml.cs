@@ -302,6 +302,11 @@ public partial class App : Application
 
         window.Closed += (_, _) =>
         {
+            // ★ 先让当前页收尾，**必须排在释放容器之前**：
+            //   MV 页要把自己的 MediaPlayer 与元素解绑，否则容器释放它时元素还绑着 ——
+            //   症状是「播放 MV 时点关闭直接卡死」。关窗口不走导航，页面收不到离场通知。
+            window.TearDownForShutdown();
+
             // 先撤 SMTC 会话（它读引擎状态，得在引擎之前放）。
             _host.Services.GetRequiredService<SmtcManager>().Dispose();
 

@@ -36,6 +36,12 @@
                 IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
             <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" FontSize="14"
                 TextAlignment="Center" MaxWidth="420" TextWrapping="Wrap" Foreground="#CCFFFFFF" />
+            <!--
+                重新加载。新源偶发打不开时（换档连切几次会碰到）的恢复入口 ——
+                没有它，那种情况只能退出去再进来。走的是同一个换档流程，会从当前进度续播。
+            -->
+            <Button Content="重新加载" Command="{x:Bind ViewModel.RetryCommand}"
+                HorizontalAlignment="Center" />
         </StackPanel>
 
         <Grid>
@@ -105,15 +111,11 @@
                     IsEnabled="{x:Bind ViewModel.HasSource, Mode=OneWay}"
                     AutomationProperties.Name="MV 播放进度">
                     <Slider.Resources>
-                        <SolidColorBrush x:Key="SliderTrackFill" Color="#40FFFFFF" />
-                        <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#40FFFFFF" />
-                        <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#40FFFFFF" />
-                        <SolidColorBrush x:Key="SliderTrackValueFill" Color="#F2FFFFFF" />
-                        <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
-                        <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="White" />
-                        <SolidColorBrush x:Key="SliderThumbBackground" Color="White" />
-                        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="White" />
-                        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="White" />
+                        <!--
+                            与歌词页共用的那一份（颜色 + 尺寸）。
+                            ★ MV 页原来只抄了颜色、没抄尺寸，同一个白色进度条在两页上胖瘦不同。
+                        -->
+                        <ResourceDictionary Source="ms-appx:///Themes/Styles/ImmersiveProgressSlider.xaml" />
                     </Slider.Resources>
                 </Slider>
 
@@ -136,10 +138,7 @@
                                 Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPlaying), Mode=OneWay}" />
                         </Grid>
                     </Button>
-                    <!--
-                        音量。**不复用播放条那个 VolumeButton** —— 那个控件绑死在 PlayerViewModel 上，
-                        而 MV 走的是另一套引擎（MediaPlayer），音量是独立的。滑条直接绑 MV 自己的 Volume。
-                    -->
+                    <!-- 右区：音/视频互切、画面比例、音量。 -->
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <!-- 音/视频互切：同一首曲子翻回「只听」。与右边那颗同样是文字按钮。 -->
                         <Button x:Name="SwitchToAudioButton" Click="OnSwitchToAudioClick"
@@ -209,22 +208,90 @@
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
-                        <controls:Icon Data="{StaticResource IconVolume}" Size="16" Foreground="#80FFFFFF" />
-                        <Slider x:Name="VolumeSlider" Width="96" Height="22" Padding="0" Minimum="0" Maximum="1"
-                            Value="{x:Bind ViewModel.Volume, Mode=TwoWay}"
-                            AutomationProperties.Name="MV 音量">
-                            <Slider.Resources>
-                                <SolidColorBrush x:Key="SliderTrackFill" Color="#40FFFFFF" />
-                                <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#40FFFFFF" />
-                                <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#40FFFFFF" />
-                                <SolidColorBrush x:Key="SliderTrackValueFill" Color="#F2FFFFFF" />
-                                <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
-                                <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="White" />
-                                <SolidColorBrush x:Key="SliderThumbBackground" Color="White" />
-                                <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="White" />
-                                <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="White" />
-                            </Slider.Resources>
-                        </Slider>
+                        <!--
+                            画质。入口与弹层样式都照音质那个选择器：入口是一颗档位胶囊，
+                            弹层里每行也是「胶囊 + 行尾码率」，当前档的胶囊不收暗。
+
+                            ★ 换档会**重新取直链并从当前进度续播** —— 三档是三个不同的 mp4，
+                              不是同一份流的本地筛选。见 MvQuality。
+                        -->
+                        <Button x:Name="QualityButton" Background="Transparent" BorderThickness="0"
+                            Padding="10,4" CornerRadius="6"
+                            AutomationProperties.Name="画质">
+                            <controls:MvQualityChip
+                                Label="{x:Bind ViewModel.QualityLabel, Mode=OneWay}"
+                                Quality="{x:Bind ViewModel.Quality, Mode=OneWay}" />
+                            <Button.Flyout>
+                                <Flyout Placement="Top">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="MinWidth" Value="0" />
+                                            <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                            <Setter Property="Padding" Value="6" />
+                                            <Setter Property="CornerRadius" Value="8" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <StackPanel Width="160" Spacing="2">
+                                        <TextBlock Text="画质" Margin="10,4,10,4" FontSize="12" FontWeight="SemiBold" />
+                                        <ListView MinWidth="0" MaxHeight="160"
+                                            SelectionMode="Single" IsItemClickEnabled="True"
+                                            ItemClick="OnQualityOptionClick"
+                                            ItemsSource="{x:Bind ViewModel.QualityOptions}"
+                                            SelectedItem="{x:Bind ViewModel.SelectedQualityOption, Mode=OneWay}"
+                                            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                            ScrollViewer.VerticalScrollMode="Disabled"
+                                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                            ScrollViewer.HorizontalScrollMode="Disabled"
+                                            AutomationProperties.Name="画质">
+                                            <ListView.Resources>
+                                                <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                                                <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+                                                <!-- 当前档由胶囊表示，不要再生效一个灰底 —— 两个「选中」信号会打架。 -->
+                                                <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
+                                            </ListView.Resources>
+                                            <ListView.ItemContainerStyle>
+                                                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                                    <Setter Property="MinWidth" Value="0" />
+                                                    <Setter Property="MinHeight" Value="32" />
+                                                    <Setter Property="Padding" Value="10,7" />
+                                                    <Setter Property="Margin" Value="0,1" />
+                                                    <Setter Property="CornerRadius" Value="6" />
+                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                </Style>
+                                            </ListView.ItemContainerStyle>
+                                            <ListView.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:MvQualityOption">
+                                                    <Grid ColumnSpacing="12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <controls:MvQualityChip
+                                                            HorizontalAlignment="Left"
+                                                            IsCurrent="{x:Bind IsCurrent, Mode=OneWay}"
+                                                            Label="{x:Bind Name}"
+                                                            Quality="{x:Bind Quality}" />
+                                                        <TextBlock Grid.Column="1" Text="{x:Bind Detail}"
+                                                            VerticalAlignment="Center" FontSize="10"
+                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListView.ItemTemplate>
+                                        </ListView>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+
+                        <!--
+                            音量用全应用同一个控件：一颗图标按钮，悬停才在上方展开竖向滑条。
+                            ★ 不许写成横向外显的滑条 —— 播放条与歌词页都不是那样。
+                            MV 走的是另一套引擎（MediaPlayer），所以音量数值仍与那两处互不相干；
+                            共用的是**交互**，两边视图模型实现同一个 IVolumeSource。
+                        -->
+                        <controls:VolumeButton x:Name="VolumeControl" ViewModel="{x:Bind ViewModel}" />
                     </StackPanel>
                 </Grid>
             </Grid>

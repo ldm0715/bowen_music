@@ -276,26 +276,8 @@
                 Value="{x:Bind Player.PositionSeconds, Mode=OneWay}" ValueChanged="OnProgressValueChanged"
                 IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}" AutomationProperties.Name="播放进度">
                 <Slider.Resources>
-                    <SolidColorBrush x:Key="SliderTrackFill" Color="#40FFFFFF" />
-                    <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#40FFFFFF" />
-                    <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#40FFFFFF" />
-                    <SolidColorBrush x:Key="SliderTrackValueFill" Color="#F2FFFFFF" />
-                    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="White" />
-                    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="White" />
-                    <SolidColorBrush x:Key="SliderThumbBackground" Color="White" />
-                    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="White" />
-                    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="White" />
-                    <SolidColorBrush x:Key="SliderInnerThumbBackground" Color="White" />
-                    <SolidColorBrush x:Key="SliderInnerThumbBackgroundPointerOver" Color="White" />
-                    <SolidColorBrush x:Key="SliderInnerThumbBackgroundPressed" Color="White" />
-                    <x:Double x:Key="SliderTrackThemeHeight">2</x:Double>
-                    <x:Double x:Key="SliderHorizontalHeight">22</x:Double>
-                    <x:Double x:Key="SliderPreContentMargin">0</x:Double>
-                    <x:Double x:Key="SliderPostContentMargin">0</x:Double>
-                    <x:Double x:Key="SliderHorizontalThumbWidth">14</x:Double>
-                    <x:Double x:Key="SliderHorizontalThumbHeight">14</x:Double>
-                    <x:Double x:Key="SliderInnerThumbWidth">10</x:Double>
-                    <x:Double x:Key="SliderInnerThumbHeight">10</x:Double>
+                    <!-- 与 MV 页共用的那一份，见文件顶部。 -->
+                    <ResourceDictionary Source="ms-appx:///Themes/Styles/ImmersiveProgressSlider.xaml" />
                 </Slider.Resources>
             </Slider>
         </Grid>

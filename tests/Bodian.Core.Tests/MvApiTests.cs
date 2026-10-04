@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
+using Bodian.Core.Models;
 using Bodian.Core.Tests.Support;
 using Xunit;
 
@@ -46,7 +47,7 @@ public sealed class MvApiTests : IDisposable
     {
         RespondWith("mv-info-228908.json");
 
-        var mv = await _api.GetMvInfoAsync(228908, Ct);
+        var mv = await _api.GetMvInfoAsync(228908, cancellationToken: Ct);
 
         Assert.NotNull(mv);
         Assert.Equal("bd-bj.kuwo.cn", mv.VideoUrl.Host);
@@ -64,7 +65,7 @@ public sealed class MvApiTests : IDisposable
     {
         RespondWith("mv-info-no-mv.json");
 
-        var mv = await _api.GetMvInfoAsync(202497954, Ct);
+        var mv = await _api.GetMvInfoAsync(202497954, cancellationToken: Ct);
 
         Assert.Null(mv);
     }
@@ -116,11 +117,34 @@ public sealed class MvApiTests : IDisposable
         _handler.Responder = _ => ReplayHandler.Json(
             """{"code":200,"msg":"success","data":{"mv":{"mid":1,"highUrl":"https://h/a.mp4","playLimitTime":30}}}""");
 
-        var mv = await _api.GetMvInfoAsync(1, Ct);
+        var mv = await _api.GetMvInfoAsync(1, cancellationToken: Ct);
 
         Assert.NotNull(mv);
         Assert.True(mv.IsPreviewOnly);
         Assert.Equal(TimeSpan.FromSeconds(30), mv.PreviewLimit);
+    }
+
+    // ── 画质档位 ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 画质走请求参数 <c>wifi</c>，**不是本地筛选** —— 三档是三个不同的 mp4。
+    /// </summary>
+    /// <remarks>
+    /// 实测（2026-10-04）：<c>wifi=3</c> → 2000 kbps、<c>2</c> → 1000、<c>0</c> → 512，
+    /// 且不传参数拿到的就是 3 那一档。见 <c>MvQuality</c> 与 <c>reverse/findings/15-mv.md</c>。
+    /// 这条守的是「参数真的发出去了、值没发错」—— 发错会静默拿到别的一档，界面上看不出来。
+    /// </remarks>
+    [Theory]
+    [InlineData(MvQuality.High, "wifi=3")]
+    [InlineData(MvQuality.Standard, "wifi=2")]
+    [InlineData(MvQuality.Low, "wifi=0")]
+    public async Task Quality_IsSentAsWifiParameter(MvQuality quality, string expected)
+    {
+        RespondWith("mv-info-228908.json");
+
+        await _api.GetMvInfoAsync(228908, quality, Ct);
+
+        Assert.Contains(expected, _handler.LastRequest.Url);
     }
 
     /// <summary><c>playLimitTime = 0</c> 是「不限」，不是「零秒」。</summary>
@@ -129,7 +153,7 @@ public sealed class MvApiTests : IDisposable
     {
         RespondWith("mv-info-228908.json");
 
-        var mv = await _api.GetMvInfoAsync(228908, Ct);
+        var mv = await _api.GetMvInfoAsync(228908, cancellationToken: Ct);
 
         Assert.NotNull(mv);
         Assert.False(mv.IsPreviewOnly);

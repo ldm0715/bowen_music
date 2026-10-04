@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.MvQualityChip"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        MV 画质档位的标签：流畅灰 / 标清蓝 / 高清金。
+
+        写法与 AudioQualityChip 同一套（三张底叠在同一格，按档位选一张显示），
+        颜色也取自同一组色号（Themes/Quality.xaml）—— 画质与音质两个选择器因此读成一个系统。
+        两份控件的存在理由：档位枚举不同（那是 AudioQuality，这是 MvQuality），
+        套用会让「视频档位」被写成音频档位的名字。
+
+        ★ 形状是**小圆角矩形**，不是端部全圆的药丸：实色底 + 白字加粗，圆角取 RadiusXs。
+    -->
+    <Grid x:Name="ChipRoot"
+        PointerEntered="OnPointerEntered"
+        PointerExited="OnPointerExited">
+        <Border x:Name="LowChip"
+            Background="{ThemeResource MvQualityLowBackgroundBrush}"
+            CornerRadius="{StaticResource RadiusXs}" />
+        <Border x:Name="StandardChip"
+            Background="{ThemeResource MvQualityStandardBackgroundBrush}"
+            CornerRadius="{StaticResource RadiusXs}"
+            Visibility="Collapsed" />
+        <Border x:Name="HighChip"
+            Background="{ThemeResource MvQualityHighBackgroundBrush}"
+            CornerRadius="{StaticResource RadiusXs}"
+            Visibility="Collapsed" />
+        <TextBlock
+            Margin="6,2"
+            FontSize="10"
+            FontWeight="Bold"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Foreground="{ThemeResource QualityChipForegroundBrush}"
+            Text="{x:Bind Label, Mode=OneWay}"
+            TextTrimming="CharacterEllipsis" />
+        <!--
+            悬停反馈由标签自己画：填满按钮时，按钮模板的悬停底色在内容之下，会被标签整个盖住。
+            这层只在指针压到标签上时出现，弹层里的行仍由 ListViewItem 自己的悬停兜底。
+        -->
+        <Border x:Name="HoverOverlay"
+            Background="#14000000"
+            CornerRadius="{StaticResource RadiusXs}"
+            IsHitTestVisible="False"
+            Opacity="0" />
+    </Grid>
+</UserControl>

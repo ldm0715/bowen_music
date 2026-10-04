@@ -1246,6 +1246,17 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         UpdateCaptionButtonColors();
     }
 
+    /// <summary>
+    /// 窗口关闭前让当前页收尾：把「必须赶在容器释放之前做的事」做掉。
+    /// </summary>
+    /// <remarks>
+    /// <b>必须在 <c>_host.Dispose()</c> 之前调。</b> 容器会释放它捕获的瞬态 ViewModel，
+    /// MV 页的 <c>MediaPlayer</c> 就是其中之一 —— 它得先与 <c>MediaPlayerElement</c> 解绑，
+    /// 否则原生对象在元素还持着它时被释放，表现为**关闭即卡死**。
+    /// 关窗口不走导航，页面的离场通知收不到，所以这条通道是必要的，见 <see cref="IShutdownAware"/>。
+    /// </remarks>
+    public void TearDownForShutdown() => (_navigation.Current as IShutdownAware)?.OnShuttingDown();
+
     public void SetLyricsChromeVisible(bool visible)
     {
         if (IsMinimized || _lyricsChromeVisible == visible) return;

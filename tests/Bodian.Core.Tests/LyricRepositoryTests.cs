@@ -168,7 +168,8 @@ public sealed class LyricRepositoryTests
             return Task.FromResult(Responder(track));
         }
 
-        public Task<MvInfo?> GetMvInfoAsync(long musicId, CancellationToken cancellationToken = default)
+        public Task<MvInfo?> GetMvInfoAsync(long musicId, MvQuality quality = MvQuality.High,
+            CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public Task<string> GetLyricAsync(long musicId, int lrcx, CancellationToken cancellationToken = default)
