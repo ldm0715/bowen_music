@@ -753,6 +753,19 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         PlaylistSection.Visibility = showPane && !compact ? Visibility.Visible : Visibility.Collapsed;
         CompactPlaylistsItem.Visibility = showPane && compact ? Visibility.Visible : Visibility.Collapsed;
 
+        // 标题栏左侧那块 Logo 占位要和栏宽对齐，否则收起后搜索框与返回键还停在 200px 处，
+        // 中间空出一段被压住的侧栏。宽度直接问 Nav 要，不另抄一份常量 ——
+        // OpenPaneLength / CompactPaneLength 就是布局真正用的两个值，抄一份迟早会和它们漂开。
+        // 这是行 0 的独立一列，不会自己跟着行 1 的侧栏动，只能手动同步。
+        LogoHost.Width = compact ? Nav.CompactPaneLength : Nav.OpenPaneLength;
+
+        // 拖拽区按子元素边界算，而 AutoRefreshDragRegions 是关掉的，宽度变了要重算一次。
+        // 排到队列尾：本方法由 IsPaneOpen 的属性回调触发，此刻模板还在切视觉状态。
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_lyricsVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
+        });
+
         // 展开态自己有那一段，浮层就没用了；收起时反过来，浮层不该留着。
         if (!compact)
         {
