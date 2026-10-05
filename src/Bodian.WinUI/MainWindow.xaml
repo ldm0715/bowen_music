@@ -384,6 +384,43 @@
                             </Flyout>
                         </Button.Flyout>
                     </Button>
+                    <!--
+                        小窗开关。与旁边的主题按钮同一套尺寸与底色。
+
+                        激活态的着色走元素级 VisualState（不是 code-behind 设画刷）：
+                        后者拿一次 ThemeResource 就永久设上，切主题后前景不会跟着变 ——
+                        播放条那颗桌面歌词开关就是踩过这个才改的，见 docs/icons.md。
+
+                        ★ VisualStateManager.GoToState 的第一个参数必须是 Control，
+                          而 MainWindow 是 Window，所以这组状态挂在按钮自己身上，
+                          不能像 PlayerBar 那样挂在 UserControl 根上。
+                    -->
+                    <Button
+                        x:Name="MiniPlayerButton"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="小窗"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnMiniPlayerClick"
+                        ToolTipService.ToolTip="小窗">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="MiniPlayerStates">
+                                <VisualState x:Name="MiniPlayerInactive" />
+                                <VisualState x:Name="MiniPlayerActive">
+                                    <VisualState.Setters>
+                                        <Setter Target="MiniPlayerButton.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                        <Setter Target="MiniPlayerButton.Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconMiniPlayer}" />
+                    </Button>
                     <Border
                         Width="1"
                         Height="16"

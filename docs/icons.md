@@ -331,3 +331,23 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 真实播放条的选中态在浅色显示 `#007A57`、深色显示 `#00F3B0`；解除选中后恢复对应的默认前景。
 完整离线回归 **1143 项通过**。验证报告保存在本地 `artifacts/theme-switch-review/states-and-reload.txt`，
 该目录不纳入产品源码，实际窗口的视觉观感由用户继续检查。
+
+
+## 2026-10-05 小窗图标
+
+小窗新增两颗，同样来自 Fluent System Icons 官方仓库（MIT），保留完整 24×24 坐标并以 `F1` 指明 nonzero 填充：
+
+| 资源键 | Fluent 图标 | 用在哪 |
+| --- | --- | --- |
+| `IconMiniPlayer` | `picture_in_picture_enter_24_regular` | 标题栏那颗「小窗」开关 |
+| `IconWindow` | `window_24_regular`（圆角方框轮廓） | 小窗上的 ▢「回到主界面」 |
+
+**新增图标只改 `Themes/Icons.xaml` 一处**，`Controls/IconGeometry.cs` 不用动 ——
+它的 `Paths(key)` 是拿资源键去 `Application.Current.Resources` 里查的，没有自己的字典。
+
+标题栏那颗开关的激活态走**元素级 VisualState**，不在这里直接设画刷（理由见上一节）。
+一处与播放条不同的写法：`VisualStateManager.GoToState` 的第一个参数必须是 `Control`，
+而 `MainWindow` 是 `Window`，所以那组状态挂在 `Button` 自己身上，而不是像 `PlayerBar` 那样挂在
+`UserControl` 根上。
+
+实现与验收见 [`mini-player.md`](mini-player.md)。

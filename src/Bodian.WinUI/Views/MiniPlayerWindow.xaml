@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Bodian.WinUI.Views.MiniPlayerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
+    Title="小窗">
+
+    <!--
+        透明窗上的圆角卡片。**圆角是真的抗锯齿圆角，不靠 DWM** ——
+        窗口逐像素透明，圆角以外什么都不画，桌面直接透出来。
+        DWMWA_WINDOW_CORNER_PREFERENCE 在本机 Win10 上返回 E_INVALIDARG（Win11 专有），
+        所以这里只用 XAML 的 CornerRadius，见 docs/mini-player.md。
+
+        三行都是 Auto：面板朝上住第 0 行，内容条永远在第 1 行，面板朝下住第 2 行。
+        换方向只改 Grid.Row，不重建元素；没占用的那一行因为没有子元素自动塌成 0 高。
+        顶部角半径与底部角半径由 code-behind 的 ApplyChrome 按下表统一改，
+        三个卡片（条 / 面板 / 封面兜底）必须一起改，否则衔接处会露出两个直角。
+    -->
+    <Grid x:Name="Root" Background="Transparent" RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+        <Grid.Resources>
+            <!--
+                ✕ / ▢ 那一列的两颗小按钮：24 见方，比操作区的 32 小一圈，两颗刚好塞进条高。
+
+                ★ 与 PlayerRoundIconButtonStyle 一样基于框架的 SubtleButtonStyle，**不自己写模板** ——
+                  自定义模板要自己给悬停／按下的画刷，而自己拼的刷子键没有先例可循，
+                  解析期找不到就整个窗口建不出来（这一版踩过：PlayerProgressSliderStyle 就是这么炸的）。
+            -->
+            <Style x:Key="MiniPlayerGlyphButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+                <Setter Property="Width" Value="24" />
+                <Setter Property="Height" Value="24" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+            </Style>
+
+            <!--
+                细进度条。**不能引用 PlayerBar 里那份同名样式** —— 那是它的局部资源，
+                窗口这一层取不到（这一版第一次启动就是栽在这里）。
+
+                与播放条的差别：这边没有那套「加载后抓模板部件、悬停才把拇指显出来」的机器，
+                所以拇指常显，靠外层行高 8 DIP 把它整个关在卡片内，不戳到圆角外面。
+            -->
+            <Style x:Key="MiniPlayerProgressSliderStyle" TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
+                <Setter Property="Height" Value="8" />
+                <Setter Property="MinHeight" Value="8" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="{ThemeResource ControlStrongFillColorDefaultBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                <Setter Property="IsThumbToolTipEnabled" Value="False" />
+            </Style>
+
+            <!-- 音量滑条。与上面那条的差别只有高度与拇指：音量是要抓的，得看得见、抓得住。 -->
+            <Style x:Key="MiniPlayerVolumeSliderStyle" TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
+                <Setter Property="Height" Value="24" />
+                <Setter Property="MinHeight" Value="24" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="{ThemeResource ControlStrongFillColorDefaultBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                <Setter Property="IsThumbToolTipEnabled" Value="False" />
+            </Style>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--
+            贴边收起后的窄条。收起不是把窗口推出屏幕（那样露出来的是随机一片内容），
+            而是把窗口宽度真的缩到 8 DIP 并贴住工作区边缘，内容换成这一条把手。
+            它整条都开着 WS_EX_TRANSPARENT，免得吃掉屏幕边上前台窗口的点击。
+        -->
+        <Border
+            x:Name="CollapsedStrip"
+            Grid.RowSpan="3"
+            Visibility="Collapsed"
+            Background="{ThemeResource CommentPanelBackgroundBrush}"
+            BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+            BorderThickness="1" />
+
+        <!--
+            面板与悬停抽屉共用这一块地方，靠 Grid.Row 在内容条的上/下之间换位。
+
+            高度由 code-behind 按方案给（队列面板向空间大的那边自适应，悬停抽屉固定向下
+            并压到可用高度）；两侧只显示一个。
+        -->
+        <Grid x:Name="PanelHost" Grid.Row="2" Visibility="Collapsed">
+            <Border
+                x:Name="QueueCard"
+                Visibility="Collapsed"
+                Background="{ThemeResource CommentPanelBackgroundBrush}">
+                <controls:PlayQueuePanel
+                    x:Name="QueueView"
+                    ClearRequested="OnClearQueueRequested"
+                    CloseRequested="OnCloseQueueRequested"
+                    ViewModel="{x:Bind Queue}" />
+            </Border>
+
+            <!--
+                悬停抽屉：鼠标进来时弹出，显示歌名 + 歌手。
+                因为那时内容条上的那块位置已经换成传输按钮了，曲名得另找地方放。
+
+                **一行就够了** —— 两行那种块状抽屉在一条 64 DIP 的横条旁边显得很重。
+            -->
+            <Border
+                x:Name="TrackDrawer"
+                Visibility="Collapsed"
+                Background="{ThemeResource CommentPanelBackgroundBrush}"
+                Padding="14,0">
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="10">
+                    <TextBlock
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Text="{x:Bind Player.Title, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="NoWrap" />
+                    <TextBlock
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind Player.ArtistText, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="NoWrap" />
+                </StackPanel>
+            </Border>
+
+        </Grid>
+
+        <Border
+            x:Name="Bar"
+            Grid.Row="1"
+            Background="{ThemeResource CommentPanelBackgroundBrush}"
+            CornerRadius="12">
+            <Grid x:Name="BarContent">
+                <Grid.RowDefinitions>
+                    <!-- 内容 56 + 进度 8 = 64（MiniPlayerWindow.BarHeightDip），封面正好占满整条高度。
+                         进度行给到 8 而不是 2：那是拖动跳转的命中带，太窄不好按。 -->
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="8" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <!-- 封面列靠下面那个 Grid 自己的 Width 撑开（见 Cover 的说明）。 -->
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!--
+                    封面：跨两行、占满整条高度、与窗口左边缘齐平。
+
+                    ★ 图片走 Border.Background 的 ImageBrush，**不是** Border 的子元素 ——
+                      Border 的圆角只裁自己的背景画刷、不裁子树，写成
+                      `<Border CornerRadius=".."><Image/></Border>` 出来是直角封面。
+                      下面的纯色 Border 是无封面时的兜底，同样被圆角裁。
+                -->
+                <!--
+                    ★ 宽度必须显式给。里面两个 Border 都只画背景、没有自己的尺寸，
+                      不给宽度的话 Auto 列会塌成 0 宽，封面整块看不见（踩过）。
+                      64 = 条高（MiniPlayerWindow.BarHeightDip），跨两行正好是正方形。
+
+                      宽度写在**这个 Grid** 上而不是 ColumnDefinition 上：
+                      ColumnDefinition.Width 是 GridLength，接不了 <x:Double> 资源，
+                      写 {StaticResource ...} 会在启动时抛 XamlParseException。
+                -->
+                <Grid Grid.RowSpan="2" Grid.Column="0" Width="64">
+                    <Border x:Name="CoverFallback" Background="{ThemeResource ControlFillColorDefaultBrush}" />
+                    <Border x:Name="Cover">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{x:Bind Player.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
+                        </Border.Background>
+                    </Border>
+                </Grid>
+
+                <!--
+                    信息区三种状态，三层叠在同一格，靠 Visibility 切换（不占额外空间、布局不跳）：
+
+                      1. 鼠标悬浮  → 传输按钮（参考图里小窗上没有播放控制，但一点控都没有
+                        等于要暂停就得回主窗口，所以悬浮时原地换出来）
+                      2. 播放中且有歌词 → 一行歌词（只一行，跟着当前句换）
+                      3. 其余（暂停 / 没歌词）→ 歌名 + 歌手
+                -->
+                <Grid Grid.Row="0" Grid.Column="1" MinWidth="0" Padding="12,0">
+                    <TextBlock
+                        x:Name="LyricLineText"
+                        FontSize="13"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Text="{x:Bind Lyrics.CurrentLineText, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="NoWrap"
+                        Visibility="Collapsed" />
+
+                    <StackPanel x:Name="InfoPanel" MinWidth="0" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Text="{x:Bind Player.Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis"
+                            ToolTipService.ToolTip="{x:Bind Player.Title, Mode=OneWay}" />
+                        <TextBlock
+                            FontSize="11"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind Player.ArtistText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                    </StackPanel>
+
+                    <StackPanel
+                        x:Name="TransportPanel"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="10"
+                        Visibility="Collapsed">
+                        <Button
+                            AutomationProperties.Name="上一首"
+                            Click="OnPreviousClick"
+                            IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}"
+                            Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            ToolTipService.ToolTip="上一首">
+                            <controls:Icon Data="{StaticResource IconPrevious}" Size="18" />
+                        </Button>
+                        <Button
+                            AutomationProperties.Name="播放 / 暂停"
+                            Click="OnPlayPauseClick"
+                            Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            ToolTipService.ToolTip="播放 / 暂停">
+                            <Grid>
+                                <controls:Icon
+                                    Data="{StaticResource IconPlay}"
+                                    Size="18"
+                                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsPlaying), Mode=OneWay}" />
+                                <controls:Icon
+                                    Data="{StaticResource IconPause}"
+                                    Size="18"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsPlaying), Mode=OneWay}" />
+                            </Grid>
+                        </Button>
+                        <Button
+                            AutomationProperties.Name="下一首"
+                            Click="OnNextClick"
+                            IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}"
+                            Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            ToolTipService.ToolTip="下一首">
+                            <controls:Icon Data="{StaticResource IconNext}" Size="18" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 收藏 / 音量 / 队列，都用播放条那颗同款 32 圆图标按钮。 -->
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.Column="2"
+                    Margin="0,0,4,0"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="4">
+                    <controls:TrackStatisticButton
+                        ActiveData="{StaticResource IconHeartFilled}"
+                        Command="{x:Bind Player.ToggleFavoriteCommand}"
+                        Data="{StaticResource IconHeart}"
+                        IsActive="{x:Bind Player.Statistics.IsFavorite, Mode=OneWay}"
+                        Label="收藏" />
+                    <!--
+                        音量。**不复用 VolumeButton** —— 它弹出的是一条竖直滑条，在 64 DIP 高的
+                        小窗上会被裁掉（那个控件里还有一条「任何宿主页都不许改成横向滑条」的约束，
+                        所以这里另起一颗，不复用它）。两者共用同一个 Player.Volume，值仍然一致。
+                    -->
+                    <Button
+                        x:Name="VolumeButton"
+                        AutomationProperties.Name="音量"
+                        Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        ToolTipService.ToolTip="音量">
+                        <Button.Flyout>
+                            <!--
+                                ★ ShouldConstrainToRootBounds="False" 不能省。
+                                它默认是 true，含义是「弹层必须待在应用窗口内」—— 而这条弹层
+                                比 64 DIP 高的窗口还高，上方根本放不下，于是 Placement="Top"
+                                会被翻转成朝下（第一版就是这个症状）。
+                                置为 false 才允许它落到窗口外面去。
+                            -->
+                            <Flyout
+                                x:Name="VolumeFlyout"
+                                Closed="OnVolumeFlyoutClosed"
+                                Opened="OnVolumeFlyoutOpened"
+                                Placement="Top"
+                                ShouldConstrainToRootBounds="False">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="Padding" Value="12,10" />
+                                        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <controls:Icon
+                                        Data="{StaticResource IconVolume}"
+                                        Size="16"
+                                        VerticalAlignment="Center" />
+                                    <Slider
+                                        x:Name="VolumeSlider"
+                                        Width="140"
+                                        AutomationProperties.Name="音量"
+                                        Maximum="100"
+                                        Minimum="0"
+                                        Style="{StaticResource MiniPlayerVolumeSliderStyle}"
+                                        Value="{x:Bind Player.Volume, Mode=TwoWay}">
+                                        <Slider.Resources>
+                                            <x:Double x:Key="SliderTrackThemeHeight">3</x:Double>
+                                            <x:Double x:Key="SliderHorizontalHeight">24</x:Double>
+                                            <x:Double x:Key="SliderPreContentMargin">0</x:Double>
+                                            <x:Double x:Key="SliderPostContentMargin">0</x:Double>
+                                            <x:Double x:Key="SliderHorizontalThumbWidth">12</x:Double>
+                                            <x:Double x:Key="SliderHorizontalThumbHeight">12</x:Double>
+                                            <x:Double x:Key="SliderInnerThumbWidth">0</x:Double>
+                                            <x:Double x:Key="SliderInnerThumbHeight">0</x:Double>
+                                        </Slider.Resources>
+                                    </Slider>
+                                    <TextBlock
+                                        MinWidth="30"
+                                        VerticalAlignment="Center"
+                                        FontSize="11"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind local:Formats.Percent(Player.Volume), Mode=OneWay}" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                        <Grid>
+                            <controls:Icon
+                                Data="{StaticResource IconVolume}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsMuted), Mode=OneWay}" />
+                            <controls:Icon
+                                Data="{StaticResource IconVolumeMute}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsMuted), Mode=OneWay}" />
+                        </Grid>
+                    </Button>
+                    <Button
+                        x:Name="QueueButton"
+                        AutomationProperties.Name="播放队列"
+                        Click="OnQueueClick"
+                        Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        ToolTipService.ToolTip="播放队列">
+                        <controls:Icon Data="{StaticResource IconQueue}" Size="16" />
+                    </Button>
+                </StackPanel>
+
+                <!-- ✕ 在上、▢ 在下，与参考图一致。 -->
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.Column="3"
+                    Margin="0,0,6,0"
+                    VerticalAlignment="Center">
+                    <Button
+                        x:Name="CloseButton"
+                        AutomationProperties.Name="关闭小窗"
+                        Click="OnCloseClick"
+                        Style="{StaticResource MiniPlayerGlyphButtonStyle}"
+                        ToolTipService.ToolTip="关闭小窗">
+                        <controls:Icon Data="{StaticResource IconDismiss}" Size="14" />
+                    </Button>
+                    <Button
+                        x:Name="ReturnButton"
+                        AutomationProperties.Name="回到主界面"
+                        Click="OnReturnToMainClick"
+                        Style="{StaticResource MiniPlayerGlyphButtonStyle}"
+                        ToolTipService.ToolTip="回到主界面">
+                        <controls:Icon Data="{StaticResource IconWindow}" Size="14" />
+                    </Button>
+                </StackPanel>
+
+                <!--
+                    细进度线。从封面右沿一路铺到条的最下沿，右端留出圆角那 12 DIP ——
+                    铺满会在卡片的圆角上戳出两个小方块，拇指贴到最右时也会顶出圆角。
+                    拖动跳转与播放条同一套：按下只标记 IsSeeking，松开才 seek。
+                -->
+                <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,12,0">
+                    <!--
+                        ★ 指针事件走 code-behind 的 AddHandler(handledEventsToo: true)，
+                          不在这里挂 PointerPressed/PointerReleased —— Slider 内部会把指针事件
+                          标记为已处理，XAML 上的处理器根本收不到。症状是「能拖，但不影响进度」，
+                          播放条那颗进度条用的是同一条路（见 PlayerBar 的构造）。
+                    -->
+                    <Slider
+                        x:Name="ProgressSlider"
+                        AutomationProperties.Name="播放进度"
+                        Maximum="{x:Bind Player.ProgressMaximum, Mode=OneWay}"
+                        Style="{StaticResource MiniPlayerProgressSliderStyle}"
+                        Value="{x:Bind Player.PositionSeconds, Mode=OneWay}">
+                        <Slider.Resources>
+                            <x:Double x:Key="SliderTrackThemeHeight">2</x:Double>
+                            <x:Double x:Key="SliderHorizontalHeight">8</x:Double>
+                            <x:Double x:Key="SliderPreContentMargin">0</x:Double>
+                            <x:Double x:Key="SliderPostContentMargin">0</x:Double>
+
+                            <!--
+                                ★ 拇指**画成透明**，不是把尺寸给 0。
+                                尺寸给 0 会让 Slider 自己的拖动逻辑变脆（轨迹与命中都按拇指宽算），
+                                而把它涂成透明既看不见、拖动又完全照常。
+                                它只有 2 DIP 的轨道要配，所以连内点一起藏掉。
+                            -->
+                            <x:Double x:Key="SliderHorizontalThumbWidth">8</x:Double>
+                            <x:Double x:Key="SliderHorizontalThumbHeight">8</x:Double>
+                            <x:Double x:Key="SliderInnerThumbWidth">4</x:Double>
+                            <x:Double x:Key="SliderInnerThumbHeight">4</x:Double>
+                            <SolidColorBrush x:Key="SliderThumbBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="Transparent" />
+                            <SolidColorBrush x:Key="SliderInnerThumbBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="SliderInnerThumbBackgroundPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="SliderInnerThumbBackgroundPressed" Color="Transparent" />
+                        </Slider.Resources>
+                    </Slider>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

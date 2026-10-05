@@ -111,8 +111,18 @@ public sealed partial class LyricsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsDesktopLyricsOpen { get; set; }
 
+    /// <summary>
+    /// 小窗开着。与上面两个<b>并列的第三个取词来源</b>。
+    /// </summary>
+    /// <remarks>
+    /// 小窗在播放时那一行位置显示的就是当前歌词，所以它也需要一份文档 ——
+    /// 跟前两处一样，只开小窗时同样要取词。由 <c>MiniPlayerViewModel</c> 驱动。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool IsMiniPlayerOpen { get; set; }
+
     /// <summary>还有没有人需要歌词。它是「取不取词」的唯一判据。</summary>
-    private bool IsActive => IsOpen || IsDesktopLyricsOpen;
+    private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 
     /// <summary>当前有没有在播的歌。没有时歌词按钮是灰的。</summary>
     [ObservableProperty]
@@ -170,6 +180,21 @@ public sealed partial class LyricsViewModel : ObservableObject
     [ObservableProperty]
     public partial int CurrentIndex { get; set; } = -1;
 
+    /// <summary>
+    /// 当前行的文本；没有歌词、或还停在第一行之前（唱片头空白）时是空串。
+    /// </summary>
+    /// <remarks>
+    /// <b>小窗那一行歌词读它。</b> 行下标跟随引擎低频上报，不是每帧更新，
+    /// 所以这里当普通绑定属性用不会把高频刷新带进界面。
+    /// </remarks>
+    public string CurrentLineText => CurrentIndex >= 0 && CurrentIndex < Document.Lines.Count
+        ? Document.Lines[CurrentIndex].Text
+        : "";
+
+    partial void OnCurrentIndexChanged(int value) => OnPropertyChanged(nameof(CurrentLineText));
+
+    partial void OnDocumentChanged(LyricDocument value) => OnPropertyChanged(nameof(CurrentLineText));
+
     [RelayCommand]
     private Task RetryAsync() => _coordinator.CurrentTrack is { } track
         ? LoadAsync(track)
@@ -202,7 +227,9 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     partial void OnIsDesktopLyricsOpenChanged(bool value) => OnActivationChanged();
 
-    /// <summary>两个来源任一被打开时刷新一次；都关掉时不动已装载的内容。</summary>
+    partial void OnIsMiniPlayerOpenChanged(bool value) => OnActivationChanged();
+
+    /// <summary>三个来源任一被打开时刷新一次；都关掉时不动已装载的内容。</summary>
     private void OnActivationChanged()
     {
         if (IsActive)

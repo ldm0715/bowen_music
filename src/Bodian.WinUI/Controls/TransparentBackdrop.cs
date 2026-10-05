@@ -104,7 +104,7 @@ public sealed class TransparentBackdrop : SystemBackdrop
             NativeMethods.DeleteObject(region);
         }
 
-        _logger.LogInformation("桌面歌词 spike · DWM：扩帧=0x{Extend:X8} 模糊=0x{Blur:X8}", extend, enableBlur);
+        _logger.LogInformation("透明悬浮窗 · DWM：扩帧=0x{Extend:X8} 模糊=0x{Blur:X8}", extend, enableBlur);
     }
 
     /// <remarks>
@@ -117,7 +117,7 @@ public sealed class TransparentBackdrop : SystemBackdrop
 
         if (!NativeMethods.SetWindowSubclass(_windowHandle, _messageHandler, SubclassId, 0))
         {
-            _logger.LogWarning("桌面歌词 spike · 拦截 WM_ERASEBKGND 失败");
+            _logger.LogWarning("透明悬浮窗 · 拦截 WM_ERASEBKGND 失败");
         }
     }
 

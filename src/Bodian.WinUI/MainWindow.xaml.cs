@@ -117,6 +117,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         PlayerViewModel playerViewModel,
         LyricsViewModel lyricsViewModel,
         DesktopLyricsViewModel desktopLyrics,
+        MiniPlayerViewModel miniPlayer,
         PlayQueueViewModel queueViewModel,
         AccountViewModel account,
         SidebarViewModel sidebar,
@@ -133,6 +134,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ArgumentNullException.ThrowIfNull(playerViewModel);
         ArgumentNullException.ThrowIfNull(lyricsViewModel);
         ArgumentNullException.ThrowIfNull(desktopLyrics);
+        ArgumentNullException.ThrowIfNull(miniPlayer);
         ArgumentNullException.ThrowIfNull(queueViewModel);
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(sidebar);
@@ -152,6 +154,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Player = playerViewModel;
         Notifications = notifications;
         Queue = queueViewModel;
+        MiniPlayer = miniPlayer;
         Account = account;
         Search = search;
         Theme = theme;
@@ -174,6 +177,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         // 先同步保存的档位，再订阅选择事件，避免初始化时把设置改成第一个选项。
         SyncThemeSelection();
         ThemeOptions.SelectionChanged += OnThemeSelectionChanged;
+
+        MiniPlayer.PropertyChanged += OnMiniPlayerPropertyChanged;
+        UpdateMiniPlayerButtonState();
 
         // 曲目列表靠这个知道「哪一行在播」。
         //
@@ -201,7 +207,13 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
                     if (!IsMinimized && !_immersiveVisible) AppTitleBar.RecomputeDragRegions();
                 });
         };
-        Closed += (_, _) => { _closed = true; _renderActivity.Dispose(); SaveWindowPlacement(); };
+        Closed += (_, _) =>
+        {
+            _closed = true;
+            MiniPlayer.PropertyChanged -= OnMiniPlayerPropertyChanged;
+            _renderActivity.Dispose();
+            SaveWindowPlacement();
+        };
 
         // 歌词页与 MV 页都是全窗沉浸，进 ImmersiveHost；其余进常规的 PageHost。
         _navigation.Attach(PageHost, page => page is LyricsPage or MvPage ? ImmersiveHost : PageHost);
@@ -243,6 +255,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     /// <summary>右侧播放队列抽屉。绑在 <c>QueueOverlay</c> 的显隐上。</summary>
     public PlayQueueViewModel Queue { get; }
+
+    /// <summary>标题栏那颗小窗按钮的开关。</summary>
+    public MiniPlayerViewModel MiniPlayer { get; }
 
     /// <summary>标题栏账号入口的数据源。</summary>
     public AccountViewModel Account { get; }
@@ -313,6 +328,25 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppTheme.Dark => DarkThemeOption,
         _ => SystemThemeOption,
     };
+
+    private void OnMiniPlayerClick(object sender, RoutedEventArgs e)
+        => MiniPlayer.ToggleCommand.Execute(null);
+
+    private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MiniPlayerViewModel.IsEnabled))
+        {
+            UpdateMiniPlayerButtonState();
+        }
+    }
+
+    /// <remarks>
+    /// 激活态的着色走 XAML 里的 VisualState，不在这里直接设画刷 ——
+    /// 直接设会用一次 <c>ThemeResource</c> 的结果永久盖住，切主题后前景不跟着变。
+    /// </remarks>
+    private void UpdateMiniPlayerButtonState()
+        => VisualStateManager.GoToState(
+            MiniPlayerButton, MiniPlayer.IsEnabled ? "MiniPlayerActive" : "MiniPlayerInactive", false);
 
     private void OnThemeSelectionChanged(object sender, SelectionChangedEventArgs args)
     {

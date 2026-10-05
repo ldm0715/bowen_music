@@ -85,6 +85,7 @@
 | [`play-queue.md`](docs/play-queue.md) | 播放队列与播放模式：队列的「排列 + 游标」结构、三种模式语义、加入队列入口、右侧抽屉、图标来源与验证 |
 | [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`mv.md`](docs/mv.md) | MV 播放：三处入口、沉浸 MV 页、画面比例、音视频互斥与验收 |
+| [`mini-player.md`](docs/mini-player.md) | 小窗（迷你播放器）：透明圆角浮窗、悬停抽屉与传输区、按空间择向的队列面板、贴边收起与验收 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |
 

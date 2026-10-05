@@ -163,6 +163,17 @@ public partial class App : Application
         builder.Services.AddSingleton<Func<DesktopLyricsWindow>>(sp =>
             sp.GetRequiredService<DesktopLyricsWindow>);
         builder.Services.AddSingleton<DesktopLyricsWindowHost>();
+
+        // 小窗。位置单独一份文件，理由与桌面歌词那条一样：三份窗口几何混用会互相覆盖。
+        builder.Services.AddSingleton<IMiniPlayerPlacementStore>(sp => new MiniPlayerPlacementStore(
+            logger: sp.GetRequiredService<ILogger<JsonWindowPlacementStore>>()));
+        builder.Services.AddSingleton<MiniPlayerViewModel>();
+
+        // 窗口本身是 transient，但由宿主单例懒创建、藏起来之后复用 —— 见 MiniPlayerWindowHost。
+        builder.Services.AddTransient<MiniPlayerWindow>();
+        builder.Services.AddSingleton<Func<MiniPlayerWindow>>(sp =>
+            sp.GetRequiredService<MiniPlayerWindow>);
+        builder.Services.AddSingleton<MiniPlayerWindowHost>();
         builder.Services.AddSingleton<PlayQueueViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
@@ -329,8 +340,9 @@ public partial class App : Application
             //   症状是「播放 MV 时点关闭直接卡死」。关窗口不走导航，页面收不到离场通知。
             window.TearDownForShutdown();
 
-            // 桌面歌词窗也是独立的窗口，不关掉它进程不会退出。
+            // 桌面歌词窗与小窗也是独立的窗口，不关掉它们进程不会退出。
             _host.Services.GetRequiredService<DesktopLyricsWindowHost>().Dispose();
+            _host.Services.GetRequiredService<MiniPlayerWindowHost>().Dispose();
 
             // 先撤 SMTC 会话（它读引擎状态，得在引擎之前放）。
             _host.Services.GetRequiredService<SmtcManager>().Dispose();
@@ -355,6 +367,9 @@ public partial class App : Application
         // 同上：解析一次，否则这个单例永远不会被实例化，对播放条那颗按钮的订阅也就不存在。
         // 它自己不会建窗口 —— 窗口是开到桌面歌词时才懒创建的。
         _host.Services.GetRequiredService<DesktopLyricsWindowHost>();
+
+        // 同上：小窗宿主也是懒初始化的，不解析一次就永远没人订阅标题栏那颗按钮。
+        _host.Services.GetRequiredService<MiniPlayerWindowHost>();
 
         // 开始菜单快捷方式要在窗口起来之后再补 —— 系统媒体面板的应用名与图标取自它。
         // 同步做（不挪后台线程）：COM 的 ShellLink 是 STA 对象，UI 线程是 STA，

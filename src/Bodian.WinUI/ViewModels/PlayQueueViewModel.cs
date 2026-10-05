@@ -56,6 +56,28 @@ public sealed partial class PlayQueueViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 小窗那条播放队列面板是不是开着。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="IsOpen"/> 分开是必须的，不是一个布尔抄了两遍。</b>
+    /// <see cref="IsOpen"/> 被主窗口的抽屉独占（抽屉的显隐直接绑它），而小窗与主窗口
+    /// 可能同时开着：小窗的面板去改 <see cref="IsOpen"/> 会把主窗口的抽屉一起拉开；
+    /// 反过来不改，<see cref="RefreshIfOpen"/> 会早早返回，小窗面板里显示的是陈旧队列。
+    /// 两个开关共用同一份 <see cref="Rows"/>，所以两处看到的队列仍然一致。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool IsMiniPlayerOpen { get; set; }
+
+    partial void OnIsMiniPlayerOpenChanged(bool value)
+    {
+        // 理由同 OnIsOpenChanged：打开时补一次。
+        if (value)
+        {
+            Refresh();
+        }
+    }
+
     /// <summary>跳到第 <paramref name="position"/> 首并开始播。</summary>
     public void Play(int position) => _ = _coordinator.PlayQueueItemAsync(position);
 
@@ -76,7 +98,8 @@ public sealed partial class PlayQueueViewModel : ObservableObject
 
     private void RefreshIfOpen()
     {
-        if (!IsOpen)
+        // 两个宿主任意一个开着就要重建 —— 见 IsMiniPlayerOpen 的说明。
+        if (!IsOpen && !IsMiniPlayerOpen)
         {
             return;
         }

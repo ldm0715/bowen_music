@@ -87,6 +87,21 @@ public static class AppPaths
     /// </remarks>
     public static string DesktopLyricsWindowFile => Path.Combine(LocalAppData, "desktop-lyrics-window.json");
 
+    /// <summary>
+    /// 小窗（迷你播放器）的位置（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 同样复用 <c>JsonWindowPlacementStore</c> 的类型、只换路径。三份窗口几何各占一个文件：
+    /// 主窗口、桌面歌词条、小窗，任何一个与别人共用都会互相覆盖。
+    /// </para>
+    /// <para>
+    /// <b>只记位置，不记「贴边收起」</b>：收起是临时让路的状态，重启后小窗应该看得见，
+    /// 而不是缩在屏幕边上让人以为丢了。
+    /// </para>
+    /// </remarks>
+    public static string MiniPlayerWindowFile => Path.Combine(LocalAppData, "mini-player-window.json");
+
     /// <summary>日志目录。</summary>
     public static string LogDirectory => Path.Combine(LocalAppData, "logs");
 }

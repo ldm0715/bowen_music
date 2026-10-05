@@ -107,6 +107,10 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetForegroundWindow(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool IsIconic(nint window);
 
     internal delegate nint SubclassProc(nint window, uint message, nuint wParam, nint lParam,
@@ -226,6 +230,9 @@ internal static class NativeMethods
 
     /// <summary><c>SWP_FRAMECHANGED</c>：让上面刚改的样式立刻生效。</summary>
     internal const uint SwpFrameChanged = 0x0020;
+
+    /// <summary><c>SW_RESTORE</c>。把最小化的窗口还原成原来的大小与位置。</summary>
+    internal const int SwRestore = 9;
 
     /// <summary><c>GA_ROOT</c>。</summary>
     internal const uint GaRoot = 2;
