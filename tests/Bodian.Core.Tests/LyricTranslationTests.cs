@@ -117,6 +117,40 @@ public sealed class LyricTranslationTests
         Assert.Equal([true, false, true], Marked(document));
     }
 
+    // ── 有没有译文（界面拿它决定开关能不能点）────────────────────────────────
+
+    [Fact]
+    public void HasTranslation_TrueForPairedSample()
+    {
+        Assert.True(BodianLyricParser.Parse(PairedSample).HasTranslation);
+    }
+
+    [Fact]
+    public void HasTranslation_FalseForChineseSongs()
+    {
+        Assert.False(BodianLyricParser.Parse(Fixtures.Read("lyric-228908-lrcx1.lrc")).HasTranslation);
+    }
+
+    [Fact]
+    public void HasTranslation_FalseWhenThereIsNoLyricAtAll()
+    {
+        Assert.False(LyricDocument.Empty.HasTranslation);
+    }
+
+    /// <summary>
+    /// 剔除之后就问不出来了 —— 界面必须在<b>完整</b>文档上问这个问题。
+    /// </summary>
+    /// <remarks>
+    /// 拿过滤后的 <c>Document</c> 去问 <c>HasTranslation</c> 永远是 <c>false</c>，
+    /// 那颗开关就会在译文开着的时候自己禁掉，点都点不回去。
+    /// <c>LyricsViewModel.SyncDocument</c> 先问 <c>_fullDocument</c> 再投影，守的就是这条。
+    /// </remarks>
+    [Fact]
+    public void HasTranslation_FalseAfterStripping()
+    {
+        Assert.False(BodianLyricParser.Parse(PairedSample).WithoutTranslations().HasTranslation);
+    }
+
     // ── 剔除 ────────────────────────────────────────────────────────────────
 
     [Fact]

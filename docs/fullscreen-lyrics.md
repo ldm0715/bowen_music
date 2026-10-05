@@ -316,6 +316,10 @@ Get-ChildItem -LiteralPath $compiledXaml -Recurse -Filter '*.xbf' | ForEach-Obje
 **状态：已实现，等前端观感验收。** 顶部标题栏多了一颗「译」按钮（在「全屏」左边），
 控制歌词页显不显示译文。它**不影响桌面歌词条**。
 
+**没有译文的歌整颗禁用**（中文歌、逐行版认不出译文的歌都算），提示换成「这首歌没有译文」。
+判据是文档里有没有 `IsTranslation` 的行，**不去问 `lrc_info`** —— 渲染什么就问什么，
+接口说有译文轨、内容里却没有这种不一致坑不到我们。
+
 ### 译文从哪来
 
 **不是另一条轨，也不用新请求。** 外文歌那份歌词内容里，原文行与中文译文行**成对**出现：
@@ -372,11 +376,12 @@ Get-ChildItem -LiteralPath $compiledXaml -Recurse -Filter '*.xbf' | ForEach-Obje
 | 偏好 | `Models/LyricsSettings.cs`（`ShowTranslation`，默认开） |
 | 存储 | `JsonLyricsSettingsStore` → `%LOCALAPPDATA%\Bodian\lyrics.json`（PascalCase 属性名，与其它设置一致） |
 | 生效 | `LyricsViewModel.ShowTranslation`：构造时同步读出（避免首帧闪一下），改动即落盘并重投影 `Document` |
-| 界面 | `LyricsPage` 顶栏那颗按钮；开/关只差图标不透明度，提示文案跟着翻面 |
+| 可用性 | `LyricDocument.HasTranslation` → `LyricsViewModel.HasTranslation`：**必须在未过滤的 `_fullDocument` 上算**，投影后的 `Document` 上永远是 `false` |
+| 界面 | `LyricsPage` 顶栏那颗按钮：`IsEnabled` 绑 `HasTranslation`；开/关只差图标不透明度；提示文案三种（显示译文／关闭译文／这首歌没有译文） |
 
 **默认开**：译文本来就在内容里、客户端此前一直显示，这个开关只是给用户一个关掉的办法，
 不是新增一种显示。所以默认行为与加开关之前完全一致。
 
 回归：`LyricTranslationTests`（标记、顺序颠倒、空行成组、三行一组、重复时间戳不误标、
-逐行版不标、中文歌不标、剔除后 `Start`/`Duration`/`IndexOfLineAt` 不变）与
-`LyricsSettingsStoreTests`。
+逐行版不标、中文歌不标、`HasTranslation` 四种情形、剔除后 `Start`/`Duration`/`IndexOfLineAt` 不变）
+与 `LyricsSettingsStoreTests`。

@@ -156,6 +156,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _window.RenderingStateChanged += OnWindowRenderingStateChanged;
         _window.AppWindow.Changed += OnAppWindowChanged;
         Player.PropertyChanged += OnPlayerChanged;
+        Lyrics.PropertyChanged += OnLyricsChanged;
         _pointerOverChrome = false;
         _keyboardInteractionActive = false;
         _lastCursorPoint = null;
@@ -183,6 +184,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _window.RenderingStateChanged -= OnWindowRenderingStateChanged;
         _window.AppWindow.Changed -= OnAppWindowChanged;
         Player.PropertyChanged -= OnPlayerChanged;
+        Lyrics.PropertyChanged -= OnLyricsChanged;
         _volumePopupOpen = false;
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
@@ -585,17 +587,41 @@ public sealed partial class LyricsPage : Page, INavigationAware
     }
 
     /// <summary>
-    /// 把译文按钮的外观对齐到 <see cref="LyricsViewModel.ShowTranslation"/>。
+    /// 把译文按钮的外观对齐到 <see cref="LyricsViewModel.HasTranslation"/> 与
+    /// <see cref="LyricsViewModel.ShowTranslation"/>。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <b>开关只差不透明度，不换图标。</b> 开与关是同一个动作的两态，换字形就要维护两张图；
     /// 而「变淡」本来就是这套界面里既有的「没生效」表达（禁用态也是靠前景色变淡）。
     /// 提示文案跟着翻面，鼠标停在上面能看出下一步会发生什么。
+    /// </para>
+    /// <para>
+    /// <b>这首歌没有译文时整颗禁用</b>（按钮的 <c>IsEnabled</c> 绑的是 <c>HasTranslation</c>），
+    /// 提示也跟着换成「没有译文」—— 否则用户点了没反应，只会以为开关坏了。
+    /// 这时不透明度交回 1，让模板的禁用态去负责变淡，免得两种「淡」叠在一起。
+    /// </para>
     /// </remarks>
     private void SyncTranslation()
     {
+        if (!Lyrics.HasTranslation)
+        {
+            TranslationIcon.Opacity = 1;
+            ToolTipService.SetToolTip(TranslationButton, "这首歌没有译文");
+            return;
+        }
+
         TranslationIcon.Opacity = Lyrics.ShowTranslation ? 1 : 0.45;
         ToolTipService.SetToolTip(TranslationButton, Lyrics.ShowTranslation ? "关闭译文" : "显示译文");
+    }
+
+    /// <summary>译文按钮的状态由 ViewModel 两位共同决定，任一变化都要重画。</summary>
+    private void OnLyricsChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(LyricsViewModel.HasTranslation) or nameof(LyricsViewModel.ShowTranslation))
+        {
+            SyncTranslation();
+        }
     }
 
     private async void OnFullscreenClick(object sender, RoutedEventArgs args) => await ToggleFullscreenAsync();

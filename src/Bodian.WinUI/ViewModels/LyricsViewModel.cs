@@ -155,6 +155,17 @@ public sealed partial class LyricsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool ShowTranslation { get; set; }
 
+    /// <summary>
+    /// 当前这首有没有译文行。没有时「显示译文」那颗开关<b>禁用</b>。
+    /// </summary>
+    /// <remarks>
+    /// <b>由文档本身判，不去问 <c>lrc_info</c>。</b> 渲染什么就问什么 ——
+    /// 接口说有译文轨、内容里却没有这种不一致坑不到我们；中文歌与逐行版自然为 <c>false</c>。
+    /// 它读的是那个未过滤的 <see cref="_fullDocument"/>，见 <see cref="SyncDocument"/>。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool HasTranslation { get; set; }
+
     /// <summary>当前行的下标；不在任何行里时为 <c>-1</c>。</summary>
     [ObservableProperty]
     public partial int CurrentIndex { get; set; } = -1;
@@ -283,6 +294,9 @@ public sealed partial class LyricsViewModel : ObservableObject
     /// </remarks>
     private void SyncDocument()
     {
+        // 先问完整文档有没有译文，再决定投影成哪一份 —— 顺序反了就永远问不出 true。
+        HasTranslation = _fullDocument.HasTranslation;
+
         Document = ShowTranslation ? _fullDocument : _fullDocument.WithoutTranslations();
         CurrentIndex = -1;
         UpdateCurrentLine(_engine.Position);
@@ -292,6 +306,7 @@ public sealed partial class LyricsViewModel : ObservableObject
     {
         _fullDocument = LyricDocument.Empty;
         Document = LyricDocument.Empty;
+        HasTranslation = false;
         _loadedTrackId = 0;
         CurrentIndex = -1;
     }

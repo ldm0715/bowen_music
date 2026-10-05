@@ -66,6 +66,7 @@
                         <!-- 译文的开关。与全屏那颗同一个模板；开/关只差图标的不透明度，
                              见 LyricsPage.xaml.cs 的 SyncTranslation。 -->
                         <Button x:Name="TranslationButton" Click="OnTranslationClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            IsEnabled="{x:Bind Lyrics.HasTranslation, Mode=OneWay}"
                             AutomationProperties.Name="显示译文">
                             <Button.Resources>
                                 <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，

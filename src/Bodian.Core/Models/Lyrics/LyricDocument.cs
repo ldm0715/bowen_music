@@ -39,6 +39,35 @@ public sealed record LyricDocument(IReadOnlyList<LyricLine> Lines, LyricKind Kin
     public bool IsEmpty => Lines.Count == 0;
 
     /// <summary>
+    /// 文档里有没有译文行。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 界面拿它决定「显示译文」那颗开关能不能点。中文歌、以及逐行版认不出译文的歌
+    /// （见 <c>BodianLyricParser.MarkTranslations</c>）都没有，点了不会有任何变化。
+    /// </para>
+    /// <para>
+    /// <b>要在完整文档上问这个问题</b>：译文行在 <see cref="WithoutTranslations"/> 之后就没了，
+    /// 拿剔除过的文档来问永远是 <c>false</c>。
+    /// </para>
+    /// </remarks>
+    public bool HasTranslation
+    {
+        get
+        {
+            foreach (var line in Lines)
+            {
+                if (line.IsTranslation)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 剔除译文行后的文档。本来就没有译文行时<b>返回自身</b>。
     /// </summary>
     /// <remarks>
