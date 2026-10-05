@@ -99,10 +99,12 @@ internal sealed class LyricsLineLayout : IDisposable
 
     public LyricsGlyph[] Glyphs { get; set; } = [];
     public bool GlyphsPrepared { get; set; }
-    public CanvasCommandList? PlainImage { get; set; }
-    public CanvasCommandList? FocusedImage { get; set; }
+    public CanvasRenderTarget? PlainImage { get; set; }
+    public CanvasRenderTarget? FocusedImage { get; set; }
+    public LyricsLineGlyphMask? GlyphMask { get; set; }
     public GaussianBlurEffect? Blur { get; set; }
     public bool ActivePrepared { get; set; }
+    public LyricsActiveLineImage? ActiveImage { get; set; }
 
     public float Width { get; }
 
@@ -115,10 +117,12 @@ internal sealed class LyricsLineLayout : IDisposable
             syllable.Dispose();
         }
 
+        ActiveImage?.Dispose();
         foreach (var glyph in Glyphs) glyph.Brush?.Dispose();
         Blur?.Dispose();
         PlainImage?.Dispose();
         FocusedImage?.Dispose();
+        GlyphMask?.Dispose();
         Layout.Dispose();
     }
 }
@@ -315,6 +319,7 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
             VerticalAlignment = CanvasVerticalAlignment.Top,
             LineSpacingMode = CanvasLineSpacingMode.Uniform,
             LineSpacing = (float)(settings.BaseFontSize * settings.LineHeight),
+            LineSpacingBaseline = (float)(settings.BaseFontSize * settings.LineHeight * 0.8),
         };
         var enumerator = StringInfo.GetTextElementEnumerator(line.Text);
         while (enumerator.MoveNext())
@@ -436,6 +441,8 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
 
         LineSpacingMode = CanvasLineSpacingMode.Uniform,
         LineSpacing = (float)(settings.BaseFontSize * settings.LineHeight),
+        // 固定行距同时指定基线；默认 0 会把文字画到行框上方，颜色纹理只能覆盖字形底部。
+        LineSpacingBaseline = (float)(settings.BaseFontSize * settings.LineHeight * 0.8),
     };
     }
 }

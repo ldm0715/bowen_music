@@ -50,6 +50,20 @@ public static class LyricMotionMath
             ? (target, 0) : (target + next, speed);
     }
 
+    /// <summary>焦点行向目标单向收敛；换目标时去掉反向或会越过目标的惯性。</summary>
+    public static (double Position, double Velocity) AdvanceSettlingSpring(
+        double position, double velocity, double target, double seconds, double frequency = 14)
+    {
+        if (seconds <= 0) return (position, velocity);
+        if (frequency <= 0) return (target, 0);
+        var distance = target - position;
+        if (Math.Abs(distance) < 0.001) return (target, 0);
+        var direction = Math.Sign(distance);
+        var speed = Math.Clamp(velocity * direction, 0, frequency * Math.Abs(distance));
+        var next = AdvanceSpring(position, speed * direction, target, seconds, frequency, damping: 1);
+        return direction * (target - next.Position) < 0 ? (target, 0) : next;
+    }
+
     /// <summary>将一个音节的进度按排版宽度分配到它包含的字形。</summary>
     public static double GlyphProgress(double syllableProgress, double offset, double width, double totalWidth)
         => width <= 0 || totalWidth <= 0 ? Math.Clamp(syllableProgress, 0, 1)

@@ -44,6 +44,8 @@
     <Compile Include="..\..\src\Bodian.WinUI\Services\ITrackNavigator.cs" Link="Services\ITrackNavigator.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Services\INoticeSink.cs" Link="Services\INoticeSink.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Services\IQueueSink.cs" Link="Services\IQueueSink.cs" />
+    <!-- 歌词滚动只依赖纯数学，链接正式动画器验证当前行不回弹以及错峰延迟。 -->
+    <Compile Include="..\..\src\Bodian.WinUI\LyricRenderer\LyricsScrollAnimator.cs" Link="LyricRenderer\LyricsScrollAnimator.cs" />
     <!-- 通用分页列表。只依赖 Core 的游标与 CommunityToolkit.Mvvm，不含 WinUI 类型，
          所以「播放全部」要用的 LoadAllAsync（拉完全部、触顶、中途失败）能离屏测。 -->
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\PagedList.cs" Link="ViewModels\PagedList.cs" />

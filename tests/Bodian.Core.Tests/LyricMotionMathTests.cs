@@ -115,4 +115,40 @@ public sealed class LyricMotionMathTests
     [Fact]
     public void ZeroWidthGlyphDoesNotProduceAnInvalidNumber()
         => Assert.Equal(0.5, LyricMotionMath.GlyphProgress(0.5, 0, 0, 0));
+
+    [Theory]
+    [InlineData(60)]
+    [InlineData(120)]
+    public void SettlingSpring_HasSameMotionAcrossFrameRates(int rate)
+    {
+        var direct = LyricMotionMath.AdvanceSettlingSpring(0, 100, 240, 0.3);
+        var position = 0.0;
+        var velocity = 100.0;
+        for (var frame = 0; frame < rate * 0.3; frame++)
+            (position, velocity) = LyricMotionMath.AdvanceSettlingSpring(position, velocity, 240, 1.0 / rate);
+
+        Assert.Equal(direct.Position, position, precision: 6);
+        Assert.Equal(direct.Velocity, velocity, precision: 6);
+    }
+
+    [Fact]
+    public void SettlingSpring_StopsResidualMotionAtAnAlreadyReachedAnchor()
+    {
+        var settled = LyricMotionMath.AdvanceSettlingSpring(100, 500, 100, 1.0 / 120);
+
+        Assert.Equal(100, settled.Position);
+        Assert.Equal(0, settled.Velocity);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void SettlingSpring_DoesNotAdvanceWithoutElapsedTime(double seconds)
+    {
+        var unchanged = LyricMotionMath.AdvanceSettlingSpring(100, 500, 150, seconds);
+
+        Assert.Equal(100, unchanged.Position);
+        Assert.Equal(500, unchanged.Velocity);
+    }
+
 }

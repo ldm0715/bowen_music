@@ -131,7 +131,7 @@ public sealed partial class LyricsCanvasView : UserControl
         _surfaceBrush = compositor.CreateSurfaceBrush(surface);
         _surfaceBrush.Stretch = CompositionStretch.Fill;
         _surfaceVisual = compositor.CreateSpriteVisual();
-        _surfaceVisual.RelativeSizeAdjustment = Vector2.One;
+        _surfaceVisual.RelativeSizeAdjustment = Vector2.Zero;
         _surfaceVisual.Brush = _surfaceBrush;
         ElementCompositionPreview.SetElementChildVisual(Canvas, _surfaceVisual);
         var canvasDevice = _canvasDevice;
@@ -189,7 +189,11 @@ public sealed partial class LyricsCanvasView : UserControl
     private void ResizeSurface()
     {
         if (!_loaded || _renderLoop is null || XamlRoot is null) return;
-        _renderLoop.SetViewport(Canvas.ActualWidth, Canvas.ActualHeight, XamlRoot.RasterizationScale, _fontSize);
+        var scale = XamlRoot.RasterizationScale;
+        var width = Math.Ceiling(Canvas.ActualWidth * scale) / scale;
+        var height = Math.Ceiling(Canvas.ActualHeight * scale) / scale;
+        if (_surfaceVisual is not null) _surfaceVisual.Size = new Vector2((float)width, (float)height);
+        _renderLoop.SetViewport(width, height, scale, _fontSize);
     }
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs args) => ResizeSurface();

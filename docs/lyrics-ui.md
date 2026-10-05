@@ -3,10 +3,13 @@
 **核查日期：2026-09-30。** 本文的仓库 star 数、许可证、文件路径均已用 GitHub API 核实。
 
 **实现更新（2026-10-01）**：主歌词页已改为参考本地 LyciaMusic 的全窗口沉浸布局，
-透明歌词通过 Win2D 与 `CompositionDrawingSurface` 绘制，加入逐字渐变、独立弹簧、长音浮动、
+透明歌词通过 Win2D 与 `CompositionDrawingSurface` 绘制，加入逐字渐变、所有行单向收敛与错峰起步、长音发光、
 滚轮/拖动浏览和点击选句跳转。浏览时以显示锚点附近的行作为清晰焦点，不能围绕离开视口的播放行计算模糊。
 正常播放中的高亮只前进，已唱部分不会因时钟校正而收回。
-当前实现、操作和验证见 [`fullscreen-lyrics.md`](fullscreen-lyrics.md)。
+2026-10-05 为修复当前句晃动，所有行均不越过锚点回弹，默认关闭整行和长音字形缩放。
+未唱、悬停与高亮复用整行字形像素，仅更新颜色；合成尺寸匹配实际物理像素。
+当前版本已由用户确认不再抖动。抖动反复出现的原因、修复中引入的高亮回归，以及位置与颜色必须分别验证的教训，
+见 [`fullscreen-lyrics.md`](fullscreen-lyrics.md) 的“2026-10-05 歌词抖动复盘与最终验收”。
 本文后续章节保留早期选型与视觉参考记录；旧 `CanvasAnimatedControl`、整字点亮及 BetterLyrics 参数方案
 不再是当前主歌词页的实现约定。桌面歌词也已改为 Win2D + Composition 的固定字形遮罩与颜色纹理，
 不沿用双层 TextBlock 路线；当前实现与用户验收见 [`desktop-lyrics.md`](desktop-lyrics.md)。第三方许可记录仍可参考。

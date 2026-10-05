@@ -10,7 +10,7 @@ using Windows.UI;
 
 namespace Bodian.WinUI.LyricRenderer;
 
-/// <summary>全屏歌词：独立弹簧、连续字形渐变、长音浮动及像素级边缘遮罩。</summary>
+/// <summary>全屏歌词：稳定焦点、独立错峰滚动、连续字形渐变和长音发光。</summary>
 internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<LyricsRenderer>? logger = null)
 {
     private readonly ILogger<LyricsRenderer> _logger = logger ?? NullLogger<LyricsRenderer>.Instance;
@@ -181,7 +181,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
                 if ((IsBrowsing && index == _focusIndex) || (index == hovered && !active))
                 {
-                    session.DrawImage(line.FocusedImage!);
+                    session.DrawImage(line.FocusedImage!, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
                 }
                 else if (active && !IsBrowsing)
                 {
@@ -191,7 +191,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 {
                     var distance = Math.Abs(index - _focusIndex);
                     line.Blur!.BlurAmount = (float)Math.Min(settings.FarBlurAmount, Math.Max(0, distance - 1) * 1.25);
-                    session.DrawImage(line.Blur);
+                    if (line.Blur.BlurAmount < 0.01)
+                        session.DrawImage(line.PlainImage!, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
+                    else session.DrawImage(line.Blur, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
                 }
             }
             session.Transform = previousTransform;
@@ -200,14 +202,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
 
     private void EnsurePlainImage(LyricsLineLayout line)
     {
-        if (line.PlainImage is not null) return;
-        var color = WithOpacity(_played, settings.InactiveLineOpacity);
-        line.Layout.SetColor(0, line.CharBounds.Length, color);
-        line.PlainImage = new CanvasCommandList(_creator!);
-        using (var buffer = line.PlainImage.CreateDrawingSession()) buffer.DrawTextLayout(line.Layout, 0, 0, color);
-        line.Layout.SetColor(0, line.CharBounds.Length, _played);
-        line.FocusedImage = new CanvasCommandList(_creator!);
-        using (var buffer = line.FocusedImage.CreateDrawingSession()) buffer.DrawTextLayout(line.Layout, 0, 0, _played);
+        if (line.PlainImage is not null && line.GlyphMask?.Dpi == _dpi) return;
+        line.ActiveImage?.Dispose(); line.ActiveImage = null;
+        line.Blur?.Dispose();
+        line.PlainImage?.Dispose();
+        line.FocusedImage?.Dispose();
+        line.GlyphMask?.Dispose();
+        line.GlyphMask = new LyricsLineGlyphMask(_creator!, line, _dpi);
+        line.PlainImage = line.GlyphMask.Paint(WithOpacity(_played, settings.InactiveLineOpacity));
+        line.FocusedImage = line.GlyphMask.Paint(_played);
         line.Blur = new GaussianBlurEffect
         {
             Source = line.PlainImage,
@@ -224,76 +227,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         if (!rendered.ActivePrepared)
         {
             if (wordByWord) _device!.LayoutEngine.PrepareGlyphs(_creator!, text, rendered);
-            else rendered.Layout.SetColor(0, rendered.CharBounds.Length, _played);
-            foreach (var glyph in rendered.Glyphs)
-            {
-                glyph.Brush = new CanvasLinearGradientBrush(_creator!, _played, _unplayed);
-                rendered.Layout.SetBrush(glyph.Start, glyph.Length, glyph.Brush);
-            }
-            if (wordByWord)
-            {
-                foreach (var syllable in rendered.LongSyllables)
-                {
-                    rendered.Layout.SetColor(syllable.CharStart, syllable.CharCount, Color.FromArgb(0, 255, 255, 255));
-                    syllable.Brush = new CanvasLinearGradientBrush(_creator!, _played, _unplayed);
-                    syllable.GlowImage = new CanvasCommandList(_creator!);
-                    using (var glowSession = syllable.GlowImage.CreateDrawingSession())
-                        glowSession.DrawTextLayout(syllable.Layout, 0, 0, _played);
-                    syllable.Glow = new GaussianBlurEffect
-                    {
-                        Source = syllable.GlowImage,
-                        BlurAmount = (float)(settings.BaseFontSize * settings.LongSyllableGlowRatio),
-                        BorderMode = EffectBorderMode.Soft,
-                        CacheOutput = true,
-                    };
-                    syllable.Layout.SetBrush(0, syllable.CharCount, syllable.Brush);
-                }
-            }
             rendered.ActivePrepared = true;
         }
-        foreach (var glyph in rendered.Glyphs)
+        if (rendered.ActiveImage is null || rendered.ActiveImage.Dpi != _dpi)
         {
-            var progress = wordByWord && glyph.Syllable >= 0 && glyph.Syllable < text.Syllables.Count
-                ? LyricMotionMath.GlyphProgress(text.Syllables[glyph.Syllable].ProgressAt(_position),
-                    glyph.Offset, glyph.Bounds.Width, glyph.TotalWidth)
-                : 1;
-            if (progress == glyph.LastProgress) continue;
-            glyph.LastProgress = progress;
-            SetSweep(glyph.Brush!, glyph.Bounds.X, glyph.Bounds.Width, progress);
+            rendered.ActiveImage?.Dispose();
+            rendered.ActiveImage = new LyricsActiveLineImage(_creator!, rendered, settings,
+                _played, _unplayed, _dpi, wordByWord);
         }
-        session.DrawTextLayout(rendered.Layout, 0, 0, _unplayed);
-        if (!wordByWord) return;
-        foreach (var syllable in rendered.LongSyllables)
-        {
-            var glyph = syllable.Glyph!;
-            var progress = glyph.LastProgress;
-            // 唱过的字逐渐落回原位；同一长音的字形依次起伏。
-            var pulse = Math.Sin(Math.PI * progress);
-            var bounds = syllable.Bounds;
-            var origin = syllable.Layout.LayoutBounds;
-            SetSweep(syllable.Brush!, bounds.X, bounds.Width, progress);
-            var previous = session.Transform;
-            var center = new Vector2((float)(bounds.X + bounds.Width / 2), (float)(bounds.Y + bounds.Height / 2));
-            session.Transform = Matrix3x2.CreateScale((float)(1 + (settings.LongSyllableScale - 1) * pulse), center)
-                * Matrix3x2.CreateTranslation(0, (float)(-settings.BaseFontSize * settings.FloatRatio * pulse)) * previous;
-            var x = (float)(bounds.X - origin.X);
-            var y = (float)(bounds.Y - origin.Y);
-            if (pulse > 0.01)
-            {
-                using (session.CreateLayer((float)(pulse * 0.55))) session.DrawImage(syllable.Glow!, x, y);
-            }
-            session.DrawTextLayout(syllable.Layout, x, y, _played);
-            session.Transform = previous;
-        }
-    }
-
-    private void SetSweep(CanvasLinearGradientBrush brush, double x, double width, double progress)
-    {
-        var feather = Math.Max(1, width * settings.SweepFeatherRatio);
-        // 羽化边缘从字形左侧之外走到右侧之外，0/1 时分别完整未唱/已唱。
-        var edge = x - feather / 2 + progress * (width + feather);
-        brush.StartPoint = new Vector2((float)(edge - feather / 2), 0);
-        brush.EndPoint = new Vector2((float)(edge + feather / 2), 0);
+        rendered.ActiveImage.Draw(session, text, rendered, _position, wordByWord);
     }
 
     private bool EnsureLayout()

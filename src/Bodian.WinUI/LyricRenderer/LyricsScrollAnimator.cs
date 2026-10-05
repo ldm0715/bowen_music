@@ -2,7 +2,7 @@ using Bodian.Core.Models.Lyrics;
 
 namespace Bodian.WinUI.LyricRenderer;
 
-/// <summary>每行独立保留位置和速度，换行时从当前运动状态接续弹簧。</summary>
+/// <summary>所有行单向收敛到锚点，保留独立错峰起步。</summary>
 internal sealed class LyricsScrollAnimator
 {
     private double[] _positions = [];
@@ -37,16 +37,23 @@ internal sealed class LyricsScrollAnimator
     {
         for (var i = 0; i < _positions.Length; i++)
         {
+            if (!_stagger || i == _anchor)
+            {
+                _targets[i] = Target;
+                (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSettlingSpring(
+                    _positions[i], _velocities[i], Target, seconds);
+                continue;
+            }
             var delay = _stagger ? Math.Min(0.21, Math.Abs(i - _anchor) * 0.035) : 0;
             // 只积分延迟结束后的时间，避免低帧率下各行同时起步。
             var activeSeconds = Math.Min(seconds, Math.Max(0, (now - _started).TotalSeconds - delay));
             var waitingSeconds = Math.Max(0, seconds - activeSeconds);
             if (waitingSeconds > 0)
-                (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSpring(
+                (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSettlingSpring(
                     _positions[i], _velocities[i], _targets[i], waitingSeconds);
             if (activeSeconds <= 0) continue;
             _targets[i] = Target;
-            (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSpring(
+            (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSettlingSpring(
                 _positions[i], _velocities[i], _targets[i], activeSeconds);
         }
     }

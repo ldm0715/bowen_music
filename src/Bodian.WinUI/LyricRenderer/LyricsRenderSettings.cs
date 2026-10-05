@@ -11,12 +11,14 @@ public sealed record LyricsRenderSettings
     public double PlayingLineTopOffsetFactor { get; init; } = 0.42;
     public double FarBlurAmount { get; init; } = 5;
     public double CurrentLineScale { get; init; } = 1;
-    public double InactiveLineScale { get; init; } = 0.92;
+    // 活动/未活动状态只改变亮度与模糊，不通过整行缩放移动文字基线。
+    public double InactiveLineScale { get; init; } = 1;
     public double InactiveLineOpacity { get; init; } = 0.38;
     public double ViewportMarginLines { get; init; } = 3;
     public double SweepFeatherRatio { get; init; } = 0.5;
     public TimeSpan LongSyllableThreshold { get; init; } = TimeSpan.FromMilliseconds(1000);
-    public double LongSyllableScale { get; init; } = 1.08;
+    // 长音保持位置和字号，只保留扫色与发光，避免当前句逐字起伏。
+    public double LongSyllableScale { get; init; } = 1;
     public double LongSyllableGlowRatio { get; init; } = 0.14;
-    public double FloatRatio { get; init; } = 0.055;
+    public double FloatRatio { get; init; } = 0;
 }
