@@ -567,6 +567,60 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </remarks>
     private const double NotificationBottomGap = 12;
 
+    /// <summary>常规态下两张浮层卡片距**内容区**上沿的空隙。与 XAML 里那两处初始 <c>Margin</c> 同值。</summary>
+    private const double OverlayTopGap = 8;
+
+    /// <summary>
+    /// 常规态下浮层距**内容区**底边的空隙。
+    /// </summary>
+    /// <remarks>
+    /// 常规态下浮层只跨第 1 行，底下还有 80 高的播放条，碰不到任何东西，留一点边距就够。
+    /// </remarks>
+    private const double OverlayBottomGap = 12;
+
+    /// <summary>
+    /// 沉浸态下浮层距**窗口**底边的距离。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 沉浸页把播放条收进 <c>PlayerHost.Visibility = Collapsed</c>，第 2 行高度归零 ——
+    /// 浮层会一路铺到窗口底部，压住歌词页/MV 页自己的进度条与那排传输按钮。
+    /// </para>
+    /// <para>
+    /// <b>取 96 的依据与 <see cref="ImmersiveNotificationInset"/> 同源</b>：歌词页的进度滑块
+    /// 上沿在距窗底 91（<c>LyricsPage.xaml</c> 里那段算式），96 落在它上方；MV 页对应位置是 85。
+    /// 传输按钮比滑块还低（距窗底 63），所以这一档一并盖住了它。
+    /// </para>
+    /// </remarks>
+    private const double ImmersiveOverlayBottom = 96;
+
+    /// <summary>
+    /// 沉浸态下浮层要额外往下让开的高度。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>沉浸页自己的标题栏是一条真正的非客户区拖拽带。</b> <c>LyricsTitleBar</c> / <c>MvTitleBar</c>
+    /// 都是 <c>Height="48"</c>、<c>VerticalAlignment="Top"</c>，由 <c>SetTitleBar</c> 交给系统 ——
+    /// 那条带子里除了沉浸页左端的几颗按钮，中段是拖拽区，右端是系统的最小化/最大化/关闭。
+    /// </para>
+    /// <para>
+    /// 而沉浸态下外层第 0 行被收起来（<c>AppTitleBar.Visibility = Collapsed</c>）、**行高归零**，
+    /// 于是 <c>Grid.Row="1"</c> 的浮层从窗口顶端 8px 处就开始，头部那颗收起按钮正好落进带子里。
+    /// </para>
+    /// <para>
+    /// <b>非客户区是在 <c>WM_NCHITTEST</c> 阶段处理的，先于 XAML 命中测试</b> ——
+    /// 所以浮层画得再靠上也没用，那颗按钮收不到点击，表现为「抽屉开出来就关不掉了」。
+    /// 只能让浮层让开这条带子。
+    /// </para>
+    /// <para>
+    /// <b>刻意不跟着「沉浸页 chrome 是否可见」变</b>：chrome 藏起来时窗口连边框带标题栏一起被摘掉
+    /// （<c>SetLyricsChromeVisible</c> 那条路），理论上不需要让开，但那条路上先前设过的拖拽区
+    /// 是否还留着没有把握。多让 48 的代价只是浮层顶上多一段空白，少让的代价是按钮点不动 ——
+    /// 两边的代价不对称，取稳的那边。
+    /// </para>
+    /// </remarks>
+    private const double ImmersiveChromeHeight = 48;
+
     /// <summary>
     /// 沉浸态下通知条距**窗口**底边的距离。
     /// </summary>
@@ -1193,6 +1247,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         // 按沉浸页的量抬一次，见 ImmersiveNotificationInset。
         NotificationBar.Margin = new Thickness(0, 0, 0, ImmersiveNotificationInset);
 
+        // 同一个道理，掉到顶上的是两张浮层：第 0 行一收，它们就从窗口顶端 8px 处开始，
+        // 头部按钮落进沉浸页标题栏那条非客户区里，点不动。见 ImmersiveChromeHeight。
+        SyncOverlayInsets();
+
         ImmersiveHost.Visibility = Visibility.Visible;
         SetTitleBar(titleBar);
         UpdateCaptionButtonColors();
@@ -1299,9 +1357,33 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         // 播放条回来了，通知条也跟着回到「播放条上方」那个位置。
         NotificationBar.Margin = new Thickness(0, 0, 0, NotificationBottomGap);
+        SyncOverlayInsets();
 
         SetTitleBar(AppTitleBar);
         UpdateCaptionButtonColors();
+    }
+
+    /// <summary>
+    /// 按当前是不是沉浸态摆正两张浮层卡片的上下边距。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 常规态：落在第 1 行里再加 <see cref="OverlayTopGap"/> / <see cref="OverlayBottomGap"/>，
+    /// 与两处 XAML 里的初始值一致。
+    /// </para>
+    /// <para>
+    /// 沉浸态：**上下两头都要改**。第 0 行高度归零，浮层顶端会陷进沉浸页标题栏那条非客户区，
+    /// 头部那颗收起按钮点不动（见 <see cref="ImmersiveChromeHeight"/>）；第 2 行也归零，
+    /// 浮层会一路铺到窗口底部压住进度条（见 <see cref="ImmersiveOverlayBottom"/>）。
+    /// </para>
+    /// </remarks>
+    private void SyncOverlayInsets()
+    {
+        var top = OverlayTopGap + (_immersiveVisible ? ImmersiveChromeHeight : 0);
+        var bottom = _immersiveVisible ? ImmersiveOverlayBottom : OverlayBottomGap;
+
+        QueuePane.Margin = new Thickness(0, top, 12, bottom);
+        PlaylistsPane.Margin = new Thickness(56, top, 0, bottom);
     }
 
     /// <summary>
