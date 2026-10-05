@@ -360,6 +360,21 @@ public sealed class PlaybackCoordinator : IDisposable
     /// </remarks>
     public void ClearQueue() => Queue.Clear();
 
+    /// <summary>
+    /// 把队列里第 <paramref name="fromItemIndex"/> 首挪到第 <paramref name="toItemIndex"/> 位
+    /// （<paramref name="toItemIndex"/> 是挪完后的最终下标）。
+    /// </summary>
+    /// <remarks>
+    /// <b>完全不碰引擎</b>：当前曲目还是同一首（<see cref="PlayQueue.MoveItem"/> 会把它一起搬），
+    /// 不需要重新解析音源、也不用重发 <see cref="Started"/>。
+    /// </remarks>
+    /// <returns>真的挪动了返回 <c>true</c>。见 <see cref="PlayQueue.MoveItem"/> 的边界说明。</returns>
+    public bool MoveQueueItem(int fromItemIndex, int toItemIndex)
+        => Queue.MoveItem(fromItemIndex, toItemIndex);
+
+    /// <summary>队列顺序能不能被用户重排。界面据此决定显不显示拖动条。</summary>
+    public bool CanReorderQueue => Queue.CanReorder;
+
     /// <summary>解析并播放当前队列项。</summary>
     private async Task PlayCurrentAsync(CancellationToken cancellationToken = default)
     {

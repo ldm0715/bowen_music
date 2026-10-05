@@ -65,6 +65,15 @@ public sealed partial class PlayQueueViewModel : ObservableObject
     /// <summary>清空队列。确认框由界面负责，这里只管执行。</summary>
     public void Clear() => _coordinator.ClearQueue();
 
+    /// <summary>
+    /// 把第 <paramref name="from"/> 首挪到第 <paramref name="to"/> 位（挪完后的最终下标）。
+    /// </summary>
+    /// <remarks>
+    /// 行号与行对象靠 <c>Changed → RefreshIfOpen</c> 自动重建，不用在这里同步维护 ——
+    /// 那次重建排在 dispatcher 下一轮，正好落在触发它的那个指针事件处理之后。
+    /// </remarks>
+    public void Move(int from, int to) => _ = _coordinator.MoveQueueItem(from, to);
+
     private void RefreshIfOpen()
     {
         if (!IsOpen)
@@ -84,6 +93,7 @@ public sealed partial class PlayQueueViewModel : ObservableObject
     {
         var queue = _coordinator.Queue;
         var current = queue.CurrentIndex;
+        var canReorder = _coordinator.CanReorderQueue;
 
         Rows.Clear();
 
@@ -94,6 +104,7 @@ public sealed partial class PlayQueueViewModel : ObservableObject
                 Source = queue.Items[i],
                 Position = i,
                 IsCurrent = i == current,
+                CanReorder = canReorder,
             });
         }
 

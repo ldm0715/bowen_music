@@ -66,6 +66,16 @@ public sealed class PlayQueue
     public bool HasPrevious => _order.Count > 0
         && (_mode == PlayMode.ListLoop ? _cursor >= 0 : _cursor > 0);
 
+    /// <summary>
+    /// 队列顺序能不能被用户重排。
+    /// </summary>
+    /// <remarks>
+    /// <b>随机模式下不能。</b> 那时 <c>_order</c> 是洗过牌的排列，<see cref="Items"/> 只是「洗牌的底稿」——
+    /// 重排它既不改变播放顺序，也无法用一条 <c>_order</c> 表达用户的意思。
+    /// 界面据此决定显不显示拖动条，与 <see cref="MoveItem"/> 内部的判断共用同一个来源，两边不会漂移。
+    /// </remarks>
+    public bool CanReorder => _mode != PlayMode.Shuffle;
+
     /// <summary>播放模式。改它会重建排列，但<b>不会换掉当前曲目</b>。</summary>
     public PlayMode Mode
     {
@@ -301,6 +311,74 @@ public sealed class PlayQueue
 
         return true;
     }
+
+    /// <summary>
+    /// 把第 <paramref name="fromItemIndex"/> 首挪到第 <paramref name="toItemIndex"/> 位。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b><paramref name="toItemIndex"/> 是挪完之后的最终显示下标</b>（<c>List.Move</c> 的语义），
+    /// 不是插入槽位 —— 拖放的「插到第 3 个之前」由调用方换算成最终下标。
+    /// </para>
+    /// <para>
+    /// <b>只允许非随机模式</b>，见 <see cref="CanReorder"/>。随机模式下直接返回 <c>false</c>：
+    /// 本方法结尾的 <c>ResetToIdentityOrder()</c> 会把洗牌序静默抹成顺序序 ——
+    /// 界面上模式仍显示「随机」，下一首却开始按面板顺序走，是极难查的损坏，所以这条判断必须收在类里。
+    /// </para>
+    /// <para>
+    /// <b>当前曲目不变，播放顺序跟着新的显示顺序走。</b> 非随机模式下 <c>_order</c> 恒为恒等排列
+    /// （<c>ApplyOrderForStart</c> 的非随机分支就是 <c>ResetToIdentityOrder</c>，其余变更方法都保持它），
+    /// 所以此时 <c>CurrentIndex == _cursor</c>：把 <c>_cursor</c> 挪到当前曲目的新下标、再把 <c>_order</c>
+    /// 重建成恒等排列，两条就同时成立。
+    /// </para>
+    /// <para>
+    /// <b>不要改成「保住旧播放序列」的那种值重映射</b>（把 <c>_order</c> 里等于 from 的值改写成 to、
+    /// 区间内的整体 ∓1）。那样 <see cref="MoveNext"/> 走出来的顺序与拖动前**完全一致** ——
+    /// 而顺序播放模式下面板顺序就是播放顺序，用户拖完听不出任何变化，只会以为功能坏了。
+    /// </para>
+    /// </remarks>
+    /// <returns>真的挪动了返回 <c>true</c>；越界、原地不动（含单元素队列）、空队列、随机模式都返回 <c>false</c> 且不抛 <see cref="Changed"/>。</returns>
+    public bool MoveItem(int fromItemIndex, int toItemIndex)
+    {
+        if (!CanReorder)
+        {
+            return false;
+        }
+
+        if (fromItemIndex < 0 || fromItemIndex >= _items.Count)
+        {
+            return false;
+        }
+
+        if (toItemIndex < 0 || toItemIndex >= _items.Count)
+        {
+            return false;
+        }
+
+        if (fromItemIndex == toItemIndex)
+        {
+            return false;
+        }
+
+        var current = CurrentIndex;
+        var track = _items[fromItemIndex];
+
+        _items.RemoveAt(fromItemIndex);
+        _items.Insert(toItemIndex, track);
+
+        _cursor = Remap(current, fromItemIndex, toItemIndex);
+        ResetToIdentityOrder();
+
+        Changed?.Invoke(this, EventArgs.Empty);
+
+        return true;
+    }
+
+    /// <summary>跟着 <c>_items</c> 里一次「抽出来再插进去」重算某个下标。</summary>
+    private static int Remap(int index, int from, int to) => index == from ? to
+        : from < to && index > from && index <= to ? index - 1
+        : from > to && index >= to && index < from ? index + 1
+        : index;
 
     /// <summary>移到下一首。到不到头由 <see cref="Mode"/> 决定。</summary>
     public bool MoveNext()

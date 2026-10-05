@@ -408,6 +408,56 @@ public sealed class PlayQueueCommandTests
         Assert.Equal(1, coordinator.Queue.CurrentIndex);
     }
 
+    /// <summary>重排只是在队列里搬位置，**不该惊动引擎** —— 当前曲目还是同一首，不用重新解析音源。</summary>
+    [Fact]
+    public async Task MoveQueueItem_DoesNotTouchTheEngine()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
+
+        var started = 0;
+        coordinator.Started += (_, _) => started++;
+
+        Assert.True(coordinator.MoveQueueItem(1, 2));
+
+        Assert.Equal([1L, 3L, 2L], coordinator.Queue.Items.Select(t => t.Id));
+        Assert.Equal(1, coordinator.CurrentTrack!.Id);
+        Assert.Equal(1, engine.LoadCount);
+        Assert.Equal(0, started);
+    }
+
+    [Fact]
+    public async Task MoveQueueItem_MovingTheCurrentTrackDoesNotReload()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
+
+        Assert.True(coordinator.MoveQueueItem(0, 2));
+
+        Assert.Equal(1, coordinator.CurrentTrack!.Id);
+        Assert.Equal(2, coordinator.Queue.CurrentIndex);
+        Assert.Equal(1, engine.LoadCount);
+    }
+
+    [Fact]
+    public async Task CanReorderQueue_TracksThePlayMode()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
+
+        Assert.True(coordinator.CanReorderQueue);
+
+        coordinator.SetPlayMode(PlayMode.Shuffle);
+        Assert.False(coordinator.CanReorderQueue);
+        Assert.False(coordinator.MoveQueueItem(0, 2));
+
+        coordinator.SetPlayMode(PlayMode.ListLoop);
+        Assert.True(coordinator.CanReorderQueue);
+    }
+
     [Fact]
     public async Task Shuffle_AutoAdvanceNeverRepeatsTheTrackItJustFinished()
     {

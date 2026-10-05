@@ -11,8 +11,9 @@
         主窗口右侧那个播放队列抽屉的内容。
 
         **是内存播放队列，不是服务器歌单** —— 与曲目行「更多」菜单里的「添加到歌单」是两回事。
-        面板只做三件事：点行切歌、删单曲、清空。列表要撑满抽屉高度，所以根容器是 Grid 而不是
-        StackPanel（后者会把列表压成内容高度，下面的空白就露出来了）。
+        面板做四件事：点行切歌、删单曲、清空、拖动手柄调整顺序（拖动那张浮起来的卡片是 DragGhost，
+        手势在 code-behind 里，见 docs/play-queue.md §12）。列表要撑满抽屉高度，所以根容器是 Grid
+        而不是 StackPanel（后者会把列表压成内容高度，下面的空白就露出来了）。
     -->
     <Grid>
         <Grid.RowDefinitions>
@@ -66,8 +67,9 @@
             </Button>
         </Grid>
 
-        <Grid Grid.Row="1">
+        <Grid x:Name="RowHost" Grid.Row="1">
             <ListView
+                x:Name="RowList"
                 MinWidth="0"
                 IsItemClickEnabled="True"
                 ItemClick="OnRowClick"
@@ -89,7 +91,16 @@
                 </ListView.ItemContainerStyle>
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="vm:PlayQueueRow">
-                        <Grid ColumnSpacing="8">
+                        <!--
+                            Background 不能省：没有它，行内空白处收不到指针事件，悬停态就只在文字/封面
+                            上才触发（TrackListView 的行根同理，那边有注释）。
+                        -->
+                        <Grid
+                            Background="Transparent"
+                            ColumnSpacing="8"
+                            Opacity="{x:Bind RowOpacity, Mode=OneWay}"
+                            PointerEntered="OnRowPointerEntered"
+                            PointerExited="OnRowPointerExited">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="20" />
                                 <ColumnDefinition Width="Auto" />
@@ -99,8 +110,16 @@
                             </Grid.ColumnDefinitions>
 
                             <!--
-                                序号与起伏条同格居中：正在播放那一行显示起伏条，其余显示序号。
-                                起伏条自己按 IsPlaying 管显隐（见 Controls/PlayingBars）。
+                                序号位三态互斥，一律 Center：正在播放 → 起伏条（自己按 IsPlaying 管显隐）；
+                                悬停且能拖 → 拖动条；其余 → 序号。
+
+                                ★ 三态必须落在同一个位置上。TrackListView 那边踩过：序号右对齐、播放键居中，
+                                  差半个列宽，鼠标一进一出整列就横向跳一下。
+
+                                ★ 拖动条外面那层透明 Border 不是装饰：六点握把的墨迹只有六个小圆，点与点之间
+                                  是空的，而 Icon 是没有背景的 UserControl、空白处不参与命中测试 ——
+                                  指针事件挂在 Icon 上的话，会变成「必须精准点在点上」。撑满整格的 Border
+                                  才是 20×28 的靶子。
                             -->
                             <Grid Grid.Column="0">
                                 <TextBlock
@@ -109,11 +128,25 @@
                                     FontSize="11"
                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                     Text="{x:Bind OrdinalText}"
-                                    Visibility="{x:Bind OrdinalVisibility}" />
+                                    Visibility="{x:Bind OrdinalVisibility, Mode=OneWay}" />
                                 <controls:PlayingBars
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     IsPlaying="{x:Bind IsCurrent, Mode=OneWay}" />
+                                <Border
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    Background="Transparent"
+                                    PointerPressed="OnGripPressed"
+                                    ToolTipService.ToolTip="拖动调整顺序"
+                                    Visibility="{x:Bind DragHandleVisibility, Mode=OneWay}">
+                                    <controls:Icon
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Size="14"
+                                        Data="{StaticResource IconDragHandle}" />
+                                </Border>
                             </Grid>
 
                             <Border
@@ -166,6 +199,80 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+
+            <!--
+                拖动时浮在列表之上的那张卡片。
+
+                ★ 为什么不是「把被拖那一行原地抬起来」：那需要在 ItemsStackPanel 里把某个 ListViewItem
+                  提到最上层，而它认不认 Canvas.ZIndex 没有可靠的依据可查。这张卡片画在 ListView **之后**
+                  （同级、后声明即在上层），不依赖任何面板行为。被拖那一行原地隐掉，其余行让位。
+
+                ★ 列结构刻意与行模板保持一致（宽度 20 / Auto / * / Auto / 28，同样的 ColumnSpacing）
+                  与 Padding —— 卡片起来的那一瞬间才能和原行严丝合缝地重合。
+                  改行模板的列宽时这里要一起改。
+            -->
+            <Border
+                x:Name="DragGhost"
+                Margin="6,0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Top"
+                Background="{ThemeResource CommentPanelBackgroundBrush}"
+                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                IsHitTestVisible="False"
+                Visibility="Collapsed">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="DragGhostShift" />
+                </Border.RenderTransform>
+                <Grid Padding="10,6" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="28" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 握着的那一格：原行悬停时才出现的握把，在卡片上一直亮着。 -->
+                    <controls:Icon
+                        Grid.Column="0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Size="14"
+                        Data="{StaticResource IconDragHandle}" />
+
+                    <Border
+                        Grid.Column="1"
+                        Width="{StaticResource SizeCoverRow}"
+                        Height="{StaticResource SizeCoverRow}"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                        CornerRadius="{StaticResource RadiusMd}">
+                        <Image Source="{x:Bind local:Formats.CoverSource(DraggedRow.CoverImage), Mode=OneWay}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock
+                            FontSize="{StaticResource FontSizeBody}"
+                            Text="{x:Bind DraggedRow.Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            FontSize="11"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind DraggedRow.ArtistText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <TextBlock
+                        Grid.Column="3"
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="{x:Bind DraggedRow.DurationText, Mode=OneWay}"
+                        VerticalAlignment="Center" />
+                </Grid>
+            </Border>
 
             <TextBlock
                 Margin="18,28,18,0"
