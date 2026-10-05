@@ -141,6 +141,21 @@ public partial class App : Application
         builder.Services.AddSingleton<TrackStatisticsViewModel>();
         builder.Services.AddSingleton<PlayerViewModel>();
         builder.Services.AddSingleton<LyricsViewModel>();
+
+        // 桌面歌词。外观偏好与窗口几何分两个文件存，与主窗口那套拆法一致。
+        // 位置那一条不写新实现，直接把现成的 JsonWindowPlacementStore 换个路径注册 ——
+        // 所以它按 IDesktopLyricsPlacementStore 这个空接口注册，两个注册才不会打架。
+        builder.Services.AddSingleton<IDesktopLyricsSettingsStore>(sp => new JsonDesktopLyricsSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonDesktopLyricsSettingsStore>>()));
+        builder.Services.AddSingleton<IDesktopLyricsPlacementStore>(sp => new DesktopLyricsPlacementStore(
+            logger: sp.GetRequiredService<ILogger<JsonWindowPlacementStore>>()));
+        builder.Services.AddSingleton<DesktopLyricsViewModel>();
+
+        // 窗口本身是 transient，但由宿主单例懒创建、藏起来之后复用 —— 见 DesktopLyricsWindowHost。
+        builder.Services.AddTransient<DesktopLyricsWindow>();
+        builder.Services.AddSingleton<Func<DesktopLyricsWindow>>(sp =>
+            sp.GetRequiredService<DesktopLyricsWindow>);
+        builder.Services.AddSingleton<DesktopLyricsWindowHost>();
         builder.Services.AddSingleton<PlayQueueViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
@@ -307,6 +322,9 @@ public partial class App : Application
             //   症状是「播放 MV 时点关闭直接卡死」。关窗口不走导航，页面收不到离场通知。
             window.TearDownForShutdown();
 
+            // 桌面歌词窗也是独立的窗口，不关掉它进程不会退出。
+            _host.Services.GetRequiredService<DesktopLyricsWindowHost>().Dispose();
+
             // 先撤 SMTC 会话（它读引擎状态，得在引擎之前放）。
             _host.Services.GetRequiredService<SmtcManager>().Dispose();
 
@@ -326,6 +344,10 @@ public partial class App : Application
 
         // 解析一次，让 SmtcManager 的订阅生效（它自己是懒初始化的，这里不会建会话）。
         _host.Services.GetRequiredService<SmtcManager>();
+
+        // 同上：解析一次，否则这个单例永远不会被实例化，对播放条那颗按钮的订阅也就不存在。
+        // 它自己不会建窗口 —— 窗口是开到桌面歌词时才懒创建的。
+        _host.Services.GetRequiredService<DesktopLyricsWindowHost>();
 
         // 开始菜单快捷方式要在窗口起来之后再补 —— 系统媒体面板的应用名与图标取自它。
         // 同步做（不挪后台线程）：COM 的 ShellLink 是 STA 对象，UI 线程是 STA，

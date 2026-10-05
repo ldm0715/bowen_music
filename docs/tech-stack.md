@@ -276,6 +276,54 @@ Bodian.sln
 | 测试 | `xunit.v3` 4.0.1（独立测试宿主，支持 `Microsoft.Testing.Platform`），保留 `xunit.runner.visualstudio` 供 IDE 集成 |
 | 凭据 | **DPAPI**：`ProtectedData.Protect(bytes, entropy, DataProtectionScope.CurrentUser)` → 加密后落盘 |
 
+### 透明悬浮窗（P1.5 实测 ✅ 2026-10-04，本机 Win10 19045）
+
+`roadmap.md` 的 P1.5。结论：**逐像素透明 + 置顶 + 可拖动 + 透明处点击穿透，四者可以同时成立。**
+下面这套组合是实测跑通的，不要凭印象改任何一条。
+
+| 目标 | 做法 | 备注 |
+| --- | --- | --- |
+| 无边框无标题 | `OverlappedPresenter.SetBorderAndTitleBar(false, false)` | |
+| 逐像素透明 | ① `DwmExtendFrameIntoClientArea` 传全零 `MARGINS`（整窗「玻璃」）② `DwmEnableBlurBehindWindow`，`DWM_BB_ENABLE \| DWM_BB_BLURREGION`，区域取退化的一像素 `CreateRectRgn(-2,-2,-1,-1)` ③ 用 `SetWindowSubclass` 拦 `WM_ERASEBKGND`，`FillRect` 填黑并**返回 1** | ①② 都返回 `S_OK`。**③ 最容易漏，漏了窗口就是一片纯色** |
+| 分层窗口 | 扩展样式加 `WS_EX_LAYERED` | DWM 混合的必要条件 |
+| 不进 Alt+Tab | 扩展样式加 `WS_EX_TOOLWINDOW` | |
+| 不抢焦点 | 扩展样式加 `WS_EX_NOACTIVATE` | |
+| 去残留边框 | 样式清掉 `WS_CAPTION \| WS_THICKFRAME`，再 `SetWindowPos(SWP_FRAMECHANGED)` | 少了最后一步改动不生效 |
+| 置顶 | **定时**（约 500 ms）`SetWindowPos(HWND_TOPMOST, …, SWP_NOACTIVATE)` | **不要用 `OverlappedPresenter.IsAlwaysOnTop`，它会破坏穿透** |
+| 点击穿透 | 定时（约 60 ms）`GetCursorPos` ＋ 元素屏幕矩形判断光标是否在可交互处，动态加减 `WS_EX_TRANSPARENT` | **整窗开关**，不是逐像素命中；光标在文字上时那一小块不透 |
+
+**实测记录（PID 与数值取自 2026-10-04 的日志）**：
+
+- 窗口形态回读：`分层=true 置顶=true 工具窗=true 不抢焦点=true`，DPI 缩放 1.25。
+- 命中自检用 `WindowFromPoint` ＋ `GetAncestor(GA_ROOT)` 比对：
+  **不穿透时**大字与空白两处都命中自己；**加上 `WS_EX_TRANSPARENT` 后两处都不再命中自己**。
+  也就是「点会不会落到我身上」可以自动化验证，不必靠肉眼。
+- 用户实测确认：窗口可拖动、透明观感正确、透明处点击确实穿透。
+
+**WinUI 3 侧的两个坑（都实测过，别再试）**：
+
+1. **不做 SystemBackdrop 也能透明。** 上面那三步就够了。想要「透明的系统背板画刷」这条在
+   WinAppSDK 2.x 上走不通，见 §8。
+2. `DWMWA_WINDOW_CORNER_PREFERENCE`（去圆角、顺带去掉细边框）在 Win10 上返回
+   `E_INVALIDARG (0x80070057)`，是 **Win11 22000+ 专有**。调用方必须容忍失败，
+   Win10 上靠上面「去残留边框」那一步解决白边。
+
+---
+
+### 2026-10-05 正式桌面歌词实现
+
+桌面歌词已获用户确认，完整说明见 [`desktop-lyrics.md`](desktop-lyrics.md)。正式实现使用约 30 ms 光标轮询，
+置顶标记丢失时才重排窗口；字号和颜色面板留在本窗口内。锁定后只保留解锁入口。
+
+歌词由独立 Win2D + Composition 后台线程绘制，缓存固定字形 alpha 遮罩，逐帧更新颜色纹理，
+暂停保留最后一帧。长句适配宽度后保持位置与字号；双行排版随视口、字号与 DPI 重建。
+
+右侧 16 DIP 原生命中条必须启用 `SS_NOTIFY` 并显式命中 `HTCLIENT`，否则 `STATIC` 的默认命中会透给下方窗口。
+边缘条统一管理捕获与拉伸光标，离开、取消、锁定和隐藏时清理；拖动距离按物理像素计算，
+固定窗口左上角及高度，配合屏幕约束与 16 DIP 吸附。
+
+早期透明试验入口不再接入应用；本地试验代码和截图保留在忽略的验证目录或未提交文件中。
+
 ---
 
 ## 8. 过时 / 已废弃（不要用）
@@ -292,6 +340,9 @@ Bodian.sln
 | `Windows.Security.Credentials.PasswordVault` | 需要 package identity，unpackaged 下**不可用** |
 | 所有 `XxxForCurrentView` 系列 API | 桌面应用**必然抛异常** |
 | `LWA_COLORKEY`（SetLayeredWindowAttributes 的色键） | 微软判为 **by design 不支持**（[#8469](https://github.com/microsoft/microsoft-ui-xaml/issues/8469)，CLOSED `NOT_PLANNED`） |
+| `OverlappedPresenter.IsAlwaysOnTop`（做悬浮窗时） | 实测**会破坏点击穿透**。改用定时 `SetWindowPos(HWND_TOPMOST, …, SWP_NOACTIVATE)` |
+| `SetWindowRgn` 划区域做穿透 | 能用，但下拉 / 弹层一出现就得手工改区域。本项目走 `WS_EX_TRANSPARENT` 动态开关 |
+| WinAppSDK 2.x 里「透明的 `SystemBackdrop` 画刷」 | **走不通**，三条路都堵：① 接口 `ICompositionSupportsSystemBackdrop.SystemBackdrop` 的类型是 `Windows.UI.Composition.CompositionBrush` ② `new Windows.UI.Composition.Compositor()` 在 WinUI 进程里抛异常（用的是 lifted 合成器）③ 拿 WinUI 自己的 compositor 造画刷再 `.As<>()` 转换会 `InvalidCastException`。**不需要它** —— 透明靠 DWM 扩帧 ＋ blur-behind ＋ 拦 `WM_ERASEBKGND` |
 
 ---
 

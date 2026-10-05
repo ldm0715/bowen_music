@@ -8,7 +8,8 @@
 正常播放中的高亮只前进，已唱部分不会因时钟校正而收回。
 当前实现、操作和验证见 [`fullscreen-lyrics.md`](fullscreen-lyrics.md)。
 本文后续章节保留早期选型与视觉参考记录；旧 `CanvasAnimatedControl`、整字点亮及 BetterLyrics 参数方案
-不再是当前主歌词页的实现约定。桌面歌词路线与第三方许可记录仍可参考。
+不再是当前主歌词页的实现约定。桌面歌词也已改为 Win2D + Composition 的固定字形遮罩与颜色纹理，
+不沿用双层 TextBlock 路线；当前实现与用户验收见 [`desktop-lyrics.md`](desktop-lyrics.md)。第三方许可记录仍可参考。
 
 ---
 
@@ -27,7 +28,7 @@
 | 统一模型 + 通用格式 | **`Lyricify.Lyrics.Helper` 0.2.0**（NuGet 直引） | Apache-2.0 |
 | 波点 / 酷我私有解码 | **自己写**（无任何库支持） | — |
 | 渲染 · 主歌词页 | **Win2D 几何裁剪** | 移植 **BetterLyrics / HyPlayer**（GPL-3.0） |
-| 渲染 · 桌面歌词条 | **XAML 双 `TextBlock` + `RectangleGeometry` 裁剪** | 移植 KugouMusic.NET (MIT) 或 BetterLyrics |
+| 渲染 · 桌面歌词条 | **Win2D + Composition，固定字形遮罩与颜色纹理** | 当前实现见 [`desktop-lyrics.md`](desktop-lyrics.md) |
 
 ### 解析层：Helper 不支持 AWLRC
 
@@ -84,7 +85,7 @@
 ### 选择
 
 - **主歌词页走 C**：逐字高亮、长音拖尾发光、当前行居中放大，都要单字级别的控制
-- **桌面歌词条走 A**：只要横向扫光，**零 Win2D 依赖**，体积小、启动快
+- **桌面歌词条当前走 C**：复用 Win2D 字形测量和后台帧节奏，缓存字形 alpha，仅更新扫色纹理；早期 A 路线已停用
 
 ### 路线 C 的真实工作量不在渲染，在文本样式重建
 
@@ -202,7 +203,7 @@ scrollDelay  = baseDelay + staggerDelay
 | **dotMorten/WinUIEx** | `TransparentTintBackdrop`、`HwndExtensions`（扩展样式读写）、`Region.cs`（`SetWindowRgn` 区域裁剪，**已正确处理 DPI 与屏幕坐标换算**） | **MIT** |
 | **cnbluefire/HotLyric** | `HotLyric.Win32/Controls/` 歌词控件目录；桌面歌词窗的透明 / 点击穿透实现。**已停更 18 个月，WASDK 版本较老** | **MIT** |
 | **cnbluefire/BlueFire.Toolkit.WinUI3** | `TextView/Controls/FormattedTextRenderer.cs` 等——**WinUI 3 的 XAML 拿不到 glyph run**，这层自封的 DWrite 绕不开 | **MIT** |
-| **Linsxyx/KugouMusic.NET** | `KaraokeTextBlock.cs` 的裁剪逻辑（`PushClip` → WinUI 3 的 `UIElement.Clip`，一一对应）。**桌面歌词条走这条路线** | **MIT** |
+| **Linsxyx/KugouMusic.NET** | `KaraokeTextBlock.cs` 的裁剪逻辑（`PushClip` → WinUI 3 的 `UIElement.Clip`，一一对应）。早期候选，当前固定字形实现未采用这条路线 | **MIT** |
 | **kengwang/ALRC** | `ALRC.Abstraction` 1.3.0 歌词中间表示（备选） | **CC0** |
 | **christosk92/WaveeMusic** | `src/apps/Wavee.Tests/Fixtures/lyrics/` 真实歌词样本，**直接拿来当解析器测试夹具** | MIT |
 

@@ -116,6 +116,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         IBodianLogin login,
         PlayerViewModel playerViewModel,
         LyricsViewModel lyricsViewModel,
+        DesktopLyricsViewModel desktopLyrics,
         PlayQueueViewModel queueViewModel,
         AccountViewModel account,
         SidebarViewModel sidebar,
@@ -130,6 +131,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ArgumentNullException.ThrowIfNull(login);
         ArgumentNullException.ThrowIfNull(playerViewModel);
         ArgumentNullException.ThrowIfNull(lyricsViewModel);
+        ArgumentNullException.ThrowIfNull(desktopLyrics);
         ArgumentNullException.ThrowIfNull(queueViewModel);
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(sidebar);
@@ -202,7 +204,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _navigation.Attach(PageHost, page => page is LyricsPage or MvPage ? ImmersiveHost : PageHost);
         _navigation.Navigated += OnNavigated;
 
-        var playerBar = new PlayerBar(playerViewModel, lyricsViewModel, navigation);
+        var playerBar = new PlayerBar(playerViewModel, lyricsViewModel, desktopLyrics, navigation);
         playerBar.PlaylistRequested += (_, _) => ToggleQueue();
 
         // MV 页要带曲目构造，工厂只有这里拿得到 —— 播放条只抛事件。

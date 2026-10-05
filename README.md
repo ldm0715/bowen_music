@@ -36,7 +36,8 @@
 > 全窗沉浸 MV 页，带进度、音量、全屏与四种画面比例，并在看 MV 时自动暂停音频、退出恢复。
 > 协议与验收见 [`docs/mv.md`](docs/mv.md)。
 > 进度见 [`docs/roadmap.md`](docs/roadmap.md)，待办见 [`docs/backlog.md`](docs/backlog.md)。
-> P6 桌面悬浮歌词及其 P1.5 透明窗口验证仍未完成。
+> **桌面歌词已完成并于 2026-10-05 验收**：悬停背景与图标控制、固定字形逐字高亮、双行对齐、
+> 鼠标穿透、锁定、拉伸和屏幕吸附。实现与验证见 [`docs/desktop-lyrics.md`](docs/desktop-lyrics.md)。
 
 ## 为什么做这个
 

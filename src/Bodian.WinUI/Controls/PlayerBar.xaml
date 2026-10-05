@@ -277,12 +277,18 @@
 
                     <controls:Icon Data="{StaticResource IconMv}" Size="16" />
                 </Button>
+                <!--
+                    桌面歌词开关。**不再是歌词页入口** —— 歌词页走点封面那条路
+                    （见上面 CoverButton 的 ToolTip），这颗按钮专门管桌面歌词条的开关，
+                    开着时按钮显示激活态（前景与底色由 code-behind 按状态设）。
+                -->
                 <Button
-                    AutomationProperties.Name="歌词"
-                    Click="OnLyricsClick"
+                    x:Name="DesktopLyricsButton"
+                    AutomationProperties.Name="桌面歌词"
+                    Click="OnDesktopLyricsClick"
                     IsEnabled="{x:Bind Lyrics.HasTrack, Mode=OneWay}"
                     Style="{StaticResource PlayerRoundIconButtonStyle}"
-                    ToolTipService.ToolTip="歌词">
+                    ToolTipService.ToolTip="桌面歌词">
                     <Button.Resources>
                         <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
                             盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->

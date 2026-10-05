@@ -102,22 +102,15 @@ WinUI **不提供图标库**。它只有 `SymbolIcon` / `FontIcon` 两条路，�
 （`ui-refresh.md` §18.2 记录过这个坑，皇冠会被裁掉一半）。所以每处用点都得外套一层
 `Viewbox` —— 三十来个用点各写一遍太啰嗦，收进控件里只写一次。
 
-### 2.2.1 控件内部：Viewbox → PathIcon，**内框给 26 不是 24**
+### 2.2.1 控件内部：固定 24×24 SVG 坐标
 
+```text
+Viewbox(Size) → Canvas(24×24) → Path(Stretch=None)
 ```
-Viewbox(Size) → PathIcon(26×26) → Data
-```
 
-两个数都不随口给：
-
-- **颜色交给 `PathIcon`**。它是 `Control`，`Foreground` 的继承、主题切换、按钮禁用变淡全走
-  系统那一套，不用我们操心。**不要**为了「自己控制缩放的确定性」把它换成 `Path`：
-  `Path` 不是 `Control`、不参与 `Foreground` 继承，颜色得自己接，接错了就是
-  「亮色白、暗色黑」—— 照着试过一版，整片图标颜色反了，退回来了。
-- **内框 26 而不是 24**。`PathIcon` 按**几何自身的包围盒**裁切，而我们的路径都从 (2,2)
-  画到 (22,22)（Fluent 的路径在 24 视框里留了 2 的边距）。框按 24 给，右下各丢 2 格 ——
-  症状是「图标底部被裁掉一点点」，肉眼很容易当成错觉。
-- 代价：视觉尺寸 ≈ 几何占比 × `Size` × (24/26)。**换这个 26 时要记得全体会跟着缩 8%**。
+`PathIcon` 的内部尺寸与包围盒行为曾造成边缘缺损。当前直接保留完整 SVG 坐标，用 `Viewbox` 缩放。
+`Path.Fill` 显式绑定 `IconRoot.Foreground`；按钮模板中的 `ContentPresenter.Foreground` 也显式继承按钮前景。
+这两处绑定负责主题、禁用态和选中态颜色，不能省略。SVG 的 nonzero 填充规则使用路径前缀 `F1`。
 
 ### 2.3 尺寸按角色，一个数决定
 
@@ -254,11 +247,9 @@ C# 里码位字符串 0 处；构建 0 错误 0 警告；1062 项离线测试通
   私密歌单角标那个 `E72E`，我看旁边的「私密」二字就认成了「移除」，映射到 Fluent 的减号 ——
   实际 `E72E` 就是 **Lock**。症状是锁变成一个减号，而且因为「移除」这个语义听起来合理，
   一路没被怀疑。**不确定的码位去查 MDL2 的图标表**，别推断。
-- ★★ **不要用 `Path` 替换 `PathIcon`**（实施时踩到，代价是整片图标颜色反转）。
-  换的理由是「`PathIcon` 的尺寸行为没有文档」—— 但 `PathIcon` 是 `Control`，
-  `Foreground` 继承 / 主题切换 / 禁用变淡都由系统处理；`Path` 是 `Shape`，
-  **不参与 `Foreground` 继承**，颜色得自己接。自己接的结果是「亮色白、暗色黑」，整反了。
-  正确的修法是留在 `PathIcon` 上、只调内框尺寸（见 §2.2.1），不是换掉它。
+- 使用 `Path` 时必须显式绑定 `Fill` 到宿主 `Foreground`，不能依赖隐式颜色继承。
+  当前实现见 §2.2.1；未绑定时会出现主题或按钮状态颜色错误。
+
 - ★★ **批量替换 `FontIcon` 时必须带上原来的全部属性**（实施时踩到，代价是三个可见缺陷）。
   第一版脚本按 `<FontIcon …/>` 重建元素时**只保留字号与字形**，把
   `Visibility` / `Foreground` / `HorizontalAlignment` / `VerticalAlignment` 全丢了 ——
@@ -310,3 +301,11 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 | 评论面板 | 关闭、发送、点赞、空态 |
 | 侧栏 / 标题栏 | 新建、刷新、删除、返回、主题三态 |
 | 深浅两个主题 + 高对比度 | 图标颜色跟随，不出现黑色底上的黑图标 |
+
+
+## 2026-10-05 桌面歌词图标验收
+
+桌面歌词使用同一套 Fluent System Icons 路径，新增字号、调色板、行距、左对齐、开锁和鼠标光标两态。
+新增 SVG 路径保留完整 24×24 坐标并以 `F1` 指明 nonzero 填充；公共 `Icon` 改用固定 `Canvas` 内的 `Path`，
+`Fill` 显式绑定控件 `Foreground`。桌面歌词按钮模板同时传递 `ContentPresenter.Foreground`，
+避免缺边及选中颜色丢失。用户已确认本轮效果，界面记录见 [`desktop-lyrics.md`](desktop-lyrics.md)。

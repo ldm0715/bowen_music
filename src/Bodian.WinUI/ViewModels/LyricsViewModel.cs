@@ -10,15 +10,16 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Bodian.WinUI.ViewModels;
 
 /// <summary>
-/// 歌词面板。**单例**，与播放条一样常驻。
+/// 歌词的装载与当前行。**单例**，与播放条一样常驻。
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>面板关着就不取词。</b> 没人看的时候为每一首播过的歌都发一次歌词请求，属于把别人的服务当压测。
-/// 取词只发生在「面板开着」这个前提下：打开的那一刻，以及开着的时候换歌。
+/// <b>没有消费者就不取词。</b> 没人看的时候为每一首播过的歌都发一次歌词请求，属于把别人的服务当压测。
+/// 「有消费者」有两个来源：沉浸歌词页可见（<see cref="IsOpen"/>），或桌面歌词条开着
+/// （<see cref="IsDesktopLyricsOpen"/>）。任一为真就取词，换歌就重载。
 /// </para>
 /// <para>
-/// 歌词走 <see cref="LyricRepository"/>：同一首歌重播、面板反复开关都不会重复请求。
+/// 歌词走 <see cref="LyricRepository"/>：同一首歌重播、两处反复开关都不会重复请求。
 /// </para>
 /// <para>
 /// <b>当前行不是「跟随界面，是跟随引擎」</b> —— 位置一律取 <see cref="IPlaybackService.Position"/>，
@@ -69,14 +70,27 @@ public sealed partial class LyricsViewModel : ObservableObject
     public partial LyricDocument Document { get; set; } = LyricDocument.Empty;
 
     /// <summary>
-    /// 歌词页是否<b>活跃</b>（当前显示的就是它）。
+    /// 沉浸歌词页是否<b>活跃</b>（当前显示的就是它）。
     /// </summary>
     /// <remarks>
     /// 由 <c>LyricsPage</c> 通过 <c>INavigationAware</c> 设置，不靠控件生命周期事件。
-    /// 置为 <c>true</c> 会触发取词。这一位就是「<b>不开歌词页就不取词</b>」的全部实现。
+    /// 置为 <c>true</c> 会触发取词。
     /// </remarks>
     [ObservableProperty]
     public partial bool IsOpen { get; set; }
+
+    /// <summary>
+    /// 桌面歌词条是否开着。与 <see cref="IsOpen"/> <b>并列的第二个取词来源</b>。
+    /// </summary>
+    /// <remarks>
+    /// 两处都能看歌词，互不依赖：只开桌面歌词条时也要取词，只进歌词页时也一样。
+    /// 由 <c>DesktopLyricsViewModel</c> 驱动。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool IsDesktopLyricsOpen { get; set; }
+
+    /// <summary>还有没有人需要歌词。它是「取不取词」的唯一判据。</summary>
+    private bool IsActive => IsOpen || IsDesktopLyricsOpen;
 
     /// <summary>当前有没有在播的歌。没有时歌词按钮是灰的。</summary>
     [ObservableProperty]
@@ -119,14 +133,17 @@ public sealed partial class LyricsViewModel : ObservableObject
             ? _engine.SeekAsync(Document.Lines[lineIndex].Start)
             : Task.CompletedTask;
 
-    partial void OnIsOpenChanged(bool value)
-    {
-        if (!value)
-        {
-            return;
-        }
+    partial void OnIsOpenChanged(bool value) => OnActivationChanged();
 
-        _ = RefreshAsync();
+    partial void OnIsDesktopLyricsOpenChanged(bool value) => OnActivationChanged();
+
+    /// <summary>两个来源任一被打开时刷新一次；都关掉时不动已装载的内容。</summary>
+    private void OnActivationChanged()
+    {
+        if (IsActive)
+        {
+            _ = RefreshAsync();
+        }
     }
 
     // ── 数据 ────────────────────────────────────────────────────────────────
@@ -223,13 +240,13 @@ public sealed partial class LyricsViewModel : ObservableObject
     {
         HasTrack = true;
 
-        if (IsOpen)
+        if (IsActive)
         {
             _ = LoadAsync(e.Track);
             return;
         }
 
-        // 面板关着就先不取词，把「已装载」作废，等打开时再按当前曲目加载。
+        // 两处都没开就先不取词，把「已装载」作废，等打开时再按当前曲目加载。
         _loadedTrackId = 0;
     }
 
@@ -255,9 +272,9 @@ public sealed partial class LyricsViewModel : ObservableObject
     /// 记录当前行下标。
     /// </summary>
     /// <remarks>
-    /// <b>渲染路径不读它。</b> 这一位是 5Hz 采样的（跟着引擎上报走），而 Win2D 渲染器按 60fps 的
-    /// 平滑时钟自己算当前行 —— 两套判断同时驱动高亮会打架，所以高亮只归渲染器。
-    /// 这一位留给页面外的公开状态用（例如将来 P6 的桌面歌词条）。
+    /// <b>两处渲染路径都不读它。</b> 这一位跟随引擎低频上报，给页面之外的状态展示使用。
+    /// 沉浸歌词页与桌面歌词各自通过 <c>LyricsPlaybackClock</c> 查询文档时间轴和逐字进度，
+    /// 不让低频行下标与每帧渲染同时驱动高亮。
     /// </remarks>
     private void SetCurrent(int index)
     {

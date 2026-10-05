@@ -23,17 +23,24 @@ public sealed partial class PlayerBar : UserControl
     private bool _isProgressPointerOver;
     private double _progressPointerX;
 
-    public PlayerBar(PlayerViewModel viewModel, LyricsViewModel lyrics, INavigationService navigation)
+    public PlayerBar(
+        PlayerViewModel viewModel,
+        LyricsViewModel lyrics,
+        DesktopLyricsViewModel desktopLyrics,
+        INavigationService navigation)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(lyrics);
+        ArgumentNullException.ThrowIfNull(desktopLyrics);
         ArgumentNullException.ThrowIfNull(navigation);
 
         ViewModel = viewModel;
         Lyrics = lyrics;
+        DesktopLyrics = desktopLyrics;
         _navigation = navigation;
 
         InitializeComponent();
+        UpdateDesktopLyricsButton();
 
         // Slider 会处理内部指针事件，仍需接收它们以更新气泡和拖动状态。
         PositionSlider.AddHandler(PointerEnteredEvent, new PointerEventHandler(OnProgressPointerEntered), true);
@@ -60,8 +67,11 @@ public sealed partial class PlayerBar : UserControl
 
     private void OnQualitySelected(object? sender, EventArgs e) => QualityFlyout.Hide();
 
-    /// <summary>歌词页是否活跃。封面和「词」按钮按它置灰。</summary>
+    /// <summary>歌词页是否活跃。封面按它置灰。</summary>
     public LyricsViewModel Lyrics { get; }
+
+    /// <summary>桌面歌词条的开关与偏好。那颗按钮直接绑它的命令。</summary>
+    public DesktopLyricsViewModel DesktopLyrics { get; }
 
     /// <summary>
     /// 点了「播放列表」。
@@ -96,8 +106,56 @@ public sealed partial class PlayerBar : UserControl
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         ViewModel.PropertyChanged += OnPlayerPropertyChanged;
+        DesktopLyrics.PropertyChanged += OnDesktopLyricsPropertyChanged;
         UpdateTitleWidth();
     }
+
+    /// <summary>
+    /// 桌面歌词条的开关和「词」按钮的空闲/激活是同一件事，两边必须同步。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>用代码设，不用绑定。</b> 按钮模板里有几十个状态画刷键，想只改「开着」这一种，
+    /// 绑要穿过模板；而这里只有两种状态。
+    /// </para>
+    /// <para>
+    /// <b>关掉时是 <c>ClearValue</c> 而不是自己拼一个「普通色」</b>：样式与主题本来就管着
+    /// 未激活的样子，自己设一遍等于把这个状态从主题手里抢走 —— 换主题时它就不会跟着变了。
+    /// </para>
+    /// </remarks>
+    private void UpdateDesktopLyricsButton()
+    {
+        if (!DesktopLyrics.IsEnabled)
+        {
+            DesktopLyricsButton.ClearValue(ForegroundProperty);
+            DesktopLyricsButton.ClearValue(BackgroundProperty);
+
+            return;
+        }
+
+        if (Application.Current.Resources.TryGetValue("AccentTextFillColorPrimaryBrush", out var foreground)
+            && foreground is Brush foregroundBrush)
+        {
+            DesktopLyricsButton.Foreground = foregroundBrush;
+        }
+
+        if (Application.Current.Resources.TryGetValue("AccentFillColorSelectedTextBackgroundBrush", out var background)
+            && background is Brush backgroundBrush)
+        {
+            DesktopLyricsButton.Background = backgroundBrush;
+        }
+    }
+
+    private void OnDesktopLyricsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DesktopLyricsViewModel.IsEnabled))
+        {
+            UpdateDesktopLyricsButton();
+        }
+    }
+
+    private void OnDesktopLyricsClick(object sender, RoutedEventArgs e)
+        => DesktopLyrics.ToggleCommand.Execute(null);
 
     /// <summary>
     /// 曲名的宽度上限。**在代码里算，不用 <c>x:Bind</c> 绑 <c>ActualWidth</c>。**
@@ -129,6 +187,7 @@ public sealed partial class PlayerBar : UserControl
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         ViewModel.PropertyChanged -= OnPlayerPropertyChanged;
+        DesktopLyrics.PropertyChanged -= OnDesktopLyricsPropertyChanged;
         ViewModel.IsSeeking = false;
         _isProgressPointerOver = false;
         ClosePopups();

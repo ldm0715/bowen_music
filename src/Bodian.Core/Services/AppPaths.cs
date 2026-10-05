@@ -60,6 +60,24 @@ public static class AppPaths
     /// </remarks>
     public static string WindowFile => Path.Combine(LocalAppData, "window.json");
 
+    /// <summary>
+    /// 桌面歌词条的外观偏好（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="WindowFile"/> 一样刻意单独一份：字号颜色是「这个人」的事，
+    /// 位置尺寸是「这台机器」的事，混在一起以后想同步偏好就得先把它摘出去。
+    /// </remarks>
+    public static string DesktopLyricsSettingsFile => Path.Combine(LocalAppData, "desktop-lyrics.json");
+
+    /// <summary>
+    /// 桌面歌词条的位置与宽度（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// 复用 <c>JsonWindowPlacementStore</c> 的类型、只换路径，所以文件名要与主窗口的
+    /// <see cref="WindowFile"/> 区分开，否则两份记录会互相覆盖。
+    /// </remarks>
+    public static string DesktopLyricsWindowFile => Path.Combine(LocalAppData, "desktop-lyrics-window.json");
+
     /// <summary>日志目录。</summary>
     public static string LogDirectory => Path.Combine(LocalAppData, "logs");
 }
