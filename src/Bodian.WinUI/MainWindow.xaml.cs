@@ -598,15 +598,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </remarks>
     private async void OnClearQueueRequested(object? sender, EventArgs args)
     {
-        var dialog = new ContentDialog
-        {
-            XamlRoot = ShellRoot.XamlRoot,
-            Title = "清空播放列表？",
-            Content = "只会清掉这一份播放队列，正在播的这首会继续放完。",
-            PrimaryButtonText = "清空",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Close,
-        };
+        var dialog = CreateAppDialog("清空播放列表？");
+        dialog.Content = "只会清掉这一份播放队列，正在播的这首会继续放完。";
+        dialog.PrimaryButtonText = "清空";
+        dialog.CloseButtonText = "取消";
+        dialog.DefaultButton = ContentDialogButton.Close;
 
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)
         {

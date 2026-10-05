@@ -45,6 +45,10 @@ public sealed partial class RecentPage : Page, INavigationAware
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
+
+            // 代码构造的 ContentDialog 不在可视树里，不显式给主题就永远跟随系统 ——
+            // 应用内切成深色时它还是一块白板。
+            RequestedTheme = ActualTheme,
             Title = "清空播放记录？",
             Content = "只清掉本机这一份「最近播放」，不动账号里的任何数据，也无法撤销。",
             PrimaryButtonText = "清空",

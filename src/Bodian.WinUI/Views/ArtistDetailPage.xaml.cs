@@ -45,6 +45,10 @@ public sealed partial class ArtistDetailPage : Page, INavigationAware, INavigati
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot,
+
+                // 代码构造的 ContentDialog 不在可视树里，不显式给主题就永远跟随系统 ——
+                // 应用内切成深色时它还是一块白板。
+                RequestedTheme = ActualTheme,
                 Title = "取消关注？",
                 Content = "会不再关注这位歌手，之后可以再关注回来。",
                 PrimaryButtonText = "取消关注",

@@ -62,6 +62,10 @@ public sealed partial class AlbumDetailPage : Page, INavigationAware
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot,
+
+                // 代码构造的 ContentDialog 不在可视树里，不显式给主题就永远跟随系统 ——
+                // 应用内切成深色时它还是一块白板。与「删除歌单」那个框同一档。
+                RequestedTheme = ActualTheme,
                 Title = "取消收藏？",
                 Content = "会把这张专辑从你的收藏里移除，之后可以再收藏回来。",
                 PrimaryButtonText = "取消收藏",
