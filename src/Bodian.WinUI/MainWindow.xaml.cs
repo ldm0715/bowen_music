@@ -965,29 +965,13 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     }
 
     /// <summary>
-    /// 通知条的关闭按钮。
+    /// 通知条的关闭按钮：收起当前这条，队列里排着的紧接着上。
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>拦下默认行为（<c>args.Cancel</c>），由 VM 驱动显隐</b>：InfoBar 自己的关闭逻辑会先把
-    /// <c>IsOpen</c> 置 false，而那个属性是从 <c>Notifications.IsOpen</c> 单向绑过来的 ——
-    /// 两个来源同时改它，队列里排着的下一条会被这一次关闭顺手盖掉。
-    /// </para>
-    /// <para>
-    /// 只拦「用户点了关闭按钮」这一种原因：VM 收起消息时 InfoBar 也会以
-    /// <c>Programmatic</c> 走一遍 Closing，那种不能拦，否则通知条收不掉。
-    /// </para>
+    /// 关掉按钮是自绘的，显隐完全由 <c>Notifications.IsOpen</c> 驱动 ——
+    /// 这里只负责通知，不碰界面。
     /// </remarks>
-    private void OnNotificationClosing(InfoBar sender, InfoBarClosingEventArgs args)
-    {
-        if (args.Reason != InfoBarCloseReason.CloseButton)
-        {
-            return;
-        }
-
-        args.Cancel = true;
-        Notifications.Dismiss();
-    }
+    private void OnNotificationCloseClick(object sender, RoutedEventArgs e) => Notifications.Dismiss();
 
     /// <summary>
     /// 造一个跟随应用主题、并且收紧了内边距的对话框。

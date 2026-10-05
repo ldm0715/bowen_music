@@ -52,6 +52,9 @@ public sealed partial class NotificationViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Message))]
     [NotifyPropertyChangedFor(nameof(Severity))]
+    [NotifyPropertyChangedFor(nameof(IsInformational))]
+    [NotifyPropertyChangedFor(nameof(IsSuccess))]
+    [NotifyPropertyChangedFor(nameof(IsError))]
     [NotifyPropertyChangedFor(nameof(IsOpen))]
     public partial NotificationEntry? Current { get; set; }
 
@@ -60,6 +63,22 @@ public sealed partial class NotificationViewModel : ObservableObject
 
     /// <summary>通知条的等级。空着时按中性处理，避免绑定取到 null。</summary>
     public NoticeSeverity Severity => Current?.Severity ?? NoticeSeverity.Informational;
+
+    /// <summary>
+    /// 等级的三个开关，给通知条上那颗圆点选配色用。
+    /// </summary>
+    /// <remarks>
+    /// <b>三个布尔而不是一个枚举转画刷</b>：画刷要走 <c>{ThemeResource}</c> 才能在切换主题时重新求值，
+    /// 而函数绑定与转换器都只在源属性变化时跑一次 —— 那种写法切主题后会留一个过期颜色。
+    /// 拆成三颗点、各自绑死一个主题画刷，就没有这个问题。
+    /// </remarks>
+    public bool IsInformational => Severity == NoticeSeverity.Informational;
+
+    /// <inheritdoc cref="IsInformational"/>
+    public bool IsSuccess => Severity == NoticeSeverity.Success;
+
+    /// <inheritdoc cref="IsInformational"/>
+    public bool IsError => Severity == NoticeSeverity.Error;
 
     public bool IsOpen => Current is not null;
 

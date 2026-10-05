@@ -1656,12 +1656,13 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
 ### 28.2 现在的形状
 
 `ViewModels/NotificationViewModel.cs`（DI 单例）是**唯一**的出口，
-外壳里那一个 `InfoBar` 是**唯一**的呈现点。
+外壳里 `MainWindow.xaml` 的 `NotificationBar` 是**唯一**的呈现点。
 
 | 项 | 值 |
 | --- | --- |
 | 位置 | `Grid.Row="1"` 底部居中，`Margin="0,0,0,12"`，`MaxWidth="520"` |
-| 组件 | 原生 `InfoBar`，`CornerRadius="12"`，`IsClosable="True"` |
+| 形状 | 自绘 `Border`：`Padding="12,6,6,6"`、`CornerRadius=RadiusMd`、高约 36 |
+| 内容 | 8px 等级圆点 + 13px 文案（最多两行）+ 22px 关闭按钮 |
 | 分层 | 排在 `ShellRoot` 最后一个子元素位置上，**压在 `ImmersiveHost` 之上** |
 | 入口 | `NotificationViewModel.Show(message, severity, duration?)` |
 
@@ -1683,31 +1684,52 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
   用户看到的是早已过期的消息；丢最旧而不是最新，因为最新那条才刚发生。
 - 时长：Informational / Success 3 秒，Error 5 秒。
 
-**★ 关掉按钮不走 `InfoBar` 的默认行为**：默认会自己把 `IsOpen` 置 false，
-而显隐由 VM 单向驱动 —— 两个来源同时改它，队里排着的下一条会被这一次关闭顺手盖掉。
-所以 `MainWindow.OnNotificationClosing` 拦下 `Closing`（`args.Cancel = true`）交回 `Dismiss()`，
-且**只拦 `InfoBarCloseReason.CloseButton`** —— VM 收起消息时 InfoBar 也会以 `Programmatic`
-走一遍 `Closing`，那种不能拦，否则通知条收不掉。
+**★ 关掉按钮只调 `Dismiss()`**：自绘之后显隐完全由 `Notifications.IsOpen` 驱动，
+只有一个来源，不存在「按钮自己关一次、VM 又关一次」的打架。
 
-### 28.4 分级配色只落在图标上
+### 28.4 为什么是自绘，不是 InfoBar
 
-系统给的四条 severity 底色都是**半透明**色调（设计上叠在 Mica 上），本应用不设背板，
-叠在氛围渐变上会透底，与本仓「浮层必须实色」的立场冲突（§24）。
-所以 `Themes/Theme.xaml` 里把 `InfoBar*SeverityBackgroundBrush` 四条统一改成实色面板
-（与播放队列抽屉同源），**分色只落在左侧那颗图标上**。
+**这一节记录的是一次推翻。** 第一版用的就是原生 `InfoBar`（组件现成、severity 现成），
+做出来约 **52px 高**，用户反馈「胖胖的」。想收紧时撞到了模板：
 
-**★ 底色不能在实例上写 `Background`**：那四条由模板的 VisualState 在切 severity 时铺上去，
-实例上的值会被盖掉，只能改主题键。而 `CornerRadius` / `BorderBrush` / `BorderThickness`
-走的是 `TemplateBinding`，这三个在实例上设有效。
+| 撑高度的来源 | 默认值 | 引用方式 |
+| --- | --- | --- |
+| 关闭按钮 | 38×38 + 四周 5 边距 = 48 | `{StaticResource InfoBarCloseButtonSize}` |
+| 等级图标 | 上下各 16 外边距 + 16px 字形 ≈ 52 | `{StaticResource InfoBarIconMargin}` |
+| 根容器最小高 | 48 | `{ThemeResource InfoBarMinHeight}` |
 
-**★ 图标是「实心圆 + 其上的字形」两层**，所以要配 `*SeverityIconBackground` 与
-`*SeverityIconForeground` 一对 —— 只改一个会出现同色的圆和字，图标糊成一团。
+**★ 关键在引用方式**：只有 `MinHeight` 是 `{ThemeResource}`，能在实例的
+`<InfoBar.Resources>` 里覆写；其余几何是模板内的 `{StaticResource}` ——
+它们在模板解析时就锁死在模板自己的字典作用域里，**实例级覆写照不进**。
+（对比：Slider 的几何是 `{ThemeResource}`，所以 `PlayerBar.xaml` 里那种
+`<Slider.Resources>` 覆写才管用。）底色同理：那四条由模板的 VisualState 铺上去，
+实例上的 `Background` 会被盖掉，只能改主题键。
 
-**★ 键名写错不会报错、只会静默不生效**（同 NavigationView 那批）。
-本次键名是从 `microsoft.windowsappsdk.winui/2.3.9` 的 `generic.xaml` 里核出来的，不是猜的。
-高对比度节**不覆写**这几条，让系统的无障碍配色生效。
+结论是「继续用 InfoBar」最多把关闭按钮和最小高改小，**从 52 瘦到 48 左右**，
+图标那一圈改不掉 —— 治不了胖。InfoBar 的模板本来就是照「页面内横幅」做的，
+硬把它当 toast 用是跟组件本身较劲。于是换成自绘：`Border` + `Ellipse` + `TextBlock`
++ `Button`，四个部件仍然都是原生控件，只是不再用 InfoBar 那个横幅模板。
 
-### 28.5 行为变化：播放引擎的提示不再常驻
+代价：`Themes/Theme.xaml` 里原先为 InfoBar 覆写的那批 `InfoBar*Severity*Brush` 全部撤掉
+（见 §24 那条「浮层必须实色」的立场，自绘之后由 `Border` 自己铺实色底，不再需要覆写系统键）。
+
+### 28.5 等级配色只有一颗圆点
+
+分色落在 8px 的圆点上，**不新增任何 token**，直接复用仓库已有的语义画刷：
+
+| 等级 | 画刷 |
+| --- | --- |
+| Informational | `TextFillColorTertiaryBrush` |
+| Success | `AccentTextFillColorPrimaryBrush`（浅 `#007A57` / 深 `#00F3B0`） |
+| Error | `SystemFillColorCriticalBrush` |
+
+**★ 三颗圆点叠在同一格、按等级选一颗显示，而不是一颗动态换色**：画刷必须走
+`{ThemeResource}` 才能在切换主题时重新求值，而函数绑定与转换器都只在源属性变化时跑一次 ——
+那种写法切完主题会留一个过期颜色。所以 `NotificationViewModel` 暴露的是
+`IsInformational` / `IsSuccess` / `IsError` 三个布尔，各自绑死一颗点。
+
+
+### 28.6 行为变化：播放引擎的提示不再常驻
 
 原来「该歌曲已下架，无法播放」会一直挂到下一首开播；现在按 Error 显示 5 秒后自动消失，
 也可以点关闭提前收掉。代价是用户如果正在看别处，5 秒后这条就没了。
@@ -1717,7 +1739,7 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
 另两处没有按「失败」定级：**「试听片段已结束」与「已经是最后一首了」走中性档** ——
 它们不是操作失败，染成红的会误导。
 
-### 28.6 已知取舍与验证
+### 28.7 已知取舍与验证
 
 - **面板内的错误没收进来**：评论加载失败、侧栏歌单失败、批量选歌单的提示**留在原地** ——
   它们带「重试」按钮，挪到底部浮层反而更差。页面级的 `StatusText`、`PagingEndNote`
@@ -1729,5 +1751,5 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
 
 **验证**：WinUI 构建通过，0 错误；1 个既有 `AiPlaylistPage.xaml:28` WMC1506 警告。
 1177 项离线测试通过（`TrackActionsViewModelTests` 的假实现跟上了新签名，
-并补了成功 / 失败两条 severity 断言）。通知条的浮层位置、两档配色的实际观感、
+并补了成功 / 失败两条 severity 断言）。通知条的浮层位置与高度、三档圆点配色的实际观感、
 队列在连续操作下的节奏，以及全屏歌词页 / MV 页上是否真的可见，均未人工验收。

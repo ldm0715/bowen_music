@@ -863,36 +863,95 @@
         <!--
             浮层通知条。全应用唯一的短提示出口，状态与队列在 NotificationViewModel 里。
 
+            ★ **自绘，不用 InfoBar**：那个组件的模板是照「页面内横幅」做的 ——
+              最小高 48、图标上下各留 16、关闭按钮 38，加起来约 52 高，
+              而这些几何在模板里是 `{StaticResource}`（解析时就锁死在模板自己的作用域里），
+              实例级覆写不生效，想瘦也瘦不下来。这里三个部件仍然都是原生控件。
+              2026-10-05 之前是 InfoBar，取舍过程见 ui-refresh.md §28。
+
             ★ 排在 ShellRoot 的最后一个子元素位置上，**压在 ImmersiveHost 之上** ——
-              歌词页与 MV 页盖满整窗，通知条排它们前面就看不见了，而「全屏页收不到提示」
-              正是这次要修的核心症状。
+              歌词页与 MV 页盖满整窗，通知条排它们前面就看不见了。
 
             ★ 挂**第 1 行（内容区）的底部**，而不是第 2 行往上挪负边距：这样不依赖
               SizePlayerBar 那个常量，播放条将来改高度，通知条不会跟着错位。
 
             ★ **不铺全屏透明遮罩**（QueueOverlay 那种）：通知条不该吃掉指针事件。
-
-            ★ 关掉按钮不走 InfoBar 的默认行为：默认会自己把 IsOpen 置 false，
-              而显隐由 VM 驱动 —— 两个来源会打架。这里拦 Closing，交回 Dismiss。
         -->
-        <InfoBar
+        <Border
             x:Name="NotificationBar"
             Grid.Row="1"
             Margin="0,0,0,12"
             MaxWidth="520"
+            Padding="12,6,6,6"
             HorizontalAlignment="Center"
             VerticalAlignment="Bottom"
             AutomationProperties.Name="通知"
+            Background="{ThemeResource CommentPanelBackgroundBrush}"
             BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
             BorderThickness="1"
-            Closing="OnNotificationClosing"
-            CornerRadius="12"
-            IsClosable="True"
-            IsOpen="{x:Bind Notifications.IsOpen, Mode=OneWay}"
-            Message="{x:Bind Notifications.Message, Mode=OneWay}"
+            CornerRadius="{StaticResource RadiusMd}"
             RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}"
-            Severity="{x:Bind local:Formats.NoticeLevel(Notifications.Severity), Mode=OneWay}"
-            Visibility="{x:Bind local:Formats.Visible(Notifications.IsOpen), Mode=OneWay}" />
+            Visibility="{x:Bind local:Formats.Visible(Notifications.IsOpen), Mode=OneWay}">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!--
+                    等级：一颗圆点，三颗叠在同一格里按等级选一颗显示。
+
+                    ★ 拆成三颗而不是一颗动态换色：画刷必须走 `{ThemeResource}` 才能在切主题时
+                      重新求值，而函数绑定/转换器只在源属性变化时跑一次 —— 那种写法切完主题
+                      会留一个过期颜色。
+                -->
+                <Grid Grid.Column="0" VerticalAlignment="Center">
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Fill="{ThemeResource TextFillColorTertiaryBrush}"
+                        Visibility="{x:Bind local:Formats.Visible(Notifications.IsInformational), Mode=OneWay}" />
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Fill="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                        Visibility="{x:Bind local:Formats.Visible(Notifications.IsSuccess), Mode=OneWay}" />
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Fill="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind local:Formats.Visible(Notifications.IsError), Mode=OneWay}" />
+                </Grid>
+
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    FontSize="{StaticResource FontSizeBody}"
+                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                    MaxLines="2"
+                    Text="{x:Bind Notifications.Message, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="WrapWholeWords" />
+
+                <Button
+                    Grid.Column="2"
+                    Width="22"
+                    Height="22"
+                    MinWidth="0"
+                    MinHeight="0"
+                    Padding="0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="关闭通知"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="OnNotificationCloseClick"
+                    CornerRadius="{StaticResource RadiusSm}"
+                    ToolTipService.ToolTip="关闭">
+                    <controls:Icon Size="10" Data="{StaticResource IconDismiss}" />
+                </Button>
+            </Grid>
+        </Border>
     </Grid>
     </controls:ResponsiveViewport>
 </Window>
