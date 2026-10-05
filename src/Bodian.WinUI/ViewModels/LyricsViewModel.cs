@@ -176,9 +176,14 @@ public sealed partial class LyricsViewModel : ObservableObject
         : Task.CompletedTask;
 
     /// <summary>点某一行跳到那一句。参数是行下标（Win2D 那边命中测试拿到的就是下标）。</summary>
+    /// <remarks>
+    /// <b>引擎里没有加载文件时不跳。</b> 与 <c>PlayerViewModel.SeekToAsync</c> 同一条理由：
+    /// 此时 mpv 的 <c>time-pos</c> 不存在，设它会抛 <c>property unavailable</c> 并弹红条。
+    /// </remarks>
     [RelayCommand]
     private Task SeekToLineAsync(int lineIndex)
         => lineIndex >= 0 && lineIndex < Document.Lines.Count
+            && _engine.State is not (PlaybackState.Idle or PlaybackState.Stopped)
             ? _engine.SeekAsync(Document.Lines[lineIndex].Start)
             : Task.CompletedTask;
 

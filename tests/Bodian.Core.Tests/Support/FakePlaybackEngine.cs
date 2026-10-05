@@ -31,7 +31,16 @@ internal sealed class FakePlaybackEngine : IPlaybackService
     public bool FailOnce { get; set; }
 
     /// <summary>模拟一次「这一首放完了」，让协调器走自动续播那条路。</summary>
-    public void RaiseEnded() => Ended?.Invoke(this, EventArgs.Empty);
+    /// <remarks>
+    /// <b>先置 <see cref="PlaybackState.Stopped"/> 再触发</b>，对齐真引擎
+    /// （<c>LibMpvPlaybackService.OnEndFile</c> 也是先 <c>SetState(Stopped)</c> 再抛 <c>Ended</c>）。
+    /// 不这样，测试里「放完之后按播放」永远走不到 Idle/Stopped 那条分支，也就验不出真机上为什么没声音。
+    /// </remarks>
+    public void RaiseEnded()
+    {
+        State = PlaybackState.Stopped;
+        Ended?.Invoke(this, EventArgs.Empty);
+    }
 
     public event EventHandler<PlaybackStateChangedEventArgs>? StateChanged { add { } remove { } }
 

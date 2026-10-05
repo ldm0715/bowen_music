@@ -254,3 +254,74 @@ WinUI 构建通过，0 错误、0 警告（`AiPlaylistPage.xaml:27` 那条既有
 | 队列持久化 | 关机不保留队列，与改动前一致 —— 落盘的只有音质偏好与本题的模式偏好 |
 | 抽屉内的「更多」菜单 | 抽屉只做切歌、删、清空三件事 |
 | 歌词页控制台的模式按钮与队列入口 | 那套大号控制台复用同一组命令，但它跟着全屏歌词页走，播放条那时不可见；本轮只动底部播放栏 |
+
+## 10. 2026-10-05：播到末尾再点播放
+
+### 10.1 症状与根因
+
+顺序播放放完列表最后一首后，引擎状态是 `Stopped`（`LibMpvPlaybackService.OnEndFile`），
+而 mpv 因为 `keep-open=no` + `idle=yes` 已经把文件卸载了 —— **引擎里没有任何东西可播**。此时：
+
+| 操作 | 现象 | 真正发生的事 |
+| --- | --- | --- |
+| 点播放键 | 没声音，但**歌词照滚** | `pause=false` 在 idle 的 mpv 上是**空操作**；`SetPause` 的乐观更新却把状态置成 `Playing`，歌词时钟据此开始按墙钟外推，而 idle 下读不到 `time-pos`、**根本不发进度事件**，没人能把它拉回来 |
+| 拖进度条 | 弹「跳转失败：property unavailable」 | `time-pos` 在 idle 下不存在。更糟的是失败处理会把状态砸成 `Idle`，进度条跟着归零 —— 这才是「进度条异常」的来源 |
+| 点某一行歌词 | 同上 | `LyricsViewModel.SeekToLineAsync` 走的是同一个 `time-pos` |
+
+> ★ **`SmtcManager` 里本来就修对了一半**：系统媒体控件的播放键有 `Idle or Stopped => 重播当前这首`
+> 这条分支，播放条那颗键漏了。两份判断分散在两处，正是这次漏一处的直接原因。
+
+### 10.2 判断收在协调器的 `PlayAsync`
+
+新增 `PlaybackCoordinator.PlayAsync`（`src/Bodian.WinUI/Playback/PlaybackCoordinator.cs`），
+**所有播放键都走它**：引擎处于 `Idle` / `Stopped` 时不再直接调引擎的 `PlayAsync`，而是重新解析音源再 loadfile
+（CDN 直链带签名且有时效，旧的很可能已经过期）。`PlayerViewModel.TogglePlayPauseAsync` 与
+`SmtcManager` 那两处局部判断都并到这一个入口，与 §2「模式判断收在 `PlayQueue` 里」是同一条理由。
+
+重新加载的目标分两种，靠协调器上的私有标记 `_queueExhausted` 区分：
+
+| 状态 | 重播目标 |
+| --- | --- |
+| 队列已经播到头（顺序模式放完最后一首） | **整个队列从第一首重来** |
+| 其余（试听片段结束、加载失败后重试） | 重播当前这首 |
+
+`_queueExhausted` 在 `NextAsync` 的 `MoveNext()` 失败分支里置上，在 `PlayCurrentAsync` 里清掉 ——
+**任何一次新的播放尝试都算翻篇**（六条队列命令全经由它），不需要每个调用点自己记得清。
+
+配套给 `PlayQueue` 加了 `MoveToStart()`：把游标拨回**排列的第一位**（`_cursor = 0`，不是
+`MoveToItem(0)`）—— 前者是「播放顺序的第一位」，不依赖面板里的显示下标；顺序模式下 `_order` 是恒等排列，
+两者等价，随机模式下回到本轮洗牌的第一位。
+
+### 10.3 停止态拖进度条：无效但不报错
+
+`PlayerViewModel.SeekToAsync` 与 `LyricsViewModel.SeekToLineAsync` 都加了 `Idle` / `Stopped` 门禁。
+被挡下时 `PlayerViewModel` 会补发一次 `PositionSeconds` 通知把滑块拨回原位 —— 滑块已经被拖走了，
+而引擎在这个状态下不会再发进度把它拉回来。
+
+> ★ 补发通知能拨回滑块是**验证过的**，不是想当然：x:Bind 生成的
+> `Update_ViewModel_PositionSeconds` 是无条件 `RangeBase.Value = obj`，没有缓存比对
+> （`obj/.../Controls/PlayerBar.g.cs`）。若哪天它改成带缓存的形式，这里会静默失效。
+
+**不去动** `OnEngineStateChanged` 对 `Stopped` 不复位进度的行为：末尾停下时播放条上显示的还是那首，
+进度停在终点是如实的。
+
+### 10.4 已知边界
+
+`ClearQueue()` 清空后当前曲目自然放完，`MoveNext` 在空队列上同样失败，于是也会被标记成「已播到头」。
+此时点播放没有可重播的第一首，是静默无操作 —— 清空队列本身就不该保留可播内容，有意留着。
+
+### 10.5 验证
+
+**1184 项离线测试通过**（此前 1177，本轮新增 7）：
+
+| 新增测试 | 覆盖 |
+| --- | --- |
+| `PlayQueueTests`（3 项） | `MoveToStart` 回到第一位、已在第一位时仍返回 `true` 并抛一次 `Changed`、空队列返回 `false` |
+| `PlayQueueCommandTests`（4 项） | 耗尽后按播放从第一首重来；未耗尽而引擎停下时重播当前这首；`Paused` 时只恢复不重载；一次新的点播会清掉「已播到头」 |
+
+`FakePlaybackEngine.RaiseEnded()` 改成**先置 `Stopped` 再触发 `Ended`**，对齐真引擎
+（`LibMpvPlaybackService.OnEndFile` 也是先 `SetState(Stopped)` 再抛事件）—— 不这样，
+「放完之后按播放」永远走不到 Idle/Stopped 那条分支，也就验不出真机上为什么没声音。
+
+界面部分按惯例由用户手动验收：末尾停下后点播放是否从第一首重来、拖进度条是否只弹回不报错、
+点歌词行是否不再弹红条、暂停态点播放是否仍只续播不重载。

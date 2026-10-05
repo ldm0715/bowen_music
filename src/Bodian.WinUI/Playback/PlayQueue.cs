@@ -337,6 +337,28 @@ public sealed class PlayQueue
         return true;
     }
 
+    /// <summary>
+    /// 游标回到当前排列的第一位。
+    /// </summary>
+    /// <remarks>
+    /// 用 <c>_cursor = 0</c> 而不是 <see cref="MoveToItem"/>：这是「播放顺序的第一位」，不依赖
+    /// <c>_items</c> 里的显示下标。顺序模式下 <c>_order</c> 是恒等排列，两者等价；
+    /// 随机模式下回到本轮洗牌的第一位。
+    /// </remarks>
+    /// <returns>空队列返回 <c>false</c>，且不抛 <see cref="Changed"/>。</returns>
+    public bool MoveToStart()
+    {
+        if (_order.Count == 0)
+        {
+            return false;
+        }
+
+        _cursor = 0;
+        Changed?.Invoke(this, EventArgs.Empty);
+
+        return true;
+    }
+
     /// <summary>移到上一首。列表循环会从第一首绕到最后一首，随机模式往回走到头就停。</summary>
     public bool MovePrevious()
     {

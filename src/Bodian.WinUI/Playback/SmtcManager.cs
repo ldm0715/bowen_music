@@ -391,16 +391,9 @@ public sealed class SmtcManager : IDisposable
         }
     }
 
-    private Task PlayAsync() => _engine.State switch
-    {
-        PlaybackState.Paused => _engine.PlayAsync(),
-
-        // Idle/Stopped 时 **不能**调 PlayAsync()：mpv 已经 idle，设 pause=false 什么都不会发生。
-        // 必须重新解析一次音源（CDN 直链带签名且有时效，旧的很可能已经过期）。
-        PlaybackState.Idle or PlaybackState.Stopped => _coordinator.ReplayCurrentAsync(),
-
-        _ => Task.CompletedTask,
-    };
+    // 「Idle/Stopped 时不能直接调引擎的 PlayAsync」这条判断收在协调器里，
+    // 与播放条那颗播放键共用同一个入口。
+    private Task PlayAsync() => _coordinator.PlayAsync();
 
     /// <summary>串行化队列命令，防手快连点。**不覆盖 Play/Pause** —— 那会把「暂停→播放」丢掉。</summary>
     private async Task RunQueueCommandAsync(Func<CancellationToken, Task> command)

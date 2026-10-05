@@ -81,6 +81,43 @@ public sealed class PlayQueueTests
     }
 
     [Fact]
+    public void MoveToStart_GoesBackToTheFirstTrackOfTheOrder()
+    {
+        var queue = Queue(1, 2, 3);
+
+        Assert.True(queue.MoveNext());
+        Assert.True(queue.MoveNext());
+        Assert.Equal(3, queue.Current!.Id);
+
+        Assert.Equal(1, CountChanges(queue, q => Assert.True(q.MoveToStart())));
+
+        Assert.Equal(1, queue.Current!.Id);
+        Assert.Equal(0, queue.CurrentIndex);
+        Assert.True(queue.HasNext);
+        Assert.False(queue.HasPrevious);
+    }
+
+    [Fact]
+    public void MoveToStart_OnTheFirstTrack_StillRaisesChangedOnce()
+    {
+        var queue = Queue(1, 2, 3);
+
+        // 游标本来就在第一位，方法仍然返回 true 并抛事件 —— 调用方靠它决定要不要重新加载。
+        Assert.Equal(1, CountChanges(queue, q => Assert.True(q.MoveToStart())));
+        Assert.Equal(1, queue.Current!.Id);
+    }
+
+    [Fact]
+    public void MoveToStart_OnAnEmptyQueue_ReturnsFalse()
+    {
+        var queue = new PlayQueue();
+
+        Assert.Equal(0, CountChanges(queue, q => Assert.False(q.MoveToStart())));
+        Assert.Null(queue.Current);
+        Assert.Equal(-1, queue.CurrentIndex);
+    }
+
+    [Fact]
     public void ListLoop_WrapsBothWays()
     {
         var queue = Queue(1, 2, 3);

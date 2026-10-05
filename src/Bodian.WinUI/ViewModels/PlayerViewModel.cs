@@ -281,11 +281,25 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     public bool IsSeeking { get; set; }
 
     /// <summary>进度条拖完时由界面调用。</summary>
+    /// <remarks>
+    /// <b>引擎里没有加载文件时这次拖动不作数。</b> mpv 放完最后一首后回到 idle，
+    /// <c>time-pos</c> 属性不存在，设它会抛 <c>property unavailable</c> 并弹一条红条；
+    /// 而引擎的失败处理还会把状态砸成 <see cref="PlaybackState.Idle"/>，把进度条打到 0。
+    /// 这个状态下本来也没有「跳转」可言，直接吞掉这次拖动。
+    /// </remarks>
     public Task SeekToAsync(double seconds)
     {
         IsSeeking = false;
 
-        return HasTrack ? _engine.SeekAsync(TimeSpan.FromSeconds(seconds)) : Task.CompletedTask;
+        if (!HasTrack || _engine.State is PlaybackState.Idle or PlaybackState.Stopped)
+        {
+            // 滑块已经被拖走了，而引擎不会再发进度把它拉回来 —— 手动把当前进度重发一次拨回原位。
+            OnPropertyChanged(nameof(PositionSeconds));
+
+            return Task.CompletedTask;
+        }
+
+        return _engine.SeekAsync(TimeSpan.FromSeconds(seconds));
     }
 
     [RelayCommand]
@@ -307,7 +321,10 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         }
         else
         {
-            await _engine.PlayAsync();
+            // ★ 不能直接调引擎的 PlayAsync()：放完最后一首后 mpv 已回到 idle，
+            //   设 pause=false 是空操作（界面还会被乐观更新成「正在播放」）。协调器负责判断
+            //   该重新加载哪一首，见 PlaybackCoordinator.PlayAsync。
+            await _coordinator.PlayAsync();
         }
     }
 

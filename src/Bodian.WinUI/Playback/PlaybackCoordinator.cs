@@ -30,6 +30,15 @@ public sealed class PlaybackCoordinator : IDisposable
     private CancellationTokenSource? _operation;
     private bool _disposed;
 
+    /// <summary>
+    /// 队列是不是已经播到头了（顺序模式放完最后一首）。
+    /// </summary>
+    /// <remarks>
+    /// 只有 <see cref="PlayAsync"/> 读它：此时引擎里没有加载文件，「播放」的语义是<b>整个队列从第一首重来</b>，
+    /// 而不是像试听结束、加载失败那样重播当前这首。任何一次新的播放尝试都会把它清掉（见 <see cref="PlayCurrentAsync"/>）。
+    /// </remarks>
+    private bool _queueExhausted;
+
     public AudioQuality PreferredQuality { get; private set; } = AudioQuality.Lossless;
     public AudioSource? CurrentSource { get; private set; }
     public bool IsChangingQuality { get; private set; }
@@ -165,6 +174,7 @@ public sealed class PlaybackCoordinator : IDisposable
 
         if (!Queue.MoveNext())
         {
+            _queueExhausted = true;
             QueueExhausted?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
         }
@@ -187,6 +197,37 @@ public sealed class PlaybackCoordinator : IDisposable
     /// <summary>重播当前曲目。被拒绝或出错后重试时用，会重新取一次地址。</summary>
     public Task ReplayCurrentAsync(CancellationToken cancellationToken = default)
         => PlayCurrentAsync(cancellationToken);
+
+    /// <summary>
+    /// 让「播放」这个意图生效。**所有播放键都走这里**，不要直接调引擎的 <c>PlayAsync</c>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>引擎里没有加载文件时不能直接调 <see cref="IPlaybackService.PlayAsync"/></b>：
+    /// mpv 放完最后一首后回到 idle，此时设 <c>pause=false</c> 是<b>空操作</b>，
+    /// 而引擎的乐观更新还会把状态置成「正在播放」——表现就是「点了没声音，歌词却在滚」。
+    /// 必须重新解析一次音源再 loadfile（CDN 直链带签名且有时效，旧的很可能已经过期）。
+    /// </para>
+    /// <para>
+    /// 重新加载的目标分两种：<b>队列已经播到头</b>时整个队列从第一首重来，
+    /// 否则重播当前这首（试听片段结束、加载失败后重试）。
+    /// </para>
+    /// </remarks>
+    public Task PlayAsync(CancellationToken cancellationToken = default)
+    {
+        if (_engine.State is PlaybackState.Idle or PlaybackState.Stopped)
+        {
+            return _queueExhausted
+                ? RestartQueueAsync(cancellationToken)
+                : ReplayCurrentAsync(cancellationToken);
+        }
+
+        return _engine.PlayAsync(cancellationToken);
+    }
+
+    /// <summary>整个队列从第一首重新开始播。</summary>
+    private Task RestartQueueAsync(CancellationToken cancellationToken = default)
+        => Queue.MoveToStart() ? PlayCurrentAsync(cancellationToken) : Task.CompletedTask;
 
     /// <summary>当前播放模式。</summary>
     public PlayMode Mode => Queue.Mode;
@@ -311,6 +352,10 @@ public sealed class PlaybackCoordinator : IDisposable
     private async Task PlayCurrentAsync(CancellationToken cancellationToken = default)
     {
         if (Queue.Current is not { } track) { return; }
+
+        // 队列里确实有一首、接下来就要解析并加载它 —— 上一轮的「播到头」到此翻篇。
+        _queueExhausted = false;
+
         using var operation = BeginOperation(cancellationToken);
         var ct = operation.Token;
         try

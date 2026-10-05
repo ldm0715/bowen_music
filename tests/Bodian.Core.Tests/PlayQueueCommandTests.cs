@@ -302,6 +302,88 @@ public sealed class PlayQueueCommandTests
     }
 
     [Fact]
+    public async Task Sequential_AfterExhaustion_PlayRestartsFromTheFirstTrack()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
+
+        engine.RaiseEnded();
+        engine.RaiseEnded();
+
+        // 放完最后一首：引擎报 Stopped，队列不再往前走。
+        engine.RaiseEnded();
+        Assert.Equal(PlaybackState.Stopped, engine.State);
+        Assert.Equal(3, coordinator.CurrentTrack!.Id);
+        Assert.Equal(3, engine.LoadCount);
+
+        await coordinator.PlayAsync(Ct);
+
+        // 整个队列从第一首重来 —— 引擎里没有文件时不能只设 pause=false。
+        Assert.Equal(0, coordinator.Queue.CurrentIndex);
+        Assert.Equal(1, coordinator.CurrentTrack!.Id);
+        Assert.Equal(4, engine.LoadCount);
+        Assert.Equal(PlaybackState.Playing, engine.State);
+    }
+
+    [Fact]
+    public async Task StoppedWithoutExhaustion_PlayReplaysTheCurrentTrack()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 1, Ct);
+
+        // 试听片段结束：引擎停下，但队列没走到头。
+        engine.State = PlaybackState.Stopped;
+
+        await coordinator.PlayAsync(Ct);
+
+        Assert.Equal(1, coordinator.Queue.CurrentIndex);
+        Assert.Equal(2, coordinator.CurrentTrack!.Id);
+        Assert.Equal(2, engine.LoadCount);
+    }
+
+    [Fact]
+    public async Task Paused_PlayOnlyResumesWithoutReloading()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2)], 0, Ct);
+
+        engine.State = PlaybackState.Paused;
+
+        await coordinator.PlayAsync(Ct);
+
+        // 暂停态只是恢复，不重新解析音源、不回到第一首。
+        Assert.Equal(1, engine.LoadCount);
+        Assert.Equal(PlaybackState.Playing, engine.State);
+        Assert.Equal(1, coordinator.CurrentTrack!.Id);
+    }
+
+    [Fact]
+    public async Task AfterExhaustion_AFreshPlayCommand_ClearsExhaustion()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
+
+        engine.RaiseEnded();
+        engine.RaiseEnded();
+        engine.RaiseEnded();
+        Assert.Equal(3, coordinator.CurrentTrack!.Id);
+
+        // 用户在队列抽屉里点了一首 —— 这是一次新的播放，不该再算「已播到头」。
+        await coordinator.PlayQueueItemAsync(1, Ct);
+        Assert.Equal(2, coordinator.CurrentTrack!.Id);
+
+        engine.State = PlaybackState.Stopped;
+        await coordinator.PlayAsync(Ct);
+
+        Assert.Equal(2, coordinator.CurrentTrack!.Id);
+        Assert.Equal(1, coordinator.Queue.CurrentIndex);
+    }
+
+    [Fact]
     public async Task Shuffle_AutoAdvanceNeverRepeatsTheTrackItJustFinished()
     {
         var engine = new FakePlaybackEngine();
