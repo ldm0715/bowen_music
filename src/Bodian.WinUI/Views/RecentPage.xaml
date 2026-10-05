@@ -19,14 +19,12 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0" Spacing="2">
-                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="最近播放" />
-                <TextBlock
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis" />
-            </StackPanel>
+            <!-- 计数那行在下面的工具栏左侧，这里只留标题 -->
+            <TextBlock
+                Grid.Column="0"
+                VerticalAlignment="Center"
+                Style="{StaticResource TitleTextBlockStyle}"
+                Text="最近播放" />
 
             <Button
                 Grid.Column="1"
@@ -39,6 +37,7 @@
             Grid.Row="1"
             Margin="0,12,0,8"
             ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            SummaryText="{x:Bind ViewModel.StatusText, Mode=OneWay}"
             Target="{x:Bind RecentTracksList}" />
 
         <controls:TrackListView

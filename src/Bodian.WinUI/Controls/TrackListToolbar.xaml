@@ -8,46 +8,74 @@
     <!--
         曲目列表右上角的操作条。两个面互斥，由 code-behind 切 Visibility。
 
-        普通面在右侧三颗图标按钮；多选面把动作挪到左边、右边只留一颗 ✕ 退出 ——
+        普通面左边一行计数、右边三颗图标按钮；多选面把动作挪到左边、右边只留一颗 ✕ 退出 ——
         动作在左、退出在右，是为了让「选完了做什么」和「不选了」在位置上就分得开。
 
         ★ 整个控件 HorizontalAlignment=Stretch，交给页面铺满一行。左贴左、右贴右要靠它，
           控件自己收成内容宽的话两个面会挤在一起。
     -->
     <Grid HorizontalAlignment="Stretch">
-        <!-- 普通态：全部加入播放列表 / 多选 / 刷新 -->
-        <StackPanel
-            x:Name="NormalBar"
-            HorizontalAlignment="Right"
-            Orientation="Horizontal"
-            Spacing="2">
-            <Button
-                x:Name="AddAllButton"
-                AutomationProperties.Name="全部加入播放列表"
-                Click="OnAddAllToQueueClick"
-                Style="{StaticResource BodianIconButton}"
-                ToolTipService.ToolTip="全部加入播放列表（只加入已加载的）">
-                <controls:Icon Size="16" Data="{StaticResource IconPlaylistAdd}" />
-            </Button>
+        <!--
+            普通态：左计数、右三颗图标按钮。
+            计数文案由页面通过 SummaryText 给 —— 各页口径不一样（专辑/歌单用服务端总数，
+            其余用已加载条数），工具栏不该知道这些。
+        -->
+        <Grid x:Name="NormalBar" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <!--
+                    文字列让位、按钮列不让：窗口拉窄时先挤文字（BodianPageStatus 自带省略号），
+                    三颗按钮永远完整。
+                -->
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-            <Button
-                x:Name="MultiSelectButton"
-                AutomationProperties.Name="多选"
-                Click="OnEnterSelectionClick"
-                Style="{StaticResource BodianIconButton}"
-                ToolTipService.ToolTip="多选">
-                <controls:Icon Size="16" Data="{StaticResource IconSelect}" />
-            </Button>
+            <!--
+                左内边距与曲目行的内边距共用一份 token：计数因此和下面的列表内容左对齐，
+                不是贴在页面最左边凸出来。
+                样式用「正文重」那份而不是页面级小字说明：这行数字紧挨着列表，
+                小字淡灰会显得和内容脱节。八个宿主页面统一。
+            -->
+            <TextBlock
+                x:Name="NormalCountText"
+                Grid.Column="0"
+                Margin="{StaticResource SpaceRowPadding}"
+                VerticalAlignment="Center"
+                Style="{StaticResource BodianPageStatusStrong}"
+                Text="{x:Bind SummaryText, Mode=OneWay}" />
 
-            <Button
-                x:Name="RefreshButton"
-                AutomationProperties.Name="刷新"
-                Click="OnRefreshClick"
-                Style="{StaticResource BodianIconButton}"
-                ToolTipService.ToolTip="刷新">
-                <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
-            </Button>
-        </StackPanel>
+            <StackPanel
+                Grid.Column="1"
+                Orientation="Horizontal"
+                Spacing="2">
+                <Button
+                    x:Name="AddAllButton"
+                    AutomationProperties.Name="全部加入播放列表"
+                    Click="OnAddAllToQueueClick"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="全部加入播放列表（只加入已加载的）">
+                    <controls:Icon Size="16" Data="{StaticResource IconPlaylistAdd}" />
+                </Button>
+
+                <Button
+                    x:Name="MultiSelectButton"
+                    AutomationProperties.Name="多选"
+                    Click="OnEnterSelectionClick"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="多选">
+                    <controls:Icon Size="16" Data="{StaticResource IconSelect}" />
+                </Button>
+
+                <Button
+                    x:Name="RefreshButton"
+                    AutomationProperties.Name="刷新"
+                    Click="OnRefreshClick"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="刷新">
+                    <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
+                </Button>
+            </StackPanel>
+        </Grid>
 
         <!-- 多选态：左动作、右退出 -->
         <Grid x:Name="SelectionBar" Visibility="Collapsed">

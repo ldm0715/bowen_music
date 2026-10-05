@@ -43,10 +43,6 @@
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.UpdateText}" />
-                <TextBlock
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}" />
             </StackPanel>
         </Grid>
 
@@ -62,6 +58,7 @@
             Grid.Row="1"
             Margin="0,0,0,8"
             ReloadCommand="{x:Bind ViewModel.Tracks.ReloadCommand}"
+            SummaryText="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}"
             Target="{x:Bind BangTracksList}" />
 
         <controls:TrackListView

@@ -119,22 +119,21 @@
         <Grid Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsSongsTab), Mode=OneWay}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Text="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}" />
-
+            <!-- 曲目数在工具栏左侧，不再占上面一整行 -->
             <controls:TrackListToolbar
-                Grid.Row="1"
-                Margin="0,8,0,8"
+                Grid.Row="0"
+                Margin="0,0,0,8"
                 ReloadCommand="{x:Bind ViewModel.Tracks.ReloadCommand}"
+                SummaryText="{x:Bind ViewModel.Tracks.StatusText, Mode=OneWay}"
                 Target="{x:Bind ArtistTracksList}" />
 
             <controls:TrackListView
                 x:Name="ArtistTracksList"
-                Grid.Row="2"
+                Grid.Row="1"
                 HasMore="{x:Bind ViewModel.Tracks.HasMore, Mode=OneWay}"
                 ItemsSource="{x:Bind ViewModel.Tracks.Items}"
                 LoadMoreCommand="{x:Bind ViewModel.Tracks.LoadMoreCommand}"
@@ -148,7 +147,7 @@
             </controls:TrackListView>
 
             <ProgressRing
-                Grid.Row="3"
+                Grid.Row="2"
                 IsActive="{x:Bind ViewModel.Tracks.IsBusy, Mode=OneWay}"
                 Style="{StaticResource BodianPageBusyRing}" />
         </Grid>
@@ -161,7 +160,32 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Margin="0,0,0,8" Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}" />
+            <!-- 左计数、右刷新，与歌曲页签那条工具栏同一套排法 -->
+            <Grid Grid.Row="0" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!--
+                    缩进 8 是为了和卡片左对齐：GridViewItem 的 Padding 是 8，
+                    卡片实际从底色内边距之后开始。
+                -->
+                <TextBlock
+                    Grid.Column="0"
+                    Margin="8,0,0,0"
+                    Style="{StaticResource BodianPageStatusStrong}"
+                    Text="{x:Bind ViewModel.Albums.StatusText, Mode=OneWay}" />
+
+                <Button
+                    Grid.Column="1"
+                    AutomationProperties.Name="重新加载"
+                    Command="{x:Bind ViewModel.Albums.ReloadCommand}"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="重新加载">
+                    <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
+                </Button>
+            </Grid>
 
             <!--
                 卡片网格：一格一张封面。
@@ -317,14 +341,11 @@
                 </GridView.Footer>
             </GridView>
 
-            <StackPanel
+            <!-- 刷新入口在计数那行的右端，这里只剩转圈（与其余页的页脚同形） -->
+            <ProgressRing
                 Grid.Row="2"
-                HorizontalAlignment="Left"
-                Orientation="Horizontal"
-                Spacing="12">
-                <ProgressRing IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" Style="{StaticResource BodianPageBusyRing}" />
-                <Button Command="{x:Bind ViewModel.Albums.ReloadCommand}" Content="重新加载" />
-            </StackPanel>
+                Style="{StaticResource BodianPageBusyRing}"
+                IsActive="{x:Bind ViewModel.Albums.IsBusy, Mode=OneWay}" />
         </Grid>
 
         <!-- ── 介绍 ─────────────────────────────────────────────────────── -->

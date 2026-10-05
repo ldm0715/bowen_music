@@ -37,7 +37,19 @@ public sealed partial class SearchViewModel : ObservableObject
         _api = api;
         _coordinator = coordinator;
         _logger = logger ?? NullLogger<SearchViewModel>.Instance;
+
+        Results.CollectionChanged += (_, _) => OnPropertyChanged(nameof(TrackCountText));
     }
+
+    /// <summary>
+    /// 歌曲页签工具栏左侧那行。
+    /// </summary>
+    /// <remarks>
+    /// <b>与页头的 <see cref="StatusText"/> 分工</b>：页头那行说的是「搜了什么、搜到没有」，
+    /// 综合页签也在用它（综合页签没有工具栏，所以那行不能挪走）；这里只说「有几首」。
+    /// 两边都不报条数，就不会同屏出现两个数字。
+    /// </remarks>
+    public string TrackCountText => Formats.TrackCount(Results.Count);
 
     public ObservableCollection<SearchResultSection> OverviewSections { get; } = [];
     public ObservableCollection<object> OverviewItems { get; } = [];
@@ -372,7 +384,10 @@ public sealed partial class SearchViewModel : ObservableObject
         token.ThrowIfCancellationRequested();
         HasMore = !cursor.Exhausted;
         // 「（滚动加载）」已去掉 —— 理由同 PagedList 里那一处。
-        StatusText = count == 0 ? "没有找到结果" : $"「{keyword}」已加载 {count} 条";
+        // 歌曲页签不报条数：那个数在工具栏左侧（TrackCountText），页头再报一次就是重复。
+        StatusText = count == 0
+            ? "没有找到结果"
+            : category == 1 ? $"「{keyword}」的搜索结果" : $"「{keyword}」已加载 {count} 条";
     }
 
     private static async Task<int> AppendAsync<T>(ObservableCollection<T> collection, Task<PagedResult<T>> request, CancellationToken token)

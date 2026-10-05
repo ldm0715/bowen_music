@@ -48,25 +48,13 @@
                     Text="{x:Bind ViewModel.Title, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
 
-                <!-- 副标题：177 首 · 565w7+ 播放 · 2.1w 收藏。详情没回来时整个不显示。 -->
+                <!-- 副标题：565w7+ 播放 · 2.1w 收藏。详情没回来时整个不显示。曲目数在工具栏左侧。 -->
                 <TextBlock
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis"
                     Visibility="{x:Bind local:Formats.Visible(ViewModel.HasMeta), Mode=OneWay}" />
-
-                <!--
-                    状态行：只在副标题为空（详情没拿到）时出现。
-                    它承担「加载失败：…」与「这个歌单里还没有歌」，那两条没有别的出口；
-                    详情正常时不显示是因为副标题里已经有曲目数了，两个「177 首」是重复。
-                -->
-                <TextBlock
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis"
-                    Visibility="{x:Bind local:Formats.Visible(ViewModel.ShowStatusText), Mode=OneWay}" />
 
                 <!--
                     创建者。**不可点是故意的** —— 本项目没有用户主页，做成可点的按钮会点出个死路。
@@ -218,6 +206,7 @@
             Margin="0,16,0,8"
             ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
             RemovablePlaylistId="{x:Bind ViewModel.RemovablePlaylistId, Mode=OneWay}"
+            SummaryText="{x:Bind ViewModel.CountText, Mode=OneWay}"
             Target="{x:Bind PlaylistTracksList}" />
 
         <controls:TrackListView

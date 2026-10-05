@@ -81,7 +81,7 @@ public sealed partial class RecentViewModel : ObservableObject
 
             StatusText = Tracks.Count == 0
                 ? "还没有播放记录。用本客户端播一首歌就会出现在这里。"
-                : $"{Tracks.Count} 首，最近的在最前";
+                : $"{Formats.TrackCount(Tracks.Count)} · 最近的在最前";
         }
         catch (Exception ex)
         {

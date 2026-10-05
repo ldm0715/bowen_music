@@ -38,20 +38,14 @@
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
-
-                <TextBlock
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis" />
             </StackPanel>
-
         </Grid>
 
         <controls:TrackListToolbar
             Grid.Row="1"
             Margin="0,0,0,8"
             ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            SummaryText="{x:Bind ViewModel.StatusText, Mode=OneWay}"
             Target="{x:Bind AiTracksList}" />
 
         <controls:TrackListView

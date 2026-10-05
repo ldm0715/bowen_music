@@ -68,6 +68,9 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
             // 1 基，理由同 ArtistDetailViewModel：pn=0 会被服务端当成第 1 页，
             // 于是首屏正常、下一页重复。
             Bodian.Core.Api.Paging.PagingConvention.OneBased);
+
+        // 工具栏左侧那段文案读的是列表状态，列表一变就转发一次通知。
+        Tracks.PropertyChanged += (_, _) => OnPropertyChanged(nameof(CountText));
     }
 
     /// <summary>
@@ -80,6 +83,7 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasArtist))]
+    [NotifyPropertyChangedFor(nameof(CountText))]
     public partial Album Album { get; set; }
 
     public PagedList<Track> Tracks { get; }
@@ -88,7 +92,28 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     public partial string Title { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSubtitle))]
     public partial string Subtitle { get; set; } = "";
+
+    /// <summary>发行日拼出来了没有。没有时那行整个不显示，不留一行空白。</summary>
+    public bool HasSubtitle => Subtitle.Length > 0;
+
+    /// <summary>
+    /// 工具栏左边那行。有服务端的曲目总数就报它，否则让位给状态文案。
+    /// </summary>
+    /// <remarks>
+    /// <b>为什么用服务端总数而不是已加载条数</b>：这个数原来就在页头副标题里
+    /// （<c>2003-07-31 · 11 首</c>），首屏只拉回一页时它照样是 11。改成已加载条数
+    /// 会让数字从 11 掉到 5，是看得见的回归。
+    /// <para>
+    /// 加载失败或一条都没拉到时报总数没用 —— 列表是空的，用户看不到对应内容，
+    /// 那时「加载失败：…」「这张专辑暂时取不到曲目。」才是该说的话。
+    /// </para>
+    /// </remarks>
+    public string CountText =>
+        Album.MusicCount > 0 && !Tracks.LoadFailed && Tracks.Items.Count > 0
+            ? Formats.TrackCount(Album.MusicCount)
+            : Tracks.StatusText;
 
     /// <summary>专辑简介。**实测很长**（整篇企划文案），界面上折叠显示。</summary>
     [ObservableProperty]
@@ -301,26 +326,15 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// <c>2003-07-31 · 11 首</c>，缺的部分自动省掉。
+    /// <c>2003-07-31</c>。发行日一个字段，没有就整行不显示（<see cref="HasSubtitle"/>）。
     /// </summary>
     /// <remarks>
     /// <b>不再拼歌手名</b>：头部已经有一个可点的歌手入口了，
     /// 同一个人名在一屏里出现两次是重复信息。
+    /// <para>
+    /// <b>也不再拼曲目数</b>：已挪到曲目工具栏左侧（<see cref="CountText"/>）。
+    /// </para>
     /// </remarks>
     private static string BuildSubtitle(Album album)
-    {
-        var parts = new List<string>(2);
-
-        if (!string.IsNullOrWhiteSpace(album.ReleaseDate))
-        {
-            parts.Add(album.ReleaseDate);
-        }
-
-        if (album.MusicCount > 0)
-        {
-            parts.Add($"{album.MusicCount} 首");
-        }
-
-        return string.Join(" · ", parts);
-    }
+        => string.IsNullOrWhiteSpace(album.ReleaseDate) ? "" : album.ReleaseDate;
 }

@@ -72,10 +72,11 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         // ★ 两条都是 1 基（不是 search 那种 0 基）。
         //   写成 ZeroBased 时首屏照样正常 —— 服务端把 pn=0 当成第 1 页，不报错 ——
         //   但游标推进后发的是 pn=1，拿回来的还是第 1 页，追加进去正好翻倍。
+        // 两条各传自己的单位：曲目是「首」，专辑是「张」（与 Formats.AlbumTotal 一致）。
         Tracks = new((cursor, token) => api.GetArtistTracksAsync(artist.Id, cursor, token),
-            _logger, "歌手歌曲", "暂无歌曲", PagingConvention.OneBased);
+            _logger, "歌手歌曲", "暂无歌曲", PagingConvention.OneBased, countUnit: "首");
         Albums = new((cursor, token) => api.GetArtistAlbumsAsync(artist.Id, cursor, token),
-            _logger, "歌手专辑", "暂无专辑", PagingConvention.OneBased);
+            _logger, "歌手专辑", "暂无专辑", PagingConvention.OneBased, countUnit: "张");
     }
 
     /// <summary>歌手。<b>详情拉回来后会整体换掉</b>，头部那几个绑定要写成 OneWay。</summary>

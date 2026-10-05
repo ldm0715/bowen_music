@@ -130,7 +130,7 @@ public sealed partial class AiPlaylistViewModel : ObservableObject
                 Tracks.Add(track);
             }
 
-            StatusText = Tracks.Count == 0 ? "这个歌单里还没有歌。" : $"{Tracks.Count} 首";
+            StatusText = Tracks.Count == 0 ? "这个歌单里还没有歌。" : Formats.TrackCount(Tracks.Count);
         }
         catch (Exception ex)
         {

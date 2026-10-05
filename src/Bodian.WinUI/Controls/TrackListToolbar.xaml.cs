@@ -47,6 +47,20 @@ public sealed partial class TrackListToolbar : UserControl
             new PropertyMetadata(null));
 
     /// <summary>
+    /// 普通态左侧那行文案：计数（「共 11 首」）、空列表说明、或「加载失败：…」。
+    /// </summary>
+    /// <remarks>
+    /// <b>页面自己拼好整段文字给它</b>，不是给数字 —— 口径各页不同（专辑与歌单用服务端总数，
+    /// 其余用已加载条数），工具栏不该知道这些。空串表示不显示。
+    /// </remarks>
+    public static readonly DependencyProperty SummaryTextProperty =
+        DependencyProperty.Register(
+            nameof(SummaryText),
+            typeof(string),
+            typeof(TrackListToolbar),
+            new PropertyMetadata(""));
+
+    /// <summary>
     /// 可以从哪个自建歌单里移出曲目。<c>0</c>（默认）表示这一页没有「移出」这个动作。
     /// </summary>
     /// <remarks>
@@ -110,6 +124,12 @@ public sealed partial class TrackListToolbar : UserControl
     {
         get => (ICommand?)GetValue(ReloadCommandProperty);
         set => SetValue(ReloadCommandProperty, value);
+    }
+
+    public string SummaryText
+    {
+        get => (string)GetValue(SummaryTextProperty);
+        set => SetValue(SummaryTextProperty, value);
     }
 
     private static void OnTargetChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

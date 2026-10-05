@@ -64,10 +64,21 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEnd))]
     [NotifyPropertyChangedFor(nameof(ShowRetry))]
+    [NotifyPropertyChangedFor(nameof(CountText))]
     public partial bool LoadFailed { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CountText))]
     public partial string StatusText { get; set; } = "";
+
+    /// <summary>
+    /// 工具栏左边那行。默认就是状态文案（空列表说明 / 「加载失败：…」/「共 N 首」）。
+    /// </summary>
+    /// <remarks>
+    /// <b>歌单详情会覆盖它</b>：那一页有服务端的曲目总数，比已加载条数准，详见
+    /// <c>PlaylistDetailViewModel.CountText</c>。「我喜欢的」没有这个数，用默认实现。
+    /// </remarks>
+    public virtual string CountText => StatusText;
 
     /// <summary>已经取完，且列表非空。页脚据此显示「没有更多了哦~」。</summary>
     public bool ShowEnd => Tracks.Count > 0 && !HasMore && !IsBusy && !LoadFailed;
@@ -283,6 +294,9 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         HasMore = !_cursor.Exhausted && page.Items.Count > 0;
 
         // 只说条数，「（滚动加载）」已去掉 —— 理由同 PagedList 里那一处。
-        StatusText = Tracks.Count == 0 ? EmptyText : $"{Tracks.Count} 首";
+        // ★ 这里手写「共 N 首」，不用 Formats.TrackCount：本文件被链进
+        //   tests\Bodian.Core.Tests 离屏编译，而 Formats.cs 依赖 WinUI 的 Visibility，链不进去。
+        //   改文案时这一处要和 Formats.TrackCount 一起改。
+        StatusText = Tracks.Count == 0 ? EmptyText : $"共 {Tracks.Count} 首";
     }
 }

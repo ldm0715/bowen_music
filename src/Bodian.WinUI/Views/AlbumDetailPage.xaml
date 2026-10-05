@@ -49,12 +49,13 @@
                     Text="{x:Bind ViewModel.Title, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
 
-                <!-- 发行日 · 曲目数。歌手名不在这里 —— 下一行有可点的入口，重复一次是噪音 -->
+                <!-- 发行日。曲目数在下面的工具栏左侧，歌手名藏在下一行可点的入口里 -->
                 <TextBlock
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis" />
+                    TextTrimming="CharacterEllipsis"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.HasSubtitle), Mode=OneWay}" />
 
                 <!--
                     歌手入口：整块可点，进歌手页。
@@ -147,6 +148,7 @@
             Grid.Row="2"
             Margin="0,16,0,8"
             ReloadCommand="{x:Bind ViewModel.Tracks.ReloadCommand}"
+            SummaryText="{x:Bind ViewModel.CountText, Mode=OneWay}"
             Target="{x:Bind AlbumTracksList}" />
 
         <controls:TrackListView

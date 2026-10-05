@@ -31,6 +31,7 @@ public sealed class PagedList<T> : ObservableObject
     private readonly ILogger _logger;
     private readonly string _what;
     private readonly PagingConvention _convention;
+    private readonly string? _countUnit;
 
     private PagedCursor? _cursor;
     private bool _started;
@@ -42,12 +43,17 @@ public sealed class PagedList<T> : ObservableObject
     /// <param name="fetch">取一页。调用方在这里拼请求。</param>
     /// <param name="what">日志与错误文案里用的名字，例如「已购单曲」。</param>
     /// <param name="emptyText">一条都没有时的说明。</param>
+    /// <param name="countUnit">
+    /// <see cref="StatusText"/> 里数量的单位，例如「首」。<b>不传则保持「N 项」</b> ——
+    /// 这个类是泛型，也服务专辑、歌单这些非曲目列表，改默认值会连带换掉它们的文案。
+    /// </param>
     public PagedList(
         Func<PagedCursor, CancellationToken, Task<PagedResult<T>>> fetch,
         ILogger logger,
         string what,
         string emptyText,
-        PagingConvention? pagingConvention = null)
+        PagingConvention? pagingConvention = null,
+        string? countUnit = null)
     {
         ArgumentNullException.ThrowIfNull(fetch);
         ArgumentNullException.ThrowIfNull(logger);
@@ -56,6 +62,7 @@ public sealed class PagedList<T> : ObservableObject
         _logger = logger;
         _what = what;
         _convention = pagingConvention ?? PagingConvention.OneBased;
+        _countUnit = countUnit;
         EmptyText = emptyText;
 
         // 手写命令而不是 [RelayCommand]：源生成器在泛型类上要额外折腾，这里两个命令不值得。
@@ -244,6 +251,8 @@ public sealed class PagedList<T> : ObservableObject
 
         // 只说条数。曾经在还有下一页时补一个「（滚动加载）」，那是滚到底自动翻页刚上线时
         // 用来提示行为变化的，现在列表末尾本来就有「没有更多了哦~」，这句纯属噪音。
-        StatusText = Items.Count == 0 ? EmptyText : $"{Items.Count} 项";
+        StatusText = Items.Count == 0
+            ? EmptyText
+            : _countUnit is null ? $"{Items.Count} 项" : $"共 {Items.Count} {_countUnit}";
     }
 }

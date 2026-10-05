@@ -49,7 +49,8 @@ public sealed partial class BangDetailViewModel : ObservableObject
             },
             logger ?? NullLogger<BangDetailViewModel>.Instance,
             $"榜「{bang.Name}」",
-            "这个榜暂时取不到曲目。");
+            "这个榜暂时取不到曲目。",
+            countUnit: "首");
     }
 
     public Bang Bang { get; }

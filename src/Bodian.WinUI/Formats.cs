@@ -130,6 +130,12 @@ public static class Formats
     public static string AlbumTotal(int count) => count > 0 ? $"{count} 张" : "";
 
     /// <summary>
+    /// 曲目列表工具栏左上的计数。0 时留空 —— 「共 0 首」在空列表上只是噪音，
+    /// 那种情况该显示的是空列表说明（各页自己的 <c>StatusText</c>）。
+    /// </summary>
+    public static string TrackCount(int count) => count > 0 ? $"共 {count} 首" : "";
+
+    /// <summary>
     /// 封面右下角那个角标要不要显示。
     /// </summary>
     /// <remarks>

@@ -13,12 +13,11 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock Style="{StaticResource BodianPageTitle}" Text="{x:Bind ViewModel.Title, Mode=OneWay}" />
-            <TextBlock
-                Style="{StaticResource BodianPageStatus}"
-                Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" />
-        </StackPanel>
+        <!-- 计数那行在下面的工具栏左侧，这里只留标题 -->
+        <TextBlock
+            Grid.Row="0"
+            Style="{StaticResource BodianPageTitle}"
+            Text="{x:Bind ViewModel.Title, Mode=OneWay}" />
 
         <!-- 多选栏里的「移出喜欢」走取消喜欢那条路（要同步喜欢状态缓存，不能直连歌单接口）。 -->
         <controls:TrackListToolbar
@@ -26,6 +25,7 @@
             Margin="0,12,0,8"
             IsLikedPlaylist="True"
             ReloadCommand="{x:Bind ViewModel.ReloadCommand}"
+            SummaryText="{x:Bind ViewModel.CountText, Mode=OneWay}"
             Target="{x:Bind FavoritesTracksList}" />
 
         <controls:TrackListView

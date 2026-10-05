@@ -24,7 +24,9 @@ public sealed class CollectedAlbumsViewModel
             api.GetCollectedAlbumsAsync,
             logger ?? NullLogger<CollectedAlbumsViewModel>.Instance,
             "收藏的专辑",
-            "还没有收藏的专辑。");
+            "还没有收藏的专辑。",
+            // 单位与 Formats.AlbumTotal 一致：「共 N 张」，不再是泛指的「N 项」。
+            countUnit: "张");
     }
 
     public PagedList<Album> Albums { get; }

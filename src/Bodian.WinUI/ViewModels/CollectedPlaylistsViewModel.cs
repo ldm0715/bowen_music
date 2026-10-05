@@ -28,7 +28,9 @@ public sealed class CollectedPlaylistsViewModel
             api.GetCollectedPlaylistsAsync,
             logger ?? NullLogger<CollectedPlaylistsViewModel>.Instance,
             "收藏的歌单",
-            "还没有收藏的歌单。");
+            "还没有收藏的歌单。",
+            // 「个歌单」当单位用：模板是「共 {n} {单位}」，得到的是「共 30 个歌单」。
+            countUnit: "个歌单");
     }
 
     public PagedList<Playlist> Playlists { get; }

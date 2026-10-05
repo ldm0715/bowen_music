@@ -12,16 +12,36 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="收藏的歌单" />
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-            <!-- 与「收藏的专辑」同一套：状态文案会把「没有收藏」和「查询没成功」两种可能都说出来 -->
-            <TextBlock
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
-                Text="{x:Bind ViewModel.Playlists.StatusText, Mode=OneWay}"
-                TextWrapping="Wrap" />
-        </StackPanel>
+            <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="收藏的歌单" />
+
+                <!--
+                    与「收藏的专辑」同一套：状态文案会把「没有收藏」和「查询没成功」两种可能都说出来。
+                    样式同样对齐工具栏那格。
+                -->
+                <TextBlock
+                    Style="{StaticResource BodianPageStatusStrong}"
+                    Text="{x:Bind ViewModel.Playlists.StatusText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- 刷新入口在标题右侧，与歌手页专辑页签同一套排法 -->
+            <Button
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="重新加载"
+                Command="{x:Bind ViewModel.Playlists.ReloadCommand}"
+                Style="{StaticResource BodianIconButton}"
+                ToolTipService.ToolTip="重新加载">
+                <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
+            </Button>
+        </Grid>
 
         <controls:PlaylistListView
             Grid.Row="1"
@@ -37,16 +57,10 @@
             </controls:PlaylistListView.Footer>
         </controls:PlaylistListView>
 
-        <Grid Grid.Row="2" Style="{StaticResource BodianPageFooter}">
-            <StackPanel
-                HorizontalAlignment="Left"
-                Orientation="Horizontal"
-                Spacing="12">
-                <ProgressRing
-                    Style="{StaticResource BodianPageBusyRing}"
-                    IsActive="{x:Bind ViewModel.Playlists.IsBusy, Mode=OneWay}" />
-                <Button Command="{x:Bind ViewModel.Playlists.ReloadCommand}" Content="重新加载" />
-            </StackPanel>
-        </Grid>
+        <!-- 刷新入口在标题右侧，这里只剩转圈（与其余页的页脚同形） -->
+        <ProgressRing
+            Grid.Row="2"
+            Style="{StaticResource BodianPageBusyRing}"
+            IsActive="{x:Bind ViewModel.Playlists.IsBusy, Mode=OneWay}" />
     </Grid>
 </Page>

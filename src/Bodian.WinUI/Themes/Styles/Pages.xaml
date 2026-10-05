@@ -52,6 +52,17 @@
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
 
+    <!--
+        BodianPageStatus 的「正文重」版本：字号与颜色都对齐列表正文。
+        歌手详情的歌曲与专辑页签用它 —— 那两行下面紧挨着列表与卡片，小字淡灰会显得和内容脱节。
+        （Foreground 要显式给：套了自己 Style 的 TextBlock 不再吃隐式默认样式那份主色。）
+    -->
+    <Style x:Key="BodianPageStatusStrong" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <!-- 页脚里那个转圈的进度环 -->
     <Style x:Key="BodianPageBusyRing" TargetType="ProgressRing">
         <Setter Property="Width" Value="{StaticResource SizeProgressRing}" />

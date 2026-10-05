@@ -104,10 +104,10 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     [ObservableProperty]
     public partial Uri? CoverImage { get; set; }
 
-    /// <summary><c>177 首 · 565w7+ 播放 · 2.1w 收藏</c>，缺的部分自动省掉。</summary>
+    /// <summary><c>565w7+ 播放 · 2.1w 收藏</c>，缺的部分自动省掉。曲目数在工具栏左侧。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasMeta))]
-    [NotifyPropertyChangedFor(nameof(ShowStatusText))]
+    [NotifyPropertyChangedFor(nameof(CountText))]
     public partial string Subtitle { get; set; } = "";
 
     /// <summary>歌单简介。**实测可能很长**（整篇企划文案），界面上折叠显示。</summary>
@@ -131,14 +131,30 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     public bool HasMeta => Subtitle.Length > 0;
 
     /// <summary>
-    /// 状态行要不要显示 —— 只在副标题没拼出来时显示。
+    /// 工具栏左边那行。有服务端的曲目总数就报它，否则让位给状态文案。
     /// </summary>
     /// <remarks>
-    /// 副标题里的「N 首」与状态行的「N 首」是同一件事，两个都显示就是重复。
-    /// 但状态行还是不能删：它同时承担「加载失败：…」与「这个歌单里还没有歌」，
-    /// 那两条消息在详情拿不到时是唯一的出口。
+    /// <b>为什么用服务端总数而不是已加载条数</b>：这个数原来就在页头副标题里
+    /// （<c>177 首 · …</c>），首屏只拉回一页时它照样是 177。改成已加载条数会让
+    /// 数字从 177 掉到 50，是看得见的回归。
+    /// <para>
+    /// <b>三种情况必须让位</b>：歌单不存在（<see cref="PlaylistTracksViewModel.PlaylistId"/> 为 0）、
+    /// 首屏加载失败、一条都没拉到 —— 那时「这个歌单不存在」「加载失败：…」「还没有歌」
+    /// 是屏幕上唯一的说明，报一个总数只会让人以为内容丢了。
+    /// </para>
     /// </remarks>
-    public bool ShowStatusText => Subtitle.Length == 0;
+    public override string CountText
+    {
+        get
+        {
+            // 详情还没回来时退回导航带进来的那份，免得先报已加载条数再跳成服务端总数。
+            var total = _info is { MusicCount: > 0 } info ? info.MusicCount : Playlist.MusicCount;
+
+            return total > 0 && PlaylistId > 0 && !LoadFailed && Tracks.Count > 0
+                ? Formats.TrackCount(total)
+                : StatusText;
+        }
+    }
 
     // ── 归属 ────────────────────────────────────────────────────────────
 
@@ -626,21 +642,20 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     }
 
     /// <summary>
-    /// <c>177 首 · 565w7+ 播放 · 2.1w 收藏</c>，缺的部分自动省掉。
+    /// <c>565w7+ 播放 · 2.1w 收藏</c>，缺的部分自动省掉。
     /// </summary>
     /// <remarks>
+    /// <b>曲目数不在这里</b>：已挪到曲目工具栏左侧（<see cref="CountText"/>），
+    /// 页头不重复报同一个数。
+    /// <para>
     /// 大数走 <see cref="CommentCountLabel.Format"/>，与歌手页头部的粉丝数是同一套缩写 ——
     /// 同一屏里出现两种「w 缩写」才是真的乱。它的规则是超过一万后取到千位并加 <c>+</c>，
     /// 所以 5657990 是 <c>565w7+</c> 而不是 <c>565.8w</c>。
+    /// </para>
     /// </remarks>
     private static string BuildSubtitle(Playlist playlist)
     {
-        var parts = new List<string>(3);
-
-        if (playlist.MusicCount > 0)
-        {
-            parts.Add($"{playlist.MusicCount} 首");
-        }
+        var parts = new List<string>(2);
 
         if (playlist.PlayCount > 0)
         {
