@@ -8,21 +8,27 @@
 
 这一轮把列表级操作收敛到**页面右侧一条工具栏**，并改了播放语义。
 
-## 1. 播放语义：点单曲 = 追加到队尾并播放
+## 1. 播放语义：点单曲 = 插到正在播那首的后面并播放
 
 `PlaybackCoordinator.EnqueueAndPlayAsync(track)`：
 
 ```
-Queue.Append(track)           // 追加到队尾；队列里已有同一首则不加
-Queue.MoveToItem(队尾)         // 游标移过去
+IndexOfQueueItem(track.Id)    // 队列里已有同一首？按 Id 找
+  ├─ 有  → Queue.MoveToItem(那一份)      // 不重复添加，直接跳过去播
+  └─ 无  → Queue.InsertNext(track)       // 插到当前曲目之后
+           Queue.MoveToItem(当前 + 1)     // 游标移过去（空队列时 InsertNext 已落好，不用移）
 PlayCurrentAsync()            // 播它
 ```
 
 - **队列里原有的歌一首都不动。** 之前是 `Queue.Replace(整个列表, index)`，那会把用户攒的队列清掉。
+- **落点是「当前曲目之后」，不是队尾**（2026-10-05 改，见 [`play-queue.md`](play-queue.md) §11）。
+  排到队尾的话，正在播这首后面原本排着的歌被整段跳过去，点的那首一放完就撞上 `QueueExhausted`
+  （顺序模式），听起来像「点了首歌就断档」。插到当前之后，它顶在下一首的位置、后面整体后移，放完照常往下走。
 - **队列里已经有这一首时不重复添加**，跳到原来那一份放 —— 点三次同一首歌不该在队列里出现三份。
-  `PlayQueue.Append` 因此改成按 Id 去重并返回 `bool`。
-- **顺序模式下如果它是最后一首，播完即停**（`QueueExhausted`）；循环 / 随机模式下继续往下走。
-  这是模式本来的语义，不去改用户的播放模式。
+  `PlayQueue.Append` 因此改成按 Id 去重并返回 `bool`。这一支**不把它挪到当前之后**：挪了就是替用户重排队列，
+  而「已经在队列里」本身说明它早就排好了。
+- 与行尾菜单的「下一首播放」用的是同一个落点，区别在**要不要立刻播**：点行会换歌，
+  「下一首播放」只排队、当前这首继续放着。去重规则也不同 —— 菜单那条允许同一首排两份。
 
 八个点行入口（`PlaylistTracksViewModel` / `AlbumDetail` / `ArtistDetail` / `BangDetail` /
 `AiPlaylist` / `Recent` / `Search` 的 `PlayAsync`）、榜单列表页的预览行、发现页的曲目卡片，
@@ -277,7 +283,7 @@ PlayCurrentAsync()            // 播它
 | 新增测试 | 覆盖 |
 | --- | --- |
 | `PlayQueueTests`（+6） | 批量追加的去重（队列内 / 批内）、空队列落游标、跳过非正 id、整批只抛一次 `Changed`、`Append` 去重 |
-| `PlayQueueCommandTests`（+6） | `EnqueueAndPlayAsync` 追加并播、已有同一首不重复添加、空队列直接开播；批量入队的追加数与空队列开播 |
+| `PlayQueueCommandTests`（+6） | `EnqueueAndPlayAsync` 入队并播、已有同一首不重复添加、空队列直接开播；批量入队的追加数与空队列开播。**2026-10-05 改落点后**这几项断言的是「插到当前之后」而不是队尾，并补了「点完剩下的部分还能听」 |
 | `PlaylistMusicWriterTests`（新增文件） | 逐首节奏、单首失败继续、`InvalidOperationException` 立刻中止、取消返回已完成数、空列表 |
 | `LikedSongsServiceTests`（+11） | 批量喜欢的逐首请求数（钉住 `Strategy`）、跳过已喜欢 / 未喜欢、去重与剔除、进度上报、未登录 / 无红心歌单、失败不动本地集合 |
 

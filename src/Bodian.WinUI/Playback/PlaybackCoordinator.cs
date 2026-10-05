@@ -116,7 +116,7 @@ public sealed class PlaybackCoordinator : IDisposable
     }
 
     /// <summary>
-    /// 点播一首：把它放到队尾，并立即播放它。
+    /// 点播一首：把它插到<b>正在播这首的后面</b>，并立即播放它。
     /// </summary>
     /// <remarks>
     /// <para>
@@ -124,11 +124,13 @@ public sealed class PlaybackCoordinator : IDisposable
     /// 不再像以前那样把<b>整个列表</b>拖进队列。想一次把列表排进去，走工具栏的「全部加入播放列表」。
     /// </para>
     /// <para>
-    /// <b>队列里已经有同一首时不重复添加</b>，直接跳到那一首放：点三次同一首歌不该在队列里出现三份。
+    /// <b>插到当前曲目之后，不是队尾。</b> 排到队尾的话，正在播这首后面原本排着的歌就被整段跳过去了，
+    /// 点的那首一放完就直接撞上 <see cref="QueueExhausted"/>（顺序模式），听起来像「点了首歌就断档」。
+    /// 插到当前之后，它顶在下一首的位置、后面原本排着的整体后移，放完照常往下走。
     /// </para>
     /// <para>
-    /// <b>顺序模式下如果这首歌是最后一首，播完即停</b>（下一首触发 <see cref="QueueExhausted"/>）；
-    /// 循环与随机模式下会接着往下走。这是模式本来的语义，有意不去改用户的播放模式。
+    /// <b>队列里已经有同一首时不重复添加</b>，直接跳到原来那一份放：点三次同一首歌不该在队列里出现三份。
+    /// 这种情况<b>不把它挪到当前之后</b> —— 挪了就是替用户重排队列，而「已经在队列里」本身说明它早就排好了。
     /// </para>
     /// </remarks>
     public Task EnqueueAndPlayAsync(Track track, CancellationToken cancellationToken = default)
@@ -137,15 +139,25 @@ public sealed class PlaybackCoordinator : IDisposable
 
         _logger.LogDebug("点播：{Title}", track.Title);
 
-        if (Queue.Append(track))
+        // 与 PlayQueue.Append 同一套去重规则：没有有效 Id 的曲目无从比对（上游已挡掉）。
+        var existing = track.Id > 0 ? IndexOfQueueItem(track.Id) : -1;
+
+        if (existing >= 0)
         {
-            // 新加的那一首就在末尾。
-            Queue.MoveToItem(Queue.Count - 1);
+            // 队列里已经有了 —— 不重复添加，跳到原来那一份放。
+            Queue.MoveToItem(existing);
         }
         else
         {
-            // 队列里已经有了（Append 去重挡下来的），跳到原来那一份。
-            Queue.MoveToItem(IndexOfQueueItem(track.Id));
+            var wasEmpty = Queue.Count == 0;
+
+            Queue.InsertNext(track);
+
+            // 新曲目就落在当前曲目之后。队列原本为空时 InsertNext 已经把它放上去并落了游标，不用再移。
+            if (!wasEmpty)
+            {
+                Queue.MoveToItem(Queue.CurrentIndex + 1);
+            }
         }
 
         return PlayCurrentAsync(cancellationToken);

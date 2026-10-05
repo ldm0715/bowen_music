@@ -79,20 +79,44 @@ public sealed class PlayQueueCommandTests
     /// 清空队列是上一版的做法，用起来很怪。
     /// </summary>
     [Fact]
-    public async Task EnqueueAndPlay_AppendsToTheTailAndPlaysIt()
+    public async Task EnqueueAndPlay_InsertsRightAfterTheCurrentTrackAndPlaysIt()
     {
         var engine = new FakePlaybackEngine();
         using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
-        await coordinator.PlayFromAsync([Track(1), Track(2)], 0, Ct);
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
 
-        await coordinator.EnqueueAndPlayAsync(Track(3), Ct);
+        await coordinator.EnqueueAndPlayAsync(Track(9), Ct);
 
-        Assert.Equal([1L, 2L, 3L], coordinator.Queue.Items.Select(t => t.Id));
-        Assert.Equal(3, coordinator.CurrentTrack!.Id);
-        Assert.Equal(2, coordinator.Queue.CurrentIndex);
+        // 插在正在播的第 1 首后面，原本排在第 2 位的整体后移。
+        Assert.Equal([1L, 9L, 2L, 3L], coordinator.Queue.Items.Select(t => t.Id));
+        Assert.Equal(9, coordinator.CurrentTrack!.Id);
+        Assert.Equal(1, coordinator.Queue.CurrentIndex);
     }
 
-    /// <summary>队列里已经有这一首时不重复添加，跳到原来那一份放。</summary>
+    /// <summary>
+    /// 点行之后队列剩下的部分还能听 —— 这正是「排到队尾」坏掉的地方：
+    /// 点的那首落到最后，一放完就撞上 <c>QueueExhausted</c>。
+    /// </summary>
+    [Fact]
+    public async Task EnqueueAndPlay_LeavesTheRestOfTheQueuePlayable()
+    {
+        var engine = new FakePlaybackEngine();
+        using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore());
+        await coordinator.PlayFromAsync([Track(1), Track(2), Track(3)], 0, Ct);
+
+        var exhausted = 0;
+        coordinator.QueueExhausted += (_, _) => exhausted++;
+
+        await coordinator.EnqueueAndPlayAsync(Track(9), Ct);
+        Assert.True(coordinator.Queue.HasNext);
+
+        engine.RaiseEnded();
+
+        Assert.Equal(0, exhausted);
+        Assert.Equal(2, coordinator.CurrentTrack!.Id);
+    }
+
+    /// <summary>队列里已经有这一首时不重复添加，跳到原来那一份放，也不把它挪到当前之后。</summary>
     [Fact]
     public async Task EnqueueAndPlay_WhenAlreadyQueued_JumpsToItWithoutDuplicating()
     {
@@ -104,6 +128,7 @@ public sealed class PlayQueueCommandTests
 
         Assert.Equal([1L, 2L, 3L], coordinator.Queue.Items.Select(t => t.Id));
         Assert.Equal(2, coordinator.CurrentTrack!.Id);
+        Assert.Equal(1, coordinator.Queue.CurrentIndex);
     }
 
     [Fact]
