@@ -558,6 +558,36 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <summary>抽屉的宽度上限。窄窗口下会被 <c>SizeChanged</c> 压到窗口内。</summary>
     private const double QueuePaneWidth = 380;
 
+    /// <summary>
+    /// 常规态下通知条距**内容区**底边的空隙。
+    /// </summary>
+    /// <remarks>
+    /// 那底下还有 80 高的播放条（第 2 行），所以通知条实际落在离窗口底 92 处。
+    /// 与 XAML 里 <c>NotificationBar</c> 的初始 <c>Margin</c> 是同一个数。
+    /// </remarks>
+    private const double NotificationBottomGap = 12;
+
+    /// <summary>
+    /// 沉浸态下通知条距**窗口**底边的距离。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 沉浸页把播放条收进 <c>PlayerHost.Visibility = Collapsed</c>，第 2 行高度归零 ——
+    /// 通知条会跟着掉到窗口底部，正好压在歌词页/MV 页自己的传输按钮上。
+    /// 所以这一档要按沉浸页自己的底栏量。
+    /// </para>
+    /// <para>
+    /// <b>取 96 的依据</b>：歌词页的进度滑块上沿在距窗底 91（见 <c>LyricsPage.xaml</c> 里那段算式），
+    /// MV 页对应位置是 85，96 让两边都落在进度条上方、碰不到按钮。
+    /// </para>
+    /// <para>
+    /// <b>已知代价：会盖住歌词页那条 64 高的频谱。</b> 频谱占距窗底 92~156，
+    /// 而进度条上沿 91、频谱下沿 92 —— 中间一像素空档都没有。
+    /// 那一页底部就是这么挤，不压按钮就必然压频谱（频谱是装饰，压它比压按钮好些）。
+    /// </para>
+    /// </remarks>
+    private const double ImmersiveNotificationInset = 96;
+
     /// <summary>开合播放队列抽屉。播放条与歌词页的队列按钮都走这里。</summary>
     public void ToggleQueue()
     {
@@ -1158,6 +1188,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppTitleBar.Visibility = Visibility.Collapsed;
         Nav.Visibility = Visibility.Collapsed;
         PlayerHost.Visibility = Visibility.Collapsed;
+
+        // 播放条一收，第 2 行的高度就归零，通知条会跟着掉到窗口底部、压在沉浸页自己的传输按钮上。
+        // 按沉浸页的量抬一次，见 ImmersiveNotificationInset。
+        NotificationBar.Margin = new Thickness(0, 0, 0, ImmersiveNotificationInset);
+
         ImmersiveHost.Visibility = Visibility.Visible;
         SetTitleBar(titleBar);
         UpdateCaptionButtonColors();
@@ -1261,6 +1296,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppTitleBar.Visibility = Visibility.Visible;
         Nav.Visibility = Visibility.Visible;
         PlayerHost.Visibility = Visibility.Visible;
+
+        // 播放条回来了，通知条也跟着回到「播放条上方」那个位置。
+        NotificationBar.Margin = new Thickness(0, 0, 0, NotificationBottomGap);
+
         SetTitleBar(AppTitleBar);
         UpdateCaptionButtonColors();
     }
