@@ -64,6 +64,6 @@ public interface ITrackBatchActions
         IProgress<BatchProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>在播放条上挂一条短提示。</summary>
-    void ShowNotice(string message);
+    /// <summary>发一条短提示。</summary>
+    void ShowNotice(string message, NoticeSeverity severity = NoticeSeverity.Informational);
 }

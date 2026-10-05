@@ -29,7 +29,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="2" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <VisualStateManager.VisualStateGroups>
@@ -341,15 +340,6 @@
                 <x:Double x:Key="SliderInnerThumbHeight">4</x:Double>
             </Slider.Resources>
         </Slider>
-
-        <InfoBar
-            Grid.Row="2"
-            Margin="20,0,20,12"
-            IsClosable="False"
-            IsOpen="{x:Bind ViewModel.HasNotice, Mode=OneWay}"
-            Visibility="{x:Bind ViewModel.HasNotice, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
-            Message="{x:Bind ViewModel.Notice, Mode=OneWay}"
-            Severity="Informational" />
 
         <!-- 气泡在单独的 Popup 中绘制，不占播放栏高度，也不挡住进度拖动。 -->
         <primitives:Popup x:Name="ProgressTimePopup" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">

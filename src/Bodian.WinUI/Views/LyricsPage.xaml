@@ -335,9 +335,11 @@
                         x:Name="VolumeControl"
                         ViewModel="{x:Bind Player, Mode=OneWay}" />
                 </StackPanel>
-                <TextBlock Grid.Row="1" Text="{x:Bind Player.Notice, Mode=OneWay}" FontSize="12"
-                    Foreground="#BCFFFFFF" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"
-                    Visibility="{x:Bind local:Formats.Visible(Player.HasNotice), Mode=OneWay}" />
+                <!--
+                    第 1 行（原来的提示文字）**空着**：提示条已经收到外壳里那一个浮层上了，
+                    见 MainWindow 的 NotificationBar。留着这一行是为了不动传输组的纵向位置 ——
+                    传输组居中在第 0 行那 48 里，合并两行会把它下移半个差值。
+                -->
             </Grid>
 
             <Slider x:Name="PositionSlider" Grid.Row="2" MinWidth="0" Height="22" Margin="0,-11,0,0"

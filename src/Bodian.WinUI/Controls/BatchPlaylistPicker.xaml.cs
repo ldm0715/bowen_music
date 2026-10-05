@@ -120,7 +120,7 @@ public sealed partial class BatchPlaylistPicker : UserControl
                 return false;
             }
 
-            actions.ShowNotice($"已加入「{playlist.Name}」{result.Succeeded} 首");
+            actions.ShowNotice($"已加入「{playlist.Name}」{result.Succeeded} 首", NoticeSeverity.Success);
             return true;
         }
         catch (InvalidOperationException)

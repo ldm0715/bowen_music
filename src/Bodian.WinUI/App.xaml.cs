@@ -141,6 +141,9 @@ public partial class App : Application
         builder.Services.AddSingleton<TrackStatisticsViewModel>();
         builder.Services.AddSingleton<PlayerViewModel>();
 
+        // 全应用唯一的短提示出口。外壳里那一个 InfoBar 显示它，行内动作与播放引擎都往它里面发。
+        builder.Services.AddSingleton<NotificationViewModel>();
+
         // 歌词页的显示偏好。与桌面歌词那份外观偏好分开存（lyrics.json / desktop-lyrics.json）。
         builder.Services.AddSingleton<ILyricsSettingsStore>(sp => new JsonLyricsSettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonLyricsSettingsStore>>()));

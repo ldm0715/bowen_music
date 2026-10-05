@@ -262,12 +262,12 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         try
         {
             _clipboard.SetText(ShareLinks.BuildPlaylistLink(Playlist.Id, _session.Uid, _source));
-            _notice.Show("链接已复制");
+            _notice.Show("链接已复制", NoticeSeverity.Success);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "复制歌单 {PlaylistId} 分享链接失败", Playlist.Id);
-            _notice.Show("复制链接失败");
+            _notice.Show("复制链接失败", NoticeSeverity.Error);
         }
     }
 
@@ -302,12 +302,12 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
 
             IsCollected = collected;
             BumpCollectedCount(collected);
-            _notice.Show(collected ? "已收藏" : "已取消收藏");
+            _notice.Show(collected ? "已收藏" : "已取消收藏", NoticeSeverity.Success);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "歌单 {PlaylistId} {Operation}失败", Playlist.Id, collected ? "收藏" : "取消收藏");
-            _notice.Show(collected ? "收藏失败" : "取消收藏失败");
+            _notice.Show(collected ? "收藏失败" : "取消收藏失败", NoticeSeverity.Error);
         }
         finally
         {
@@ -344,14 +344,14 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
             _logger.LogInformation("已删除歌单 {PlaylistId}", Playlist.Id);
 
             _library.OnPlaylistRemoved(Playlist.Id);
-            _notice.Show($"已删除「{Title}」");
+            _notice.Show($"已删除「{Title}」", NoticeSeverity.Success);
 
             return true;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "删除歌单 {PlaylistId} 失败", Playlist.Id);
-            _notice.Show("删除失败，请稍后再试。");
+            _notice.Show("删除失败，请稍后再试。", NoticeSeverity.Error);
             return false;
         }
         finally
@@ -450,7 +450,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
 
             ApplyEdit(trimmed, description, pic, categories);
             _library.OnPlaylistUpdated(Playlist.Id, trimmed, TryCreateHttpUri(pic));
-            _notice.Show("已保存");
+            _notice.Show("已保存", NoticeSeverity.Success);
 
             return true;
         }
@@ -461,7 +461,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "编辑歌单 {PlaylistId} 失败", Playlist.Id);
-            _notice.Show("歌单编辑失败，请稍后再试。");
+            _notice.Show("歌单编辑失败，请稍后再试。", NoticeSeverity.Error);
             return false;
         }
         finally

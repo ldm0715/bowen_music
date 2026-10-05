@@ -159,18 +159,18 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
             {
                 case FollowedArtistOutcome.Succeeded:
                     IsFollowed = followed;
-                    _notice.Show(followed ? "已关注" : "已取消关注");
+                    _notice.Show(followed ? "已关注" : "已取消关注", NoticeSeverity.Success);
                     break;
 
                 case FollowedArtistOutcome.NotAuthenticated:
-                    _notice.Show("登录后可以关注");
+                    _notice.Show("登录后可以关注", NoticeSeverity.Error);
                     break;
 
                 case FollowedArtistOutcome.AlreadyPending:
                     break;
 
                 default:
-                    _notice.Show(followed ? "关注失败" : "取消关注失败");
+                    _notice.Show(followed ? "关注失败" : "取消关注失败", NoticeSeverity.Error);
                     break;
             }
         }
@@ -181,7 +181,7 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "歌手 {ArtistId} {Operation}失败", Artist.Id, followed ? "关注" : "取消关注");
-            _notice.Show(followed ? "关注失败" : "取消关注失败");
+            _notice.Show(followed ? "关注失败" : "取消关注失败", NoticeSeverity.Error);
         }
         finally
         {
@@ -203,12 +203,12 @@ public sealed partial class ArtistDetailViewModel : ObservableObject
         try
         {
             _clipboard.SetText(ShareLinks.BuildArtistLink(Artist.Id, _session.Uid));
-            _notice.Show("链接已复制");
+            _notice.Show("链接已复制", NoticeSeverity.Success);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "复制歌手 {ArtistId} 分享链接失败", Artist.Id);
-            _notice.Show("复制链接失败");
+            _notice.Show("复制链接失败", NoticeSeverity.Error);
         }
     }
 

@@ -859,6 +859,40 @@
                 </StackPanel>
             </ScrollViewer>
         </Border>
+
+        <!--
+            浮层通知条。全应用唯一的短提示出口，状态与队列在 NotificationViewModel 里。
+
+            ★ 排在 ShellRoot 的最后一个子元素位置上，**压在 ImmersiveHost 之上** ——
+              歌词页与 MV 页盖满整窗，通知条排它们前面就看不见了，而「全屏页收不到提示」
+              正是这次要修的核心症状。
+
+            ★ 挂**第 1 行（内容区）的底部**，而不是第 2 行往上挪负边距：这样不依赖
+              SizePlayerBar 那个常量，播放条将来改高度，通知条不会跟着错位。
+
+            ★ **不铺全屏透明遮罩**（QueueOverlay 那种）：通知条不该吃掉指针事件。
+
+            ★ 关掉按钮不走 InfoBar 的默认行为：默认会自己把 IsOpen 置 false，
+              而显隐由 VM 驱动 —— 两个来源会打架。这里拦 Closing，交回 Dismiss。
+        -->
+        <InfoBar
+            x:Name="NotificationBar"
+            Grid.Row="1"
+            Margin="0,0,0,12"
+            MaxWidth="520"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Bottom"
+            AutomationProperties.Name="通知"
+            BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            Closing="OnNotificationClosing"
+            CornerRadius="12"
+            IsClosable="True"
+            IsOpen="{x:Bind Notifications.IsOpen, Mode=OneWay}"
+            Message="{x:Bind Notifications.Message, Mode=OneWay}"
+            RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}"
+            Severity="{x:Bind local:Formats.NoticeLevel(Notifications.Severity), Mode=OneWay}"
+            Visibility="{x:Bind local:Formats.Visible(Notifications.IsOpen), Mode=OneWay}" />
     </Grid>
     </controls:ResponsiveViewport>
 </Window>

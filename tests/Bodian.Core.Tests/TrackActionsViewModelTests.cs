@@ -52,6 +52,7 @@ public sealed class TrackActionsViewModelTests
         Assert.Equal("取消喜欢", Entry(viewModel, TrackMenuAction.Favorite).Text);
         Assert.Equal([(1L, true)], liked.Requests);
         Assert.Equal("已喜欢", notices.Last);
+        Assert.Equal(NoticeSeverity.Success, notices.LastSeverity);
 
         // 已喜欢时点按是取消，走反向。
         await viewModel.ToggleFavoriteAsync(Ct);
@@ -90,6 +91,7 @@ public sealed class TrackActionsViewModelTests
         Assert.False(viewModel.IsLiked);
         Assert.Equal("我喜欢", Entry(viewModel, TrackMenuAction.Favorite).Text);
         Assert.Equal(message, notices.Last);
+        Assert.Equal(NoticeSeverity.Error, notices.LastSeverity);
     }
 
     /// <summary>连点两次时服务端只认一次，被忽略的那次不出提示（与播放条那颗按钮一致）。</summary>
@@ -116,6 +118,7 @@ public sealed class TrackActionsViewModelTests
 
         Assert.False(viewModel.IsLiked);
         Assert.Equal("操作没成功，请稍后再试。", notices.Last);
+        Assert.Equal(NoticeSeverity.Error, notices.LastSeverity);
     }
 
     /// <summary>无法判定（null）不等于「未喜欢」：菜单仍显示「我喜欢」，点了写 true。</summary>
@@ -593,7 +596,13 @@ public sealed class TrackActionsViewModelTests
     {
         public string Last { get; private set; } = "";
 
-        public void Show(string message) => Last = message;
+        public NoticeSeverity LastSeverity { get; private set; }
+
+        public void Show(string message, NoticeSeverity severity = NoticeSeverity.Informational)
+        {
+            Last = message;
+            LastSeverity = severity;
+        }
     }
 
     private sealed class Queue : IQueueSink

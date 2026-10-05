@@ -17,7 +17,7 @@ namespace Bodian.WinUI.Services;
 /// <b>两个消费方</b>：行尾「更多」菜单在这里现造一个 <see cref="TrackActionsViewModel"/>；
 /// 列表级的 <see cref="ITrackBatchActions"/>（工具栏的批量入队 / 批量喜欢 / 批量入歌单）也由本类承担。
 /// 后者本来该是另一个服务，但两边的依赖完全重合（<c>_api</c> / <c>_likedSongs</c> /
-/// <c>_coordinator</c> / <c>_player</c>），拆开要多一份 DI 注册与一个 App 资源键，没有收益。
+/// <c>_coordinator</c> / <c>_notifications</c>），拆开要多一份 DI 注册与一个 App 资源键，没有收益。
 /// </para>
 /// <para>
 /// <b>为什么要有这一层</b>：<see cref="TrackActionsViewModel"/> 刻意不碰任何 WinUI 类型
@@ -30,16 +30,13 @@ namespace Bodian.WinUI.Services;
 /// </remarks>
 public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSink, ITrackBatchActions
 {
-    /// <summary>行内提示挂多久。播放条上那条提示平时要挂到下一首开播，这里不能那么久。</summary>
-    private static readonly TimeSpan NoticeDuration = TimeSpan.FromSeconds(3);
-
     private readonly IBodianApi _api;
     private readonly ILikedSongsService _likedSongs;
     private readonly INavigationService _navigation;
     private readonly Func<Artist, ArtistDetailPage> _artistFactory;
     private readonly Func<Album, AlbumDetailPage> _albumFactory;
     private readonly Func<Track, MvPage> _mvFactory;
-    private readonly PlayerViewModel _player;
+    private readonly NotificationViewModel _notifications;
     private readonly PlaybackCoordinator _coordinator;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -50,7 +47,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
         Func<Artist, ArtistDetailPage> artistFactory,
         Func<Album, AlbumDetailPage> albumFactory,
         Func<Track, MvPage> mvFactory,
-        PlayerViewModel player,
+        NotificationViewModel notifications,
         PlaybackCoordinator coordinator,
         ILoggerFactory loggerFactory)
     {
@@ -60,7 +57,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
         ArgumentNullException.ThrowIfNull(artistFactory);
         ArgumentNullException.ThrowIfNull(albumFactory);
         ArgumentNullException.ThrowIfNull(mvFactory);
-        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(notifications);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(loggerFactory);
 
@@ -70,7 +67,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
         _artistFactory = artistFactory;
         _albumFactory = albumFactory;
         _mvFactory = mvFactory;
-        _player = player;
+        _notifications = notifications;
         _coordinator = coordinator;
         _loggerFactory = loggerFactory;
     }
@@ -97,7 +94,7 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
     /// <inheritdoc cref="ITrackNavigator.OpenArtist"/>
     void ITrackNavigator.OpenMv(Track track) => _navigation.Navigate(_mvFactory(track));
 
-    void INoticeSink.Show(string message) => _player.TransientNotice(message, NoticeDuration);
+    void INoticeSink.Show(string message, NoticeSeverity severity) => _notifications.Show(message, severity);
 
     /// <remarks>
     /// 两条都落到同一个队列上：菜单里的「加入播放队列」与播放条上的「播放列表」看的是同一份数据。
@@ -165,7 +162,8 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
             cancellationToken).ConfigureAwait(true);
     }
 
-    void ITrackBatchActions.ShowNotice(string message) => ((INoticeSink)this).Show(message);
+    void ITrackBatchActions.ShowNotice(string message, NoticeSeverity severity)
+        => ((INoticeSink)this).Show(message, severity);
 
     /// <summary>
     /// 取需要提交的曲目 id。

@@ -206,6 +206,34 @@
                   CardBackgroundFillColorDefaultBrush（70% 白）会被透掉，卡片看起来根本不存在。
             -->
             <SolidColorBrush x:Key="HomeCardBackgroundBrush" Color="#FFF6F8FB" />
+
+            <!--
+                ── 通知条（InfoBar）──
+                底色统一成**实色面板**，与播放队列抽屉/评论抽屉同源（#FAFBFD）。
+
+                ★ 为什么必须覆写：系统给的四条 severity 底色都是**半透明色调**
+                  （SystemFillColor*BackgroundBrush），设计上叠在 Mica 上；
+                  本应用不设背板，叠在氛围渐变上会透出底下的内容。
+                ★ 为什么只能改键、不能在实例上写 Background：那四条底色由模板的
+                  VisualState 在切换 severity 时铺上去，实例上的值会被盖掉。
+                ★ 分色只落在左侧那颗图标上：模板里它是「实心圆 + 其上的字形」两层，
+                  所以每个 severity 都要配 background / foreground 一对 ——
+                  只改一个会出现同色的圆和字，图标直接糊成一团。
+                ★ 键名写错不会报错、只会静默不生效（同 NavigationView 那批）。
+            -->
+            <SolidColorBrush x:Key="InfoBarErrorSeverityBackgroundBrush" Color="#FFFAFBFD" />
+            <SolidColorBrush x:Key="InfoBarWarningSeverityBackgroundBrush" Color="#FFFAFBFD" />
+            <SolidColorBrush x:Key="InfoBarSuccessSeverityBackgroundBrush" Color="#FFFAFBFD" />
+            <SolidColorBrush x:Key="InfoBarInformationalSeverityBackgroundBrush" Color="#FFFAFBFD" />
+
+            <!-- 成功：品牌薄荷绿的实心圆 + 白字。Warning 不覆写图标，
+                 留给系统的琥珀色 —— 本仓目前没有任何调用点发 Warning。 -->
+            <SolidColorBrush x:Key="InfoBarSuccessSeverityIconBackground" Color="#FF007A57" />
+            <SolidColorBrush x:Key="InfoBarSuccessSeverityIconForeground" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="InfoBarErrorSeverityIconBackground" Color="#FFC42B1C" />
+            <SolidColorBrush x:Key="InfoBarErrorSeverityIconForeground" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="InfoBarInformationalSeverityIconBackground" Color="#FF637086" />
+            <SolidColorBrush x:Key="InfoBarInformationalSeverityIconForeground" Color="#FFFFFFFF" />
         </ResourceDictionary>
 
         <!-- ══ 深色 ══════════════════════════════════════════════════════════ -->
@@ -339,6 +367,20 @@
 
             <!-- 歌单卡底色，与浅色同一立场：页面背景是渐变，卡片得用实色才看得出是卡片。 -->
             <SolidColorBrush x:Key="HomeCardBackgroundBrush" Color="#FF232A38" />
+
+            <!-- 通知条的实色底与图标配色，理由与浅色那一份相同。 -->
+            <SolidColorBrush x:Key="InfoBarErrorSeverityBackgroundBrush" Color="#FF171D29" />
+            <SolidColorBrush x:Key="InfoBarWarningSeverityBackgroundBrush" Color="#FF171D29" />
+            <SolidColorBrush x:Key="InfoBarSuccessSeverityBackgroundBrush" Color="#FF171D29" />
+            <SolidColorBrush x:Key="InfoBarInformationalSeverityBackgroundBrush" Color="#FF171D29" />
+
+            <!-- 深色下成功用原色薄荷绿，字形改近黑青（同 TextOnAccentFillColorPrimaryBrush 那套）。 -->
+            <SolidColorBrush x:Key="InfoBarSuccessSeverityIconBackground" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="InfoBarSuccessSeverityIconForeground" Color="#FF002019" />
+            <SolidColorBrush x:Key="InfoBarErrorSeverityIconBackground" Color="#FFC42B1C" />
+            <SolidColorBrush x:Key="InfoBarErrorSeverityIconForeground" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="InfoBarInformationalSeverityIconBackground" Color="#FF9EABC1" />
+            <SolidColorBrush x:Key="InfoBarInformationalSeverityIconForeground" Color="#FF002019" />
         </ResourceDictionary>
 
         <!-- ══ 高对比度 ══════════════════════════════════════════════════════ -->

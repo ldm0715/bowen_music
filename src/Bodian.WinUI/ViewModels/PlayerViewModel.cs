@@ -25,17 +25,16 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 {
     private readonly PlaybackCoordinator _coordinator;
     private readonly IPlaybackService _engine;
+    private readonly NotificationViewModel _notifications;
     private readonly BodianSession _session;
     private readonly IClipboardService _clipboard;
     private readonly ILogger<PlayerViewModel> _logger;
-
-    /// <summary>最近一条定时提示的序号，用来判断「到期该清的是不是我这一条」。</summary>
-    private int _noticeGeneration;
 
     public PlayerViewModel(
         PlaybackCoordinator coordinator,
         IPlaybackService engine,
         TrackStatisticsViewModel statistics,
+        NotificationViewModel notifications,
         BodianSession session,
         IClipboardService clipboard,
         ILogger<PlayerViewModel>? logger = null)
@@ -43,12 +42,14 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(statistics);
+        ArgumentNullException.ThrowIfNull(notifications);
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(clipboard);
         Statistics = statistics;
 
         _coordinator = coordinator;
         _engine = engine;
+        _notifications = notifications;
         _session = session;
         _clipboard = clipboard;
         _logger = logger ?? NullLogger<PlayerViewModel>.Instance;
@@ -59,10 +60,15 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
             QualityText = AudioQualityTable.Describe(e.Source);
             PositionSeconds = e.Position.TotalSeconds;
             IsPlaying = _engine.State == PlaybackState.Playing;
-            Notice = e.Source.WasDowngraded ? QualityText : "";
+
+            if (e.Source.WasDowngraded)
+            {
+                _notifications.Show(QualityText);
+            }
+
             RefreshQualityOptions();
         };
-        _coordinator.QualityChangeFailed += (_, e) => Notice = e.Message;
+        _coordinator.QualityChangeFailed += (_, e) => _notifications.Show(e.Message, NoticeSeverity.Error);
         _coordinator.Started += OnStarted;
         _coordinator.Blocked += OnBlocked;
         _coordinator.AuditionEnded += OnAuditionEnded;
@@ -266,49 +272,6 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
     public string PlayModeText => Mode.DisplayName();
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasNotice))]
-    public partial string Notice { get; set; } = "";
-
-    public bool HasNotice => Notice.Length > 0;
-
-    /// <summary>
-    /// 显示一条到点自己消失的提示。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <see cref="Notice"/> 平时只在整曲开始播放时被清空，播放条上那个 InfoBar 又设了不可关闭 ——
-    /// 「已加入歌单」这类一次性反馈挂在那里会一直留到下一首播完。所以行内动作走这里。
-    /// </para>
-    /// <para>
-    /// <b>到期时还要比对文案，不只看序号</b>：播放引擎自己也会写 <see cref="Notice"/>
-    /// （音质降级、播放被拒），那些不经过这里。中途被别的提示顶掉时就不清，
-    /// 免得把播放的提示误清掉。
-    /// </para>
-    /// </remarks>
-    public void TransientNotice(string message, TimeSpan? duration = null)
-    {
-        Notice = message;
-
-        if (message.Length == 0)
-        {
-            return;
-        }
-
-        var generation = ++_noticeGeneration;
-        _ = ClearNoticeAfterAsync(generation, message, duration ?? TimeSpan.FromSeconds(3));
-    }
-
-    private async Task ClearNoticeAfterAsync(int generation, string message, TimeSpan delay)
-    {
-        await Task.Delay(delay).ConfigureAwait(true);
-
-        if (generation == _noticeGeneration && Notice == message)
-        {
-            Notice = "";
-        }
-    }
-
     /// <summary>
     /// 用户正在拖动进度条。由界面在按下/松开时设置。
     /// </summary>
@@ -363,14 +326,19 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     private async Task ToggleFavoriteAsync()
     {
         var outcome = await Statistics.ToggleFavoriteAsync();
-        Notice = outcome switch
-        {
-            LikedSongsOutcome.Succeeded => "",
-            LikedSongsOutcome.NotAuthenticated => "登录后可以喜欢。",
-            LikedSongsOutcome.NoLikedPlaylist => "账号还没有「我喜欢的」歌单，暂时无法喜欢。",
-            LikedSongsOutcome.AlreadyPending => "",
-            _ => "操作没成功，请稍后再试。",
-        };
+
+        // 成功与「已在处理中」都不发提示：心形图标自己会变，再弹一条只是噪音。
+        // 空串会被通知服务忽略。
+        _notifications.Show(
+            outcome switch
+            {
+                LikedSongsOutcome.Succeeded => "",
+                LikedSongsOutcome.NotAuthenticated => "登录后可以喜欢。",
+                LikedSongsOutcome.NoLikedPlaylist => "账号还没有「我喜欢的」歌单，暂时无法喜欢。",
+                LikedSongsOutcome.AlreadyPending => "",
+                _ => "操作没成功，请稍后再试。",
+            },
+            NoticeSeverity.Error);
     }
 
     /// <summary>
@@ -391,12 +359,14 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         {
             _clipboard.SetText(ShareLinks.BuildTrackLink(musicId, _session.Uid));
             _logger.LogInformation("已复制分享链接：歌曲 {MusicId}，上报结果 {Outcome}", musicId, outcome);
-            Notice = outcome == ShareOutcome.Unsupported ? "该歌曲暂不支持分享，链接已复制。" : "已复制分享链接";
+            _notifications.Show(
+                outcome == ShareOutcome.Unsupported ? "该歌曲暂不支持分享，链接已复制。" : "已复制分享链接",
+                NoticeSeverity.Success);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "复制分享链接失败：歌曲 {MusicId}", musicId);
-            Notice = "复制链接失败。";
+            _notifications.Show("复制链接失败。", NoticeSeverity.Error);
         }
     }
 
@@ -431,7 +401,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
     private void OnEngineFailed(object? sender, PlaybackFailedEventArgs e)
     {
-        Notice = e.Message;
+        _notifications.Show(e.Message, NoticeSeverity.Error);
     }
 
     // ── 协调器事件 ──────────────────────────────────────────────────────────
@@ -454,7 +424,6 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         // 否则会出现「走到 4:29 却停在 0:29」的错觉。
         DurationSeconds = e.Policy.StopAt?.TotalSeconds ?? 0;
 
-        Notice = "";
         IsPlaying = _engine.State == PlaybackState.Playing;
         RefreshQualityOptions();
         UpdateQueueButtons();
@@ -476,18 +445,20 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         PositionSeconds = 0;
         DurationSeconds = 0;
 
-        Notice = e.Reason switch
-        {
-            PlaybackDenialReason.NotAuthenticated => "登录后可播放完整歌曲",
-            PlaybackDenialReason.NoPermission => "该歌曲暂无播放权限",
-            PlaybackDenialReason.NoUsableQuality => "该歌曲在当前客户端没有可用音质",
-            PlaybackDenialReason.TrackUnavailable => "该歌曲已下架，无法播放",
-            PlaybackDenialReason.AuditionUnavailable => "该歌曲只能试听，但试听片段取不到",
-            PlaybackDenialReason.NoStreamUrl => e.Detail is { Length: > 0 } detail
-                ? $"取不到音源：{detail}"
-                : "取不到音源地址",
-            _ => "暂时无法播放这首歌",
-        };
+        _notifications.Show(
+            e.Reason switch
+            {
+                PlaybackDenialReason.NotAuthenticated => "登录后可播放完整歌曲",
+                PlaybackDenialReason.NoPermission => "该歌曲暂无播放权限",
+                PlaybackDenialReason.NoUsableQuality => "该歌曲在当前客户端没有可用音质",
+                PlaybackDenialReason.TrackUnavailable => "该歌曲已下架，无法播放",
+                PlaybackDenialReason.AuditionUnavailable => "该歌曲只能试听，但试听片段取不到",
+                PlaybackDenialReason.NoStreamUrl => e.Detail is { Length: > 0 } detail
+                    ? $"取不到音源：{detail}"
+                    : "取不到音源地址",
+                _ => "暂时无法播放这首歌",
+            },
+            NoticeSeverity.Error);
 
         UpdateQueueButtons();
     }
@@ -495,13 +466,13 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     private void OnAuditionEnded(object? sender, EventArgs e)
     {
         IsPlaying = false;
-        Notice = "试听片段已结束，登录后可播放完整歌曲";
+        _notifications.Show("试听片段已结束，登录后可播放完整歌曲");
     }
 
     private void OnQueueExhausted(object? sender, EventArgs e)
     {
         IsPlaying = false;
-        Notice = "已经是最后一首了";
+        _notifications.Show("已经是最后一首了");
     }
 
     private void OnQueueChanged(object? sender, EventArgs e)

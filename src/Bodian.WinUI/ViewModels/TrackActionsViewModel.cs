@@ -231,7 +231,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
             {
                 IsLiked = desired;
                 UpdateFavoriteEntry();
-                _notice.Show(desired ? "已喜欢" : "已取消喜欢");
+                _notice.Show(desired ? "已喜欢" : "已取消喜欢", NoticeSeverity.Success);
                 return;
             }
 
@@ -246,13 +246,13 @@ public sealed partial class TrackActionsViewModel : ObservableObject
 
             if (message.Length > 0)
             {
-                _notice.Show(message);
+                _notice.Show(message, NoticeSeverity.Error);
             }
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "曲目 {MusicId} 喜欢写入失败", _track.Id);
-            _notice.Show("操作没成功，请稍后再试。");
+            _notice.Show("操作没成功，请稍后再试。", NoticeSeverity.Error);
         }
         finally
         {
@@ -278,7 +278,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         try
         {
             await _queue.PlayNextAsync(_track).ConfigureAwait(true);
-            _notice.Show("已设为下一首播放");
+            _notice.Show("已设为下一首播放", NoticeSeverity.Success);
         }
         finally
         {
@@ -298,7 +298,9 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         try
         {
             var added = await _queue.AddToQueueAsync(_track).ConfigureAwait(true);
-            _notice.Show(added ? "已加入播放队列" : "这首歌已经在播放队列里");
+            _notice.Show(
+                added ? "已加入播放队列" : "这首歌已经在播放队列里",
+                added ? NoticeSeverity.Success : NoticeSeverity.Informational);
         }
         finally
         {
@@ -492,7 +494,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         try
         {
             await _api.AddPlaylistMusicAsync(playlist.Id, [_track.Id], cancellationToken).ConfigureAwait(true);
-            _notice.Show($"已加入「{playlist.Name}」");
+            _notice.Show($"已加入「{playlist.Name}」", NoticeSeverity.Success);
             return true;
         }
         catch (InvalidOperationException)

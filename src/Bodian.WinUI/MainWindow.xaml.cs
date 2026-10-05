@@ -125,7 +125,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         IWindowPlacementStore placement,
         Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory,
         Func<Track, MvPage> mvFactory,
-        TrackActionsService trackActions)
+        TrackActionsService trackActions,
+        NotificationViewModel notifications)
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(login);
@@ -140,6 +141,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ArgumentNullException.ThrowIfNull(placement);
         ArgumentNullException.ThrowIfNull(playlistDetailFactory);
         ArgumentNullException.ThrowIfNull(trackActions);
+        ArgumentNullException.ThrowIfNull(notifications);
 
         _navigation = navigation;
         _login = login;
@@ -148,6 +150,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _playlistDetailFactory = playlistDetailFactory;
 
         Player = playerViewModel;
+        Notifications = notifications;
         Queue = queueViewModel;
         Account = account;
         Search = search;
@@ -234,6 +237,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     /// <summary>给 <c>x:Bind</c> 用。</summary>
     public PlayerViewModel Player { get; }
+
+    /// <summary>播放条上方那条浮层通知。全应用唯一的短提示出口。</summary>
+    public NotificationViewModel Notifications { get; }
 
     /// <summary>右侧播放队列抽屉。绑在 <c>QueueOverlay</c> 的显隐上。</summary>
     public PlayQueueViewModel Queue { get; }
@@ -951,7 +957,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (await _sidebar.CreateAsync(name, privateSwitch.IsOn))
         {
             AfterSidebarChanged();
-            Player.TransientNotice($"已创建「{name}」");
+            Notifications.Show($"已创建「{name}」", NoticeSeverity.Success);
             return;
         }
 
@@ -960,6 +966,31 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         failed.CloseButtonText = "知道了";
 
         await failed.ShowAsync();
+    }
+
+    /// <summary>
+    /// 通知条的关闭按钮。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>拦下默认行为（<c>args.Cancel</c>），由 VM 驱动显隐</b>：InfoBar 自己的关闭逻辑会先把
+    /// <c>IsOpen</c> 置 false，而那个属性是从 <c>Notifications.IsOpen</c> 单向绑过来的 ——
+    /// 两个来源同时改它，队列里排着的下一条会被这一次关闭顺手盖掉。
+    /// </para>
+    /// <para>
+    /// 只拦「用户点了关闭按钮」这一种原因：VM 收起消息时 InfoBar 也会以
+    /// <c>Programmatic</c> 走一遍 Closing，那种不能拦，否则通知条收不掉。
+    /// </para>
+    /// </remarks>
+    private void OnNotificationClosing(InfoBar sender, InfoBarClosingEventArgs args)
+    {
+        if (args.Reason != InfoBarCloseReason.CloseButton)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        Notifications.Dismiss();
     }
 
     /// <summary>

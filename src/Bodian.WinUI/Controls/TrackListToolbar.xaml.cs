@@ -231,9 +231,11 @@ public sealed partial class TrackListToolbar : UserControl
 
         var added = await actions.AddToQueueAsync(tracks);
 
-        actions.ShowNotice(added > 0
-            ? $"已加入 {added} 首到播放队列"
-            : "这些歌都已在播放队列里");
+        actions.ShowNotice(
+            added > 0
+                ? $"已加入 {added} 首到播放队列"
+                : "这些歌都已在播放队列里",
+            added > 0 ? NoticeSeverity.Success : NoticeSeverity.Informational);
     }
 
     private void OnEnterSelectionClick(object sender, RoutedEventArgs e)
@@ -308,10 +310,10 @@ public sealed partial class TrackListToolbar : UserControl
         switch (result.Outcome)
         {
             case LikedSongsOutcome.NotAuthenticated:
-                actions.ShowNotice("登录后可以喜欢。");
+                actions.ShowNotice("登录后可以喜欢。", NoticeSeverity.Error);
                 break;
             case LikedSongsOutcome.NoLikedPlaylist:
-                actions.ShowNotice("账号还没有「我喜欢的」歌单，暂时无法喜欢。");
+                actions.ShowNotice("账号还没有「我喜欢的」歌单，暂时无法喜欢。", NoticeSeverity.Error);
                 break;
             case LikedSongsOutcome.AlreadyPending:
                 actions.ShowNotice("这批歌正在处理中，请稍候。");
@@ -320,13 +322,13 @@ public sealed partial class TrackListToolbar : UserControl
                 actions.ShowNotice($"已取消，成功喜欢 {result.Succeeded} 首");
                 break;
             case LikedSongsOutcome.Succeeded when result.Failed > 0:
-                actions.ShowNotice($"成功喜欢 {result.Succeeded} 首，{result.Failed} 首失败");
+                actions.ShowNotice($"成功喜欢 {result.Succeeded} 首，{result.Failed} 首失败", NoticeSeverity.Error);
                 break;
             case LikedSongsOutcome.Succeeded:
-                actions.ShowNotice($"已喜欢 {result.Succeeded} 首");
+                actions.ShowNotice($"已喜欢 {result.Succeeded} 首", NoticeSeverity.Success);
                 break;
             default:
-                actions.ShowNotice("操作失败，请稍后再试");
+                actions.ShowNotice("操作失败，请稍后再试", NoticeSeverity.Error);
                 break;
         }
     }
@@ -430,13 +432,13 @@ public sealed partial class TrackListToolbar : UserControl
 
                 if (outcome.Outcome is LikedSongsOutcome.NotAuthenticated)
                 {
-                    actions.ShowNotice("登录后可以修改「我喜欢的」。");
+                    actions.ShowNotice("登录后可以修改「我喜欢的」。", NoticeSeverity.Error);
                     return;
                 }
 
                 if (outcome.Outcome is LikedSongsOutcome.NoLikedPlaylist)
                 {
-                    actions.ShowNotice("账号还没有「我喜欢的」歌单。");
+                    actions.ShowNotice("账号还没有「我喜欢的」歌单。", NoticeSeverity.Error);
                     return;
                 }
 
@@ -454,7 +456,7 @@ public sealed partial class TrackListToolbar : UserControl
         }
         catch (InvalidOperationException)
         {
-            actions.ShowNotice("登录后可以修改歌单。");
+            actions.ShowNotice("登录后可以修改歌单。", NoticeSeverity.Error);
             return;
         }
         finally
@@ -462,7 +464,13 @@ public sealed partial class TrackListToolbar : UserControl
             EndBatch();
         }
 
-        actions.ShowNotice(Describe(removed, failed, canceled, liked));
+        // 一句话里可能既有成功又有失败，取更重的那一档：有失败就是红的，
+        // 否则有成功是绿的，全被取消（removed / failed 都是 0）才是中性。
+        actions.ShowNotice(
+            Describe(removed, failed, canceled, liked),
+            failed > 0 ? NoticeSeverity.Error
+                : removed > 0 ? NoticeSeverity.Success
+                : NoticeSeverity.Informational);
 
         // 移出过的那些歌还挂在列表上，重取一次才对得上。刷新前先退出多选 ——
         // 列表会整表重建，留着选择计数就是错的（与刷新按钮同一条规矩）。

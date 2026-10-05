@@ -4,6 +4,7 @@ using Bodian.WinUI.Controls;
 using Bodian.WinUI.Media;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using InfoBarSeverity = Microsoft.UI.Xaml.Controls.InfoBarSeverity;
 
 namespace Bodian.WinUI;
 
@@ -196,6 +197,20 @@ public static class Formats
     /// 而且函数绑定不接受 <c>Converter</c>，转换器写法在这里根本用不了。
     /// </remarks>
     public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// 通知条的等级映射：自家的 <see cref="Services.NoticeSeverity"/> 换成 <c>InfoBarSeverity</c>。
+    /// </summary>
+    /// <remarks>
+    /// 走函数绑定而不是转换器：<c>x:Bind</c> 的函数绑定不接受 <c>Converter</c>（见
+    /// <see cref="Visible"/> 的说明）。有了它，<c>NotificationViewModel</c> 就不必认识 WinUI 的枚举。
+    /// </remarks>
+    public static InfoBarSeverity NoticeLevel(Services.NoticeSeverity severity) => severity switch
+    {
+        Services.NoticeSeverity.Success => InfoBarSeverity.Success,
+        Services.NoticeSeverity.Error => InfoBarSeverity.Error,
+        _ => InfoBarSeverity.Informational,
+    };
 
     /// <summary>
     /// 播放条第二行：<c>歌手 · 专辑</c>。

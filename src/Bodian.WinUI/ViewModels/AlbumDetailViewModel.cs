@@ -195,12 +195,12 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
             await _api.SetAlbumCollectedAsync(Album.Id, collected, cancellationToken).ConfigureAwait(true);
 
             IsCollected = collected;
-            _notice.Show(collected ? "已收藏" : "已取消收藏");
+            _notice.Show(collected ? "已收藏" : "已取消收藏", NoticeSeverity.Success);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "专辑 {AlbumId} {Operation}失败", Album.Id, collected ? "收藏" : "取消收藏");
-            _notice.Show(collected ? "收藏失败" : "取消收藏失败");
+            _notice.Show(collected ? "收藏失败" : "取消收藏失败", NoticeSeverity.Error);
         }
         finally
         {
@@ -222,12 +222,12 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
         try
         {
             _clipboard.SetText(ShareLinks.BuildAlbumLink(Album.Id, _session.Uid));
-            _notice.Show("链接已复制");
+            _notice.Show("链接已复制", NoticeSeverity.Success);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "复制专辑 {AlbumId} 分享链接失败", Album.Id);
-            _notice.Show("复制链接失败");
+            _notice.Show("复制链接失败", NoticeSeverity.Error);
         }
     }
 
