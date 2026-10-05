@@ -140,6 +140,10 @@ public partial class App : Application
         // 播放条与侧栏常驻，所以这几个 ViewModel 是单例；页面则每次导航新建。
         builder.Services.AddSingleton<TrackStatisticsViewModel>();
         builder.Services.AddSingleton<PlayerViewModel>();
+
+        // 歌词页的显示偏好。与桌面歌词那份外观偏好分开存（lyrics.json / desktop-lyrics.json）。
+        builder.Services.AddSingleton<ILyricsSettingsStore>(sp => new JsonLyricsSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonLyricsSettingsStore>>()));
         builder.Services.AddSingleton<LyricsViewModel>();
 
         // 桌面歌词。外观偏好与窗口几何分两个文件存，与主窗口那套拆法一致。

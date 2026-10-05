@@ -163,6 +163,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics.IsOpen = true;
         UpdatePause();
         SyncFullscreen();
+        SyncTranslation();
         _pointerTimer.Start();
         UpdatePointerLocation();
         AnimateEntrance();
@@ -577,6 +578,26 @@ public sealed partial class LyricsPage : Page, INavigationAware
         catch (Exception exception) { _logger.LogError(exception, "切换歌词全屏失败"); }
         finally { FullscreenButton.IsEnabled = true; }
     }
+    private void OnTranslationClick(object sender, RoutedEventArgs args)
+    {
+        Lyrics.ShowTranslation = !Lyrics.ShowTranslation;
+        SyncTranslation();
+    }
+
+    /// <summary>
+    /// 把译文按钮的外观对齐到 <see cref="LyricsViewModel.ShowTranslation"/>。
+    /// </summary>
+    /// <remarks>
+    /// <b>开关只差不透明度，不换图标。</b> 开与关是同一个动作的两态，换字形就要维护两张图；
+    /// 而「变淡」本来就是这套界面里既有的「没生效」表达（禁用态也是靠前景色变淡）。
+    /// 提示文案跟着翻面，鼠标停在上面能看出下一步会发生什么。
+    /// </remarks>
+    private void SyncTranslation()
+    {
+        TranslationIcon.Opacity = Lyrics.ShowTranslation ? 1 : 0.45;
+        ToolTipService.SetToolTip(TranslationButton, Lyrics.ShowTranslation ? "关闭译文" : "显示译文");
+    }
+
     private async void OnFullscreenClick(object sender, RoutedEventArgs args) => await ToggleFullscreenAsync();
     private async void OnFullscreenInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     { args.Handled = true; await ToggleFullscreenAsync(); }

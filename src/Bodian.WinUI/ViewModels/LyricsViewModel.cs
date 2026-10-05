@@ -1,6 +1,7 @@
 using Bodian.Core.Lyrics;
 using Bodian.Core.Models;
 using Bodian.Core.Models.Lyrics;
+using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -31,6 +32,7 @@ public sealed partial class LyricsViewModel : ObservableObject
     private readonly LyricRepository _repository;
     private readonly PlaybackCoordinator _coordinator;
     private readonly IPlaybackService _engine;
+    private readonly ILyricsSettingsStore _settings;
     private readonly ILogger<LyricsViewModel> _logger;
 
     /// <summary>已经装载歌词的曲目 id；<c>0</c> 表示还没装载过。</summary>
@@ -39,23 +41,43 @@ public sealed partial class LyricsViewModel : ObservableObject
     /// <summary>装载代次，用来丢弃迟到的结果（切歌比取词快时会发生）。</summary>
     private int _generation;
 
+    /// <summary>
+    /// 未过滤的完整文档。
+    /// </summary>
+    /// <remarks>
+    /// <b>取词只发生一次，<see cref="Document"/> 是它的一个视图。</b>
+    /// 切「显示译文」是纯本地的剔除，不该再走一趟 <see cref="LyricRepository"/>，
+    /// 所以原样留一份在这里；两处 <c>Clear</c> 时一起清掉。
+    /// </remarks>
+    private LyricDocument _fullDocument = LyricDocument.Empty;
+
+    /// <summary>装载期间不许把刚读出来的设置再写回去。</summary>
+    private bool _loading = true;
+
     public LyricsViewModel(
         LyricRepository repository,
         PlaybackCoordinator coordinator,
         IPlaybackService engine,
+        ILyricsSettingsStore settings,
         ILogger<LyricsViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(engine);
+        ArgumentNullException.ThrowIfNull(settings);
 
         _repository = repository;
         _coordinator = coordinator;
         _engine = engine;
+        _settings = settings;
         _logger = logger ?? NullLogger<LyricsViewModel>.Instance;
 
         _coordinator.Started += OnStarted;
         _engine.PositionChanged += OnPositionChanged;
+
+        // 同步读，和主题一样：歌词页要在第一帧就按选择排好，异步读会先闪一下译文。
+        ShowTranslation = settings.Load().Normalized().ShowTranslation;
+        _loading = false;
     }
 
     /// <summary>
@@ -117,6 +139,22 @@ public sealed partial class LyricsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
 
+    /// <summary>
+    /// 歌词页是否显示译文。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>只做剔除，不重新取词。</b> 译文本来就和原文在同一份内容里（外文歌的原文行与译文行
+    /// 成对出现），解析时已经分好（<see cref="LyricLine.IsTranslation"/>）。这里改的只是
+    /// <see cref="Document"/> 这个视图。
+    /// </para>
+    /// <para>
+    /// <b>它只影响全屏歌词页</b>，桌面歌词条不读这一位 —— 那条是单行/双行布局，加译文要重排。
+    /// </para>
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool ShowTranslation { get; set; }
+
     /// <summary>当前行的下标；不在任何行里时为 <c>-1</c>。</summary>
     [ObservableProperty]
     public partial int CurrentIndex { get; set; } = -1;
@@ -132,6 +170,17 @@ public sealed partial class LyricsViewModel : ObservableObject
         => lineIndex >= 0 && lineIndex < Document.Lines.Count
             ? _engine.SeekAsync(Document.Lines[lineIndex].Start)
             : Task.CompletedTask;
+
+    partial void OnShowTranslationChanged(bool value)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        _settings.Save(new LyricsSettings { ShowTranslation = value });
+        SyncDocument();
+    }
 
     partial void OnIsOpenChanged(bool value) => OnActivationChanged();
 
@@ -215,20 +264,33 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     private void Apply(Track track, LyricDocument document)
     {
-        Document = document;
+        _fullDocument = document;
         _loadedTrackId = track.Id;
         HasTrack = true;
-        CurrentIndex = -1;
 
         // 空文档不是错误：服务端对没有歌词的歌返回空串，业务码仍是 200。
         StatusText = document.IsEmpty ? "这首歌还没有歌词" : "";
 
-        // 进歌词页时歌可能已经唱到一半了，立刻对齐一次。
+        SyncDocument();
+    }
+
+    /// <summary>
+    /// 按当前设置把完整文档投影成 <see cref="Document"/>，并把高亮对齐回来。
+    /// </summary>
+    /// <remarks>
+    /// 剔除译文会改变行下标，所以每次都要重新算 <see cref="CurrentIndex"/>；
+    /// 位置一律取引擎上报的值，与进度条同源。
+    /// </remarks>
+    private void SyncDocument()
+    {
+        Document = ShowTranslation ? _fullDocument : _fullDocument.WithoutTranslations();
+        CurrentIndex = -1;
         UpdateCurrentLine(_engine.Position);
     }
 
     private void Clear()
     {
+        _fullDocument = LyricDocument.Empty;
         Document = LyricDocument.Empty;
         _loadedTrackId = 0;
         CurrentIndex = -1;

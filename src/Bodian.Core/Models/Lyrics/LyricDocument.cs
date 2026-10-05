@@ -39,6 +39,39 @@ public sealed record LyricDocument(IReadOnlyList<LyricLine> Lines, LyricKind Kin
     public bool IsEmpty => Lines.Count == 0;
 
     /// <summary>
+    /// 剔除译文行后的文档。本来就没有译文行时<b>返回自身</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>不重算 <see cref="LyricLine.Duration"/>。</b> 成对的两行行首相同，剔掉其中一条
+    /// 既不改变另一条的 <see cref="LyricLine.Start"/>，也不改变「下一行行首 − 本行行首」，
+    /// 所以逐字轴、滚动与 <see cref="IndexOfLineAt"/> 的语义原样保留。
+    /// </para>
+    /// <para>
+    /// <b>反过来把译文留在文档里、让渲染层逐行跳过是错的</b> —— 行高与滚动位置会跟着错。
+    /// 「显不显示译文」必须在文档这一层决定。
+    /// </para>
+    /// </remarks>
+    public LyricDocument WithoutTranslations()
+    {
+        var kept = new List<LyricLine>(Lines.Count);
+        var dropped = false;
+
+        foreach (var line in Lines)
+        {
+            if (line.IsTranslation)
+            {
+                dropped = true;
+                continue;
+            }
+
+            kept.Add(line);
+        }
+
+        return dropped ? new LyricDocument(kept, Kind) : this;
+    }
+
+    /// <summary>
     /// 二分查找 <paramref name="position"/> 落在哪一行。
     /// </summary>
     /// <returns>行下标；位置在第一行之前时返回 <c>-1</c>。</returns>

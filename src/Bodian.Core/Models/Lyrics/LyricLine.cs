@@ -28,6 +28,24 @@ public sealed record LyricLine(
     string Text,
     IReadOnlyList<LyricSyllable> Syllables)
 {
+    /// <summary>
+    /// 这一行是译文（而非原文）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 只对<b>外文歌</b>成立：波点那份歌词内容里，原文行与中文译文行成对出现，
+    /// 两行的行首时间戳完全相同，译文行的逐字标签全是 <c>&lt;0,0&gt;</c>。
+    /// 判据与边界见 <c>BodianLyricParser</c> 的标记 pass。
+    /// </para>
+    /// <para>
+    /// <b>它是标记，不是排版属性。</b> 渲染层照旧只认 <see cref="Text"/> 与
+    /// <see cref="Syllables"/>；要让译文不显示，是把整行从文档里剔掉
+    /// （<see cref="LyricDocument.WithoutTranslations"/>），而不是让渲染层跳过它 ——
+    /// 否则行高与滚动位置的计算就得再分一套。
+    /// </para>
+    /// </remarks>
+    public bool IsTranslation { get; init; }
+
     /// <summary>行的时间窗口结束。</summary>
     public TimeSpan End => Start + Duration;
 }

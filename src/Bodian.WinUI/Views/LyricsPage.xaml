@@ -61,17 +61,34 @@
                     <Grid />
                 </TitleBar.Content>
                 <TitleBar.RightHeader>
-                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
-                        AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
-                        <Button.Resources>
-                            <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
-                                盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
-                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
-                        </Button.Resources>
+                    <!-- RightHeader 只吃一个子元素，两颗按钮得套一层。 -->
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <!-- 译文的开关。与全屏那颗同一个模板；开/关只差图标的不透明度，
+                             见 LyricsPage.xaml.cs 的 SyncTranslation。 -->
+                        <Button x:Name="TranslationButton" Click="OnTranslationClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            AutomationProperties.Name="显示译文">
+                            <Button.Resources>
+                                <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                    盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                            </Button.Resources>
 
-                        <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
-                    </Button>
+                            <controls:Icon x:Name="TranslationIcon" Data="{StaticResource IconTranslate}" Size="{StaticResource SizeIconMd}" />
+                        </Button>
+
+                        <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
+                            <Button.Resources>
+                                <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                    盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                            </Button.Resources>
+
+                            <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
+                        </Button>
+                    </StackPanel>
                 </TitleBar.RightHeader>
             </TitleBar>
             <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top"

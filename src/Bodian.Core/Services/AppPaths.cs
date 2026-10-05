@@ -70,6 +70,15 @@ public static class AppPaths
     public static string DesktopLyricsSettingsFile => Path.Combine(LocalAppData, "desktop-lyrics.json");
 
     /// <summary>
+    /// 歌词页（全屏歌词）的显示偏好（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="DesktopLyricsSettingsFile"/> 刻意分开</b>：那份是悬浮歌词条的外观，
+    /// 这份是歌词页显示什么。两张界面各有各的偏好，合在一起会让两处的读写互相牵制。
+    /// </remarks>
+    public static string LyricsSettingsFile => Path.Combine(LocalAppData, "lyrics.json");
+
+    /// <summary>
     /// 桌面歌词条的位置与宽度（明文 JSON）。
     /// </summary>
     /// <remarks>

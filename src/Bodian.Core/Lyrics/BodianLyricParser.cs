@@ -108,6 +108,8 @@ public static partial class BodianLyricParser
             return LyricDocument.Empty;
         }
 
+        MarkTranslations(raw);
+
         var lines = new List<LyricLine>(raw.Count);
 
         for (var i = 0; i < raw.Count; i++)
@@ -128,10 +130,107 @@ public static partial class BodianLyricParser
                 current.Start,
                 duration,
                 current.Text,
-                Materialize(current, duration)));
+                Materialize(current, duration))
+            {
+                IsTranslation = current.IsTranslation,
+            });
         }
 
         return new LyricDocument(lines, hasWordTrack ? LyricKind.WordByWord : LyricKind.LineByLine);
+    }
+
+    /// <summary>
+    /// 给译文行打标记。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>背景</b>：外文歌的那份内容里，原文行与中文译文行成对出现，两行<b>行首时间戳完全相同</b>，
+    /// 且译文行的逐字标签全是 <c>&lt;0,0&gt;</c>（解出来起止都是 0）。样例（Lemon）：
+    /// <c>[00:02.880]如果只是一场梦</c> 与 <c>[00:02.880]どれほどよかったでしょう</c>。
+    /// </para>
+    /// <para>
+    /// <b>判据</b>：按「时间戳完全相同的连续行」分组，组内同时存在「有真实逐字时间」与
+    /// 「没有真实逐字时间」两种时，把没有的那些标为译文。它<b>不看行的先后</b>——
+    /// 实测译文行排在原文之前，靠位置猜会猜反。也<b>不适用逐行版</b>（<c>lrcx=0</c>）：
+    /// 那份没有逐字标签，组内两行都「没有真实时间」，于是一律不标（宁可漏标，不要误删真歌词）。
+    /// </para>
+    /// <para>
+    /// 中文歌天然不受影响：时间戳唯一，根本不成组。
+    /// </para>
+    /// </remarks>
+    private static void MarkTranslations(List<RawLine> raw)
+    {
+        var index = 0;
+
+        while (index < raw.Count)
+        {
+            var end = index + 1;
+            while (end < raw.Count && raw[end].Start == raw[index].Start)
+            {
+                end++;
+            }
+
+            if (end - index >= 2)
+            {
+                MarkGroup(raw, index, end);
+            }
+
+            index = end;
+        }
+    }
+
+    /// <summary>标注 <c>[from, to)</c> 这一段同时间戳的行。</summary>
+    private static void MarkGroup(List<RawLine> raw, int from, int to)
+    {
+        var timed = false;
+        var untimed = false;
+
+        for (var i = from; i < to; i++)
+        {
+            if (HasWordTiming(raw[i]))
+            {
+                timed = true;
+            }
+            else
+            {
+                untimed = true;
+            }
+        }
+
+        // 全都有时间或全都没有时不分原文译文，保持原样。
+        if (!timed || !untimed)
+        {
+            return;
+        }
+
+        for (var i = from; i < to; i++)
+        {
+            if (!HasWordTiming(raw[i]))
+            {
+                raw[i] = raw[i] with { IsTranslation = true };
+            }
+        }
+    }
+
+    /// <summary>
+    /// 这一行有没有真实的逐字时间。
+    /// </summary>
+    /// <remarks>
+    /// 看的是音节的<b>时长</b>而不是有没有标签：译文的 <c>&lt;0,0&gt;</c> 会解出零时长的音节，
+    /// 空行（<c>[00:01.547]   </c>，一个标签都没有）则解不出音节 —— 两者都算「没有真实时间」，
+    /// 正好一起被划进译文那一侧。
+    /// </remarks>
+    private static bool HasWordTiming(RawLine line)
+    {
+        foreach (var syllable in line.Syllables)
+        {
+            if (syllable.Duration > TimeSpan.Zero)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>逐行版整行就是一个音节；逐字版按解析结果折算成绝对时间。</summary>
@@ -231,7 +330,11 @@ public static partial class BodianLyricParser
     }
 
     /// <summary>解析中途的行：时间戳与音节还是「行内相对」的形态。</summary>
-    private sealed record RawLine(TimeSpan Start, string Text, IReadOnlyList<RawSyllable> Syllables);
+    private sealed record RawLine(
+        TimeSpan Start,
+        string Text,
+        IReadOnlyList<RawSyllable> Syllables,
+        bool IsTranslation = false);
 
     /// <summary>解析中途的音节，时间是相对行首的偏移。</summary>
     private sealed record RawSyllable(string Text, TimeSpan Offset, TimeSpan Duration);
