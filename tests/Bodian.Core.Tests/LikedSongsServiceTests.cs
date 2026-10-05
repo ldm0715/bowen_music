@@ -324,16 +324,12 @@ public sealed class LikedSongsServiceTests
     public async Task SetLikedMany_ReportsProgressAsItGoes()
     {
         _session.Set(Uid, "test-token");
-        var reports = new List<BatchProgress>();
+        var progress = new RecordingProgress<BatchProgress>();
 
-        await _service.SetLikedManyAsync([1, 2, 3], liked: true,
-            progress: new Progress<BatchProgress>(reports.Add), cancellationToken: Ct);
+        await _service.SetLikedManyAsync([1, 2, 3], liked: true, progress: progress, cancellationToken: Ct);
 
-        // Progress<T> 走同步上下文投递，这里没装上下文，要等一拍才收得到。
-        await Task.Yield();
-
-        Assert.Equal(3, reports.Count);
-        Assert.Equal(new BatchProgress(3, 3), reports[^1]);
+        Assert.Equal(3, progress.Reports.Count);
+        Assert.Equal(new BatchProgress(3, 3), progress.Reports[^1]);
     }
 
     [Fact]

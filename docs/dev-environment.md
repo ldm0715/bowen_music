@@ -112,6 +112,27 @@ TESTINGPLATFORM_TELEMETRY_OPTOUT=1    或    DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 该包只影响开发机的测试宿主，不进客户端产物。
 
+### 3.5 测试里不要用 `Progress<T>` 当记录器（**2026-10-05**）
+
+`Progress<T>` 把回调投递到**当前同步上下文**；测试里没有上下文，于是退化成往线程池排队。
+原来的写法是「`await Task.Yield()` 之后断言收齐了几条上报」——那等于赌线程池先执行谁：
+
+```csharp
+var reports = new List<BatchProgress>();
+await _service.SetLikedManyAsync(ids, progress: new Progress<BatchProgress>(reports.Add), cancellationToken: Ct);
+await Task.Yield();
+Assert.Equal(3, reports.Count);     // ← 偶发得到 2
+```
+
+实测 `LikedSongsServiceTests.SetLikedMany_ReportsProgressAsItGoes` **三次里挂一次**；
+`PlaylistMusicWriterTests.ReportsProgressAfterEachTrack` 是同一套写法，只是还没撞上。
+
+**改用 `tests/Bodian.Core.Tests/Support/RecordingProgress.cs`**：`Report` 直接同步调用，
+断言在 `await` 返回后立刻成立。
+
+**这不是产品代码的问题** —— 界面上的 `Progress<T>` 是在 UI 线程建的，投递回 UI 线程正是它该有的行为。
+只有测试里需要「记下来」这种同步语义。
+
 完整的项目文件与约束见 [`transport.md`](transport.md) 第 1 节。
 
 ---

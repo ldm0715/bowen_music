@@ -1,4 +1,5 @@
 using Bodian.Core.Services;
+using Bodian.Core.Tests.Support;
 using Xunit;
 
 namespace Bodian.Core.Tests;
@@ -51,14 +52,12 @@ public sealed class PlaylistMusicWriterTests
     public async Task ReportsProgressAfterEachTrack()
     {
         var recorder = new Recorder();
-        var progress = new List<BatchProgress>();
+        var progress = new RecordingProgress<BatchProgress>();
 
         await PlaylistMusicWriter.WriteAsync([1, 2], recorder.WriteAsync,
-            progress: new Progress<BatchProgress>(progress.Add), cancellationToken: Ct);
+            progress: progress, cancellationToken: Ct);
 
-        await Task.Yield();
-
-        Assert.Equal([new BatchProgress(1, 2), new BatchProgress(2, 2)], progress);
+        Assert.Equal([new BatchProgress(1, 2), new BatchProgress(2, 2)], progress.Reports);
     }
 
     /// <summary>一首写不了不该让剩下的白做。</summary>
