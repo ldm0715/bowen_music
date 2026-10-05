@@ -20,10 +20,12 @@ public sealed class TrackActionsViewModelTests
         string? album = "专辑",
         long albumId = 0,
         bool hasMv = false,
+        string artistText = "",
         params TrackArtist[] artists) => new()
     {
         Id = id,
         Title = $"Song {id}",
+        ArtistText = artistText,
         AlbumName = album,
         AlbumId = albumId,
         HasMv = hasMv,
@@ -268,6 +270,9 @@ public sealed class TrackActionsViewModelTests
     }
 
     // ── 查看歌手 ────────────────────────────────────────────────────────────
+    //
+    // 约定：OpenArtistAsync 返回空列表 = 「ViewModel 已经处理完」（直接跳了，或已提示），
+    // 调用方什么都不用做；返回非空 = 「请弹窗让用户挑」。
 
     [Fact]
     public async Task Artist_UsesTheArtistListTheTrackAlreadyCarries()
@@ -277,7 +282,7 @@ public sealed class TrackActionsViewModelTests
         var viewModel = new TrackActionsViewModel(
             Track(artists: [new TrackArtist(42, "周杰伦", null)]), api, navigator, new Notices());
 
-        await viewModel.OpenArtistAsync(Ct);
+        Assert.Empty(await viewModel.OpenArtistAsync(Ct));
 
         Assert.Equal(42, navigator.Artist?.Id);
         Assert.Equal("周杰伦", navigator.Artist?.Name);
@@ -299,7 +304,7 @@ public sealed class TrackActionsViewModelTests
         var navigator = new Navigator();
         var viewModel = new TrackActionsViewModel(Track(5), api, navigator, new Notices());
 
-        await viewModel.OpenArtistAsync(Ct);
+        Assert.Empty(await viewModel.OpenArtistAsync(Ct));
 
         Assert.Equal([5L], requested);
         Assert.Equal(9, navigator.Artist?.Id);
@@ -313,10 +318,121 @@ public sealed class TrackActionsViewModelTests
         var navigator = new Navigator();
         var viewModel = new TrackActionsViewModel(Track(), api, navigator, notices);
 
-        await viewModel.OpenArtistAsync(Ct);
+        Assert.Empty(await viewModel.OpenArtistAsync(Ct));
 
         Assert.Null(navigator.Artist);
         Assert.Equal("这首歌没有歌手信息。", notices.Last);
+    }
+
+    /// <summary>合唱：不能只跳第一个，把全部交回去让用户挑。</summary>
+    [Fact]
+    public async Task Artist_ReturnsEveryArtistWhenThereAreSeveral()
+    {
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(
+            Track(artists: [new TrackArtist(1, "Hawk Nelson", null), new TrackArtist(2, "Jonathan Steingard", null)]),
+            new PlaybackApiStub(), navigator, new Notices());
+
+        var artists = await viewModel.OpenArtistAsync(Ct);
+
+        Assert.Equal(["Hawk Nelson", "Jonathan Steingard"], artists.Select(a => a.Name));
+        Assert.All(artists, a => Assert.True(a.IsAvailable));
+
+        // 没有直接跳走，选择权在弹窗里。
+        Assert.Null(navigator.Artist);
+    }
+
+    /// <summary>唯一那位服务端找不到时也弹窗，就是一张不可点的黑卡片。</summary>
+    [Fact]
+    public async Task Artist_OffersASingleArtistWithNoIdAsABlackCard()
+    {
+        var notices = new Notices();
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(
+            Track(artists: [new TrackArtist(0, "佚名", null)]), new PlaybackApiStub(), navigator, notices);
+
+        var artists = await viewModel.OpenArtistAsync(Ct);
+
+        Assert.Single(artists);
+        Assert.False(artists[0].IsAvailable);
+        Assert.Null(navigator.Artist);
+
+        // 有东西可显示，就不该说「没有歌手信息」。
+        Assert.Equal("", notices.Last);
+    }
+
+    /// <summary>
+    /// 曲目与详情都没有艺人明细时，按 &amp; 拆艺人串兜底。
+    /// </summary>
+    /// <remarks>
+    /// 这条同时钉住「详情串非空才优先用它」：详情返回的是空串，若不去判空，
+    /// 本地那份艺人串就被吞掉了。拆出来的条目一律无 id —— 乐队本名里带 &amp; 的
+    /// （Chase &amp; Status&amp;Skrillex）会被拆错，所以绝不能让它可点。
+    /// </remarks>
+    [Fact]
+    public async Task Artist_SplitsTheArtistTextWhenNeitherTheTrackNorTheDetailHasAList()
+    {
+        var api = new PlaybackApiStub { GetTrack = (id, _) => Task.FromResult<Track?>(Track(id)) };
+        var viewModel = new TrackActionsViewModel(
+            Track(artistText: "Chase & Status&Skrillex"), api, new Navigator(), new Notices());
+
+        var artists = await viewModel.OpenArtistAsync(Ct);
+
+        Assert.Equal(["Chase", "Status", "Skrillex"], artists.Select(a => a.Name));
+        Assert.All(artists, a => Assert.False(a.IsAvailable));
+    }
+
+    [Fact]
+    public async Task Artist_TrimsAndDropsDuplicatesWhenSplitting()
+    {
+        var api = new PlaybackApiStub { GetTrack = (id, _) => Task.FromResult<Track?>(Track(id)) };
+        var viewModel = new TrackActionsViewModel(
+            Track(artistText: " 周杰伦 & 周杰伦& 费玉清 "), api, new Navigator(), new Notices());
+
+        var artists = await viewModel.OpenArtistAsync(Ct);
+
+        Assert.Equal(["周杰伦", "费玉清"], artists.Select(a => a.Name));
+    }
+
+    /// <summary>没有有效曲目 id 就不该发详情请求（搜索页的性能样本、历史条目都可能是 0）。</summary>
+    [Fact]
+    public async Task Artist_WithoutATrackIdDoesNotAskForTheDetail()
+    {
+        var api = new PlaybackApiStub { GetTrack = (_, _) => throw new InvalidOperationException("不该发请求") };
+        var viewModel = new TrackActionsViewModel(
+            Track(id: 0, artistText: "周杰伦"), api, new Navigator(), new Notices());
+
+        var artists = await viewModel.OpenArtistAsync(Ct);
+
+        Assert.Single(artists);
+        Assert.Equal("周杰伦", artists[0].Name);
+    }
+
+    [Fact]
+    public async Task Artist_SaysThereIsNothingWhenTheTextHasOnlySeparators()
+    {
+        var api = new PlaybackApiStub { GetTrack = (id, _) => Task.FromResult<Track?>(Track(id)) };
+        var notices = new Notices();
+        var viewModel = new TrackActionsViewModel(
+            Track(artistText: " & & "), api, new Navigator(), notices);
+
+        Assert.Empty(await viewModel.OpenArtistAsync(Ct));
+
+        Assert.Equal("这首歌没有歌手信息。", notices.Last);
+    }
+
+    /// <summary>弹窗里点中某一位之后跳过去；没有 id 的那位点了不跳。</summary>
+    [Fact]
+    public void Artist_OpensThePickedArtistAndIgnoresAnIdlessOne()
+    {
+        var navigator = new Navigator();
+        var viewModel = new TrackActionsViewModel(Track(), new PlaybackApiStub(), navigator, new Notices());
+
+        viewModel.OpenArtist(new ArtistChoice(7, "陈奕迅", null));
+        Assert.Equal(7, navigator.Artist?.Id);
+
+        viewModel.OpenArtist(new ArtistChoice(0, "佚名", null));
+        Assert.Equal(7, navigator.Artist?.Id);
     }
 
     // ── 查看专辑 ────────────────────────────────────────────────────────────

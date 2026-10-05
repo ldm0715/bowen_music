@@ -149,10 +149,34 @@ https://h5app.kuwo.cn/m/bodian/playMusic.html?uid={分享者uid}&musicId={歌曲
 | --- | --- |
 | 我喜欢 | 与播放条同一套 `ILikedSongsService`，文案与失败处理一字不差 |
 | 添加到歌单 | `POST service/playlist/music`（文档 2.4 已实测往返）。歌单列表来自 `GetCreatedPlaylistsAsync`，即**自建歌单**，「我喜欢的」不在这个列表里（文档 2.4） |
-| 查看歌手 | 曲目自带的 `artists[0].id`；没有时现查一次 `service/music/info` 补（该端点不要求登录） |
+| 查看歌手 | 曲目自带的 `artists[]`（**多歌手时弹窗让用户挑**，见下）；数组为空时现查一次 `service/music/info` 补（该端点不要求登录） |
 | 查看专辑 | 曲目自带的 `albumId` —— 这一轮才把它从 DTO 映射进 `Track` |
 
 **写入接口是通用的**：落点是红心歌单还是自建歌单，只差一个 `playlistId`。
+
+### 多歌手（2026-10-05）
+
+合唱曲目原先只跳第一个歌手（硬取 `artists[0]`）。现在按**可信度递减**的三级解析：
+
+1. `Track.Artists` —— 服务端给的数组，id / 名字 / 头像齐全，**只有它最准**；
+2. 数组为空时补查一次 `service/music/info`（「最近播放」是本地快照重建的，没有明细）；
+3. 仍然为空，才按 `&` 拆 `ArtistText`。
+
+**`&` 拆分只是兜底，不可靠**：乐队本名里就有 `&`，`Chase & Status&Skrillex` 会拆成三段
+（协议侧的实测与样本比对见 [`bodian-api-reference.md`](bodian-api-reference.md) 的曲目字段一节）。
+所以拆出来的条目**一律没有 id**（`ArtistChoice.Id == 0`），界面只能是不可点的黑头像 ——
+最坏情况是多几格黑卡片，**绝不会跳错人**。
+
+| 情况 | 行为 |
+| --- | --- |
+| 恰好一位，且有 id | 直接跳歌手详情（与旧行为一致，不弹窗） |
+| 多位，或唯一那位没有 id | 弹窗铺出全部头像 + 名称，点一位进他的详情页 |
+| 一位都没有 | 提示「这首歌没有歌手信息。」 |
+
+「在服务端找不到」的判据**只看有没有有效的歌手 id，不发请求核实** —— 打开弹窗不该等 N 次网络往返。
+
+弹窗是 `Controls/ArtistPickerDialog`，建在行内控件 `TrackMoreButton` 那一层：ViewModel 刻意不碰任何
+WinUI 类型、拿不到 `XamlRoot`（同 [`ui-refresh.md`](ui-refresh.md) §15 那条菜单）。
 
 ### 批量路径（2026-10-04）
 

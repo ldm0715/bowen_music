@@ -155,13 +155,53 @@ public sealed partial class TrackMoreButton : UserControl
 
             case TrackMenuAction.Artist:
                 MoreFlyout.Hide();
-                await viewModel.OpenArtistAsync();
+                await ShowArtistPickerAsync(viewModel);
                 break;
 
             case TrackMenuAction.Album:
                 MoreFlyout.Hide();
                 viewModel.OpenAlbum();
                 break;
+        }
+    }
+
+    /// <summary>
+    /// 查看歌手：唯一且有效的歌手由 ViewModel 直接跳走，合唱的那几位在这里弹窗让用户挑。
+    /// </summary>
+    /// <remarks>
+    /// <b>弹窗只能建在这一层</b>：ViewModel 刻意不碰任何 WinUI 类型，<c>XamlRoot</c> 也拿不进去
+    /// （同 ArtistDetailPage 的关注确认框）。
+    /// </remarks>
+    private async Task ShowArtistPickerAsync(TrackActionsViewModel viewModel)
+    {
+        var artists = await viewModel.OpenArtistAsync();
+
+        // 空 = ViewModel 已经处理完：要么已直接跳转，要么已提示「没有歌手信息」。
+        if (artists.Count == 0)
+        {
+            return;
+        }
+
+        // 行被回收时 XamlRoot 会是 null，而 AppDialogs.Create 对 null 直接抛。
+        if (XamlRoot is not { } root)
+        {
+            return;
+        }
+
+        var picker = new ArtistPickerDialog();
+        var dialog = AppDialogs.Create("歌手", root, ActualTheme, maxWidth: 380);
+        dialog.Content = picker;
+        dialog.CloseButtonText = "关闭";
+
+        picker.Load(artists);
+        picker.ChoiceMade += (_, _) => dialog.Hide();
+
+        await dialog.ShowAsync();
+
+        // 关窗之后再跳：弹窗还挂着时换页会把它的根节点抽掉。
+        if (picker.Selected is { } chosen)
+        {
+            viewModel.OpenArtist(chosen);
         }
     }
 

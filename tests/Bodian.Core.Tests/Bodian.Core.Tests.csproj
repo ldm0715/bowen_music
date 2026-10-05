@@ -41,6 +41,7 @@
          真正的实现 Services\TrackActionsService.cs 依赖导航与页面，链进来编不过。 -->
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\TrackActionsViewModel.cs" Link="ViewModels\TrackActionsViewModel.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\TrackMenuEntry.cs" Link="ViewModels\TrackMenuEntry.cs" />
+    <Compile Include="..\..\src\Bodian.WinUI\ViewModels\ArtistChoice.cs" Link="ViewModels\ArtistChoice.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Services\ITrackNavigator.cs" Link="Services\ITrackNavigator.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Services\INoticeSink.cs" Link="Services\INoticeSink.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\Services\IQueueSink.cs" Link="Services\IQueueSink.cs" />

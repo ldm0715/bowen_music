@@ -307,23 +307,88 @@ public sealed partial class TrackActionsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 查看歌手。
+    /// 查看歌手。唯一且有效的那位直接跳，其余交给调用方弹窗。
     /// </summary>
     /// <remarks>
-    /// 曲目自带艺人明细时直接用；<b>为空时现查一次详情</b> ——「最近播放」是本地快照重建的，
-    /// 那里没有艺人明细（见 <c>PlayHistoryEntry.ToTrack</c>），而详情接口不要求登录，补一次代价很小。
+    /// <b>弹窗不在这里建</b>：本类不碰任何 WinUI 类型，<c>XamlRoot</c> 也拿不进来。
+    /// 于是这里只负责「算出有哪些人」与「该不该直接跳」，需要用户选的那一份原样交回去。
     /// </remarks>
-    public async Task OpenArtistAsync(CancellationToken cancellationToken = default)
+    /// <returns>
+    /// 空列表 = 已经处理完（已直接跳转，或已提示「没有歌手信息」），调用方什么都不用做；
+    /// 非空 = 请调用方弹窗展示这些候选人。
+    /// </returns>
+    public async Task<IReadOnlyList<ArtistChoice>> OpenArtistAsync(CancellationToken cancellationToken = default)
     {
-        var artist = FirstArtist(_track) ?? await FetchFirstArtistAsync(cancellationToken).ConfigureAwait(true);
+        var artists = await GetArtistsAsync(cancellationToken).ConfigureAwait(true);
 
-        if (artist is null)
+        if (artists.Count == 0)
         {
             _notice.Show("这首歌没有歌手信息。");
+            return artists;
+        }
+
+        if (artists.Count == 1 && artists[0].IsAvailable)
+        {
+            _navigator.OpenArtist(artists[0].ToArtist());
+            return [];
+        }
+
+        return artists;
+    }
+
+    /// <summary>弹窗里点中某一位后跳过去。没有有效 id 的直接忽略。</summary>
+    public void OpenArtist(ArtistChoice artist)
+    {
+        ArgumentNullException.ThrowIfNull(artist);
+
+        if (!artist.IsAvailable)
+        {
             return;
         }
 
-        _navigator.OpenArtist(artist);
+        _navigator.OpenArtist(artist.ToArtist());
+    }
+
+    /// <summary>
+    /// 这首歌的全部歌手。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>顺序是可信度递减的</b>：曲目自带的艺人明细（服务端数组）最准，其次是补查到的详情，
+    /// 最后才按 <c>&amp;</c> 拆艺人串 —— 那条<b>不可靠</b>，乐队本名里就有 <c>&amp;</c>
+    /// （实测 <c>"Chase &amp; Status&amp;Skrillex"</c> 会被拆成三段）。
+    /// </para>
+    /// <para>
+    /// 拆出来的条目一律没有 id，于是最坏情况只是多几格不可点的黑卡片，<b>绝不会跳错人</b>。
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<ArtistChoice>> GetArtistsAsync(CancellationToken cancellationToken = default)
+    {
+        var artists = Convert(_track.Artists);
+
+        if (artists.Count > 0)
+        {
+            return artists;
+        }
+
+        // 「最近播放」是本地快照重建的，没有艺人明细（见 PlayHistoryEntry.ToTrack）；
+        // 详情接口不要求登录，补一次代价很小。
+        var detail = await FetchDetailAsync(cancellationToken).ConfigureAwait(true);
+
+        if (detail is null)
+        {
+            // 没有曲目 id、请求失败、或有写操作在跑：退回本地那份艺人串快照，离线也有东西可显示。
+            return SplitArtists(_track.ArtistText);
+        }
+
+        artists = Convert(detail.Artists);
+
+        if (artists.Count > 0)
+        {
+            return artists;
+        }
+
+        return SplitArtists(string.IsNullOrWhiteSpace(detail.ArtistText) ? _track.ArtistText : detail.ArtistText);
     }
 
     /// <summary>查看专辑。曲目没带专辑 id 时这一项是灰的，正常点不到。</summary>
@@ -454,20 +519,48 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         PlaylistError = "";
     }
 
-    private static Artist? FirstArtist(Track track)
+    private static IReadOnlyList<ArtistChoice> Convert(IReadOnlyList<TrackArtist> artists) =>
+        artists.Select(a => new ArtistChoice(a.Id, a.Name, a.Avatar)).ToArray();
+
+    /// <summary>
+    /// 把服务端的艺人串按 <c>&amp;</c> 拆开。去空白、丢空串、按名字去重。
+    /// </summary>
+    /// <remarks>
+    /// <b>只在艺人明细缺失时才会走到这里。</b> 分隔符只有 <c>&amp;</c>：另一条拼接路径
+    /// （<c>BodianApi.JoinArtists</c>）用的是顿号，但那条只在明细非空时执行，与这里互斥。
+    /// </remarks>
+    private static IReadOnlyList<ArtistChoice> SplitArtists(string text)
     {
-        if (track.Artists.Count == 0)
+        if (string.IsNullOrWhiteSpace(text))
         {
-            return null;
+            return [];
         }
 
-        var artist = track.Artists[0];
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var choices = new List<ArtistChoice>();
 
-        // id 无效的条目当成没有 —— 拿它去请求歌手歌曲只会得到空列表。
-        return artist.Id <= 0 ? null : new Artist { Id = artist.Id, Name = artist.Name, CoverImage = artist.Avatar };
+        foreach (var part in text.Split('&'))
+        {
+            var name = part.Trim();
+
+            // 拆出来的没有 id，只能给成不可点的那一支。
+            if (name.Length > 0 && seen.Add(name))
+            {
+                choices.Add(new ArtistChoice(0, name, null));
+            }
+        }
+
+        return choices;
     }
 
-    private async Task<Artist?> FetchFirstArtistAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// 现查一次曲目详情，供艺人明细缺失时用。
+    /// </summary>
+    /// <remarks>
+    /// <b>非正 id 不查</b>（搜索页的性能样本、播放历史重建的曲目都可能没有 id），
+    /// <b>正忙时也不查</b> —— 同一时刻只跑一次写操作，避免与喜欢 / 入队互相挤。
+    /// </remarks>
+    private async Task<Track?> FetchDetailAsync(CancellationToken cancellationToken)
     {
         if (_busy || _track.Id <= 0)
         {
@@ -477,8 +570,7 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         _busy = true;
         try
         {
-            var detail = await _api.GetTrackAsync(_track.Id, cancellationToken).ConfigureAwait(true);
-            return detail is null ? null : FirstArtist(detail);
+            return await _api.GetTrackAsync(_track.Id, cancellationToken).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

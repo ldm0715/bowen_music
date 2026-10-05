@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.ArtistPickerDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:vm="using:Bodian.WinUI.ViewModels">
+
+    <!--
+        「查看歌手」对话框的内容：合唱曲目把每一位歌手铺成一张头像卡片，点一位进他的详情页。
+        外壳（标题 / 按钮 / 主题）由 TrackMoreButton 用 AppDialogs 拼，这里只管内容。
+
+        ★ 服务端没有这位歌手时（条目没有 id）显示默认黑头像，且整格禁用 ——
+          禁用状态不进 PointerOver 视觉态，所以既点不动也没有悬停底色，
+          与行尾菜单里置灰的「查看专辑」是同一套机制。
+    -->
+    <GridView
+        x:Name="ArtistGrid"
+        MaxHeight="320"
+        MinWidth="0"
+        Padding="0"
+        AutomationProperties.Name="选择歌手"
+        BorderThickness="0"
+        IsItemClickEnabled="True"
+        ItemClick="OnArtistClick"
+        SelectionMode="None"
+        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+        ScrollViewer.HorizontalScrollMode="Disabled"
+        ScrollViewer.VerticalScrollBarVisibility="Auto">
+        <GridView.ItemsPanel>
+            <ItemsPanelTemplate>
+                <!--
+                    ★ 格子必须固定尺寸：条目高矮不一的话，行高由第一个实现的那个定死，
+                      两行的长名字会被裁掉。CacheLength 0.5 是全项目手写 ItemsPanel 的统一写法。
+                    容器宽度 = ItemWidth 100 - Margin 4 = 96，减去两侧 Padding 8，内容 88。
+                    ItemHeight 留到 126 是给「头像 72 + 间距 6 + 两行 12 号字」留余量。
+                -->
+                <ItemsWrapGrid
+                    CacheLength="0.5"
+                    ItemHeight="126"
+                    ItemWidth="100"
+                    Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+        </GridView.ItemsPanel>
+        <GridView.ItemContainerStyle>
+            <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="4" />
+                <Setter Property="Margin" Value="0,0,4,4" />
+                <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                <!--
+                    ★ 找不到的歌手整格禁用。容器样式里只能用经典绑定 ——
+                      x:Bind 在 ItemContainerStyle 里拿不到数据类型（同 TrackMoreButton.xaml）。
+                -->
+                <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
+            </Style>
+        </GridView.ItemContainerStyle>
+        <GridView.ItemTemplate>
+            <DataTemplate x:DataType="vm:ArtistChoice">
+                <StackPanel Width="88" Spacing="6">
+                    <!-- 找得到：PersonPicture 自带圆形裁剪与姓名首字占位（同歌手详情页头部） -->
+                    <PersonPicture
+                        Width="72"
+                        Height="72"
+                        HorizontalAlignment="Center"
+                        DisplayName="{x:Bind Name}"
+                        ProfilePicture="{x:Bind local:Formats.CoverSource(Avatar)}"
+                        Visibility="{x:Bind local:Formats.Visible(IsAvailable)}" />
+
+                    <!--
+                        找不到：默认黑头像 = 黑圆 + 人像。头像地址为空的黑圆同样落到这里，
+                        因为 IsAvailable 只按 id 判 —— 没有 id 也就无从跳到详情页。
+                        不用 PersonPicture：它的圆底色是主题色、无图时显示姓名首字，
+                        正是「找不到」不该有的样子。
+                    -->
+                    <Border
+                        Width="72"
+                        Height="72"
+                        HorizontalAlignment="Center"
+                        Background="Black"
+                        CornerRadius="{StaticResource RadiusPill}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsAvailable)}">
+                        <controls:Icon
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="{StaticResource IconPerson}"
+                            Foreground="White"
+                            Size="32" />
+                    </Border>
+
+                    <!--
+                        ★ 前景写死：禁用态的继承前景是灰的，局部值能盖掉它 ——
+                          于是「点不动」只由黑头像表达，名字仍然正常可读。
+                    -->
+                    <TextBlock
+                        MaxLines="2"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                        Text="{x:Bind Name}"
+                        TextAlignment="Center"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </DataTemplate>
+        </GridView.ItemTemplate>
+    </GridView>
+</UserControl>
