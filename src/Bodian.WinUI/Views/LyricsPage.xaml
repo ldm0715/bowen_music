@@ -3,10 +3,22 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Bodian.WinUI.Controls"
-    xmlns:local="using:Bodian.WinUI" RequestedTheme="Dark">
+    xmlns:local="using:Bodian.WinUI" RequestedTheme="Dark"
+    KeyboardAcceleratorPlacementMode="Hidden">
     <Page.Resources>
         <!-- 按钮外观与图标都不再单写：外观在 Themes/Styles/Player.xaml，图标走 Controls/Icon。 -->
     </Page.Resources>
+    <!--
+        KeyboardAcceleratorPlacementMode="Hidden" 是必须的，不是可选装饰。
+
+        快捷键声明在 Page 上时，WinUI 默认会把「第一个快捷键」塞进**页内所有**控件的
+        tooltip（KeyboardAcceleratorPlacementMode 的 Auto 行为）—— 于是鼠标划过页面上
+        任何没有自己 tooltip 的地方都会冒出一个「Esc」。这里数组第一个正是 Escape，
+        所以只有它出现。下面那几颗按钮的 tooltip 是自己写的（「收起歌词 (Esc)」），
+        显式 tooltip 会覆盖默认行为，所以它们看着正常。
+
+        置成 Hidden 只关掉自动 tooltip，快捷键本身照常生效。
+    -->
     <Page.KeyboardAccelerators>
         <KeyboardAccelerator Key="Escape" Invoked="OnEscapeInvoked" />
         <KeyboardAccelerator Key="F11" Invoked="OnFullscreenInvoked" />

@@ -5,7 +5,14 @@
     xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI"
     xmlns:vm="using:Bodian.WinUI.ViewModels"
-    RequestedTheme="Dark">
+    RequestedTheme="Dark"
+    KeyboardAcceleratorPlacementMode="Hidden">
+    <!--
+        KeyboardAcceleratorPlacementMode="Hidden" 是必须的，理由同歌词页：
+        快捷键声明在 Page 上时，WinUI 默认会把**第一个**快捷键塞进页内所有控件的
+        tooltip，鼠标划过空白处就冒出一个「Esc」。这里第一个正是 Escape。
+        置成 Hidden 只关掉自动 tooltip，快捷键本身照常生效。
+    -->
     <Page.KeyboardAccelerators>
         <KeyboardAccelerator Key="Escape" Invoked="OnEscapeInvoked" />
         <KeyboardAccelerator Key="F11" Invoked="OnFullscreenInvoked" />
