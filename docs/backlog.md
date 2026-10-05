@@ -108,7 +108,24 @@ Core 侧的 `purchasedList` 接口、DTO、fixture 与测试保留（逆向结�
 没有有效歌手 id 的那位显示默认黑头像且不可点击。**顺带纠正一条协议认识**：`artist` 串的 `&` 不可靠
 （乐队本名里就有），fixtures 里 79 个多歌手样本有 12 个对不上，所以 `artists[]` 才是准的、拆分只当兜底。
 设计与接口链路见 [`like-share.md`](like-share.md) 的「多歌手」一节，协议侧的实测见
-[`bodian-api-reference.md`](bodian-api-reference.md)。1173 项离线测试与 WinUI 构建通过。
+[`bodian-api-reference.md`](bodian-api-reference.md)。1177 项离线测试与 WinUI 构建通过。
+
+**播放条第二行可点 + 歌词页「更多」（2026-10-05）**：听着歌想看看歌手其他作品的入口原先没有 ——
+底部播放条的 `歌手 · 专辑` 现在两段各自可点（歌手走与曲目行「查看歌手」同一套逻辑，含多歌手选择框），
+歌词页底部加了一颗常显的「更多」。顺带把曲目菜单内容抽成 `Controls/TrackActionsMenu`、
+把多歌手弹窗抽成 `ArtistPickerDialog.ShowPickerAsync`，两处都是三处共用。
+歌词页那份菜单**去掉前三项**（我喜欢 / 下一首播放 / 加入播放队列）——
+左下角本来就有带计数的收藏按钮，另两项对一首已经在放的歌也没用（`TrackMenuScope.Player`）。
+**踩到的三处限制**：内联 `Hyperlink`（查过 SDK 属性表）没有指针事件，所以颜色只能靠覆写
+`HyperlinkForeground*` 三个主题键、且**悬停下划线做不到**（已与用户确认放弃）；
+它也没有 `Visibility`，所以第二行改在 code-behind 里拼内联，好让「专辑 id 为 0 的旧条目」退成普通灰字
+而不是一个点了没反应的死链接；公开的 `ObservableCollection<TrackMenuEntry>` 属性会让 XAML 类型生成器
+去给带 `required` 的条目类型生成 `new`，菜单项集合只能私有 + 在 code-behind 里设 `ItemsSource`。
+设计与坑见 [`ui-refresh.md`](ui-refresh.md) §27，歌词页那一侧见 [`fullscreen-lyrics.md`](fullscreen-lyrics.md)。
+1177 项离线测试与 WinUI 构建通过，界面已由用户验证。
+
+> 顺带更正上一段的测试数：多歌手那条当时记的是 1173，实测是 1177（那次跑到了陈旧程序集）。
+> 本次复核：全量 1177、`TrackActionsViewModelTests` 34，连跑两次稳定。
 
 尚待人工验收：
 

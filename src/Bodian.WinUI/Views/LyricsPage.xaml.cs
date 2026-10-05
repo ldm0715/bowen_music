@@ -27,6 +27,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly MainWindow _window;
     private readonly INavigationService _navigation;
     private readonly Func<Track, MvPage> _mvFactory;
+
+    /// <summary>底部「更多」菜单要用它现造菜单状态（与曲目行那颗同一个装配点）。</summary>
+    private readonly TrackActionsService _trackActions;
     private FrameworkElement? _themeRoot;
     private readonly LyricsCanvasView _canvas;
     private readonly AudioSpectrumView _spectrum;
@@ -48,6 +51,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private bool _chromeVisible = true;
     private bool _pointerOverChrome;
     private bool _volumePopupOpen;
+    private bool _moreFlyoutOpen;
     private FrameworkElement? _progressThumb;
     private Rectangle? _progressTrack;
     private Rectangle? _progressFill;
@@ -56,7 +60,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
         LyricsViewModel lyrics, SongCommentsViewModel comments,
-        INavigationService navigation, Func<Track, MvPage> mvFactory)
+        INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -66,9 +70,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(comments);
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(mvFactory);
+        ArgumentNullException.ThrowIfNull(trackActions);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
+        _trackActions = trackActions;
         _logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
         _canvas = canvas;
@@ -157,6 +163,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _window.AppWindow.Changed += OnAppWindowChanged;
         Player.PropertyChanged += OnPlayerChanged;
         Lyrics.PropertyChanged += OnLyricsChanged;
+        RebuildTrackMenu();
         _pointerOverChrome = false;
         _keyboardInteractionActive = false;
         _lastCursorPoint = null;
@@ -186,6 +193,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Player.PropertyChanged -= OnPlayerChanged;
         Lyrics.PropertyChanged -= OnLyricsChanged;
         _volumePopupOpen = false;
+        _moreFlyoutOpen = false;
+        MoreFlyout.Hide();
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
         Lyrics.IsOpen = false;
@@ -273,6 +282,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (args.PropertyName == nameof(PlayerViewModel.CurrentTrackId))
         {
             ShowChrome();
+
+            // 菜单里那一批动作要跟着曲目换。顺手把菜单收起来 ——
+            // 留着它就会出现「菜单里的歌和正在播的歌对不上」。
+            MoreFlyout.Hide();
+            RebuildTrackMenu();
+
             if (Player.CurrentTrackId is > 0) _ = Comments.LoadBadgeAsync(Player.CurrentTrackId.Value);
             else Comments.CancelBadgeRequest();
             if (Comments.IsOpen)
@@ -437,7 +452,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         _chromeTimer.Stop();
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || !_chromeVisible || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || HasChromeKeyboardFocus()) return;
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen || HasChromeKeyboardFocus()) return;
         _chromeTimer.Start();
     }
 
@@ -451,7 +466,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void HideChrome()
     {
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || HasChromeKeyboardFocus())
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen || HasChromeKeyboardFocus())
             return;
         SetChromeVisibility(false);
     }
@@ -567,6 +582,40 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     /// <summary>传输组里的队列按钮。抽屉本身归主窗口 —— 它要盖住整个内容区，这一层放不下。</summary>
     private void OnQueueClick(object sender, RoutedEventArgs args) => _window.ToggleQueue();
+
+    /// <summary>
+    /// 底部「更多」的菜单状态按当前曲目重建。
+    /// </summary>
+    /// <remarks>
+    /// 每次切歌现造一个：<c>TrackActionsViewModel</c> 的状态跟着曲目走（喜欢态、歌单选择面），
+    /// 复用它只会带来「菜单还挂着上一首」这类问题。装配点与曲目行那颗是同一个。
+    /// </remarks>
+    private void RebuildTrackMenu()
+        => MoreMenu.ViewModel = Player.CurrentTrack is { } track ? _trackActions.Create(track) : null;
+
+    /// <remarks>
+    /// ★ <b>Flyout 是 popup，不受 <c>SetChromeVisibility</c> 管</b> —— 不把它算进
+    /// <see cref="ScheduleChromeHide"/> 与 <see cref="HideChrome"/> 的守卫，
+    /// chrome 一淡出就会剩一个悬空的菜单挂在那儿。
+    /// </remarks>
+    private void OnMoreFlyoutOpening(object? sender, object e)
+    {
+        _moreFlyoutOpen = true;
+        MoreMenu.Initialize();
+
+        // ShowChrome 内部会调 ScheduleChromeHide，而后者见 _moreFlyoutOpen 为真就停表返回。
+        ShowChrome();
+    }
+
+    private void OnMoreFlyoutClosed(object? sender, object e)
+    {
+        _moreFlyoutOpen = false;
+        MoreMenu.Reset();
+        ScheduleChromeHide();
+    }
+
+    /// <summary>菜单里某个动作要求关窗。它是内容控件，拿不到这个 Flyout，只能往上抛。</summary>
+    private void OnMoreMenuCloseRequested(object? sender, EventArgs e) => MoreFlyout.Hide();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
     private async Task ToggleFullscreenAsync()
     {

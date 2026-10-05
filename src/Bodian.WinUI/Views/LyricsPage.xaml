@@ -227,6 +227,56 @@
                 -->
                 <StackPanel x:Name="VolumeDeck" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="16">
                     <!--
+                        更多：菜单内容与曲目行那颗完全同源（TrackActionsMenu），所以查看歌手/专辑、
+                        加入歌单这些不用在这一页重写一遍。
+
+                        **常显**（不靠悬停出现），没有曲目时整颗折叠 —— 与旁边 MV 那颗同一口径。
+                        放在这一组最左端，是为了让音量继续守在屏幕最右角；整组右锚定，
+                        加一颗不会移动中间传输键的整窗中线。
+                    -->
+                    <Button
+                        x:Name="MoreButton"
+                        AutomationProperties.Name="更多"
+                        Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        ToolTipService.ToolTip="更多"
+                        Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
+                        <Button.Resources>
+                            <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                 盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
+
+                        <controls:Icon Data="{StaticResource IconMore}" Size="14" />
+
+                        <Button.Flyout>
+                            <Flyout
+                                x:Name="MoreFlyout"
+                                Closed="OnMoreFlyoutClosed"
+                                Opening="OnMoreFlyoutOpening"
+                                Placement="Top">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="MinWidth" Value="0" />
+                                        <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                        <Setter Property="Padding" Value="6" />
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+
+                                <!--
+                                    Scope="Player"：去掉「我喜欢 / 下一首播放 / 加入播放队列」——
+                                    喜欢在这一页左下角本来就有颗带计数的按钮，另两项对一首已经在放的歌也没用。
+                                -->
+                                <controls:TrackActionsMenu
+                                    x:Name="MoreMenu"
+                                    CloseRequested="OnMoreMenuCloseRequested"
+                                    Scope="Player" />
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <!--
                         评论入口与左下角的收藏 / 分享用同一个控件，尺寸和角标样式天然一致；
                         面板打开时用 IsActive 换成强调色图标，不再由代码改前景色。
                     -->

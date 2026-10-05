@@ -23,6 +23,24 @@ public enum TrackMenuAction
 }
 
 /// <summary>
+/// 「更多」菜单用在哪 —— 决定显示哪几项。
+/// </summary>
+/// <remarks>
+/// <b>同一个曲目，放出不同的菜单</b>：曲目行尾那份要管「这一首待会儿怎么办」
+/// （喜欢、插队、入队），而正在播放的那一首（歌词页）不需要 ——
+/// 喜欢在歌词页左下角本来就有颗带计数的按钮，另两项对已经在放的那一首也没什么意义。
+/// 菜单项本身仍由 <c>TrackActionsViewModel</c> 一处构造，这里只做取舍。
+/// </remarks>
+public enum TrackMenuScope
+{
+    /// <summary>曲目行尾：完整的一套。</summary>
+    Row,
+
+    /// <summary>正在播放的那一首（歌词页底部那颗「更多」）：去掉页面上已有入口的那几项。</summary>
+    Player,
+}
+
+/// <summary>
 /// 「更多」菜单里的一行。
 /// </summary>
 /// <remarks>

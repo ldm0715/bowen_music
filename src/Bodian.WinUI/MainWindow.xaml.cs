@@ -209,6 +209,12 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         // MV 页要带曲目构造，工厂只有这里拿得到 —— 播放条只抛事件。
         playerBar.MvRequested += (_, track) => navigation.Navigate(mvFactory(track));
+
+        // 第二行的歌手名与专辑名。歌手不能走页面工厂 —— 合唱曲目要先解析出全部歌手、
+        // 多位就弹选择框，那套降级逻辑在 TrackActionsViewModel 里（与曲目行「查看歌手」同一份）。
+        playerBar.ArtistRequested += async (_, track) => await ArtistPickerDialog.ShowPickerAsync(
+            trackActions.Create(track), ShellRoot.XamlRoot, ShellRoot.ActualTheme);
+        playerBar.AlbumRequested += (_, track) => trackActions.Create(track).OpenAlbum();
         PlayerHost.Content = playerBar;
 
         // 抽屉的滑入用 Translation 独立于布局（与歌词页的评论面板同一套），先打开这个通道。

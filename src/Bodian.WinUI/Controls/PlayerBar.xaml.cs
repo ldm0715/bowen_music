@@ -6,10 +6,12 @@ using Bodian.WinUI.Views;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.Foundation;
+using Windows.UI.Text;
 
 namespace Bodian.WinUI.Controls;
 
@@ -103,12 +105,111 @@ public sealed partial class PlayerBar : UserControl
         }
     }
 
+    /// <summary>
+    /// 点了第二行里的歌手名。载荷就是当前曲目。
+    /// </summary>
+    /// <remarks>
+    /// <b>不直接用歌手页面工厂</b>：那只能跳一位歌手，而合唱曲目要走
+    /// 「解析全部歌手 → 多位就弹选择框」那套降级逻辑，它在 <c>TrackActionsViewModel</c> 里。
+    /// 与 <see cref="MvRequested"/> 同一种接线：控件只抛事件，外壳接线。
+    /// </remarks>
+    public event EventHandler<Track>? ArtistRequested;
+
+    /// <inheritdoc cref="ArtistRequested"/>
+    public event EventHandler<Track>? AlbumRequested;
+
+    private void OnArtistLinkClick(Hyperlink sender, HyperlinkClickEventArgs args)
+    {
+        if (ViewModel.CurrentTrack is { } track)
+        {
+            ArtistRequested?.Invoke(this, track);
+        }
+    }
+
+    private void OnAlbumLinkClick(Hyperlink sender, HyperlinkClickEventArgs args)
+    {
+        if (ViewModel.CurrentTrack is { } track)
+        {
+            AlbumRequested?.Invoke(this, track);
+        }
+    }
+
+    /// <summary>
+    /// 重拼第二行：<c>歌手</c> · <c>专辑</c>，两段各自可点。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>为什么在代码里拼而不是写在 XAML</b>：内联 <see cref="Hyperlink"/> 没有 <c>Visibility</c>，
+    /// 声明式没法让「专辑打不开」这一支退成普通 <see cref="Run"/>。而这一支必须处理 ——
+    /// 与曲目菜单把「查看专辑」灰着而不是拿掉是同一口径：一个看着能点、点了没反应的死链接
+    /// 比灰字更糟。
+    /// </para>
+    /// <para>
+    /// 三段都放进同一个 <see cref="TextBlock"/>，整行才会一起省略号截断
+    /// （分开成多个块的话长专辑名会溢出信息块）。
+    /// </para>
+    /// </remarks>
+    private void UpdateArtistLine()
+    {
+        ArtistLine.Inlines.Clear();
+
+        if (ViewModel.CurrentTrack is not { } track)
+        {
+            return;
+        }
+
+        // 歌手：名称取自展示串（它可能比 Artists 多带了服务端给的写法），点击走完整降级逻辑。
+        var artist = ViewModel.ArtistText.Length > 0 ? ViewModel.ArtistText : track.ArtistText;
+
+        if (artist.Length > 0)
+        {
+            ArtistLine.Inlines.Add(Link(artist, OnArtistLinkClick));
+        }
+
+        var album = ViewModel.AlbumText.Length > 0 ? ViewModel.AlbumText : track.AlbumName ?? "";
+
+        if (album.Length == 0)
+        {
+            return;
+        }
+
+        if (artist.Length > 0)
+        {
+            ArtistLine.Inlines.Add(new Run { Text = " · " });
+        }
+
+        // 专辑 id 为 0 表示服务端没给（旧的历史条目就是这么来的），跳不过去，
+        // 那就只当作普通文字显示，不给可点的样子。
+        ArtistLine.Inlines.Add(track.AlbumId > 0
+            ? Link(album, OnAlbumLinkClick)
+            : new Run { Text = album });
+    }
+
+    /// <summary>
+    /// 造一段可点的内联文本。
+    /// </summary>
+    /// <remarks>
+    /// <b>不设 Foreground</b>：颜色由 <c>Themes/Theme.xaml</c> 里覆写的
+    /// <c>HyperlinkForeground*</c> 三个键决定（静止次级灰、悬停强调色）。
+    /// 在这里写局部值会压掉模板的悬停态，那正是要避免的坑。
+    /// <c>UnderlineStyle</c> 显式关掉：默认是 <c>Single</c>（静止就带下划线），
+    /// 而这一行要的是和原来一样的干净灰字。
+    /// </remarks>
+    private Hyperlink Link(string text, TypedEventHandler<Hyperlink, HyperlinkClickEventArgs> onClick)
+    {
+        var link = new Hyperlink { UnderlineStyle = UnderlineStyle.None };
+        link.Inlines.Add(new Run { Text = text });
+        link.Click += onClick;
+        return link;
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         ViewModel.PropertyChanged += OnPlayerPropertyChanged;
         DesktopLyrics.PropertyChanged += OnDesktopLyricsPropertyChanged;
         UpdateDesktopLyricsButton();
         UpdateTitleWidth();
+        UpdateArtistLine();
     }
 
     /// <summary>在 XAML 状态中保留 ThemeResource，主题切换时选中态画刷也重新求值。</summary>
@@ -180,6 +281,15 @@ public sealed partial class PlayerBar : UserControl
         if (e.PropertyName is nameof(PlayerViewModel.IsAudition) or nameof(PlayerViewModel.HasPayLabel))
         {
             UpdateTitleWidth();
+        }
+
+        // 第二行的两个链接按曲目重拼。CurrentTrack 没有变更通知，CurrentTrackId 是它的可靠替身
+        // （两者在切歌时同点赋值）；另外两个属性是防「同一首歌但展示串后到」。
+        if (e.PropertyName is nameof(PlayerViewModel.CurrentTrackId)
+            or nameof(PlayerViewModel.ArtistText)
+            or nameof(PlayerViewModel.AlbumText))
+        {
+            UpdateArtistLine();
         }
     }
 

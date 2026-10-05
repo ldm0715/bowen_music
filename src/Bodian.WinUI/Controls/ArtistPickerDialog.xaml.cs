@@ -29,6 +29,54 @@ public sealed partial class ArtistPickerDialog : UserControl
     /// </remarks>
     internal ArtistChoice? Selected { get; private set; }
 
+    /// <summary>
+    /// 处理一次「查看歌手」：该直接跳就直接跳，该选人就弹这个框。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>三处共用</b>：曲目行「更多」、播放条第二行的歌手、歌词页「更多」。
+    /// 逻辑本身在 <see cref="TrackActionsViewModel.OpenArtistAsync"/> 里，这里只是它那层壳。
+    /// </para>
+    /// <para>
+    /// <b>放在这里而不是各宿主的 code-behind</b>：那样就是三份复制品。
+    /// 与「弹窗留在 code-behind」那条约定也不冲突 —— 那条的真实含义是
+    /// 「ViewModel / Service 不碰任何 WinUI 类型」，而本类就在 UI 层，
+    /// 与 <see cref="AppDialogs"/> 同类同层。
+    /// </para>
+    /// </remarks>
+    /// <param name="viewModel">已经绑定好曲目的菜单状态。</param>
+    /// <param name="xamlRoot">宿主页面的 XamlRoot。ViewModel 拿不到它，只能由调用方给。</param>
+    /// <param name="theme">代码构造的 ContentDialog 不在可视树里，不显式设主题就永远跟随系统。</param>
+    internal static async Task ShowPickerAsync(TrackActionsViewModel viewModel, XamlRoot xamlRoot, ElementTheme theme)
+    {
+        ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(xamlRoot);
+
+        var artists = await viewModel.OpenArtistAsync();
+
+        // 空 = 已经处理完：要么已直接跳转，要么已提示「这首歌没有歌手信息」。
+        if (artists.Count == 0)
+        {
+            return;
+        }
+
+        var picker = new ArtistPickerDialog();
+        var dialog = AppDialogs.Create("歌手", xamlRoot, theme, maxWidth: 380);
+        dialog.Content = picker;
+        dialog.CloseButtonText = "关闭";
+
+        picker.Load(artists);
+        picker.ChoiceMade += (_, _) => dialog.Hide();
+
+        await dialog.ShowAsync();
+
+        // 关窗之后再跳：弹窗还挂着时换页会把它的根节点抽掉。
+        if (picker.Selected is { } chosen)
+        {
+            viewModel.OpenArtist(chosen);
+        }
+    }
+
     /// <summary>铺开候选人。列表由 ViewModel 算好，这里只负责画。</summary>
     public void Load(IReadOnlyList<ArtistChoice> artists)
     {

@@ -27,6 +27,26 @@
         -->
         <ResourceDictionary x:Key="Light">
 
+            <!--
+                ── 行内超链接（TextBlock 里的 <Hyperlink>）──
+                只有底部播放条用：歌手与专辑名是可点的内联链接。
+
+                ★ 内联 Hyperlink **没有指针事件**（只有 Click / GotFocus / LostFocus），
+                  所以「悬停变强调色」唯一能走的路就是覆写它默认模板查的这三个键 ——
+                  在元素上写局部 Foreground 反而会压掉模板的悬停态，正是要避免的坑。
+                  代价是没有悬停下划线：UnderlineStyle 是静态属性，没有悬停钩子可切。
+
+                静止色照抄系统 TextFillColorSecondary（浅 #9E000000 / 深 #C5FFFFFF），
+                与播放条那一行整行的次级灰一致；悬停与按下取本仓的强调色。
+                高对比度**不覆写**，让系统的 SystemControlHyperlink* 那套生效。
+
+                数值直接写，不用别名：主题字典里的 StaticResource 解析时机不可靠，
+                原因见下面 NavigationView 那一段。
+            -->
+            <SolidColorBrush x:Key="HyperlinkForeground" Color="#9E000000" />
+            <SolidColorBrush x:Key="HyperlinkForegroundPointerOver" Color="#FF007A57" />
+            <SolidColorBrush x:Key="HyperlinkForegroundPressed" Color="#FF007A57" />
+
             <!-- 评论抽屉、回复详情与原图查看：实色背景保证文字可读。 -->
             <SolidColorBrush x:Key="CommentPanelBackgroundBrush" Color="#FFFAFBFD" />
             <SolidColorBrush x:Key="CommentRaisedSurfaceBrush" Color="#FFF0F3F7" />
@@ -195,6 +215,11 @@
             「强调填充之上的前景」两套相同，因为填充色本身没变。
         -->
         <ResourceDictionary x:Key="Dark">
+
+            <!-- 行内超链接三态。理由与浅色那一份相同，见上面的说明。 -->
+            <SolidColorBrush x:Key="HyperlinkForeground" Color="#C5FFFFFF" />
+            <SolidColorBrush x:Key="HyperlinkForegroundPointerOver" Color="#FF00F3B0" />
+            <SolidColorBrush x:Key="HyperlinkForegroundPressed" Color="#FF00F3B0" />
 
             <!-- 评论抽屉、回复详情与原图查看：实色背景保证文字可读。 -->
             <SolidColorBrush x:Key="CommentPanelBackgroundBrush" Color="#FF171D29" />

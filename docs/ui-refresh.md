@@ -394,7 +394,10 @@ Win2D 走 WIC 在干净的 Win10 上会**静默失败**（开发机装过扩展�
 - `Formats.PlayerTitleMaxWidth(SongInfo.Width, IsAudition, HasPayLabel)` 从当前宽度中扣除可见徽标与间距。
   `SongInfo.Width` 的变化通过 `x:Bind` 的依赖属性回调更新标题上限，切换布局后仍能正确截断长标题。
 
-标题和徽标继续放在同一个横向 `StackPanel`，保证徽标紧跟曲名；歌手与专辑合为一行并显示省略号。
+标题和徽标继续放在同一个横向 `StackPanel`，保证徽标紧跟曲名。
+
+歌手与专辑那一行的拼法 **2026-10-05 已改**：仍然是同一个 `TextBlock`（「整行一起省略号截断」
+这条不变），但两段各自可点了 —— 见 §27。
 
 ---
 
@@ -424,7 +427,7 @@ Win2D 走 WIC 在干净的 Win10 上会**静默失败**（开发机装过扩展�
 
 | 区域 | 当前内容 |
 | --- | --- |
-| 左侧 | 可点击的 48px 封面、曲名、试听 / 付费徽标、收藏与分享数量按钮、歌手与专辑 |
+| 左侧 | 可点击的 48px 封面、曲名、试听 / 付费徽标、收藏与分享数量按钮、**可点击的歌手与专辑**（见 §27） |
 | 中间 | 上一首、播放 / 暂停、下一首 |
 | 右侧 | 音质按钮、歌词按钮、音量按钮、播放列表按钮 |
 
@@ -1046,6 +1049,9 @@ WinUI 构建通过，0 错误、1 个既有 `AiPlaylistPage.xaml:27` WMC1506 警
 - **`PlayerBar` 不再持有队列 VM**，那颗按钮只抛 `PlaylistRequested`。
   抽屉的开合、滑入动画与清空确认框都归 `MainWindow` —— 抽屉要盖住内容区，
   而播放条自己就占着窗口最下面那一行，在这一层放不下。
+- **第二行的歌手与专辑也走这条**（2026-10-05）：各抛 `ArtistRequested` / `AlbumRequested`，
+  `MainWindow` 接线（同 `MvRequested`）。歌手**不能**用页面工厂 —— 合唱曲目要先解析出全部歌手、
+  多位就弹选择框，那套降级逻辑在 `TrackActionsViewModel` 里，见 §27。
 - 滑入动画与评论抽屉同一套：`ElementCompositionPreview.SetIsTranslationEnabled` +
   220 ms 的 `Translation.X` 从 28 到 0。**收起时不放动画** —— 元素马上就 Collapsed 了，看不着。
 - `Esc` 在 `OnShellKeyDown` 里**先收抽屉**，再轮到搜索浮层。
@@ -1540,3 +1546,89 @@ WinUI 构建通过，0 错误。
 
 **未自动验证**：禁用态底色与焦点框这两条只能靠肉眼，自动检查覆盖不到。
 MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比对（见 `icons.md` §6）。
+
+
+## 27. 播放条第二行双入口与歌词页「更多」（2026-10-05）
+
+听着歌想看看这位歌手还有什么作品时，原先只能离开当前页去别处找。补了两个入口：
+
+- **底部播放条的第二行**：`歌手` · `专辑` 两段各自可点。
+- **歌词页底部**：`VolumeDeck` 最左端多一颗常显的「更多」。
+
+两处都要复用「查看歌手 / 查看专辑」那套逻辑，所以顺带做了两件抽取，见 §27.3。
+
+### 27.1 播放条第二行：一个 TextBlock，两段内联链接
+
+`:118` 那一行不再是 `Formats.ArtistLine(...)` 拼出来的字符串，改成由
+`PlayerBar.UpdateArtistLine()` 按当前曲目重建 `Inlines`：
+
+| 段 | 内容 | 行为 |
+| --- | --- | --- |
+| 歌手 | `ViewModel.ArtistText`（空则退回 `Track.ArtistText`） | `Hyperlink` → 抛 `ArtistRequested` |
+| 分隔 | `" · "`（只在两段都在时加） | 普通 `Run` |
+| 专辑 | `ViewModel.AlbumText`（空则退回 `Track.AlbumName`） | `AlbumId > 0` 时是 `Hyperlink` → 抛 `AlbumRequested`；否则是普通 `Run` |
+
+**为什么在 code-behind 里拼而不是写死在 XAML**：内联 `Hyperlink` **没有 `Visibility`**
+（它的属性表里只有 `ElementSoundMode` / `FocusState` / `IsTabStop` / `NavigateUri` / `TabIndex` /
+`UnderlineStyle` / `XYFocus*`），声明式写不出「专辑打不开时退成普通灰字」那一支。
+而这一支必须处理 —— 与曲目菜单把「查看专辑」**灰着而不是拿掉**是同一口径：
+一个看着能点、点了没反应的死链接比灰字更糟。`AlbumId <= 0` 的是早于该字段的旧历史条目。
+
+**三段必须在同一个 `TextBlock` 里**：这是 `Formats.ArtistLine` 当年拼字符串的理由，
+现在依旧成立 —— 横向 `StackPanel` 不约束子元素宽度，分了家的文本没法省略号截断。
+`TextWrapping="NoWrap"` **显式写**，教训同 `BangListPage.xaml` 里那条注释。
+
+**颜色**：静止是次级灰、悬停变强调色，**没有下划线**。
+
+### 27.2 内联 Hyperlink 的两个坑（都实测过属性表）
+
+1. **没有指针事件** —— 只有 `Click` / `GotFocus` / `LostFocus`。
+   所以「悬停变强调色」唯一能走的路就是覆写它默认模板查的那三个键：
+   `HyperlinkForeground` / `HyperlinkForegroundPointerOver` / `HyperlinkForegroundPressed`，
+   落在 `Themes/Theme.xaml` 的浅色与深色两套字典里（高对比度不覆写，用系统的）。
+   **不能在元素上写局部 `Foreground`** —— 局部值会压掉模板的悬停态，正是要避免的坑。
+   全仓没有别的内联 `Hyperlink`，所以这个覆写实际只作用于这一处。
+2. **「悬停才出下划线」做不到** —— `UnderlineStyle` 是静态属性（默认 `Single`，即静止就带线），
+   没有悬停钩子可以切它。要做就只剩「换掉整个结构、改用 `HyperlinkButton`」一条路，
+   而那会丢掉上面的整段截断。**已与用户确认：放弃下划线。**
+
+**待真机确认**：内联 `Hyperlink` 的 pointer-over 画刷能否被覆写，有社区报告说在 WinUI 3 上
+可能失效（本仓零先例）。若无效，退路是「只留手型光标」，或整体改用 `HyperlinkButton`。
+
+### 27.3 两处抽取
+
+- **多歌手弹窗**：`ArtistPickerDialog.ShowPickerAsync(viewModel, xamlRoot, theme)`
+  （`internal static`）。原先只有曲目行会用，现在播放条与歌词页也要，所以就一份。
+  与「弹窗留在 code-behind」不冲突 —— 那条的真实含义是「ViewModel / Service 不碰 WinUI 类型」，
+  而这个类就在 UI 层，与 `AppDialogs` 同类同层。
+- **曲目菜单内容**：`Controls/TrackActionsMenu` —— 各项动作与「选歌单」两个面板。
+  宿主各自声明按钮与 `Flyout`：曲目行那颗是悬停出现的方钮，歌词页那颗是常显圆钮，
+  形状与显隐来源都不同，没有共用的余地。**关闭要往上抛**（`CloseRequested`）：
+  内容控件拿不到外面那个 `Flyout`，只能由宿主关自己的。
+  菜单项本身只在 `TrackActionsViewModel` 里构造一处，控件按 `TrackMenuScope` 取舍 ——
+  `Row` 是完整一套，`Player`（歌词页）去掉「我喜欢 / 下一首播放 / 加入播放队列」，
+  理由见 §27.4。
+
+### 27.4 歌词页那颗「更多」
+
+放在 `VolumeDeck` 最左端（音量继续守在屏幕最右角）。整组右锚定，
+**加一颗不会移动中间传输键的整窗中线** —— `ControlDeck` 的行高与 Margin 一个都不能动，
+§15 那条「播放键与播放条同高」的算式依赖它们。样式复用 `PlayerRoundIconButtonStyle`，
+`Visibility` 绑 `Player.HasTrack`：常显的意思是不靠悬停出现，无曲目时折叠。
+
+**菜单项比曲目行那份少三项**（`Scope="Player"`）：曲目行是「这一首待会儿怎么办」，
+所以有喜欢 / 下一首播放 / 加入播放队列；而这一页面对的是一首**已经在放**的歌，
+喜欢在左下角本来就有颗带计数的按钮，另两项派不上用场。留下的是
+「添加到歌单 / 播放 MV / 查看歌手 / 查看专辑」。
+
+**切歌时重建菜单**（`OnPlayerChanged` 的 `CurrentTrackId` 分支）并顺手 `Hide()` ——
+否则会出现「菜单里的歌和正在播的歌对不上」。`CurrentTrack` 没有变更通知，
+`CurrentTrackId` 是它可靠的替身。
+
+**★ Flyout 是 popup，不受 `SetChromeVisibility` 管**：`_moreFlyoutOpen` 必须像
+`_volumePopupOpen` 那样进 `ScheduleChromeHide` / `HideChrome` 的早退守卫，
+否则 chrome 一淡出就剩一个悬空的菜单挂在那儿。这是本功能最容易出的交互 bug。
+
+**未自动验证**：Flyout 在固定深色的歌词页上的主题继承 —— `LyricsPage` 是 `RequestedTheme="Dark"`
+的页面，而 popup 未必跟随。页面上原有的音质 Flyout 也没做特殊处理，所以大概率没问题，
+但深色下弹出的菜单观感要真机看一眼。

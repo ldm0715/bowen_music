@@ -1,4 +1,3 @@
-using Bodian.Core.Models;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
@@ -13,6 +12,11 @@ namespace Bodian.WinUI.Controls;
 /// <para>
 /// <b>为什么要做成控件</b>：行模板有三份（共享列表、搜索页综合结果、榜单预览），
 /// 把按钮与菜单写进每一份就是三份要同步的复制品。
+/// </para>
+/// <para>
+/// <b>菜单内容不在这里</b>：各项动作与「选歌单」两个面板在 <see cref="TrackActionsMenu"/> 里，
+/// 与歌词页底部那颗「更多」共用同一份。本控件只负责「行」的那一半 —— 悬停显隐、
+/// 以及容器回收时的清理。
 /// </para>
 /// <para>
 /// <b>服务走 App 资源</b>：控件是 XAML 实例化的，构造函数拿不到 DI 容器 ——
@@ -102,10 +106,7 @@ public sealed partial class TrackMoreButton : UserControl
             row.IsMenuOpen = true;
         }
 
-        if (ViewModel is { } viewModel)
-        {
-            _ = viewModel.InitializeAsync();
-        }
+        Menu.Initialize();
     }
 
     private void OnFlyoutClosed(object? sender, object e)
@@ -115,109 +116,9 @@ public sealed partial class TrackMoreButton : UserControl
             row.IsMenuOpen = false;
         }
 
-        // 回到第一面：下次打开不残留上一首的歌单加载态与错误。
-        ViewModel?.ResetPlaylistPicker();
+        Menu.Reset();
     }
 
-    private async void OnMenuEntryClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is not TrackMenuEntry entry || ViewModel is not { } viewModel)
-        {
-            return;
-        }
-
-        switch (entry.Action)
-        {
-            case TrackMenuAction.Favorite:
-                MoreFlyout.Hide();
-                await viewModel.ToggleFavoriteAsync();
-                break;
-
-            case TrackMenuAction.PlayNext:
-                MoreFlyout.Hide();
-                await viewModel.PlayNextAsync();
-                break;
-
-            case TrackMenuAction.AddToQueue:
-                MoreFlyout.Hide();
-                await viewModel.AddToQueueAsync();
-                break;
-
-            case TrackMenuAction.AddToPlaylist:
-                // 这一项不关菜单，改成在同一个弹层里选出目标歌单。
-                await viewModel.LoadPlaylistsAsync();
-                break;
-
-            case TrackMenuAction.Mv:
-                MoreFlyout.Hide();
-                viewModel.OpenMv();
-                break;
-
-            case TrackMenuAction.Artist:
-                MoreFlyout.Hide();
-                await ShowArtistPickerAsync(viewModel);
-                break;
-
-            case TrackMenuAction.Album:
-                MoreFlyout.Hide();
-                viewModel.OpenAlbum();
-                break;
-        }
-    }
-
-    /// <summary>
-    /// 查看歌手：唯一且有效的歌手由 ViewModel 直接跳走，合唱的那几位在这里弹窗让用户挑。
-    /// </summary>
-    /// <remarks>
-    /// <b>弹窗只能建在这一层</b>：ViewModel 刻意不碰任何 WinUI 类型，<c>XamlRoot</c> 也拿不进去
-    /// （同 ArtistDetailPage 的关注确认框）。
-    /// </remarks>
-    private async Task ShowArtistPickerAsync(TrackActionsViewModel viewModel)
-    {
-        var artists = await viewModel.OpenArtistAsync();
-
-        // 空 = ViewModel 已经处理完：要么已直接跳转，要么已提示「没有歌手信息」。
-        if (artists.Count == 0)
-        {
-            return;
-        }
-
-        // 行被回收时 XamlRoot 会是 null，而 AppDialogs.Create 对 null 直接抛。
-        if (XamlRoot is not { } root)
-        {
-            return;
-        }
-
-        var picker = new ArtistPickerDialog();
-        var dialog = AppDialogs.Create("歌手", root, ActualTheme, maxWidth: 380);
-        dialog.Content = picker;
-        dialog.CloseButtonText = "关闭";
-
-        picker.Load(artists);
-        picker.ChoiceMade += (_, _) => dialog.Hide();
-
-        await dialog.ShowAsync();
-
-        // 关窗之后再跳：弹窗还挂着时换页会把它的根节点抽掉。
-        if (picker.Selected is { } chosen)
-        {
-            viewModel.OpenArtist(chosen);
-        }
-    }
-
-    private async void OnPlaylistClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is not Playlist playlist || ViewModel is not { } viewModel)
-        {
-            return;
-        }
-
-        // 失败时留着菜单：错误就显示在这个面板里，关掉用户就看不见了。
-        if (await viewModel.AddToPlaylistAsync(playlist))
-        {
-            MoreFlyout.Hide();
-        }
-    }
-
-    private void OnBackToMenuClick(object sender, RoutedEventArgs e) => ViewModel?.ResetPlaylistPicker();
+    /// <summary>菜单里的某个动作要求关窗。它是内容控件，拿不到这个 Flyout，只能往上抛。</summary>
+    private void OnMenuCloseRequested(object? sender, EventArgs e) => MoreFlyout.Hide();
 }

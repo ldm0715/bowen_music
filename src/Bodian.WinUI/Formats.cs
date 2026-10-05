@@ -201,19 +201,11 @@ public static class Formats
     /// 播放条第二行：<c>歌手 · 专辑</c>。
     /// </summary>
     /// <remarks>
-    /// 拼成一个字符串而不是两个 <c>TextBlock</c> 加一个分隔符：横向 <c>StackPanel</c> 不会约束子元素宽度，
-    /// 分了家的两个文本都没法省略号截断，长专辑名会把整条播放条撑开。一个字符串配
-    /// <c>TextTrimming</c> 才有得截。
+    /// <b>2026-10-05 起不再拼字符串</b>：那一行拆成了两段可点的内联链接，内容在
+    /// <c>PlayerBar.UpdateArtistLine</c> 里按曲目重建。当年拼成一个字符串的理由仍然成立
+    /// ——「横向 <c>StackPanel</c> 不约束子元素宽度，分了家的文本没法省略号截断」——
+    /// 所以新写法依旧把三段放进**同一个 <c>TextBlock</c>**，只是由 code-behind 添进去。
     /// </remarks>
-    public static string ArtistLine(string artist, string album)
-    {
-        if (string.IsNullOrWhiteSpace(album))
-        {
-            return artist;
-        }
-
-        return string.IsNullOrWhiteSpace(artist) ? album : $"{artist} · {album}";
-    }
 
     /// <summary>
     /// 封面地址转图片源。

@@ -115,10 +115,15 @@
                             <TextBlock FontSize="11" Text="{x:Bind ViewModel.PayLabel, Mode=OneWay}" />
                         </Border>
                     </StackPanel>
-                    <TextBlock Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    <!--
+                        歌手与专辑是两段可点的内联链接，内容在 code-behind 里拼（UpdateArtistLine）——
+                        内联 Hyperlink 没有 Visibility，声明式写不出「专辑打不开时退成普通灰字」那一支。
+                        ★ TextWrapping 显式写 NoWrap：默认值虽然就是它，但这条一旦被改掉，
+                          长专辑名会折成两行把信息块撑破（同 BangListPage 里那条注释的教训）。
+                    -->
+                    <TextBlock x:Name="ArtistLine" Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind local:Formats.ArtistLine(ViewModel.ArtistText, ViewModel.AlbumText), Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis" />
+                        TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
                 </Grid>
                 <!-- 收藏 / 分享：紧跟信息块右侧，各自 32 圆 + 右上角计数角标。 -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">

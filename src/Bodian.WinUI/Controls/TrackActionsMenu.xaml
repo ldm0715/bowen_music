@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.TrackActionsMenu"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:models="using:Bodian.Core.Models"
+    xmlns:vm="using:Bodian.WinUI.ViewModels">
+
+    <!--
+        曲目「更多」菜单的内容：喜欢 / 下一首播放 / 加入播放队列 / 添加到歌单 / 查看歌手 / 查看专辑。
+
+        **只是个内容控件**：外壳（按钮、Flyout、FlyoutPresenterStyle）由宿主自己声明 ——
+        行尾那颗是悬停出现的方钮、歌词页那颗是常显的圆钮，形状与显隐来源都不同，
+        做成一个带模式的控件就得引入模式枚举与两套模板，为一个两态差异付重构代价。
+
+        **选歌单是同一个 Flyout 内换面板，不是弹第二个 Flyout**：
+        二级弹层在会被回收的行容器里定位不可靠，而这里的两面本来就互斥。
+
+        **关闭要往上抛**：本控件拿不到外面那个 Flyout（UserControl 没有「我的 Flyout」这种 API），
+        所以凡是要关窗的分支都发 CloseRequested，由宿主关自己的 Flyout。
+    -->
+    <Grid MaxWidth="240">
+        <!--
+            宽度随内容走，不写死：菜单只有几行短文案，定宽会留出一大片空白。
+            代价是切到歌单那一面时（那一面内容更宽）弹层会跟着变一下宽度。
+            MaxWidth 是防长歌单名把弹层撑到窗口另一头 —— 到了这个宽度，
+            歌单名按列的 TextTrimming 截断。
+        -->
+        <!-- 第一面：各项动作 -->
+        <ListView
+            x:Name="EntriesList"
+            MaxHeight="240"
+            MinWidth="0"
+            AutomationProperties.Name="曲目操作"
+            IsItemClickEnabled="True"
+            ItemClick="OnMenuEntryClick"
+            SelectionMode="None"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+            ScrollViewer.HorizontalScrollMode="Disabled"
+            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+            ScrollViewer.VerticalScrollMode="Disabled"
+            Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.IsPickingPlaylist), Mode=OneWay}">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="MinHeight" Value="32" />
+                    <Setter Property="Padding" Value="10,7" />
+                    <Setter Property="Margin" Value="0,1" />
+                    <Setter Property="CornerRadius" Value="6" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <!-- 「查看专辑」这类没数据的项灰掉；用经典绑定，容器样式里拿不到 x:Bind 的数据类型。 -->
+                    <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:TrackMenuEntry">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <controls:Icon
+                            Size="16"
+                            Data="{x:Bind local:Formats.IconPaths(IconKey), Mode=OneWay}"
+                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                            VerticalAlignment="Center" />
+                        <TextBlock
+                            Grid.Column="1"
+                            FontSize="13"
+                            Text="{x:Bind Text, Mode=OneWay}"
+                            VerticalAlignment="Center" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <!-- 第二面：选一个自建歌单 -->
+        <StackPanel Spacing="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPickingPlaylist), Mode=OneWay}">
+            <Grid ColumnSpacing="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    Width="32"
+                    Height="32"
+                    MinWidth="0"
+                    MinHeight="0"
+                    Padding="0"
+                    AutomationProperties.Name="返回"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="OnBackToMenuClick"
+                    ToolTipService.ToolTip="返回">
+                    <controls:Icon Size="12" Data="{StaticResource IconBack}" />
+                </Button>
+                <TextBlock
+                    Grid.Column="1"
+                    FontSize="12"
+                    FontWeight="SemiBold"
+                    Text="添加到歌单"
+                    VerticalAlignment="Center" />
+            </Grid>
+
+            <ProgressRing
+                Width="16"
+                Height="16"
+                HorizontalAlignment="Center"
+                IsActive="{x:Bind ViewModel.IsPlaylistsBusy, Mode=OneWay}"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPlaylistsBusy), Mode=OneWay}" />
+
+            <ListView
+                MaxHeight="200"
+                MinWidth="0"
+                AutomationProperties.Name="选择歌单"
+                IsItemClickEnabled="True"
+                ItemClick="OnPlaylistClick"
+                ItemsSource="{x:Bind ViewModel.Playlists, Mode=OneWay}"
+                SelectionMode="None"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                ScrollViewer.HorizontalScrollMode="Disabled">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                        <Setter Property="MinWidth" Value="0" />
+                        <Setter Property="MinHeight" Value="32" />
+                        <Setter Property="Padding" Value="10,7" />
+                        <Setter Property="Margin" Value="0,1" />
+                        <Setter Property="CornerRadius" Value="6" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Playlist">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                FontSize="13"
+                                Text="{x:Bind Name}"
+                                TextTrimming="CharacterEllipsis"
+                                VerticalAlignment="Center" />
+                            <TextBlock
+                                Grid.Column="1"
+                                FontSize="11"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind local:Formats.AlbumCount(MusicCount)}"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <TextBlock
+                Margin="10,2,10,4"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.PlaylistError, Mode=OneWay}"
+                TextWrapping="Wrap"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.HasPlaylistError), Mode=OneWay}" />
+        </StackPanel>
+    </Grid>
+</UserControl>
