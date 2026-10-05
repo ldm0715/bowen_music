@@ -1,3 +1,4 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -17,11 +18,21 @@ namespace Bodian.WinUI.Controls;
 /// </remarks>
 public sealed partial class Icon : UserControl
 {
+    private bool _foregroundRefreshPending;
+    private DependencyObject? _foregroundSource;
+    private DependencyProperty? _sourceForegroundProperty;
+    private long _sourceForegroundToken;
+
     public Icon()
     {
         InitializeComponent();
 
+        RegisterPropertyChangedCallback(ForegroundProperty, (_, _) => RefreshForeground());
+        ActualThemeChanged += (_, _) => RefreshForeground();
+        Loaded += OnLoaded;
+        Unloaded += (_, _) => DetachForegroundSource();
         Apply();
+        RefreshForeground();
     }
 
     public static readonly DependencyProperty DataProperty = DependencyProperty.Register(
@@ -51,6 +62,47 @@ public sealed partial class Icon : UserControl
     {
         get => (double)GetValue(SizeProperty);
         set => SetValue(SizeProperty, value);
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs args)
+    {
+        DetachForegroundSource();
+        // 按钮的禁用/悬停态在 ContentPresenter 上设置前景，继承到 Icon 时不一定发送属性通知。
+        for (var ancestor = VisualTreeHelper.GetParent(this); ancestor is not null; ancestor = VisualTreeHelper.GetParent(ancestor))
+        {
+            var property = ancestor switch
+            {
+                ContentPresenter => ContentPresenter.ForegroundProperty,
+                Control => ForegroundProperty,
+                _ => null,
+            };
+            if (property is null) continue;
+            _foregroundSource = ancestor;
+            _sourceForegroundProperty = property;
+            _sourceForegroundToken = ancestor.RegisterPropertyChangedCallback(property, (_, _) => RefreshForeground());
+            break;
+        }
+        RefreshForeground();
+    }
+
+    private void DetachForegroundSource()
+    {
+        if (_foregroundSource is not null && _sourceForegroundProperty is not null)
+            _foregroundSource.UnregisterPropertyChangedCallback(_sourceForegroundProperty, _sourceForegroundToken);
+        _foregroundSource = null;
+        _sourceForegroundProperty = null;
+    }
+
+    private void RefreshForeground()
+    {
+        Glyph.Fill = Foreground;
+        if (_foregroundRefreshPending) return;
+        // 主题先沿视觉树更新，继承前景随后才传播。末尾再同步一次，无需等待鼠标或下一次状态变化。
+        _foregroundRefreshPending = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            _foregroundRefreshPending = false;
+            Glyph.Fill = Foreground;
+        });
     }
 
     private void Apply()

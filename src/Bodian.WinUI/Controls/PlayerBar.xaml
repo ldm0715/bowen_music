@@ -33,6 +33,15 @@
         </Grid.RowDefinitions>
 
         <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="DesktopLyricsStates">
+                <VisualState x:Name="DesktopLyricsInactive" />
+                <VisualState x:Name="DesktopLyricsActive">
+                    <VisualState.Setters>
+                        <Setter Target="DesktopLyricsButton.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <Setter Target="DesktopLyricsButton.Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
             <VisualStateGroup x:Name="PlayerLayoutStates">
                 <VisualState x:Name="CompactPlayer">
                     <VisualState.StateTriggers>

@@ -107,44 +107,14 @@ public sealed partial class PlayerBar : UserControl
     {
         ViewModel.PropertyChanged += OnPlayerPropertyChanged;
         DesktopLyrics.PropertyChanged += OnDesktopLyricsPropertyChanged;
+        UpdateDesktopLyricsButton();
         UpdateTitleWidth();
     }
 
-    /// <summary>
-    /// 桌面歌词条的开关和「词」按钮的空闲/激活是同一件事，两边必须同步。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>用代码设，不用绑定。</b> 按钮模板里有几十个状态画刷键，想只改「开着」这一种，
-    /// 绑要穿过模板；而这里只有两种状态。
-    /// </para>
-    /// <para>
-    /// <b>关掉时是 <c>ClearValue</c> 而不是自己拼一个「普通色」</b>：样式与主题本来就管着
-    /// 未激活的样子，自己设一遍等于把这个状态从主题手里抢走 —— 换主题时它就不会跟着变了。
-    /// </para>
-    /// </remarks>
+    /// <summary>在 XAML 状态中保留 ThemeResource，主题切换时选中态画刷也重新求值。</summary>
     private void UpdateDesktopLyricsButton()
-    {
-        if (!DesktopLyrics.IsEnabled)
-        {
-            DesktopLyricsButton.ClearValue(ForegroundProperty);
-            DesktopLyricsButton.ClearValue(BackgroundProperty);
-
-            return;
-        }
-
-        if (Application.Current.Resources.TryGetValue("AccentTextFillColorPrimaryBrush", out var foreground)
-            && foreground is Brush foregroundBrush)
-        {
-            DesktopLyricsButton.Foreground = foregroundBrush;
-        }
-
-        if (Application.Current.Resources.TryGetValue("AccentFillColorSelectedTextBackgroundBrush", out var background)
-            && background is Brush backgroundBrush)
-        {
-            DesktopLyricsButton.Background = backgroundBrush;
-        }
-    }
+        => VisualStateManager.GoToState(this,
+            DesktopLyrics.IsEnabled ? "DesktopLyricsActive" : "DesktopLyricsInactive", useTransitions: false);
 
     private void OnDesktopLyricsPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

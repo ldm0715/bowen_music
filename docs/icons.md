@@ -109,8 +109,9 @@ Viewbox(Size) → Canvas(24×24) → Path(Stretch=None)
 ```
 
 `PathIcon` 的内部尺寸与包围盒行为曾造成边缘缺损。当前直接保留完整 SVG 坐标，用 `Viewbox` 缩放。
-`Path.Fill` 显式绑定 `IconRoot.Foreground`；按钮模板中的 `ContentPresenter.Foreground` 也显式继承按钮前景。
-这两处绑定负责主题、禁用态和选中态颜色，不能省略。SVG 的 nonzero 填充规则使用路径前缀 `F1`。
+`Icon` 在前景色、实际主题和加载状态变化后将当前有效 `Foreground` 同步到 `Path.Fill`，
+并监听最近的 `ContentPresenter` 或控件前景变化。按钮模板中的 `ContentPresenter.Foreground` 负责继承按钮状态色。
+不能只依赖继承前景的 `Binding`：WinUI 在主题和禁用态切换时可能保留旧画刷。SVG 的 nonzero 填充规则使用路径前缀 `F1`。
 
 ### 2.3 尺寸按角色，一个数决定
 
@@ -247,8 +248,8 @@ C# 里码位字符串 0 处；构建 0 错误 0 警告；1062 项离线测试通
   私密歌单角标那个 `E72E`，我看旁边的「私密」二字就认成了「移除」，映射到 Fluent 的减号 ——
   实际 `E72E` 就是 **Lock**。症状是锁变成一个减号，而且因为「移除」这个语义听起来合理，
   一路没被怀疑。**不确定的码位去查 MDL2 的图标表**，别推断。
-- 使用 `Path` 时必须显式绑定 `Fill` 到宿主 `Foreground`，不能依赖隐式颜色继承。
-  当前实现见 §2.2.1；未绑定时会出现主题或按钮状态颜色错误。
+- 使用 `Path` 时必须同步 `Fill` 到宿主当前有效的 `Foreground`，不能依赖隐式颜色继承。
+  当前实现见 §2.2.1；仅有 `Binding` 也不能保证继承前景的主题更新及时到达。
 
 - ★★ **批量替换 `FontIcon` 时必须带上原来的全部属性**（实施时踩到，代价是三个可见缺陷）。
   第一版脚本按 `<FontIcon …/>` 重建元素时**只保留字号与字形**，把
@@ -307,5 +308,26 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 
 桌面歌词使用同一套 Fluent System Icons 路径，新增字号、调色板、行距、左对齐、开锁和鼠标光标两态。
 新增 SVG 路径保留完整 24×24 坐标并以 `F1` 指明 nonzero 填充；公共 `Icon` 改用固定 `Canvas` 内的 `Path`，
-`Fill` 显式绑定控件 `Foreground`。桌面歌词按钮模板同时传递 `ContentPresenter.Foreground`，
+`Fill` 显式同步控件的当前 `Foreground`。桌面歌词按钮模板同时传递 `ContentPresenter.Foreground`，
 避免缺边及选中颜色丢失。用户已确认本轮效果，界面记录见 [`desktop-lyrics.md`](desktop-lyrics.md)。
+
+
+## 2026-10-05 主题切换前景刷新
+
+复现时 `Button.Foreground` 与 `Icon.Foreground` 已变为新主题颜色，但 `Path.Fill` 仍引用旧画刷；
+表现为浅转深仍显示黑色图标、深转浅仍显示白色图标，鼠标触发按钮状态变化后才更新。
+禁用按钮也存在模板前景传播延迟，不能只检查正常状态。
+
+公共 `Icon` 监听自身的前景、实际主题和加载事件，同时监听最近的模板前景来源；
+即时同步填充，并在当前主题传播结束后合并补一次同步。卸载时退订外部来源，重新加载后重新连接。
+显式设置的前景、强调色与禁用状态仍以有效 `Foreground` 为准，不按主题硬编码黑白。
+
+播放条桌面歌词开关的激活前景和背景改为 XAML VisualState 中的 `ThemeResource`；
+不再通过 `Application.Resources` 取一次画刷后永久设置。解除激活时由状态恢复主题样式。
+
+验证使用忽略目录中的独立 WinUI 窗口，不操作正式窗口和鼠标，不修改主题偏好；
+记录实际按钮前景、图标前景与 Path 填充，连续 20 次双向主题切换，并覆盖禁用／启用、悬停／按下、
+显式画刷替换和重新加载，共 **232 项颜色检查通过**，无需鼠标触发刷新。
+真实播放条的选中态在浅色显示 `#007A57`、深色显示 `#00F3B0`；解除选中后恢复对应的默认前景。
+完整离线回归 **1143 项通过**。验证报告保存在本地 `artifacts/theme-switch-review/states-and-reload.txt`，
+该目录不纳入产品源码，实际窗口的视觉观感由用户继续检查。

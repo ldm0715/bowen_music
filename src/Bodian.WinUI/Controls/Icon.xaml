@@ -8,8 +8,8 @@
     <!-- 保持 SVG 的完整 24×24 坐标，避免 PathIcon 按自身包围盒偏移、裁切。 -->
     <Viewbox x:Name="Scaler" Width="16" Height="16" Stretch="Uniform">
         <Canvas Width="24" Height="24">
-            <Path x:Name="Glyph" Stretch="None"
-                Fill="{Binding Foreground, ElementName=IconRoot, Mode=OneWay}" />
+            <!-- Fill 由控件同步，避免主题切换时继承 Foreground 的 Binding 保留旧画刷。 -->
+            <Path x:Name="Glyph" Stretch="None" />
         </Canvas>
     </Viewbox>
 </UserControl>
