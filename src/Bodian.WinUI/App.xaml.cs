@@ -255,6 +255,8 @@ public partial class App : Application
         builder.Services.AddTransient<CollectedAlbumsPage>();
         builder.Services.AddTransient<CollectedPlaylistsViewModel>();
         builder.Services.AddTransient<CollectedPlaylistsPage>();
+        builder.Services.AddTransient<FollowedArtistsViewModel>();
+        builder.Services.AddTransient<FollowedArtistsPage>();
 
         builder.Services.AddTransient<DiscoverViewModel>();
         builder.Services.AddTransient<DiscoverPage>();

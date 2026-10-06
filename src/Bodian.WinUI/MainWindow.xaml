@@ -685,6 +685,16 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
+            <!-- 关注的歌手。一次全量返回，没有分页（service/collect/7/list，source = 7） -->
+            <NavigationViewItem
+                x:Name="FollowedArtistsItem"
+                Content="关注的歌手"
+                Tag="followed-artists">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="People" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
             <!--
                 紧凑栏（48px 图标轨）里的「创建的歌单」入口。
 

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bodian.WinUI.Views.FollowedArtistsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:models="using:Bodian.Core.Models">
+
+    <Page.Resources>
+        <!--
+            ★★ 这两份模板**只能留在页面里，不能挪进共享资源字典**（踩过，理由见 `SearchPage.xaml` 里那段长注释）：
+              `x:Bind` 放进 ResourceDictionary 会报 `WMC1119`；补 `x:Class` 之后编译能过、
+              但运行时绑定全不生效（文字图片为空、`Visibility` 退回默认的 `Visible`）。
+
+            ★ 两份都与 `SearchPage.xaml` 的 `SearchArtistTemplate` / `SearchArtistCardTemplate`
+              **是复制关系，改一处要同步另一处**。尺寸口径：封面 132、卡片宽 132、RowSpacing 6、
+              文字区按 CoverCardLayout 的 TextHeight="60" 预留。
+
+            ★ 行模板的头像是方形的，与搜索页一致 —— 同一列歌手在两个页面里长得不一样会更奇怪。
+        -->
+        <DataTemplate x:Key="FollowedArtistRowTemplate" x:DataType="models:Artist">
+            <Grid Padding="4,8" ColumnSpacing="16">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!--
+            歌手卡：圆形头像 + 姓名，**没有第三行**。PersonPicture 自带圆形裁剪与姓名首字占位
+            （没有头像的歌手画首字），不必手写 Ellipse 蒙版 —— 与歌手详情页头部同一个控件。
+        -->
+        <DataTemplate x:Key="FollowedArtistCardTemplate" x:DataType="models:Artist">
+            <Grid
+                Width="132"
+                RowSpacing="6"
+                VerticalAlignment="Top">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                <PersonPicture
+                    Width="132"
+                    Height="132"
+                    DisplayName="{x:Bind Name}"
+                    ProfilePicture="{x:Bind local:Formats.CoverSource(CoverImage)}" />
+
+                <TextBlock
+                    Grid.Row="1"
+                    HorizontalAlignment="Center"
+                    LineHeight="20"
+                    MaxLines="2"
+                    Text="{x:Bind Name}"
+                    TextAlignment="Center"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="Wrap" />
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Style="{StaticResource BodianPageRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="关注的歌手" />
+
+                <!--
+                    与「收藏的专辑 / 歌单」同一套：状态文案会把「没有关注」和「查询没成功」两种可能都说出来。
+                    加载失败时这里就是「加载失败：…」—— 页脚给不出「重试」（这条端点没有下一页，
+                    ShowRetry 的前提 HasMore 恒为 false），右上那颗刷新按钮就是重试入口。
+                -->
+                <TextBlock
+                    Style="{StaticResource BodianPageStatusStrong}"
+                    Text="{x:Bind ViewModel.Artists.StatusText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- 刷新在左、视图切换在右。理由与「收藏的歌单」那页同一份注释。 -->
+            <StackPanel
+                Grid.Column="1"
+                Orientation="Horizontal"
+                Spacing="2"
+                VerticalAlignment="Center">
+                <Button
+                    AutomationProperties.Name="重新加载"
+                    Command="{x:Bind ViewModel.Artists.ReloadCommand}"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="重新加载">
+                    <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
+                </Button>
+
+                <Button
+                    AutomationProperties.Name="{x:Bind local:Formats.ViewToggleLabel(ViewModel.ViewMode.UseGrid), Mode=OneWay}"
+                    Command="{x:Bind ViewModel.ViewMode.ToggleCommand}"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="{x:Bind local:Formats.ViewToggleLabel(ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+                    <controls:Icon Data="{x:Bind local:Formats.ViewToggleIcon(ViewModel.ViewMode.UseGrid), Mode=OneWay}" Size="16" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!--
+            列表与网格都留在可视树上、只切 Visibility。同一份集合喂给两者，
+            但任一时刻只有一个在布局里。这一页是一次全量、没有下一页，AutoPaging 因此不挂。
+        -->
+        <controls:VirtualizedListView
+            Grid.Row="1"
+            IsItemClickEnabled="True"
+            ItemClick="OnArtistClick"
+            ItemTemplate="{StaticResource FollowedArtistRowTemplate}"
+            ItemsSource="{x:Bind ViewModel.Artists.Items}"
+            SelectionMode="None"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.ViewMode.IsList), Mode=OneWay}">
+            <controls:VirtualizedListView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.Artists.ReloadCommand}"
+                    ShowEnd="{x:Bind ViewModel.Artists.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.Artists.ShowRetry, Mode=OneWay}" />
+            </controls:VirtualizedListView.Footer>
+        </controls:VirtualizedListView>
+
+        <GridView
+            Grid.Row="1"
+            Style="{StaticResource BodianCoverCardGrid}"
+            controls:CoverCardLayout.CoverSize="132"
+            controls:CoverCardLayout.IsEnabled="True"
+            controls:CoverCardLayout.TextHeight="60"
+            ItemClick="OnArtistClick"
+            ItemTemplate="{StaticResource FollowedArtistCardTemplate}"
+            ItemsSource="{x:Bind ViewModel.Artists.Items}"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+            <!-- ItemHeight / ItemWidth 必须与上面那三个 CoverCardLayout 值对得上（132+2*4+4 / 132+6+60+2*4+4） -->
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsWrapGrid CacheLength="0.5" ItemHeight="210" ItemWidth="144" Orientation="Horizontal" /></ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.Artists.ReloadCommand}"
+                    ShowEnd="{x:Bind ViewModel.Artists.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.Artists.ShowRetry, Mode=OneWay}" />
+            </GridView.Footer>
+        </GridView>
+
+        <!-- 刷新入口在标题右侧，这里只剩转圈（与其余页的页脚同形） -->
+        <ProgressRing
+            Grid.Row="2"
+            Style="{StaticResource BodianPageBusyRing}"
+            IsActive="{x:Bind ViewModel.Artists.IsBusy, Mode=OneWay}" />
+    </Grid>
+</Page>

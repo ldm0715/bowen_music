@@ -52,6 +52,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private const string CollectedPlaylistsTag = "collected-playlists";
 
+    private const string FollowedArtistsTag = "followed-artists";
+
     /// <summary>紧凑栏里那颗「创建的歌单」图标。点它弹歌单列表，不换页。</summary>
     private const string PlaylistsRailTag = "playlists-rail";
 
@@ -1483,6 +1485,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
                 _navigation.NavigateRoot<CollectedPlaylistsPage>();
                 break;
 
+            case FollowedArtistsTag:
+                _navigation.NavigateRoot<FollowedArtistsPage>();
+                break;
+
             case PlaylistsRailTag:
                 // 收起态那颗图标：开关歌单浮层。这一项配了 SelectsOnInvoked=False，
                 // 所以它不会被选成高亮，也不会污染 Nav.SelectedItem。
@@ -1741,6 +1747,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             RecentPage => RecentItem,
             CollectedAlbumsPage => CollectedAlbumsItem,
             CollectedPlaylistsPage => CollectedPlaylistsItem,
+            FollowedArtistsPage => FollowedArtistsItem,
             _ => null,
         };
 

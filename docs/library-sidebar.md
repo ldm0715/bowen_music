@@ -232,7 +232,7 @@ Window
     │                                   IsBackButtonVisible=Collapsed   ← 返回栈是自己的
     │                                   IsSettingsVisible=False
     ├── MenuItems
-    │     发现 / 排行榜 / 乐库 / 我的音乐(Header) + 我喜欢/最近播放/收藏的专辑/收藏的歌单
+    │     发现 / 排行榜 / 乐库 / 我的音乐(Header) + 我喜欢/最近播放/收藏的专辑/收藏的歌单/关注的歌手
     │     + 紧凑栏专用的「创建的歌单」图标（展开时收起）
     ├── PaneFooter                     ← 「创建的歌单」：Header + 自己内滚的列表
     └── Content

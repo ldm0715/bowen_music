@@ -50,6 +50,7 @@
 | --- | --- |
 | `MainWindow.xaml(.cs)` | 「我的音乐」组下新增侧栏项「收藏的歌单」 |
 | `Views/CollectedPlaylistsPage.xaml(.cs)`、`ViewModels/CollectedPlaylistsViewModel.cs` | 新页面，与「收藏的专辑」同形 |
+| `Views/FollowedArtistsPage.xaml(.cs)`、`ViewModels/FollowedArtistsViewModel.cs` | 关注的歌手页（**2026-10-06 新增**，见文末）。侧栏项同样加在「我的音乐」组下 |
 | `Controls/PlaylistListView.xaml(.cs)` | 歌单行列表控件，镜像 `AlbumListView` |
 | `Views/PlaylistDetailPage.xaml(.cs)`、`ViewModels/PlaylistDetailViewModel.cs` | 页头新增**收藏按钮（两态）** |
 | `Views/ArtistDetailPage.xaml(.cs)`、`ViewModels/ArtistDetailViewModel.cs` | 「关注」由占位改成**两态** |
@@ -92,6 +93,10 @@
 | 按钮图标 | 「已收藏」是实心星、「收藏」是空心星；「已关注」是对勾、「关注」是人形 —— **字形若显示成方块要报我** |
 | 未登录 | 点「收藏」「关注」应有「登录后…」提示，不崩 |
 | 窄窗口 | 歌单详情页头的标题与收藏按钮不挤压 |
+| 关注的歌手页 | 侧栏「我的音乐」下出现「关注的歌手」，点击能进页面并高亮 |
+| 关注的歌手页 | 卡片网格是圆形头像；点右上切换按钮变行列表，**回搜索页歌手页签形态应同步改变** |
+| 关注的歌手页 | 从本页点进歌手详情、取消关注后返回，该歌手应从列表里消失 |
+| 关注的歌手页 | 未登录或没有关注时显示「还没有关注的歌手。」，不崩 |
 
 
 ## 2026-10-06 卡片视图
@@ -123,3 +128,34 @@
 
 验收：两页都切到卡片、点卡片分别进专辑 / 歌手详情、滚到底出现「没有更多了哦~」、
 窗口拉宽拉窄每行格数跟着变；重启后仍停在上次选的形态；两页与搜索页的形态始终一致。
+
+## 2026-10-06 关注歌手列表页
+
+关注歌手此前只有「歌手详情页里的一颗两态按钮」，列表本身没有界面 —— 账号下拉里那个数字
+（`followArtistCount`）还是用户元数据里的统计值，点不开。本次补上侧栏根页
+「关注的歌手」（`FollowedArtistsPage`），歌手用搜索结果那套圆形头像卡（`PersonPicture`）展示。
+
+三处值得记下来的决定：
+
+- **一次性端点套进了 `PagedList`**。`GetFollowedArtistsAsync` 没有分页（官方固定 `rn = 400`，
+  一次全量），而 `PagedList<T>` 要的是游标模型。做法是 fetch 委托拿完结果后调一次
+  `cursor.Advance(0)` —— 那是游标约定里「到底」的写法（收到 0 条即 `Exhausted`）。
+  **推进游标本来就是 fetch 委托的责任**（`PagedList` 自己从不调 `Advance`），不标到底的话
+  `HasMore` 会停在 true，列表末尾的自动翻页会再拉一次并追加一份重复的。
+  换来的是一整套现成状态：`ReloadCommand` / `IsBusy` / `StatusText`（「共 12 位歌手」）/
+  `EmptyText` / `ShowEnd`，页脚与 `ProgressRing` 的绑定跟兄弟页完全同形。
+  **代价**：`ShowRetry` 的前提是 `HasMore`，这里恒为 false，所以加载失败时页脚给不出「重试」，
+  只能靠标题下的 `StatusText` 说明 + 右上那颗常驻的刷新按钮。没有为一个恒 false 的分支去改共享的 `PagedList`。
+- **视图开关走全局单例**，不另起一套：与搜索页歌手页签、收藏的专辑/歌单页共用
+  `ViewModeService.UseGrid`，页内按钮同样是「刷新在左、切换在右」。所以在这一页切了卡片，
+  搜索页也跟着变 —— 这是刻意的，见 [`search.md`](search.md)。
+- **从歌手详情返回时自动重拉**。别的根页都是 `EnsureLoadedAsync`（只首次加载），这一页不行：
+  详情页就在本页下面一层，用户点进去取消关注再回来是极常见的一条路，不重拉就会留着一个
+  已经取关的人。判据是 code-behind 里的一个 `_detailOpened` 标志 —— 根页实例被
+  `NavigationService._rootPages` 缓存、反复显示的是同一个实例，所以标志一定还在。
+  只在「确实去过详情」时才 `ReloadAsync`，普通来回切侧栏不会白白重取。
+
+歌手卡与行列表两份 `DataTemplate` 同样**只留在页面里**，且与 `SearchPage.xaml` 的两份是
+复制关系（`x:Bind` 进共享 `ResourceDictionary` 的坑见 [`search.md`](search.md)）。
+
+验收：见 §4 的「关注的歌手页」四行。
