@@ -186,7 +186,9 @@ _smtc.UpdateTimelineProperties(new SystemMediaTransportControlsTimelinePropertie
 以上方案已实现并跑通，`src/Bodian.WinUI/Playback/SmtcManager.cs`。四条**实测修正**：
 
 1. **借壳在 Win10 19045 上成立** —— 先用一次性 spike（`BODIAN_SMTC_SPIKE=1` 门控的假数据）验证过：媒体浮层能显示会话。这条是全阶段的地基，值得先花半天证伪。
-2. **封面不需要转码。** 酷我 CDN **按需生成尺寸与格式**：同一路径把 `.webp` 换成 `.jpg` 就是 200 `image/jpeg`（对 4 张专辑、两种路径前缀实测）。改写逻辑在 `Bodian.Core/Media/CoverArtUrl.cs`（只认 `.kuwo.cn` 的 `/star/albumcover/<尺寸>/` 形状）。
+2. **封面不需要转码。** 酷我 CDN **按需生成尺寸与格式**：同一路径把 `.webp` 换成 `.jpg` 就是 200 `image/jpeg`（对 4 张专辑、两种路径前缀实测）。改写逻辑在 `Bodian.Core/Media/CoverArtUrl.cs`（当时只处理 `.kuwo.cn` 的 `/star/albumcover/<尺寸>/` 形状）。
+   2026-10-06 扩展为同时处理 `/star/starheads/<尺寸>/`，供界面请求歌手缩略图；未知路径仍保持原样。
+   界面图片加载失败时的腾讯旧封面备用地址与缓存重试规则，见 [`settings.md`](settings.md) §4.6。
    **不要走 WIC 转码**：Win10 **不预装** WebP 编解码器（要装商店的 WebP Image Extensions，Win11 才预装），转码方案会在开发机上一直成功、换台干净 Win10 就静默失败。
 3. **`MinSeekTime` / `MaxSeekTime` 不设就没有拖动。** 只给 `StartTime`/`EndTime`/`Position` 的话 SMTC **不会发** `PlaybackPositionChangeRequested`，面板上的进度条拖不动。
 4. **快捷方式必须用 `IShellLinkW` + `IPropertyStore`**：`WScript.Shell` 写不了属性存储，也就设不了 `PKEY_AppUserModel_ID`，名字与图标依然不对。几个坑：

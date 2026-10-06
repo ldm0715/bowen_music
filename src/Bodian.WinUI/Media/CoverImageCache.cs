@@ -30,12 +30,7 @@ internal static class CoverImageCache
     private static readonly Dictionary<(Uri Uri, int Pixels), LinkedListNode<Entry>> Entries = [];
     private static readonly LinkedList<Entry> Recency = new();
 
-    /// <summary>
-    /// 接上磁盘层。由 <c>App</c> 在建窗口之前调一次。
-    /// </summary>
-    /// <remarks>
-    /// 没接上时行为与只有内存缓存时完全一致 —— 少一层兜底，但不会出错。
-    /// </remarks>
+    /// <summary>接上磁盘层。由 <c>App</c> 在建窗口之前调一次。</summary>
     public static void AttachDiskCache(ICoverDiskCache disk) => _disk = disk;
 
     /// <summary>丢掉内存这一层。已经赋给 <c>Image.Source</c> 的位图不受影响。</summary>
@@ -58,55 +53,88 @@ internal static class CoverImageCache
             return cached.Value.Image;
         }
 
-        // 先指定解码尺寸，再开始请求，避免先解码原图再缩小。
-        // ★ 磁盘那份存的也是**原样字节**，所以这条约定在两层的任一路上都成立。
+        // 先指定解码尺寸，再开始请求，磁盘中的原样字节也遵循同一约定。
         var image = new BitmapImage { DecodePixelWidth = pixels };
+        var fallback = CoverArtUrl.Fallback(source) ?? (source != uri ? uri : null);
+        var entry = new Entry(key, image, (long)pixels * pixels * 4, fallback);
+        image.ImageFailed += (_, _) => OnImageFailed(entry);
 
-        var cacheKey = CoverCacheKey.For(source, pixels);
-        if (_disk is not null && _disk.TryGetPath(cacheKey, out var path) && path is not null)
-        {
-            _ = LoadFromDiskAsync(image, path, source, cacheKey);
-        }
-        else
-        {
-            image.UriSource = source;
-
-            // 写穿是后台的，且自己吞掉所有异常。
-            _ = _disk?.WriteThroughAsync(cacheKey, source);
-        }
-
-        var decodedBytes = (long)pixels * pixels * 4;
-        var entry = Recency.AddFirst(new Entry(key, image, decodedBytes));
-        _estimatedDecodedBytes += decodedBytes;
-        Entries.Add(key, entry);
+        // 先登记再发起加载：失败事件可能很快到达，必须能移除对应条目。
+        var node = Recency.AddFirst(entry);
+        Entries.Add(key, node);
+        _estimatedDecodedBytes += entry.EstimatedBytes;
         while ((Entries.Count > Capacity || _estimatedDecodedBytes > DecodedByteCapacity) && Recency.Last is { } oldest)
         {
-            Recency.RemoveLast();
-            Entries.Remove(oldest.Value.Key);
-            _estimatedDecodedBytes -= oldest.Value.EstimatedBytes;
+            Remove(oldest.Value);
         }
+
+        Load(entry, source);
         return image;
     }
 
+    private static void Load(Entry entry, Uri source)
+    {
+        var cacheKey = CoverCacheKey.For(source, entry.Key.Pixels);
+        if (_disk is not null && _disk.TryGetPath(cacheKey, out var path) && path is not null)
+        {
+            entry.IsReadingDisk = true;
+            _ = LoadFromDiskAsync(entry, path, source, cacheKey);
+        }
+        else
+        {
+            LoadFromNetwork(entry, source, cacheKey);
+        }
+    }
+
+    private static void LoadFromNetwork(Entry entry, Uri source, string cacheKey)
+    {
+        entry.Image.UriSource = source;
+        _ = _disk?.WriteThroughAsync(cacheKey, source);
+    }
+
+    private static void OnImageFailed(Entry entry)
+    {
+        // SetSourceAsync 的失败由磁盘读取任务处理，先重新请求同一地址。
+        if (entry.IsReadingDisk) return;
+
+        if (!entry.HasTriedFallback && entry.Fallback is { } fallback)
+        {
+            entry.HasTriedFallback = true;
+            Load(entry, fallback);
+            return;
+        }
+
+        // 终态失败不保留空位图；下次绑定可以重新加载，且本次不会无限重试。
+        Remove(entry);
+    }
+
+    private static void Remove(Entry entry)
+    {
+        // 旧位图可能已被淘汰或清空；迟到的失败不能移除同地址的新位图。
+        if (!Entries.TryGetValue(entry.Key, out var node) || !ReferenceEquals(node.Value, entry)) return;
+
+        Entries.Remove(entry.Key);
+        Recency.Remove(node);
+        _estimatedDecodedBytes -= entry.EstimatedBytes;
+    }
+
     /// <remarks>
-    /// <b>流必须在 <c>SetSourceAsync</c> 完成之后才释放</b>（<c>using</c> 在这一句之后才生效），
-    /// 提前释放会得到一张空图。读失败说明磁盘那份坏了：删掉它并退回网络，
-    /// 否则这张封面会一直显示不出来。
+    /// 流必须在 SetSourceAsync 完成后才释放。磁盘读取失败时回到同一地址的网络请求，
+    /// 网络再失败才尝试备用地址，避免两条失败路径同时改写位图。
     /// </remarks>
-    private static async Task LoadFromDiskAsync(BitmapImage image, string path, Uri source, string cacheKey)
+    private static async Task LoadFromDiskAsync(Entry entry, string path, Uri source, string cacheKey)
     {
         try
         {
             using var stream = File.OpenRead(path);
-            await image.SetSourceAsync(stream.AsRandomAccessStream());
+            await entry.Image.SetSourceAsync(stream.AsRandomAccessStream());
+            entry.IsReadingDisk = false;
         }
         catch (Exception)
         {
+            entry.IsReadingDisk = false;
             TryDelete(path);
-
-            // 无论有没有磁盘层，退回网络这一句都要执行，否则这张封面就是空白。
-            image.UriSource = source;
-            _ = _disk?.WriteThroughAsync(cacheKey, source);
+            LoadFromNetwork(entry, source, cacheKey);
         }
     }
 
@@ -118,9 +146,13 @@ internal static class CoverImageCache
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // 删不掉就算了：下次 TryGetPath 仍会命中这个坏文件，但上面那条退回网络的路径会救回来。
+            // 删不掉就算了，下次读取失败仍可退回网络。
         }
     }
 
-    private sealed record Entry((Uri Uri, int Pixels) Key, BitmapImage Image, long EstimatedBytes);
+    private sealed record Entry((Uri Uri, int Pixels) Key, BitmapImage Image, long EstimatedBytes, Uri? Fallback)
+    {
+        public bool IsReadingDisk { get; set; }
+        public bool HasTriedFallback { get; set; }
+    }
 }

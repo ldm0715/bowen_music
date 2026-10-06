@@ -71,6 +71,65 @@ public sealed class CoverArtUrlTests
         Assert.Equal("?v=2", rewritten!.Query);
     }
 
+    [Theory]
+    [InlineData("https://img4.kuwo.cn/star/starheads/0/s4s0/88/2227585000.jpg")]
+    [InlineData("https://img3.kuwo.cn/star/starheads/700/s4s0/88/2227585000.jpg")]
+    public void Jpeg_RequestsAThumbnailForYoasobi(string url)
+    {
+        var rewritten = CoverArtUrl.Jpeg(new Uri(url), 256);
+
+        Assert.Equal("/star/starheads/256/s4s0/88/2227585000.jpg", rewritten!.AbsolutePath);
+        Assert.Equal(new Uri(url).Host, rewritten.Host);
+    }
+
+    [Fact]
+    public void Jpeg_ArtistThumbnailKeepsTheQueryString()
+    {
+        var rewritten = CoverArtUrl.Jpeg(new Uri("https://img4.kuwo.cn/star/starheads/0/s4s0/88/2227585000.jpg?v=2"), 256);
+
+        Assert.Equal("?v=2", rewritten!.Query);
+    }
+
+    [Fact]
+    public void Jpeg_LeavesTheWorkingKuwoPlaylistCoverAlone()
+    {
+        var cover = new Uri("http://img1.kwcdn.kuwo.cn/star/userpl2015/81/23/1568684821020_182253281_o.jpg");
+
+        Assert.Same(cover, CoverArtUrl.Jpeg(cover, 256));
+        Assert.Null(CoverArtUrl.Fallback(cover));
+    }
+
+    [Fact]
+    public void Fallback_RepairsTheTencentPlaylistCoverAndKeepsItsQuery()
+    {
+        var cover = new Uri("http://y.gtimg.cn/music/photo/album_500/71/500_albumpic_60671_o.jpg?n=1");
+
+        // 原地址先正常尝试，只有图片加载失败才使用备用地址。
+        Assert.Same(cover, CoverArtUrl.Jpeg(cover, 256));
+        var fallback = CoverArtUrl.Fallback(cover);
+
+        Assert.Equal("http://y.gtimg.cn/music/photo/album_500/71/500_albumpic_60671_0.jpg?n=1", fallback!.AbsoluteUri);
+        Assert.Null(CoverArtUrl.Fallback(fallback));
+    }
+
+    [Theory]
+    [InlineData("https://img4.kuwo.cn/star/userpl2015/81/23/1568684821020_182253281_o.jpg")]
+    [InlineData("https://example.com/music/photo/album_500/71/500_albumpic_60671_o.jpg")]
+    [InlineData("https://y.gtimg.cn.example.com/music/photo/album_500/71/500_albumpic_60671_o.jpg")]
+    [InlineData("https://y.gtimg.cn/other/500_albumpic_60671_o.jpg")]
+    [InlineData("https://y.gtimg.cn/music/photo/album_500/71/custom_o.jpg")]
+    [InlineData("https://y.gtimg.cn/music/photo/album_500/71/500_albumpic_60671_0.jpg?n=1")]
+    public void Fallback_DoesNotGuessForOtherCovers(string url)
+    {
+        Assert.Null(CoverArtUrl.Fallback(new Uri(url)));
+    }
+
+    [Fact]
+    public void Fallback_OnNull_IsNull()
+    {
+        Assert.Null(CoverArtUrl.Fallback(null));
+    }
+
     /// <summary>不认识的地址一律原样返回 —— 改写只对实测过的形状做。</summary>
     [Theory]
     [InlineData("https://img4.kuwo.cn/star/userhead/240/s3s94/93/1.webp")]   // 不是 albumcover
