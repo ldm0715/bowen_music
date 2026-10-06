@@ -6,6 +6,7 @@
     xmlns:controls="using:Bodian.WinUI.Controls"
     xmlns:local="using:Bodian.WinUI"
     xmlns:models="using:Bodian.Core.Models"
+    xmlns:tb="using:H.NotifyIcon"
     Title="波点音乐">
 
     <!--
@@ -37,6 +38,182 @@
     -->
     <controls:ResponsiveViewport x:Name="WindowViewport">
     <Grid x:Name="ShellRoot" RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+        <Grid.Resources>
+            <!--
+                ★ 菜单的固定宽度（逻辑像素）。
+
+                钉死宽度是为了让**内容再也影响不了菜单大小**：菜单本来按最宽的那一项撑开，
+                歌名一长整颗菜单就变宽、下面那些短行右边空出一大片。
+                这里把每一项的宽度都设成这个值，于是每一行一样宽、菜单也就固定了。
+
+                改宽度只需改这一个数。
+            -->
+            <x:Double x:Key="TrayMenuWidth">160</x:Double>
+
+            <!--
+                ── 托盘菜单的项模板 ────────────────────────────────────────────────
+
+                ★★ 为什么必须自写：框架的 DefaultMenuFlyoutItemStyle 模板里只画
+                   <TextBlock Text="{TemplateBinding Text}"/>，**没有内容占位** —— 所以
+                   MenuFlyoutItem 只能显示「图标 + 一行文字」，做不到「三个图标合成一行」。
+
+                ★★ 而且光改模板不够：MenuFlyoutItemBase 的基类是 Control、**不是 ContentControl**，
+                   所以 MenuFlyoutItem **压根没有 Content 属性**（编译期就会报
+                   WMC0011: Unknown member 'Content'）。因此这一项的 TargetType 是
+                   Controls/TrayMenuItem —— 那是个薄薄一层派生类，只多一个能装任意内容的
+                   Body 属性，菜单行为全部继承。理由写在那个类的注释里。
+
+                主菜单项固定为 TrayMenuWidth，外距 3,1,3,1；行内留白由 Body 决定。
+                Width 与 Margin 设在控件上，模板只负责绘制，子菜单才能复用模板并按文字收缩。
+                托盘库会强制改写 Control.Padding；两份模板的内部留白直接定值，不读取该属性。
+                悬停和选中背景都使用 SubtleFillColorSecondaryBrush。
+            -->
+            <Style x:Key="TrayMenuItemStyle" TargetType="controls:TrayMenuItem">
+                <Setter Property="Width" Value="{StaticResource TrayMenuWidth}" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Margin" Value="3,1,3,1" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="controls:TrayMenuItem">
+                            <Grid
+                                x:Name="LayoutRoot"
+                                Padding="0"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                PointerPressed="OnTrayMenuContentPointerPressed"
+                                Tapped="OnTrayMenuContentTapped">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter
+                                    Content="{TemplateBinding Body}"
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- 展开的三项按文字测量宽度，只保留左右内距。 -->
+            <Style x:Key="TrayPlayModeItemStyle" TargetType="controls:TrayMenuItem" BasedOn="{StaticResource TrayMenuItemStyle}">
+                <Setter Property="Width" Value="Auto" />
+            </Style>
+
+            <!--
+                sealed 只限制继承，不限制替换 ControlTemplate。
+                图标 16 + 文字左距 8 与其他主菜单项一致；模板内距不受托盘库强制赋值影响。
+            -->
+            <Style x:Key="TrayMenuSubItemStyle" TargetType="MenuFlyoutSubItem" BasedOn="{StaticResource DefaultMenuFlyoutSubItemStyle}">
+                <Setter Property="Width" Value="{StaticResource TrayMenuWidth}" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Margin" Value="3,1,3,1" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="MenuFlyoutSubItem">
+                            <Grid
+                                x:Name="LayoutRoot"
+                                Padding="8,6,8,6"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="SubMenuOpened">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Opacity" Value="0.4" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="PaddingSizeStates">
+                                        <VisualState x:Name="DefaultPadding" />
+                                        <VisualState x:Name="NarrowPadding" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                    </Grid.ColumnDefinitions>
+                                    <Viewbox x:Name="IconRoot" Width="16" Height="16" VerticalAlignment="Center">
+                                        <ContentPresenter x:Name="IconContent" Content="{TemplateBinding Icon}" Foreground="{TemplateBinding Foreground}" />
+                                    </Viewbox>
+                                    <TextBlock
+                                        x:Name="TextBlock"
+                                        Grid.Column="1"
+                                        Margin="8,0,6,0"
+                                        Text="{TemplateBinding Text}"
+                                        TextTrimming="CharacterEllipsis"
+                                        Foreground="{TemplateBinding Foreground}"
+                                        VerticalAlignment="Center" />
+                                    <FontIcon
+                                        x:Name="SubItemChevron"
+                                        Grid.Column="2"
+                                        Glyph="&#xE974;"
+                                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                        FontSize="12"
+                                        Foreground="{TemplateBinding Foreground}"
+                                        VerticalAlignment="Center"
+                                        MirroredWhenRightToLeft="True"
+                                        AutomationProperties.AccessibilityView="Raw" />
+                                </Grid>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!--
+                转台那一排里的单个按钮。WinUI 的 Button 默认 MinWidth 是 120，
+                不改的话三个并排会撑成一条巨宽的行。
+            -->
+            <Style x:Key="TrayTransportButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Width" Value="44" />
+                <Setter Property="Height" Value="38" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+            </Style>
+
+        </Grid.Resources>
+
         <Grid.RowDefinitions>
             <!-- 顶部：原生自定义标题栏，复用原系统标题栏区域 -->
             <RowDefinition Height="Auto" />
@@ -989,6 +1166,288 @@
                 </Button>
             </Grid>
         </Border>
+
+        <!--
+            系统托盘。
+
+            ★ 为什么挂在这里而不是 App.xaml 的资源字典：TaskbarIcon 是 FrameworkElement，
+              必须有**已加载的 XAML 树**与带 DispatcherQueue 的 UI 线程。App.xaml 的资源在
+              任何窗口存在之前就被解析 —— 那正是这个库那批
+              "Failed to assign to property" / COMException 报告的共同来源。
+
+            ★ 为什么不用独立隐藏窗口：那是给**没有主窗口**的应用用的形态。我们的主窗口因为
+              「关闭到托盘」永不销毁，控件寿命 == 进程寿命，多一个 XAML 岛只换来不确定性。
+
+            ★ 它没有视觉，跨三行只为不占位；IsHitTestVisible=False 是必须的 ——
+              否则这个横跨三行的元素会挡住整个窗口的命中测试。
+
+            ★ 真退出时必须在 MainWindow 的 Closed 里显式 Tray.Dispose()，见 MainWindow.xaml.cs。
+        -->
+        <tb:TaskbarIcon
+            x:Name="Tray"
+            Grid.RowSpan="3"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            IsHitTestVisible="False"
+            ToolTipText="波点音乐"
+            NoLeftClickDelay="True"
+            LeftClickCommand="{x:Bind ShowMainWindowCommand}"
+            ContextMenuMode="SecondWindow">
+
+            <!--
+                ★ 占位图标。用户还没定正式 .ico，先用库自带的动态图标生成画一个 CJK 字符
+                  （CJK 字形在 Win10 上必然存在；Emoji 要另挂字体，16×16 缩下去会糊）。
+                ★ 正式图标到位后**只改这一个元素**：换成 IconSource="/Assets/Tray.ico"，
+                  再给 csproj 加一条 Content + 复制到输出即可，别处都不用动。
+            -->
+            <tb:TaskbarIcon.IconSource>
+                <tb:GeneratedIconSource
+                    Text="波"
+                    FontFamily="Microsoft YaHei UI"
+                    FontSize="30"
+                    Size="32"
+                    Foreground="#00F3B0" />
+            </tb:TaskbarIcon.IconSource>
+
+            <!--
+                SecondWindow 使用库的透明窗口显示 WinUI 菜单，保留托盘项的 Body 模板。
+                三个并排播放按钮通过 TrayMenuItem 的内容模板实现。
+
+                PopupMenu 将标准项转换成 Win32 菜单，不理解自定义 Body；若切回它，
+                还需要恢复标准项的 Text 和 Command，不能只改 ContextMenuMode。
+                菜单内连续操作由共享模板的指针处理实现，具体约定见 docs/tray.md §5。
+            -->
+            <tb:TaskbarIcon.ContextFlyout>
+                <MenuFlyout>
+
+                    <!--
+                        ★★ 这一整颗菜单**没有任何一项依赖"菜单即将弹出"事件**。
+
+                        该库把 TrayContextMenuOpen / TrayPopupOpen 这些事件在编译期关掉了
+                        （WinRTEvents 默认关闭，实测 2.4.1 的二进制里连 add_TrayContextMenuOpen
+                        访问器都不存在，只剩一个 OnTrayContextMenuOpen 方法名）。所以拿不到
+                        「弹出前刷一遍状态」的钩子。
+
+                        替代方案是全程 x:Bind OneWay：菜单项的属性随时是最新的，库在弹出那一刻
+                        读到的就是新值。这也让「主界面改了模式，托盘选中项跟着变」不需要任何接线。
+
+                        ★ 每一项都套 TrayMenuItemStyle（自写模板，见 ShellRoot.Resources）。
+                          框架模板里只画 TextBlock、**没有 ContentPresenter**，不换模板就塞不进
+                          自定义内容，也就做不到「三个图标一行」。换掉之后图标一律用
+                          Controls/Icon 放在**内容里**，不走 MenuFlyoutItem.Icon
+                          （那条要求 IconElement，还得绕 Geometry）。
+                    -->
+
+                    <!--
+                        顶部「正在播放」行。不可点，只作标题。
+
+                        ★ MaxWidth + 省略号是为了**压住菜单宽度**：菜单按最宽的那一项撑开，
+                          曲名一长，下面那些短行右边就空出一大片。限宽之后整颗菜单窄下来。
+                    -->
+                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" IsEnabled="False">
+                        <controls:TrayMenuItem.Body>
+                            <Grid Margin="8,6,8,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <controls:Icon
+                                    Grid.Column="0"
+                                    Data="{StaticResource IconNote}"
+                                    Size="16"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <!--
+                                    ★ 用 * 列而不是 StackPanel：横向 StackPanel 给子元素的是
+                                      无限宽，TextBlock 会按自己的需要撑开、把整行顶出去；
+                                      * 列才会把剩余宽度**约束**给文字，省略号也才真的生效。
+                                -->
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    Text="{x:Bind Player.NowPlayingText, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </Grid>
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
+
+                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+
+                    <!--
+                        转台：**三个纯图标合成一行**，不放文字（与参照图一致）。
+
+                        ★ 这正是自写模板存在的全部理由 —— 框架的 MenuFlyoutItem 一项就是一行
+                          文字加一颗图标，做不到「一行三项」。
+
+                        三个按钮的 Click 只执行播放操作，支持连续点击。
+                        所有菜单项的模板统一处理点击，避免执行命令后收起菜单。
+                    -->
+                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}">
+                        <controls:TrayMenuItem.Body>
+                            <StackPanel
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                Spacing="6"
+                                Margin="0,2,0,2">
+                                <Button
+                                    Style="{StaticResource TrayTransportButtonStyle}"
+                                    IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}"
+                                    Click="OnTrayPreviousClick"
+                                    ToolTipService.ToolTip="上一首">
+                                    <controls:Icon Data="{StaticResource IconPrevious}" Size="18" />
+                                </Button>
+                                <Button
+                                    Style="{StaticResource TrayTransportButtonStyle}"
+                                    Click="OnTrayPlayPauseClick"
+                                    ToolTipService.ToolTip="播放 / 暂停">
+                                    <controls:Icon
+                                        Data="{x:Bind local:Formats.PlayPauseIcon(Player.IsPlaying), Mode=OneWay}"
+                                        Size="22" />
+                                </Button>
+                                <Button
+                                    Style="{StaticResource TrayTransportButtonStyle}"
+                                    IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}"
+                                    Click="OnTrayNextClick"
+                                    ToolTipService.ToolTip="下一首">
+                                    <controls:Icon Data="{StaticResource IconNext}" Size="18" />
+                                </Button>
+                            </StackPanel>
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
+
+                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+
+                    <!--
+                        模式子菜单。标题直接显示**当前模式**（与参照图一致：那里写的就是
+                        "列表循环"），绑 Player.PlayModeText —— 那个属性由队列变化驱动，
+                        所以标题与选中项天然跟着主界面走。
+
+                        入口仍由 MenuFlyoutSubItem 处理展开和键盘导航，模板与其他主菜单项使用
+                        相同外距、内距和图标列，文字统一落在 3 + 8 + 16 + 8 = 35。
+                        展开的模式项使用自动宽度，不继承主菜单的固定宽度。
+
+                        ★ CommandParameter 必须传**枚举值**，不能写 CommandParameter="Sequential"：
+                          CommunityToolkit.Mvvm 8.4.2 的 RelayCommand<T> 不做 string→enum 转换，
+                          传字符串会在运行时抛 ArgumentException。
+                    -->
+                    <MenuFlyoutSubItem Style="{StaticResource TrayMenuSubItemStyle}" Text="{x:Bind Player.PlayModeText, Mode=OneWay}">
+                        <MenuFlyoutSubItem.Icon>
+                            <PathIcon Data="{x:Bind local:Formats.IconGeometryFor('IconListLoop')}" />
+                        </MenuFlyoutSubItem.Icon>
+
+                        <!--
+                            ★ 选中态**用背景表示，不用勾**。
+
+                            写法是「一层铺满的 Border + 上层带 Margin 的文字」：Border 不设
+                            Margin 就填满整行（它上面那层 Grid 已随模板撑满），文字自己带
+                            Margin 撑出行高 —— 这样即使 Border 收起来，行高也不变。
+                            画刷用 SubtleFillColorSecondaryBrush，与悬停是同一个 ——
+                            选中项被鼠标划过时不会突兀地变样。
+                        -->
+                        <controls:TrayMenuItem
+                            Style="{StaticResource TrayPlayModeItemStyle}"
+                            Command="{x:Bind Player.SetPlayModeCommand}"
+                            CommandParameter="{x:Bind models:PlayMode.Sequential}">
+                            <controls:TrayMenuItem.Body>
+                                <Grid>
+                                    <Border
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="{ThemeResource ControlCornerRadius}"
+                                        Visibility="{x:Bind local:Formats.Visible(Player.IsSequentialMode), Mode=OneWay}" />
+                                    <TextBlock Text="顺序播放" Margin="8,6,8,6" VerticalAlignment="Center" />
+                                </Grid>
+                            </controls:TrayMenuItem.Body>
+                        </controls:TrayMenuItem>
+
+                        <controls:TrayMenuItem
+                            Style="{StaticResource TrayPlayModeItemStyle}"
+                            Command="{x:Bind Player.SetPlayModeCommand}"
+                            CommandParameter="{x:Bind models:PlayMode.ListLoop}">
+                            <controls:TrayMenuItem.Body>
+                                <Grid>
+                                    <Border
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="{ThemeResource ControlCornerRadius}"
+                                        Visibility="{x:Bind local:Formats.Visible(Player.IsListLoopMode), Mode=OneWay}" />
+                                    <TextBlock Text="列表循环" Margin="8,6,8,6" VerticalAlignment="Center" />
+                                </Grid>
+                            </controls:TrayMenuItem.Body>
+                        </controls:TrayMenuItem>
+
+                        <controls:TrayMenuItem
+                            Style="{StaticResource TrayPlayModeItemStyle}"
+                            Command="{x:Bind Player.SetPlayModeCommand}"
+                            CommandParameter="{x:Bind models:PlayMode.Shuffle}">
+                            <controls:TrayMenuItem.Body>
+                                <Grid>
+                                    <Border
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="{ThemeResource ControlCornerRadius}"
+                                        Visibility="{x:Bind local:Formats.Visible(Player.IsShuffleMode), Mode=OneWay}" />
+                                    <TextBlock Text="列表随机" Margin="8,6,8,6" VerticalAlignment="Center" />
+                                </Grid>
+                            </controls:TrayMenuItem.Body>
+                        </controls:TrayMenuItem>
+                    </MenuFlyoutSubItem>
+
+                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+
+                    <!--
+                        两个窗口开关。选中态直接绑各自的 IsEnabled —— 小窗与桌面歌词窗的显隐
+                        本来就由这个开关驱动（见 MiniPlayerWindowHost / DesktopLyricsWindowHost），
+                        所以这里不需要额外同步，也不该多存一份状态。
+                    -->
+                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind MiniPlayer.ToggleCommand}">
+                        <controls:TrayMenuItem.Body>
+                            <Grid>
+                                <Border
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                                    Visibility="{x:Bind local:Formats.Visible(MiniPlayer.IsEnabled), Mode=OneWay}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
+                                    <controls:Icon Data="{StaticResource IconMiniPlayer}" Size="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="mini窗口" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
+
+                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind DesktopLyrics.ToggleCommand}">
+                        <controls:TrayMenuItem.Body>
+                            <Grid>
+                                <Border
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="{ThemeResource ControlCornerRadius}"
+                                    Visibility="{x:Bind local:Formats.Visible(DesktopLyrics.IsEnabled), Mode=OneWay}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
+                                    <controls:Icon Data="{StaticResource IconLyrics}" Size="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="桌面歌词" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
+
+                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+
+                    <!--
+                        退出 = 唯一真正结束进程的入口。它只置一个位再关窗口，
+                        走的是 App 在 OnLaunched 里挂的那条清理串（桌面歌词窗 → 小窗 → SMTC →
+                        播放引擎 → 容器），一行都没有重复实现。
+                    -->
+                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind ExitAppCommand}">
+                        <controls:TrayMenuItem.Body>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
+                                <controls:Icon Data="{StaticResource IconExit}" Size="16" VerticalAlignment="Center" />
+                                <TextBlock Text="退出" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
+
+                </MenuFlyout>
+            </tb:TaskbarIcon.ContextFlyout>
+        </tb:TaskbarIcon>
     </Grid>
     </controls:ResponsiveViewport>
 </Window>

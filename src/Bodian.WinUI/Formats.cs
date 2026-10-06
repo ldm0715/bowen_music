@@ -319,4 +319,28 @@ public static class Formats
     /// </para>
     /// </remarks>
     public static string IconPaths(string key) => IconGeometry.Paths(key);
+
+    /// <summary>托盘菜单那颗播放/暂停按钮的图标：两态各一颗。与 <see cref="CollectIcon"/> 同一手法，不套函数。</summary>
+    public static string PlayPauseIcon(bool isPlaying) => IconPaths(isPlaying ? "IconPause" : "IconPlay");
+
+    /// <summary>
+    /// 同 <see cref="IconPaths"/>，但直接给 <see cref="Geometry"/>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>只给「目标必须是 <c>IconElement</c>」的场合用</b>，目前只有托盘菜单里
+    /// <c>MenuFlyoutSubItem.Icon</c> 那一处：<c>MenuFlyoutSubItem</c> 是 <b>sealed</b>，
+    /// 既派不出子类、也改不了模板，只能用它自带的 <c>Icon</c> 属性；而那条收的是
+    /// <c>IconElement</c>，只能用 <c>PathIcon</c>，它的 <c>Data</c> 又要 <see cref="Geometry"/>。
+    /// </para>
+    /// <para>
+    /// 托盘其余各项走的是自写模板，图标直接放内容里用 <c>Controls/Icon</c>，不经过这里。
+    /// </para>
+    /// <para>
+    /// <b>不能省成 <c>{StaticResource IconListLoop}</c></b>（那是指向资源字典里的字符串）：
+    /// 启动时会抛 <c>XamlParseException</c>、应用根本打不开，且编译期毫无征兆。见
+    /// <see cref="IconGeometry"/>。
+    /// </para>
+    /// </remarks>
+    public static Geometry? IconGeometryFor(string key) => IconGeometry.From(IconPaths(key));
 }

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using CommunityToolkit.Mvvm.Input;
 using Bodian.Core.Api;
 using Bodian.Core.Models;
 using Bodian.Core.Services.Abstractions;
@@ -111,6 +112,27 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private bool _captionRestoreTitleBar;
     private (bool Dark, Color Foreground)? _captionPalette;
 
+    /// <summary>
+    /// 用户已经明确要求退出（托盘菜单的「退出」）。
+    /// </summary>
+    /// <remarks>
+    /// 见 <see cref="TrayCloseDecision"/>：这是唯一能放行主窗口关闭的东西，
+    /// 不置位就永远关不成窗口。
+    /// </remarks>
+    private bool _exitRequested;
+
+    /// <summary>系统正在注销或关机。由 <see cref="OnSessionWatchMessage"/> 置位。</summary>
+    private bool _sessionEnding;
+
+    /// <summary>
+    /// 会话结束监视用的子类回调。
+    /// </summary>
+    /// <remarks>
+    /// <b>必须存字段</b>：原生侧只拿着这个委托的指针，被 GC 回收就是野指针。
+    /// 同一个坑见 <c>Controls/TransparentBackdrop</c>。
+    /// </remarks>
+    private NativeMethods.SubclassProc? _sessionWatchProc;
+
     public MainWindow(
         INavigationService navigation,
         IBodianLogin login,
@@ -155,6 +177,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Notifications = notifications;
         Queue = queueViewModel;
         MiniPlayer = miniPlayer;
+        DesktopLyrics = desktopLyrics;
         Account = account;
         Search = search;
         Theme = theme;
@@ -212,8 +235,14 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             _closed = true;
             MiniPlayer.PropertyChanged -= OnMiniPlayerPropertyChanged;
             _renderActivity.Dispose();
+            UnwatchSessionEnd();
+            DisposeTray();
             SaveWindowPlacement();
         };
+
+        // 关闭到托盘。**必须挂在 AppWindow 上而不是 Window 上**，理由见 OnAppWindowClosing。
+        AppWindow.Closing += OnAppWindowClosing;
+        WatchSessionEnd();
 
         // 歌词页与 MV 页都是全窗沉浸，进 ImmersiveHost；其余进常规的 PageHost。
         _navigation.Attach(PageHost, page => page is LyricsPage or MvPage ? ImmersiveHost : PageHost);
@@ -258,6 +287,15 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     /// <summary>标题栏那颗小窗按钮的开关。</summary>
     public MiniPlayerViewModel MiniPlayer { get; }
+
+    /// <summary>
+    /// 桌面歌词窗的开关。
+    /// </summary>
+    /// <remarks>
+    /// 主窗口自己不用它（播放条那颗按钮是自带的），托盘菜单那一项要绑它的
+    /// <c>IsEnabled</c> 与 <c>ToggleCommand</c>，所以必须暴露成公开属性给 <c>x:Bind</c>。
+    /// </remarks>
+    public DesktopLyricsViewModel DesktopLyrics { get; }
 
     /// <summary>标题栏账号入口的数据源。</summary>
     public AccountViewModel Account { get; }
@@ -358,6 +396,218 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Theme.Select(selected == LightThemeOption
             ? AppTheme.Light
             : selected == DarkThemeOption ? AppTheme.Dark : AppTheme.System);
+    }
+
+    // ── 托盘与关闭到托盘 ─────────────────────────────────────────────────────
+
+    /// <summary>主窗口上给「会话结束」用的子类标识。1 是 <c>WindowRenderActivity</c>，2 是桌面歌词的光标处理。</summary>
+    private const nuint SessionWatchSubclassId = 4;
+
+    /// <summary>
+    /// 主窗口即将关闭：没被明确要求退出就拦下来，隐藏到托盘。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>为什么是 <see cref="AppWindow"/> 的 <c>Closing</c>，不是 <see cref="Window"/> 的 <c>Closed</c>。</b>
+    /// <c>Closed</c> 在窗口**已经销毁之后**才触发，那时唯一能做的只剩重开一个窗口；
+    /// <c>Closing</c> 在 <c>WM_CLOSE</c> 路径上、销毁之前触发，而且可以 <c>Cancel</c>。
+    /// </para>
+    /// <para>
+    /// <b>取消之后 <c>Closed</c> 根本不会触发</b>，于是 App 在 <c>OnLaunched</c> 里挂的那条清理串
+    /// （<c>TearDownForShutdown</c> → 两个 WindowHost → SMTC → 播放引擎 → 容器）自然被跳过 ——
+    /// 这正是「关到托盘还在放歌」要的效果，<c>App.xaml.cs</c> 因此一行都不用改。
+    /// 真退出时放行，那条链原样跑完。
+    /// </para>
+    /// <para>
+    /// <b>不要改成 <c>AppWindow.Destroy()</c></b>：那个 API 绕过 <c>Closing</c>，
+    /// 会让关闭到托盘静默失效（表现为「点 ✕ 进程就没了」，而代码看起来完全正常）。
+    /// </para>
+    /// </remarks>
+    private void OnAppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (!TrayCloseDecision.ShouldCancelClose(_exitRequested, _sessionEnding))
+        {
+            return;
+        }
+
+        args.Cancel = true;
+
+        // 隐藏而不是最小化：最小化会在任务栏留一个按钮，那就不是「到托盘」了。
+        AppWindow.Hide();
+    }
+
+    /// <summary>托盘菜单的「退出」，也是整个应用唯一真正结束进程的入口。</summary>
+    /// <remarks>
+    /// 只置位再关窗口 —— 真正的收尾全部复用 App 那条既有的清理串，这里不重复实现任何一步。
+    /// </remarks>
+    [RelayCommand]
+    private void ExitApp()
+    {
+        _exitRequested = true;
+        Close();
+    }
+
+    /// <summary>
+    /// 把主窗口带回前台。托盘图标的左键与单实例唤醒都走这里。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>顺序不能改。</b> <c>SetForegroundWindow</c> 要求调用进程是前台进程 ——
+    /// 用户刚点了托盘图标，前台就是本进程。这几行与它们的理由是照抄
+    /// <c>MiniPlayerWindow.OnReturnToMainClick</c>（那边踩过同族的坑：「点了 ▢ 主窗口没起来」）。
+    /// </para>
+    /// <para>
+    /// <c>IsIconic</c> 那一支是给「窗口被最小化过」用的：光 <c>Show</c> 不会把最小化的窗口还原。
+    /// </para>
+    /// </remarks>
+    [RelayCommand]
+    private void ShowMainWindow()
+    {
+        AppWindow.Show(activateWindow: true);
+
+        var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+
+        if (NativeMethods.IsIconic(handle))
+        {
+            NativeMethods.ShowWindow(handle, NativeMethods.SwRestore);
+        }
+
+        NativeMethods.SetForegroundWindow(handle);
+        Activate();
+    }
+
+    /// <summary>播放操作只执行命令，保持托盘菜单打开，便于连续切歌或暂停。</summary>
+    private void OnTrayPreviousClick(object sender, RoutedEventArgs e)
+    {
+        Player.PreviousCommand.Execute(null);
+    }
+
+    private void OnTrayPlayPauseClick(object sender, RoutedEventArgs e)
+    {
+        Player.TogglePlayPauseCommand.Execute(null);
+    }
+
+    private void OnTrayNextClick(object sender, RoutedEventArgs e)
+    {
+        Player.NextCommand.Execute(null);
+    }
+
+    private void OnTrayMenuContentPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        // 不让 MenuFlyoutItem 进入默认点击路径；默认路径执行命令后会关闭整颗菜单。
+        // 内嵌播放按钮仍先处理自己的指针事件与 Click。
+        e.Handled = true;
+    }
+
+    private void OnTrayMenuContentTapped(object sender, TappedRoutedEventArgs e)
+    {
+        // 不向托盘库的整行 Tapped 处理器冒泡；只执行当前项的命令。
+        e.Handled = true;
+        for (var ancestor = sender as DependencyObject;
+             ancestor is not null;
+             ancestor = VisualTreeHelper.GetParent(ancestor))
+        {
+            if (ancestor is TrayMenuItem item)
+            {
+                var command = item.Command;
+                if (item.IsEnabled && command?.CanExecute(item.CommandParameter) == true)
+                {
+                    var menuWindow = NativeMethods.GetForegroundWindow();
+                    command.Execute(item.CommandParameter);
+
+                    // 小窗首次显示会激活新窗口；把托盘窗口带回，继续显示原位置的菜单。
+                    // 「退出」仍真正关闭应用，不恢复菜单窗口。
+                    if (!_exitRequested && !_closed && menuWindow != 0 &&
+                        NativeMethods.GetForegroundWindow() != menuWindow)
+                    {
+                        NativeMethods.ShowWindow(menuWindow, 4); // SW_SHOWNOACTIVATE
+                        NativeMethods.SetForegroundWindow(menuWindow);
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    /// <summary>真退出时把托盘图标摘掉。</summary>
+    /// <remarks>
+    /// <para>
+    /// 不摘的话通知区域会留一个**幽灵图标**（悬停一下才消失）。
+    /// </para>
+    /// <para>
+    /// <b>必须吞掉异常</b>：该库对已释放的对象再 Dispose 会抛 <c>ObjectDisposedException</c>，
+    /// 而这里已经在关窗口的路上 —— 抛出去会把 App 那条清理串打断，那比多一个图标严重得多。
+    /// 这里刻意不记日志：<c>MainWindow</c> 全类没有日志设施，为这一条引入一个 logger 不划算，
+    /// 而失败后果只是外观问题。
+    /// </para>
+    /// </remarks>
+    private void DisposeTray()
+    {
+        try
+        {
+            Tray.Dispose();
+        }
+        catch (Exception)
+        {
+            // 见上面的说明：这一处的失败是外观问题，不值得打断关机流程。
+        }
+    }
+
+    /// <summary>
+    /// 盯着 <c>WM_QUERYENDSESSION</c>（系统注销 / 关机）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 为什么要这一层：注销走的是 <c>WM_QUERYENDSESSION</c>、**不是 <c>WM_CLOSE</c>**，
+    /// 而 <see cref="OnAppWindowClosing"/> 只挂在后一条路径上。拿不到会话结束的信号，
+    /// 就分不清「用户点了 ✕」和「系统在关机」，万一 WinUI 在关机路上也会关窗口，
+    /// 就会变成「这个应用阻止了关机」—— 那比多留一个窗口严重得多，所以这里宁可多守一道。
+    /// </para>
+    /// <para>
+    /// 子类 id 用 4（1 被 <c>WindowRenderActivity</c>、2 被桌面歌词的光标处理占了）。
+    /// </para>
+    /// </remarks>
+    private void WatchSessionEnd()
+    {
+        _sessionWatchProc = OnSessionWatchMessage;
+
+        NativeMethods.SetWindowSubclass(
+            WinRT.Interop.WindowNative.GetWindowHandle(this),
+            _sessionWatchProc,
+            SessionWatchSubclassId,
+            0);
+    }
+
+    private void UnwatchSessionEnd()
+    {
+        if (_sessionWatchProc is not { } proc)
+        {
+            return;
+        }
+
+        try
+        {
+            NativeMethods.RemoveWindowSubclass(
+                WinRT.Interop.WindowNative.GetWindowHandle(this), proc, SessionWatchSubclassId);
+        }
+        catch (Exception)
+        {
+            // 窗口正在销毁，移除失败是正常的；Windows 自己会清掉子类引用。
+        }
+
+        // 最后才丢引用：原生侧还要拿它去匹配，提前置空会让上面的移除落空。
+        _sessionWatchProc = null;
+    }
+
+    private nint OnSessionWatchMessage(nint window, uint message, nuint wParam, nint lParam,
+        nuint subclassId, nuint referenceData)
+    {
+        if (message == NativeMethods.WmQueryEndSession)
+        {
+            _sessionEnding = true;
+        }
+
+        return NativeMethods.DefSubclassProc(window, message, wParam, lParam);
     }
 
     /// <summary>

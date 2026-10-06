@@ -60,6 +60,9 @@
     <!-- 发现页卡片区的分页算式。不引用任何 WinUI 类型，宽度为 0 / 不足一步 /
          换宽度时的锚点 / 末页夹取这些边界能离屏验。 -->
     <Compile Include="..\..\src\Bodian.WinUI\Controls\CardStripPaging.cs" Link="Controls\CardStripPaging.cs" />
+    <!-- 托盘「关闭到托盘」的判定。只有两个 bool 进、一个 bool 出，不含 Win32 与窗口，
+         所以那张真值表能离屏验 —— 这是托盘那一套里唯一测得到的部分。 -->
+    <Compile Include="..\..\src\Bodian.WinUI\Services\TrayCloseDecision.cs" Link="Services\TrayCloseDecision.cs" />
   </ItemGroup>
 
   <!-- ★ 编译期注入仓库根，测试靠它定位 fixtures/。不靠遍历输出目录，也不拷贝 fixture -->

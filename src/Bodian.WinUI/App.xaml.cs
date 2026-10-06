@@ -37,7 +37,24 @@ namespace Bodian.WinUI;
 /// </remarks>
 public partial class App : Application
 {
-    private readonly IHost _host;
+    /// <summary>
+    /// DI 容器。
+    /// </summary>
+    /// <remarks>
+    /// <b>初值 <c>null!</c> 不是笔误。</b> 第二个实例会在构造函数里提前返回，那时它确实是 null；
+    /// 而那条路径在 <see cref="OnLaunched"/> 第一步就退出了，永远不会读到这个字段。
+    /// 声明成可空的代价是十几处解引用都要加空值判断，而那些地方全都是「已经在主实例里」的代码。
+    /// </remarks>
+    private readonly IHost _host = null!;
+
+    /// <summary>
+    /// 本进程是重复启动的第二个实例，只负责把已有实例唤到前台然后退出。
+    /// </summary>
+    /// <remarks>
+    /// 这个实例<b>没有 Host、没有窗口</b>，所以 <see cref="OnLaunched"/> 里第一件事就是退出，
+    /// 绝不能走到任何碰 <see cref="_host"/> 的分支。
+    /// </remarks>
+    private readonly bool _isSecondaryInstance;
 
     public App()
     {
@@ -46,6 +63,21 @@ public partial class App : Application
         NativeMethods.SetCurrentProcessExplicitAppUserModelID(AppIdentity.AppUserModelId);
 
         InitializeComponent();
+
+        // 单实例判定。主窗口的 ✕ 改成了「关闭到托盘」，进程会一直活着，所以从开始菜单
+        // 再点一次必须变成「唤醒已有实例」，否则会出现两个托盘图标、两份播放引擎抢同一个
+        // 系统媒体会话（见 SingleInstanceCoordinator 的说明）。
+        //
+        // ★ 位置在 InitializeComponent 之后：再往前挪就要跳过 App.xaml 的资源加载，
+        //   那是一条平时永不执行、只在这个分支上走的初始化路径 —— 为省一次资源字典合并
+        //   去踩一个没人验证过的启动路径不划算。真正贵的东西（DI 容器、所有服务、主窗口、
+        //   开始菜单快捷方式、性能场景）都在下面，这里已经全部跳过了。
+        if (!SingleInstanceCoordinator.TryAcquirePrimary())
+        {
+            SingleInstanceCoordinator.SignalExistingInstance();
+            _isSecondaryInstance = true;
+            return;
+        }
 
         var builder = Host.CreateApplicationBuilder();
 
@@ -174,6 +206,10 @@ public partial class App : Application
         builder.Services.AddSingleton<Func<MiniPlayerWindow>>(sp =>
             sp.GetRequiredService<MiniPlayerWindow>);
         builder.Services.AddSingleton<MiniPlayerWindowHost>();
+
+        // 单实例。互斥量的判定在构造函数里已经做过了，这里注册的是「接收唤醒广播」的那一半 ——
+        // 它要在主窗口的 HWND 上装子类，所以得活到进程结束。
+        builder.Services.AddSingleton<SingleInstanceCoordinator>();
         builder.Services.AddSingleton<PlayQueueViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
@@ -314,6 +350,14 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // 第二个实例到此为止。唤醒广播已经发出去了，本进程没有 Host、没有窗口，
+        // 下面每一行都会踩到 null 的 _host，所以这里必须返回。
+        if (_isSecondaryInstance)
+        {
+            Exit();
+            return;
+        }
+
         MainWindow window;
 
         // 日志工厂也放进 App 资源：XAML 实例化的控件（构造函数必须无参）拿不到 DI 容器，
@@ -370,6 +414,12 @@ public partial class App : Application
 
         // 同上：小窗宿主也是懒初始化的，不解析一次就永远没人订阅标题栏那颗按钮。
         _host.Services.GetRequiredService<MiniPlayerWindowHost>();
+
+        // 单实例：把主窗口挂上，之后再有实例启动时，那条广播会送到这里把窗口带回前台。
+        // 订阅方在 UI 线程上被调用 —— 窗口消息只在拥有该窗口的线程上派发。
+        var singleInstance = _host.Services.GetRequiredService<SingleInstanceCoordinator>();
+        singleInstance.ActivationRequested += (_, _) => window.ShowMainWindowCommand.Execute(null);
+        singleInstance.AttachTo(WinRT.Interop.WindowNative.GetWindowHandle(window));
 
         // 开始菜单快捷方式要在窗口起来之后再补 —— 系统媒体面板的应用名与图标取自它。
         // 同步做（不挪后台线程）：COM 的 ShellLink 是 STA 对象，UI 线程是 STA，

@@ -141,6 +141,56 @@ internal static class NativeMethods
     [DllImport("user32.dll", EntryPoint = "SendMessageW", ExactSpelling = true)]
     internal static extern nint SendMessage(nint window, uint message, nuint wParam, nint lParam);
 
+    // ── 单实例唤醒 ──────────────────────────────────────────────────────────
+    // 命名互斥量判出「已经有实例」之后，靠下面三个把已有实例的主窗口唤到前台。
+
+    /// <summary><c>HWND_BROADCAST</c>：投给系统里所有顶层窗口。</summary>
+    /// <remarks>
+    /// Win32 文档明确广播**也会投递到隐藏的顶层窗口**（隐藏不等于禁用），
+    /// 所以主窗口被 <c>AppWindow.Hide()</c> 藏到托盘之后照样收得到。
+    /// 子窗口收不到 —— 我们正好只需要顶层窗口。
+    /// </remarks>
+    internal static readonly nint HwndBroadcast = new(0xFFFF);
+
+    /// <summary><c>ASFW_ANY</c>：把抢前台的权限让给任意进程。</summary>
+    internal const uint AsfwAny = unchecked((uint)-1);
+
+    /// <summary>
+    /// 注册一条自定义消息，返回它的 id。
+    /// </summary>
+    /// <remarks>
+    /// <b>发送方与接收方都要调一次</b> —— 同一个字符串在同一会话里拿到同一个 id。
+    /// 这是 Win32 为 <c>HWND_BROADCAST</c> 指定的用法（见 <c>PostMessageW</c> 的文档：
+    /// 「需要广播的应用应当用 <c>RegisterWindowMessage</c> 取得一条唯一消息」），
+    /// 直接用自定的 <c>WM_APP+n</c> 会撞上别的应用的同号消息。
+    /// </remarks>
+    [DllImport("user32.dll", EntryPoint = "RegisterWindowMessageW", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    internal static extern uint RegisterWindowMessage(string message);
+
+    /// <summary>
+    /// 投递消息，不等对方处理。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="SendMessage"/> 的区别在这里是要害：<c>SendMessage</c> 会**阻塞到对方处理完**，
+    /// 而广播是对系统里每一个顶层窗口各阻塞一次 —— 其中任何一个卡住都会把本进程一起拖住。
+    /// 唤醒只需要「送到」，不要结果，所以用 Post。
+    /// </remarks>
+    [DllImport("user32.dll", EntryPoint = "PostMessageW", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PostMessage(nint window, uint message, nuint wParam, nint lParam);
+
+    /// <summary>
+    /// 允许指定进程把窗口抢到前台。
+    /// </summary>
+    /// <remarks>
+    /// <b>不调它接收方的 <c>SetForegroundWindow</c> 会被系统拒绝</b>，症状是
+    /// 「点了托盘图标/双击了快捷方式，主窗口没起来」。发送方此刻是前台进程，
+    /// 由它把权限让出去才成立 —— 传 <see cref="AsfwAny"/> 表示让给任意进程。
+    /// </remarks>
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool AllowSetForegroundWindow(uint processId);
+
     [StructLayout(LayoutKind.Sequential)]
     internal struct NativeRect { internal int Left, Top, Right, Bottom; }
 
@@ -245,6 +295,15 @@ internal static class NativeMethods
 
     /// <summary><c>WM_ERASEBKGND</c>。</summary>
     internal const uint WmEraseBackground = 0x0014;
+
+    /// <summary>
+    /// <c>WM_QUERYENDSESSION</c>：系统正在注销或关机。
+    /// </summary>
+    /// <remarks>
+    /// 主窗口靠它区分「用户点了 ✕」与「系统要关机」—— 后者必须放行关闭，
+    /// 否则会变成「这个应用阻止了关机」。见 <c>MainWindow.OnSessionWatchMessage</c>。
+    /// </remarks>
+    internal const uint WmQueryEndSession = 0x0011;
 
     /// <summary><c>DWM_BB_ENABLE</c>。</summary>
     internal const uint DwmBlurBehindEnable = 0x0001;

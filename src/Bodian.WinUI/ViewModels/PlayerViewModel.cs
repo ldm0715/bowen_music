@@ -136,6 +136,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
     /// <summary>播放条是否该显示。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NowPlayingText))]
     public partial bool HasTrack { get; set; }
 
     /// <summary>当前这首歌有没有 MV。驱动播放条上那颗 MV 按钮的显隐（没有就折叠，不置灰）。</summary>
@@ -153,13 +154,26 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     internal Track? CurrentTrack { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NowPlayingText))]
     public partial string Title { get; set; } = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NowPlayingText))]
     public partial string ArtistText { get; set; } = "";
 
     [ObservableProperty]
     public partial string AlbumText { get; set; } = "";
+
+    /// <summary>
+    /// 托盘菜单顶部那一行：「歌名 - 歌手」。
+    /// </summary>
+    /// <remarks>
+    /// 没有曲目时给一句占位而不是空串 —— 菜单里的空行看起来像渲染坏了。
+    /// 歌手名留空时不补那个连字符，否则会显示成「歌名 - 」。
+    /// </remarks>
+    public string NowPlayingText => !HasTrack
+        ? "未在播放"
+        : ArtistText.Length == 0 ? Title : $"{Title} - {ArtistText}";
 
     /// <summary>封面。为 <c>null</c> 时界面显示占位底色。</summary>
     [ObservableProperty]
@@ -337,6 +351,17 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// <summary>按「顺序播放 → 列表循环 → 列表随机」切到下一个模式。</summary>
     [RelayCommand]
     private void CyclePlayMode() => _coordinator.CyclePlayMode();
+
+    /// <summary>
+    /// 直接切到指定模式。托盘菜单的模式子菜单按项指定时用它 ——
+    /// 播放条那颗按钮仍然是「循环切下一个」（见 <see cref="CyclePlayMode"/>），两者语义不同。
+    /// </summary>
+    /// <remarks>
+    /// <b>这里不写 <c>Mode = mode</c></b>：模式是队列的状态，<see cref="Mode"/> 的注释已经写死
+    /// 「只跟着队列走」。多写一处赋值就是第二个真相来源，主界面切模式时两边会不同步。
+    /// </remarks>
+    [RelayCommand]
+    private void SetPlayMode(PlayMode mode) => _coordinator.SetPlayMode(mode);
 
     /// <summary>喜欢 / 取消喜欢当前曲目。已喜欢时点按是取消。</summary>
     [RelayCommand]

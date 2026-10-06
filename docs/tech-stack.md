@@ -42,6 +42,8 @@
 > 自包含要把对应架构的原生 DLL 拷进输出目录，没有 RID 就不知道该拷哪一份。
 > 若要多架构出包，用**复数的 `<RuntimeIdentifiers>` 声明集合，但每次构建仍须指定单个 RID**（`dotnet build -r win-arm64`）。只写复数不指定 `-r` 一样会报上面那个错。**2026-09-30 实测。**
 
+> **`WindowsAppSDKSelfContained` 不等于 .NET 的 `SelfContained`。** 当前默认构建仍使用系统的 x64 .NET 10 运行时，WinAppSDK 原生 DLL 才是随应用输出。不要将旧 .NET 自包含产物混入新输出；运行时配置和重新构建的说明见 [`dev-environment.md`](dev-environment.md) §4.2。
+
 > **上面的片段不含 `UseWinUI`** —— 它在本节写作时被漏掉，已补在片段里。XAML 编译靠它，不能省。
 > **完整的、实际构建验证过的项目文件在 [`transport.md`](transport.md) 第 1 节**（含三个 csproj 全文、`global.json`、中央包管理的位置约束）。本节只讲为什么这么选。
 
@@ -51,7 +53,8 @@
 | MVVM | `CommunityToolkit.Mvvm` | **8.4.2** |
 | 控件补充 | `CommunityToolkit.WinUI.Controls.SettingsControls` / `.Segmented` / `.Sizers` | **8.2.251219** |
 | 行为 / 动画 / 媒体 | `CommunityToolkit.WinUI.Behaviors` / `.Animations` / `.Media` | **8.2.251219** |
-| 窗口 / 单实例 / 托盘 | `WinUIEx` | **2.9.3** |
+| 托盘（2026-10-06 引入） | `H.NotifyIcon.WinUI` | **2.4.1**（MIT） |
+| 窗口辅助 | `WinUIEx` | **2.9.3**（**已登记、未引用**，见下面「三个坑」第 2 条） |
 | DI / Hosting / Logging | `Microsoft.Extensions.Hosting` / `.DependencyInjection` / `.Logging` | **10.0.12** |
 | 凭据 | `System.Security.Cryptography.ProtectedData` | **10.0.12** |
 | 日志 | `Serilog` / `Serilog.Extensions.Hosting` / `Serilog.Sinks.File` | **4.4.0** / **10.0.0** / **7.0.0** |
@@ -65,7 +68,7 @@
 ### 三个坑
 
 1. **`CommunityToolkit.WinUI.Controls`（裸名）这个包不存在。** 8.x 已拆成 SettingsControls / Segmented / Sizers / Primitives / ImageCropper 等多个子包，必须按需引。**7.1.2 那条线**（`UI.Controls.DataGrid` / `Markdown` / `Notifications` / `Connectivity`）是 **UWP/WinUI2 时代遗留**，不要在新项目用。旧仓库 `CommunityToolkit/WindowsCommunityToolkit` 已 **ARCHIVED**，新仓库是 `CommunityToolkit/Windows`。
-2. **WinUIEx 的 `TitleBar` 控件已废弃**，改用 WinAppSDK 1.7+ 自带的 TitleBar。WinUIEx 仍要装，是为了 `WindowManager`（DPI 感知尺寸、单实例、托盘）。
+2. **WinUIEx 目前只登记了版本、没有任何项目引用它。** 它的 `TitleBar` 控件已废弃（改用 WinAppSDK 1.7+ 自带的 TitleBar）；而原先指望它提供的**托盘与单实例，2026-10-06 都改由别的办法做了**：托盘用 `H.NotifyIcon.WinUI`（`WinUIEx` 没有托盘控件，`WindowManager` 也管不到单实例），单实例用命名互斥量 + 注册消息广播（见第 6 节的「单实例」，以及 [`tray.md`](tray.md)）。留着这条登记是为了 P8 的 DPI 感知尺寸等窗口辅助还有的挑，不是「准备用它做托盘」。
 3. **DPAPI 在 .NET 10 下仍需独立的 NuGet 包**（`System.Security.Cryptography.ProtectedData`），不在基础框架内。
 
 ---
@@ -262,7 +265,15 @@ Bodian.sln
 
 ### 单实例
 
-优先用 WinAppSDK 自带的 **`AppInstance`**，不必额外引库。
+**命名互斥量 + `RegisterWindowMessage` 广播**，不引库、也不用 `AppInstance`。
+
+理由是「关闭到托盘」把这件事的必要性提高了：主窗口的 ✕ 只是隐藏，进程会一直活着，所以第二次启动必须变成「唤醒已有实例」，否则会有两个托盘图标、两份播放引擎抢同一个 SMTC 会话。
+
+做法：`Local\<AUMID>.SingleInstance` 判所有权 → 已有实例则 `AllowSetForegroundWindow(ASFW_ANY)` 让出前台权限，再 `PostMessage(HWND_BROADCAST, 注册消息)` → 主实例在主窗口的子类回调里收下，`ShowWindow + SetForegroundWindow` 带回前台。广播**能投递到隐藏的顶层窗口**，所以窗口藏在托盘里照样收得到。
+
+`AppInstance` 是备选，不是首选：它的 `RedirectActivationToAsync` 是异步的且官方明确警告不能阻塞 STA，`Activated` 回调可能不在 UI 线程，而且它**不负责把窗口带回前台** —— 那一段一样要自己写。上面这三条正好全绕掉。
+
+落地细节与实测记录见 [`tray.md`](tray.md)。
 
 ---
 

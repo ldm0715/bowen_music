@@ -39,6 +39,8 @@
     <!-- 扫码登录的二维码本地渲染 -->
     <PackageReference Include="QRCoder" />
     <PackageReference Include="NAudio.Wasapi" />
+    <!-- 系统托盘。unpackaged 没有 MSIX 身份，托盘只能靠 Win32 Shell_NotifyIcon，这个库封装了它 -->
+    <PackageReference Include="H.NotifyIcon.WinUI" />
   </ItemGroup>
 
   <PropertyGroup>

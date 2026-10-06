@@ -154,13 +154,17 @@ dotnet build
 
 ### 4.2 启动
 
-构建产物在 `bin\Debug\net10.0-windows10.0.26100.0\win-x64\`，**246 个文件**（含 WinUI 原生 DLL）是自包含正常的标志。
+构建产物在 `bin\Debug\net10.0-windows10.0.26100.0\win-x64\`。早期探针实测包含 246 个文件；文件数量会随依赖变化，不能用它判定 .NET 是否自包含。
+
+**Windows App SDK 与 .NET 的自包含是两回事。** 项目设置了 `WindowsAppSDKSelfContained=true`，但没有设置 .NET 的 `SelfContained=true`。当前 `Bodian.WinUI.runtimeconfig.json` 使用 `framework: Microsoft.NETCore.App 10.0.0`，启动时需要系统的 x64 .NET 10 运行时；2026-10-06 已验证实际加载 `C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.12\coreclr.dll`。
+
+**不要混用旧构建产物。** 本次遇到两类实际故障：依赖系统 .NET 的新配置与旧 `hostfxr.dll` 并存，启动器转而在应用目录查找框架，误报缺少 .NET；旧 XAML 文件与新程序集混用，则导致绑定或类型转换异常。处理方式是备份旧 `obj` 和输出目录，再使用正常构建命令完整重新生成，不向旧目录拼接不同构建的文件，也不因此重装系统 .NET。
 
 ```
 timeout 8 ./probe.exe; echo $?
 ```
 
-**退出码 124 = 跑满 8 秒被 timeout 终止 = 启动正常。** 退出码 0 或非零都说明 GUI 应用提前退出了，有问题。这个方法可以脚本化地判断「窗口是否一直开着」。
+**退出码 124 只表示进程在 8 秒后仍未退出。** 安装运行时提示框也可能让进程持续运行，因此还需确认「波点音乐」主窗口正常响应、实际加载了预期 .NET 运行时，且本次 PID 没有致命启动日志。已有实例时，第二次启动会正常退出并唤起原窗口，不能把这种退出码当成启动失败。
 
 ### 4.3 本次实测结论（2026-09-30）
 

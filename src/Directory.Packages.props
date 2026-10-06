@@ -31,6 +31,13 @@
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <!--
+      托盘图标。2.4.1 是当前最新稳定版（更高的只有 2.4.2-dev / 2.5.0-beta，不用）。
+      它声明依赖 Microsoft.WindowsAppSDK >= 1.6.250108002，本项目是 2.5.1，走的是
+      跨大版本运行 —— WinUI 3 的 ABI 稳定，但这是本包最需要冒烟的一条，见 docs/tray.md。
+      MIT 许可，与 GPL-3.0 兼容。
+    -->
+    <PackageVersion Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <!--

@@ -86,6 +86,7 @@
 | [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`mv.md`](docs/mv.md) | MV 播放：三处入口、沉浸 MV 页、画面比例、音视频互斥与验收 |
 | [`mini-player.md`](docs/mini-player.md) | 小窗（迷你播放器）：透明圆角浮窗、悬停抽屉与传输区、按空间择向的队列面板、贴边收起与验收 |
+| [`tray.md`](docs/tray.md) | 系统托盘、关闭到托盘与单实例：紧凑布局、长标题省略、菜单内连续操作、库行为与验收记录 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |
 
@@ -98,14 +99,16 @@
 dotnet build Bodian.sln -c Debug
 dotnet test  --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
 
-# 启动（unpackaged + self-contained；「构建通过 ≠ 能跑」）
+# 启动（unpackaged；Windows App SDK 随包，.NET 使用系统运行时）
 timeout 8 ./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe
-# 退出码 124 = 跑满 8 秒被 timeout 杀掉 = 窗口一直开着，这才是正常
+# 退出码 124 只表示进程持续运行；还需确认主窗口、实际 .NET 加载和本次启动日志
 
 # P0 探针（故意不在 sln 里，避免每次构建都被它拖住）
 dotnet build tools/Bodian.Probe
 dotnet run --project tools/Bodian.Probe -- --help
 ```
+
+当前默认构建需要已安装的 **x64 .NET 10 运行时**。`WindowsAppSDKSelfContained=true` 只表示 Windows App SDK 随包，不表示 .NET 也自包含。切换运行时布局或回退构建时，先备份旧输出和 `obj`，再完整重新编译，避免混入旧运行时加载器或 XAML 文件；说明见 [`dev-environment.md`](docs/dev-environment.md) §4.2。
 
 **测试项目依赖 `global.json`**：`dotnet test` 走 Microsoft.Testing.Platform 靠它选择加入，
 所以命令要带 `--project`（MTP 模式下不接受位置参数）。详见 [`docs/transport.md`](docs/transport.md) 第 1.4 节。
@@ -113,6 +116,8 @@ dotnet run --project tools/Bodian.Probe -- --help
 ## 许可
 
 [GPL-3.0](LICENSE)。
+
+系统托盘用 [`H.NotifyIcon.WinUI`](https://github.com/HavenDV/H.NotifyIcon)（MIT）；图标取自 Fluent System Icons（MIT，见 [`docs/icons.md`](docs/icons.md)）。
 
 移植第三方代码时注意许可边界：**GPL-3.0 的代码可直接移植，AGPL-3.0 的不行**（两者单向兼容）。
 完整清单见 [`docs/lyrics-ui.md`](docs/lyrics-ui.md) 的许可边界一节。
