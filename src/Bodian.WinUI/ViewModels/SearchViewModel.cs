@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
@@ -26,12 +27,15 @@ public sealed partial class SearchViewModel : ObservableObject
     private bool _hotWordsLoading;
 
     public SearchViewModel(IBodianApi api, PlaybackCoordinator coordinator,
-        ISearchHistoryStore historyStore, ILogger<SearchViewModel>? logger = null)
+        ISearchHistoryStore historyStore, ViewModeService viewMode,
+        ILogger<SearchViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(historyStore);
+        ArgumentNullException.ThrowIfNull(viewMode);
         _historyStore = historyStore;
+        ViewMode = viewMode;
         foreach (var keyword in historyStore.Load()) SearchHistory.Add(keyword);
         HistoryIsEmpty = SearchHistory.Count == 0;
         _api = api;
@@ -39,6 +43,15 @@ public sealed partial class SearchViewModel : ObservableObject
         _logger = logger ?? NullLogger<SearchViewModel>.Instance;
 
         Results.CollectionChanged += (_, _) => OnPropertyChanged(nameof(TrackCountText));
+
+        // 工具栏左侧那行计数跟着「已加载多少条」走。单曲页签用的 Results 在上面那行挂了，
+        // 这里补另外三个页签的集合 —— 钩子内容一样，不抽公共方法是因为它只有一行。
+        void RecountResultToolbar(object? sender, NotifyCollectionChangedEventArgs args)
+            => OnPropertyChanged(nameof(ResultCountText));
+
+        Playlists.CollectionChanged += RecountResultToolbar;
+        Albums.CollectionChanged += RecountResultToolbar;
+        Artists.CollectionChanged += RecountResultToolbar;
     }
 
     /// <summary>
@@ -50,6 +63,33 @@ public sealed partial class SearchViewModel : ObservableObject
     /// 两边都不报条数，就不会同屏出现两个数字。
     /// </remarks>
     public string TrackCountText => Formats.TrackCount(Results.Count);
+
+    /// <summary>
+    /// 「歌单 / 专辑 / 歌手」三个页签工具栏左侧那行。
+    /// </summary>
+    /// <remarks>
+    /// <b>与页头的 <see cref="StatusText"/> 分工</b>：那行不再报任何页签的条数
+    /// （<c>AppendNextPageAsync</c> 里的理由），这里只说「有几个」。两边都不报，就不会同屏出现两个数字。
+    /// </remarks>
+    public string ResultCountText => Formats.ResultCount(SelectedCategoryCount, SelectedCategoryUnit);
+
+    /// <summary>计数单位随页签走 —— 工具栏只有一条，换页签换的是单位，不是再摆一条控件。</summary>
+    private string SelectedCategoryUnit => SelectedCategory switch
+    {
+        2 => "个歌单",
+        3 => "张专辑",
+        4 => "位歌手",
+        _ => "",
+    };
+
+    /// <summary>这三个页签上方那条工具栏要不要显示。「综合」与「单曲」各有各的排法，不用它。</summary>
+    public bool ShowsResultToolbar => SelectedCategory is 2 or 3 or 4;
+
+    /// <summary>
+    /// 行列表还是封面卡片。**状态不在这里** —— 见 <see cref="ViewModeService"/>：
+    /// 那是个单例，收藏的两页也在用同一个开关（`view-mode.json`），本页只是把它透给 XAML。
+    /// </summary>
+    public ViewModeService ViewMode { get; }
 
     public ObservableCollection<SearchResultSection> OverviewSections { get; } = [];
     public ObservableCollection<object> OverviewItems { get; } = [];
@@ -100,6 +140,8 @@ public sealed partial class SearchViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsPlaylistTab))]
     [NotifyPropertyChangedFor(nameof(IsAlbumTab))]
     [NotifyPropertyChangedFor(nameof(IsArtistTab))]
+    [NotifyPropertyChangedFor(nameof(ShowsResultToolbar))]
+    [NotifyPropertyChangedFor(nameof(ResultCountText))]
     public partial int SelectedCategory { get; set; }
 
     // 五个页签的内容都留在可视树上，只切可见性。
@@ -384,10 +426,10 @@ public sealed partial class SearchViewModel : ObservableObject
         token.ThrowIfCancellationRequested();
         HasMore = !cursor.Exhausted;
         // 「（滚动加载）」已去掉 —— 理由同 PagedList 里那一处。
-        // 歌曲页签不报条数：那个数在工具栏左侧（TrackCountText），页头再报一次就是重复。
-        StatusText = count == 0
-            ? "没有找到结果"
-            : category == 1 ? $"「{keyword}」的搜索结果" : $"「{keyword}」已加载 {count} 条";
+        // **条数一律不在这行报**：单曲页签报在 TrackCountText，歌单/专辑/歌手报在 ResultCountText，
+        // 页头再报一次就是同屏两个数字。这行只说「搜的是什么、搜到没有」。
+        // （综合页签也用它，而综合页签压根没有工具栏 —— 所以这行不能挪进工具栏。）
+        StatusText = count == 0 ? "没有找到结果" : $"「{keyword}」的搜索结果";
     }
 
     private static async Task<int> AppendAsync<T>(ObservableCollection<T> collection, Task<PagedResult<T>> request, CancellationToken token)

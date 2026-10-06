@@ -46,4 +46,15 @@ public sealed partial class CollectedAlbumsPage : Page, INavigationAware
     /// <summary>点专辑行 → 专辑详情。压栈，侧栏继续高亮「收藏的专辑」。</summary>
     private void OnAlbumInvoked(object? sender, Album album) =>
         _navigation.Navigate(_albumDetailFactory(album));
+
+    /// <summary>
+    /// 卡片网格里的点击。与列表行是同一件事，只是事件参数形状不同，转发给上面那个。
+    /// </summary>
+    private void OnAlbumClick(object sender, ItemClickEventArgs args)
+    {
+        if (args.ClickedItem is Album album)
+        {
+            OnAlbumInvoked(sender, album);
+        }
+    }
 }

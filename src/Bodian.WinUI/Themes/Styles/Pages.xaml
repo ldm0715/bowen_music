@@ -188,4 +188,22 @@
         </Setter>
     </Style>
 
+    <!--
+        封面卡片网格的共同设置。五处网格（搜索的专辑 / 歌单 / 歌手页签、收藏的专辑、收藏的歌单）
+        都用这一份，省得每处抄四个 Setter 而漏掉其中之一。
+
+        ★ 只收敛这四个属性：`ItemsSource` / `ItemTemplate` / `ItemClick` / `AutoPaging` 各页不一样，
+          而且后三个要在 XAML 里写 x:Bind，塞进 Style 反而写不出来。
+        ★ `Padding=0` 与 `ItemContainerStyle` 是配 `CoverCardLayout` 用的：那个附加属性算单元格
+          尺寸时假定容器内边距与间距是 `BodianCoverCardItem` 里那两个值（见其常量），换成别的样式就对不上。
+        ★ **卡片模板不在这里**，也不在任何一个共享字典里 —— 它必须各页一份（`x:Bind` 在
+          ResourceDictionary 里要么编译不过、要么运行时静默失效，详见 `SearchPage.xaml` 那段注释）。
+    -->
+    <Style x:Key="BodianCoverCardGrid" TargetType="GridView">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="SelectionMode" Value="None" />
+        <Setter Property="IsItemClickEnabled" Value="True" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource BodianCoverCardItem}" />
+    </Style>
+
 </ResourceDictionary>

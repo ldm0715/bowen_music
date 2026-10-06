@@ -136,6 +136,16 @@ public static class Formats
     public static string TrackCount(int count) => count > 0 ? $"共 {count} 首" : "";
 
     /// <summary>
+    /// 搜索结果页「歌单 / 专辑 / 歌手」工具栏左上的计数：「共 N 位歌手」这类。0 时留空，理由同
+    /// <see cref="TrackCount"/>。
+    /// </summary>
+    /// <remarks>
+    /// <b>单位由调用方给</b>：三个页签各报各的（个歌单 / 张专辑 / 位歌手），而工具栏只有一条 ——
+    /// 换页签时换的是单位，不是再摆一条控件。
+    /// </remarks>
+    public static string ResultCount(int count, string unit) => count > 0 ? $"共 {count} {unit}" : "";
+
+    /// <summary>
     /// 封面右下角那个角标要不要显示。
     /// </summary>
     /// <remarks>
@@ -202,6 +212,16 @@ public static class Formats
     /// 而且函数绑定不接受 <c>Converter</c>，转换器写法在这里根本用不了。
     /// </remarks>
     public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// 两个条件同时成立才可见。
+    /// </summary>
+    /// <remarks>
+    /// <b>给「当前是哪个页签」与「列表还是网格」这两个开关叠加用。</b>
+    /// <c>x:Bind</c> 的函数绑定**不支持函数套函数**（见 <see cref="IconPaths"/>），
+    /// 所以两态叠加必须有一个单层入口，写不出 <c>Visible(IsArtistTab &amp;&amp; IsGrid)</c>。
+    /// </remarks>
+    public static Visibility VisibleBoth(bool first, bool second) => Visible(first && second);
 
     /// <summary>
     /// 播放条第二行：<c>歌手 · 专辑</c>。
@@ -301,6 +321,20 @@ public static class Formats
     /// <summary>歌手关注按钮的图标路径：加人（未关注）/ 实心加人（已关注）。同上，不套函数。</summary>
     public static string FollowIcon(bool? followed)
         => IconPaths(followed == true ? "IconPersonAddFilled" : "IconPersonAdd");
+
+    /// <summary>
+    /// 搜索结果页的视图切换按钮图标：当前是网格时给「列表」，否则给「网格」。
+    /// </summary>
+    /// <remarks>
+    /// <b>画的是「点了会变成什么」，不是当前态。</b> 单颗按钮没有选中态可看，
+    /// 画当前态的话，用户在网格里看到的还是网格图标，会以为点它没反应。
+    /// 文案同理，见 <see cref="ViewToggleLabel"/>。
+    /// </remarks>
+    public static string ViewToggleIcon(bool asGrid)
+        => IconPaths(asGrid ? "IconViewList" : "IconViewGrid");
+
+    /// <summary>视图切换按钮的说明文案。Tooltip 与无障碍名称共用一份，两处不许各写各的。</summary>
+    public static string ViewToggleLabel(bool asGrid) => asGrid ? "切换为列表视图" : "切换为网格视图";
 
     /// <summary>
     /// 按资源键取图标的**路径文本**，给 <c>Controls/Icon</c> 的 <c>Data</c> 用。

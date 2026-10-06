@@ -52,4 +52,15 @@ public sealed partial class CollectedPlaylistsPage : Page, INavigationAware
         var source = playlist.SourceType > 0 ? playlist.SourceType : DefaultPlaylistSource;
         _navigation.Navigate(_playlistDetailFactory(playlist, source));
     }
+
+    /// <summary>
+    /// 卡片网格里的点击。与列表行是同一件事，只是事件参数形状不同，转发给上面那个。
+    /// </summary>
+    private void OnPlaylistClick(object sender, ItemClickEventArgs args)
+    {
+        if (args.ClickedItem is Playlist playlist)
+        {
+            OnPlaylistInvoked(sender, playlist);
+        }
+    }
 }

@@ -351,3 +351,28 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 `UserControl` 根上。
 
 实现与验收见 [`mini-player.md`](mini-player.md)。
+
+
+## 2026-10-06 视图切换图标
+
+「行列表 ⇄ 封面卡片」这个开关的切换按钮新增两颗，同样来自 Fluent System Icons
+官方仓库（MIT），保留完整 24×24 坐标并以 `F1` 指明 nonzero 填充。按钮出现在**搜索结果**的歌单 /
+专辑 / 歌手三个页签，以及**收藏的专辑 / 收藏的歌单**两页（共用一个开关，见
+[`search.md`](search.md) §「行列表 / 封面卡片」这一个开关）：
+
+| 资源键 | Fluent 图标 | 用在哪 |
+| --- | --- | --- |
+| `IconViewGrid` | `grid_24_regular`（2×2 圆角方块） | **当前是列表视图**时显示的那颗 |
+| `IconViewList` | `list_24_regular`（三条横杠） | **当前是网格视图**时显示的那颗 |
+
+**画的是「点了会变成什么」，不是当前态。** 单颗按钮没有选中态可看，画当前态的话，用户在网格里
+看到的还是网格图标，会以为点它没反应。文案同理，Tooltip 与无障碍名称共用 `Formats.ViewToggleLabel` 一份。
+
+> ★ `IconViewList` 与 `IconTextAlignLeft`（歌词页的排版设置）几何几乎重合 —— 同一个 Fluent 字形，
+> 只差中间那条横线的位置。之所以还是各存一份，与 `IconNote` / `IconLyrics` 那对同一个理由：
+> 前者属于歌词页，将来谁把那个设置换掉，不该顺手把搜索结果这颗也改掉。
+
+同样**只改 `Themes/Icons.xaml` 一处**，`Controls/IconGeometry.cs` 不用动 ——
+它的 `Paths(key)` 是拿资源键去 `Application.Current.Resources` 里查的，没有自己的字典。
+
+用点与取舍见 [`search.md`](search.md) § 结果工具栏与视图切换。

@@ -16,9 +16,12 @@ namespace Bodian.WinUI.ViewModels;
 /// </remarks>
 public sealed class CollectedAlbumsViewModel
 {
-    public CollectedAlbumsViewModel(IBodianApi api, ILogger<CollectedAlbumsViewModel>? logger = null)
+    public CollectedAlbumsViewModel(IBodianApi api, ViewModeService viewMode,
+        ILogger<CollectedAlbumsViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
+        ArgumentNullException.ThrowIfNull(viewMode);
+        ViewMode = viewMode;
 
         Albums = new PagedList<Album>(
             api.GetCollectedAlbumsAsync,
@@ -30,6 +33,11 @@ public sealed class CollectedAlbumsViewModel
     }
 
     public PagedList<Album> Albums { get; }
+
+    /// <summary>
+    /// 行列表还是封面卡片。状态在单例里 —— 与搜索结果那三个页签、收藏的歌单**共用同一个开关**。
+    /// </summary>
+    public ViewModeService ViewMode { get; }
 
     public Task EnsureLoadedAsync(CancellationToken cancellationToken = default) =>
         Albums.EnsureLoadedAsync(cancellationToken);

@@ -3,7 +3,68 @@
     x:Class="Bodian.WinUI.Views.CollectedAlbumsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:Bodian.WinUI.Controls">
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:models="using:Bodian.Core.Models">
+
+    <Page.Resources>
+        <!--
+            ★★ 卡片模板**只能留在页面里，不能挪进共享资源字典**（踩过，理由见 `SearchPage.xaml` 里那段长注释）：
+              `x:Bind` 放进 ResourceDictionary 会报 `WMC1119`；补 `x:Class` 之后编译能过、
+              但运行时绑定全不生效（文字图片为空、`Visibility` 退回默认的 `Visible`）。
+
+            ★ 这一份与 `SearchPage.xaml` 的 `SearchAlbumCardTemplate`、`LibraryCategoryPage.xaml` 的
+              内联专辑卡是**复制关系，改一处要同步另外两处**。尺寸口径：封面 132、卡片宽 132、
+              RowSpacing 6、文字区按 CoverCardLayout 的 TextHeight="60" 预留。
+        -->
+        <DataTemplate x:Key="CollectedAlbumCardTemplate" x:DataType="models:Album">
+            <Grid
+                Width="132"
+                RowSpacing="6"
+                VerticalAlignment="Top">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
+                <Border
+                    Width="132"
+                    Height="132"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource RadiusMd}">
+                    <Grid>
+                        <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+
+                        <Border
+                            Margin="0,0,8,8"
+                            Padding="7,1,7,2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="{ThemeResource MediaOverlayBackgroundBrush}"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Visibility="{x:Bind local:Formats.HasTracks(MusicCount)}">
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource MediaOverlayForegroundBrush}"
+                                Text="{x:Bind local:Formats.AlbumCount(MusicCount)}" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="1" Spacing="2">
+                    <TextBlock
+                        LineHeight="20"
+                        MaxLines="2"
+                        Text="{x:Bind Name}"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        MaxLines="1"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ArtistText}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
 
     <Grid Style="{StaticResource BodianPageRoot}">
         <Grid.RowDefinitions>
@@ -32,24 +93,48 @@
                     TextWrapping="Wrap" />
             </StackPanel>
 
-            <!-- 刷新入口在标题右侧，与歌手页专辑页签同一套排法 -->
-            <Button
+            <!--
+                刷新在左、视图切换在右。两件事性质不同（一个重取数据、一个只管怎么排），
+                但都作用在下面这一屏上，所以并排放在标题右侧。
+
+                ★ 视图切换的图标画的是「点了会变成什么」，与当前态是反的 ——
+                  别照着图标猜现在是列表还是卡片。文案见 Formats.ViewToggleLabel。
+            -->
+            <StackPanel
                 Grid.Column="1"
-                VerticalAlignment="Center"
-                AutomationProperties.Name="重新加载"
-                Command="{x:Bind ViewModel.Albums.ReloadCommand}"
-                Style="{StaticResource BodianIconButton}"
-                ToolTipService.ToolTip="重新加载">
-                <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
-            </Button>
+                Orientation="Horizontal"
+                Spacing="2"
+                VerticalAlignment="Center">
+                <Button
+                    AutomationProperties.Name="重新加载"
+                    Command="{x:Bind ViewModel.Albums.ReloadCommand}"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="重新加载">
+                    <controls:Icon Size="16" Data="{StaticResource IconRefresh}" />
+                </Button>
+
+                <Button
+                    AutomationProperties.Name="{x:Bind local:Formats.ViewToggleLabel(ViewModel.ViewMode.UseGrid), Mode=OneWay}"
+                    Command="{x:Bind ViewModel.ViewMode.ToggleCommand}"
+                    Style="{StaticResource BodianIconButton}"
+                    ToolTipService.ToolTip="{x:Bind local:Formats.ViewToggleLabel(ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+                    <controls:Icon Data="{x:Bind local:Formats.ViewToggleIcon(ViewModel.ViewMode.UseGrid), Mode=OneWay}" Size="16" />
+                </Button>
+            </StackPanel>
         </Grid>
 
+        <!--
+            列表与网格都留在可视树上、只切 Visibility。同一份集合喂给两者，
+            但任一时刻只有一个在布局里 —— 能实现容器的只有它，
+            所以不会一边滚一边被另一边再触发一次翻页（见 Controls/AutoPaging.cs）。
+        -->
         <controls:AlbumListView
             Grid.Row="1"
             AlbumInvoked="OnAlbumInvoked"
             HasMore="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Albums.Items}"
-            LoadMoreCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}">
+            LoadMoreCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.ViewMode.IsList), Mode=OneWay}">
             <controls:AlbumListView.Footer>
                 <controls:PagingEndNote
                     RetryCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}"
@@ -57,6 +142,30 @@
                     ShowRetry="{x:Bind ViewModel.Albums.ShowRetry, Mode=OneWay}" />
             </controls:AlbumListView.Footer>
         </controls:AlbumListView>
+
+        <GridView
+            Grid.Row="1"
+            Style="{StaticResource BodianCoverCardGrid}"
+            controls:CoverCardLayout.CoverSize="132"
+            controls:CoverCardLayout.IsEnabled="True"
+            controls:CoverCardLayout.TextHeight="60"
+            controls:AutoPaging.Command="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+            controls:AutoPaging.HasMore="{x:Bind ViewModel.Albums.HasMore, Mode=OneWay}"
+            ItemClick="OnAlbumClick"
+            ItemTemplate="{StaticResource CollectedAlbumCardTemplate}"
+            ItemsSource="{x:Bind ViewModel.Albums.Items}"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.ViewMode.UseGrid), Mode=OneWay}">
+            <!-- ItemHeight / ItemWidth 必须与上面那三个 CoverCardLayout 值对得上（132+2*4+4 / 132+6+60+2*4+4） -->
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate><ItemsWrapGrid CacheLength="0.5" ItemHeight="210" ItemWidth="144" Orientation="Horizontal" /></ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.Footer>
+                <controls:PagingEndNote
+                    RetryCommand="{x:Bind ViewModel.Albums.LoadMoreCommand}"
+                    ShowEnd="{x:Bind ViewModel.Albums.ShowEnd, Mode=OneWay}"
+                    ShowRetry="{x:Bind ViewModel.Albums.ShowRetry, Mode=OneWay}" />
+            </GridView.Footer>
+        </GridView>
 
         <!-- 刷新入口在标题右侧，这里只剩转圈（与其余页的页脚同形） -->
         <ProgressRing

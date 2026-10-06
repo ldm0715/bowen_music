@@ -34,6 +34,18 @@ public static class AppPaths
     public static string SearchHistoryFile => Path.Combine(LocalAppData, "search-history.json");
 
     /// <summary>
+    /// 显示方式偏好（明文 JSON，目前只有「用封面卡片还是行列表」一项）。
+    /// </summary>
+    /// <remarks>
+    /// <b>全局一份</b>：搜索结果的歌单 / 专辑 / 歌手三个页签与「收藏的专辑」「收藏的歌单」共用它，
+    /// 所以文件名不带 search —— 它管的是「这个人习惯怎么看封面」，不是某一页的设置。
+    /// <b>与 <see cref="SearchHistoryFile"/> 刻意分开</b>：那份是「搜过什么」，这份是「东西怎么排」，
+    /// 一个是内容、一个是界面偏好，合在一起以后想同步偏好就得先摘出去。
+    /// 也与 <see cref="SettingsFile"/> 分开 —— 那是外观（主题）。
+    /// </remarks>
+    public static string ViewModeFile => Path.Combine(LocalAppData, "view-mode.json");
+
+    /// <summary>
     /// 界面设置（明文 JSON，目前只有外观一项）。
     /// </summary>
     /// <remarks>

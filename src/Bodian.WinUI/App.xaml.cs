@@ -214,6 +214,14 @@ public partial class App : Application
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
         builder.Services.AddSingleton<ISearchHistoryStore, JsonSearchHistoryStore>();
+
+        // 行列表 / 封面卡片这一个偏好（view-mode.json）。与关键词历史分开存 ——
+        // 一个是内容、一个是界面偏好。服务本身是单例：搜索结果的三个页签与收藏的两页
+        // 绑的是同一份状态，一处切换处处生效，也不用担心页面各存一份之后不同步。
+        builder.Services.AddSingleton<IViewModeSettingsStore>(sp => new JsonViewModeSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonViewModeSettingsStore>>()));
+        builder.Services.AddSingleton<ViewModeService>();
+
         builder.Services.AddSingleton<SearchViewModel>();
         builder.Services.AddTransient<Func<Artist, ArtistDetailPage>>(sp => artist =>
             new ArtistDetailPage(new ArtistDetailViewModel(
