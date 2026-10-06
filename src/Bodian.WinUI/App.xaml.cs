@@ -222,6 +222,26 @@ public partial class App : Application
             logger: sp.GetRequiredService<ILogger<JsonViewModeSettingsStore>>()));
         builder.Services.AddSingleton<ViewModeService>();
 
+        // 应用内快捷键。键位同步读，加速器要在窗口建起来之前装好。
+        builder.Services.AddSingleton<IShortcutSettingsStore>(sp => new JsonShortcutSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonShortcutSettingsStore>>()));
+        builder.Services.AddSingleton<IShortcutService, ShortcutService>();
+
+        // 封面磁盘缓存。复用 API 那条 HttpMessageHandler —— 同一份连接池；
+        // CDN 请求不需要 bodian 的请求头，所以只借处理器、不借传输层。
+        builder.Services.AddSingleton<ICoverDiskCache>(sp => new CoverDiskCache(
+            sp.GetRequiredService<HttpMessageHandler>(),
+            logger: sp.GetRequiredService<ILogger<CoverDiskCache>>()));
+
+        // 清搜索历史时要把内存里那份也清掉，否则当前会话里建议列表还是满的。见 ISearchHistorySink。
+        builder.Services.AddSingleton<ISearchHistorySink>(sp => sp.GetRequiredService<SearchViewModel>());
+        builder.Services.AddSingleton<IStorageMaintenanceService>(sp => new StorageMaintenanceService(
+            sp.GetRequiredService<IPlayHistoryStore>(),
+            sp.GetRequiredService<ISearchHistorySink>(),
+            sp.GetRequiredService<ICoverDiskCache>(),
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ILogger<StorageMaintenanceService>>()));
+
         builder.Services.AddSingleton<SearchViewModel>();
         builder.Services.AddTransient<Func<Artist, ArtistDetailPage>>(sp => artist =>
             new ArtistDetailPage(new ArtistDetailViewModel(
@@ -257,6 +277,18 @@ public partial class App : Application
         builder.Services.AddTransient<CollectedPlaylistsPage>();
         builder.Services.AddTransient<FollowedArtistsViewModel>();
         builder.Services.AddTransient<FollowedArtistsPage>();
+        builder.Services.AddTransient<ShortcutSettingsViewModel>();
+        builder.Services.AddTransient<StorageSettingsViewModel>();
+
+        // 检查更新。AppUpdateOptions 是**唯一配置点** —— 仓库建好后只改它的三个字段。
+        builder.Services.AddSingleton(AppUpdateOptions.Default);
+        builder.Services.AddSingleton<IAppUpdateService>(sp => new GitHubReleaseUpdateService(
+            sp.GetRequiredService<HttpMessageHandler>(),
+            sp.GetRequiredService<AppUpdateOptions>(),
+            sp.GetRequiredService<ILogger<GitHubReleaseUpdateService>>()));
+        builder.Services.AddTransient<AboutViewModel>();
+        builder.Services.AddTransient<SettingsViewModel>();
+        builder.Services.AddTransient<SettingsPage>();
 
         builder.Services.AddTransient<DiscoverViewModel>();
         builder.Services.AddTransient<DiscoverPage>();
@@ -413,14 +445,19 @@ public partial class App : Application
             _host.Dispose();
         };
 
+        // 封面加载路径接上磁盘层。**必须在建窗口之前** —— 首个页面一加载就会去取封面，
+        // 晚一步接上，那批图就白白走了网络。
+        Media.CoverImageCache.AttachDiskCache(_host.Services.GetRequiredService<ICoverDiskCache>());
+
         window.Activate();
 
         // 解析一次，让 SmtcManager 的订阅生效（它自己是懒初始化的，这里不会建会话）。
         _host.Services.GetRequiredService<SmtcManager>();
 
         // 同上：解析一次，否则这个单例永远不会被实例化，对播放条那颗按钮的订阅也就不存在。
-        // 它自己不会建窗口 —— 窗口是开到桌面歌词时才懒创建的。
-        _host.Services.GetRequiredService<DesktopLyricsWindowHost>();
+        // 构造时不会建窗口；这里补一次初始状态 —— 开关是落盘的，上次退出时开着的话，
+        // 启动得把窗口建出来，否则按钮亮着而桌面上什么都没有。
+        _host.Services.GetRequiredService<DesktopLyricsWindowHost>().ApplyInitialState();
 
         // 同上：小窗宿主也是懒初始化的，不解析一次就永远没人订阅标题栏那颗按钮。
         _host.Services.GetRequiredService<MiniPlayerWindowHost>();

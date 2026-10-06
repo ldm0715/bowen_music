@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Bodian.WinUI.ViewModels;
 
 // 单例：顶部输入框与搜索页共享状态；分页使用已提交的词，避免输入新词时串页。
-public sealed partial class SearchViewModel : ObservableObject
+public sealed partial class SearchViewModel : ObservableObject, ISearchHistorySink
 {
     private readonly IBodianApi _api;
     private readonly PlaybackCoordinator _coordinator;
@@ -291,6 +291,13 @@ public sealed partial class SearchViewModel : ObservableObject
         HistoryIsEmpty = true;
         return _historyStore.SaveAsync([]);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <b>走的是搜索面板那颗清空按钮的同一个命令</b>，不是另写一条落盘路径 ——
+    /// 这样设置页清空之后，当前会话里搜索面板的建议列表会立刻空掉，不必重启。
+    /// </remarks>
+    public void ClearSearchHistory() => ClearSearchHistoryCommand.Execute(null);
 
     private async Task SearchCoreAsync(string keyword)
     {

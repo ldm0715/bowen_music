@@ -19,8 +19,8 @@ internal static class AppIdentity
     /// <summary>进程级 AppUserModelID。</summary>
     public const string AppUserModelId = "Bodian.WinUI";
 
-    /// <summary>显示名。系统媒体面板与开始菜单里显示的就是它（取自快捷方式的名字）。</summary>
-    public const string DisplayName = "Bodian";
+    /// <summary>显示名。系统媒体面板、开始菜单与任务栏里显示的就是它。</summary>
+    public const string DisplayName = "波纹音乐";
 
     /// <summary>
     /// 开始菜单里的快捷方式文件名。
@@ -31,4 +31,13 @@ internal static class AppIdentity
     /// 重名会让「正在播的是哪个波点」无法分辨。
     /// </remarks>
     public const string ShortcutFileName = DisplayName + ".lnk";
+
+    /// <summary>
+    /// 改名前用过的快捷方式文件名。<b>装完新快捷方式要顺手删掉它们。</b>
+    /// </summary>
+    /// <remarks>
+    /// 不删的话开始菜单里会同时留着「Bodian」和「波纹音乐」两条，指向同一个 exe ——
+    /// 用户会以为装了两份。这个清单只增不减：每改一次名往里加一条，别去改历史项。
+    /// </remarks>
+    public static readonly string[] LegacyShortcutFileNames = ["Bodian.lnk"];
 }

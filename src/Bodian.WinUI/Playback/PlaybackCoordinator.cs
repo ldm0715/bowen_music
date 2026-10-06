@@ -443,21 +443,19 @@ public sealed class PlaybackCoordinator : IDisposable
         finally { _loadGate.Release(); }
     }
 
-    /// <summary>重新取当前曲目的指定音源，保留位置、暂停、队列及播放历史。</summary>
+    /// <summary>
+    /// 重新取当前曲目的指定音源，保留位置、暂停、队列及播放历史。
+    /// </summary>
+    /// <remarks>
+    /// <b>只改这一次的档位，不动默认音质。</b> 默认音质（<see cref="PreferredQuality"/>）只由
+    /// 设置页改写 —— 播放条上切一次档位不该影响下一首取源用哪个档位，详见 <c>docs/settings.md</c>。
+    /// </remarks>
     public async Task SwitchQualityAsync(AudioQuality quality, CancellationToken cancellationToken = default)
     {
         if (!Enum.IsDefined(quality)) { throw new ArgumentOutOfRangeException(nameof(quality)); }
-        if (CurrentTrack is not { } track)
-        {
-            SetPreferredQuality(quality);
-            return;
-        }
+        if (CurrentTrack is not { } track) { return; }
         if (CurrentPolicy?.IsAudition != false || !track.AvailableQualities.Contains(quality)) { return; }
-        if (CurrentSource?.RequestedQuality == quality && CurrentSource.WasDowngraded == false)
-        {
-            SetPreferredQuality(quality);
-            return;
-        }
+        if (CurrentSource?.RequestedQuality == quality && CurrentSource.WasDowngraded == false) { return; }
         using var operation = BeginOperation(cancellationToken);
         var ct = operation.Token;
         IsChangingQuality = true;
@@ -499,7 +497,6 @@ public sealed class PlaybackCoordinator : IDisposable
                 var source = playable.Source;
                 CurrentSource = source;
                 CurrentPolicy = PlaybackPolicy.For(resolution);
-                SetPreferredQuality(quality);
                 QualityChanged?.Invoke(this, new PlaybackQualityChangedEventArgs(track, source, position));
             }
             finally { _loadGate.Release(); }
@@ -534,7 +531,15 @@ public sealed class PlaybackCoordinator : IDisposable
         QualityOptionsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void SetPreferredQuality(AudioQuality quality)
+    /// <summary>
+    /// 只改「默认音质」这个偏好，**不动正在播放的那首**。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="SwitchQualityAsync"/> 的分工：那个是「现在就换档位」，会重新解析音源；
+    /// 这个是设置页用的「以后按这个档位取源」，只落盘。
+    /// 切歌路径（<see cref="SwitchQualityAsync"/> 内部）复用的也是本方法。
+    /// </remarks>
+    public void SetPreferredQuality(AudioQuality quality)
     {
         PreferredQuality = quality;
         _qualitySettings?.Save(quality);

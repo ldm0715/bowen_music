@@ -7,7 +7,7 @@
     xmlns:local="using:Bodian.WinUI"
     xmlns:models="using:Bodian.Core.Models"
     xmlns:tb="using:H.NotifyIcon"
-    Title="波点音乐">
+    >
 
     <!--
         外壳 = 自定义标题栏（第 0 行）+ 侧栏 / 内容区（第 1 行）+ 通栏播放条（第 2 行）。
@@ -37,7 +37,10 @@
           运行期改会抛异常。所以运行期切换只能走元素级。
     -->
     <controls:ResponsiveViewport x:Name="WindowViewport">
-    <Grid x:Name="ShellRoot" RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
+    <Grid
+        x:Name="ShellRoot"
+        RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}"
+        KeyboardAcceleratorPlacementMode="Hidden">
         <Grid.Resources>
             <!--
                 ★ 菜单的固定宽度（逻辑像素）。
@@ -241,7 +244,7 @@
             Height="{StaticResource SizeTopBar}"
             Background="Transparent"
             Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-            AutomationProperties.Name="波点音乐标题栏">
+            AutomationProperties.Name="{x:Bind local:Formats.AppTitleBarName}">
             <TitleBar.Resources>
                 <x:Double x:Key="TitleBarCompactHeight">48</x:Double>
                 <x:Double x:Key="TitleBarExpandedHeight">48</x:Double>
@@ -249,15 +252,57 @@
                 <x:Double x:Key="TitleBarLeftHeaderPaddingWidth">0</x:Double>
                 <Thickness x:Key="TitleBarCompactContentMargin">0</Thickness>
                 <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
+                <!--
+                    按钮组与系统窗口三按钮之间的最小拖动区。模板默认 48 DIP，那道空档看起来像
+                    按钮被推远了 —— 这里压到 8。整条标题栏仍然是拖动区（SetTitleBar 已接管），
+                    8 足够留出「按钮与窗口按钮之间不误触」的余量。
+                -->
+                <x:Double x:Key="TitleBarMinDragRegionWidth">8</x:Double>
             </TitleBar.Resources>
             <TitleBar.LeftHeader>
-                <!-- 暂无图案：保留 Logo 插槽，后续可在此挂载设计好的资源。 -->
+                <!--
+                    应用 Logo：图标 + 名字。左内边距 24 与 SpacePagePadding 的左值对齐，
+                    于是页内内容、搜索框与 Logo 共用同一条左基准线。
+                    ★ 收起侧栏时只留图标、内边距收到 12（48 宽的轨道刚好 12+24+12 居中），
+                      由 UpdateSidebarPaneMode 切。
+
+                    ★ 图标走 {ThemeResource AppIconSource}：深浅两版放在 Theme.xaml 的
+                      主题字典里，主题一换自动重解析，不需要在代码里监听 ActualThemeChanged。
+                -->
                 <Border
                     x:Name="LogoHost"
                     Width="{StaticResource SizeSidebarWidth}"
                     Height="32"
                     Padding="24,0"
-                    IsHitTestVisible="False" />
+                    IsHitTestVisible="False">
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Spacing="10"
+                        VerticalAlignment="Center">
+                        <Image
+                            Width="24"
+                            Height="24"
+                            Source="{ThemeResource AppIconSource}" />
+                        <!--
+                            ★ RenderTransform 上移 2 像素是为了让文字与图标看起来在同一水平线上。
+                              TextBlock 的行盒按拉丁字母的上下伸部分配空间，而汉字的重心在 em 框里
+                              偏下 —— 两者都 VerticalAlignment=Center 时，汉字看上去会低一两个像素。
+                              用 RenderTransform 而不是负 Margin：前者是纯视觉位移、正好 -2，
+                              后者会被居中布局吃掉一半，调不到准数。
+                        -->
+                        <TextBlock
+                            x:Name="LogoLabel"
+                            VerticalAlignment="Center"
+                            FontSize="{StaticResource FontSizeBodyLarge}"
+                            FontWeight="SemiBold"
+                            Text="{x:Bind local:Formats.AppName}"
+                            TextTrimming="CharacterEllipsis">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform Y="-2" />
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
             </TitleBar.LeftHeader>
             <TitleBar.Content>
                 <!-- 搜索宽度随可用空间收缩，并限制最大宽度以保留标题栏留白。 -->
@@ -317,7 +362,7 @@
                 </Grid>
             </TitleBar.Content>
             <TitleBar.RightHeader>
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel x:Name="TitleBarRightHeader" Orientation="Horizontal" Spacing="8">
                     <Button
                         x:Name="AccountButton"
                         Visibility="Collapsed"
@@ -597,6 +642,23 @@
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                         <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconMiniPlayer}" />
+                    </Button>
+
+                    <!-- 设置。与左边的按钮同一套尺寸与底色，打开设置页（根页，不进返回栈）。 -->
+                    <Button
+                        x:Name="SettingsButton"
+                        Width="{StaticResource SizeRoundButton}"
+                        Height="{StaticResource SizeRoundButton}"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="设置"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnSettingsClick"
+                        ToolTipService.ToolTip="设置">
+                        <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconSettings}" />
                     </Button>
                     <Border
                         Width="1"
@@ -1199,25 +1261,22 @@
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
             IsHitTestVisible="False"
-            ToolTipText="波点音乐"
+            ToolTipText="{x:Bind local:Formats.AppName}"
             NoLeftClickDelay="True"
             LeftClickCommand="{x:Bind ShowMainWindowCommand}"
             ContextMenuMode="SecondWindow">
 
             <!--
-                ★ 占位图标。用户还没定正式 .ico，先用库自带的动态图标生成画一个 CJK 字符
-                  （CJK 字形在 Win10 上必然存在；Emoji 要另挂字体，16×16 缩下去会糊）。
-                ★ 正式图标到位后**只改这一个元素**：换成 IconSource="/Assets/Tray.ico"，
-                  再给 csproj 加一条 Content + 复制到输出即可，别处都不用动。
+                ★ 托盘图标**不写在这里，在 code-behind 里赋 Tray.Icon**，见 ConfigureTitleBar。
+
+                  踩过的坑：先试的是 IconSource（类型是 ImageSource，库内部渲染成 PNG 再由
+                  PngToIcoConverter 转成 ICO）。那条路对 GeneratedIconSource 这种矢量源有效，
+                  对 BitmapImage 不行 —— 它是异步解码的，库在属性变更那一刻就去渲染，
+                  图还没加载出来，转出来是一张**全透明**的 ICO，表现成「托盘上什么都没有」。
+                  Tray.Icon 收 System.Drawing.Icon，直接读 .ico 文件，没有中间转换。
+
+                  托盘图标由 shell 绘制、不跟随应用主题，所以固定用深色版。
             -->
-            <tb:TaskbarIcon.IconSource>
-                <tb:GeneratedIconSource
-                    Text="波"
-                    FontFamily="Microsoft YaHei UI"
-                    FontSize="30"
-                    Size="32"
-                    Foreground="#00F3B0" />
-            </tb:TaskbarIcon.IconSource>
 
             <!--
                 SecondWindow 使用库的透明窗口显示 WinUI 菜单，保留托盘项的 Body 模板。

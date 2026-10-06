@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -25,7 +26,17 @@ namespace Bodian.WinUI.Controls;
 /// </remarks>
 public sealed partial class VolumeButton : UserControl
 {
+    /// <summary>鼠标移开之后多久收起滑条。</summary>
+    private static readonly TimeSpan PointerLeaveDelay = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>
+    /// 音量在别处被改了（快捷键）时，弹层多留一会儿的时长。
+    /// 用鼠标移开那 250 毫秒的话，一按键弹层就闪一下没了，用户根本来不及看调到多少。
+    /// </summary>
+    private static readonly TimeSpan ExternalChangeHold = TimeSpan.FromMilliseconds(1600);
+
     private readonly DispatcherQueueTimer _closeTimer;
+    private IVolumeSource? _subscribed;
     private bool _pointerOver;
     private bool _dragging;
 
@@ -34,7 +45,7 @@ public sealed partial class VolumeButton : UserControl
         InitializeComponent();
 
         _closeTimer = DispatcherQueue.CreateTimer();
-        _closeTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _closeTimer.Interval = PointerLeaveDelay;
         _closeTimer.IsRepeating = false;
         _closeTimer.Tick += (_, _) =>
         {
@@ -56,6 +67,7 @@ public sealed partial class VolumeButton : UserControl
         VolumeSlider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
         VolumeSlider.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
 
+        Loaded += (_, _) => AttachVolumeSource();
         Unloaded += OnUnloaded;
     }
 
@@ -88,7 +100,62 @@ public sealed partial class VolumeButton : UserControl
     {
         _pointerOver = false;
         _dragging = false;
+        DetachVolumeSource();
         ClosePopup();
+    }
+
+    /// <remarks>
+    /// 订阅音源是为了「音量在别处被改了就把滑条露出来」——快捷键调音量时，
+    /// 不露出来的话用户只能盲调，不知道调到了多少。先摘再挂，重复调用是安全的。
+    /// </remarks>
+    private void AttachVolumeSource()
+    {
+        DetachVolumeSource();
+
+        if (ViewModel is not { } source)
+        {
+            return;
+        }
+
+        source.PropertyChanged += OnVolumeSourceChanged;
+        _subscribed = source;
+    }
+
+    private void DetachVolumeSource()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.PropertyChanged -= OnVolumeSourceChanged;
+        }
+
+        _subscribed = null;
+    }
+
+    private void OnVolumeSourceChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(IVolumeSource.Volume))
+        {
+            ShowVolumeForExternalChange();
+        }
+    }
+
+    /// <summary>
+    /// 音量刚在别处被改过：把弹层露出来，并在 <see cref="ExternalChangeHold"/> 之后收起。
+    /// </summary>
+    /// <remarks>
+    /// <b>已经开着就什么都不做。</b> 用户正在拖滑条时音量也在变，那种情况下重新定位弹层
+    /// 会让它跟着手指跳。不可见或还没挂进可视树时也不做 —— 播放条在沉浸态是藏起来的，
+    /// 那时该由歌词页那份实例去露。
+    /// </remarks>
+    private void ShowVolumeForExternalChange()
+    {
+        if (IsPopupOpen || Visibility != Visibility.Visible || XamlRoot is null)
+        {
+            return;
+        }
+
+        ShowVolumePopup();
+        ScheduleVolumeClose(ExternalChangeHold);
     }
 
     private void OnVolumePointerEntered(object sender, PointerRoutedEventArgs e)
@@ -160,10 +227,15 @@ public sealed partial class VolumeButton : UserControl
         ScheduleVolumeClose();
     }
 
-    private void ScheduleVolumeClose()
+    private void ScheduleVolumeClose() => ScheduleVolumeClose(PointerLeaveDelay);
+
+    private void ScheduleVolumeClose(TimeSpan delay)
     {
         if (!_pointerOver && !_dragging)
         {
+            // 每次重新设并重启：连着按快捷键时，计时从最后一次按键算起。
+            _closeTimer.Interval = delay;
+            _closeTimer.Stop();
             _closeTimer.Start();
         }
     }

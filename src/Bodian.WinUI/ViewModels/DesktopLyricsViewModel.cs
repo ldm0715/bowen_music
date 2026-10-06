@@ -41,6 +41,8 @@ public sealed partial class DesktopLyricsViewModel : ObservableObject
 
         var settings = store.Load().Normalized();
 
+        // 开关也要恢复：上次退出时开着，这次启动就自动出现。
+        IsEnabled = settings.IsEnabled;
         FontSize = settings.FontSize;
         TextColor = ToColor(settings.TextColorArgb);
         DualLine = settings.DualLine;
@@ -128,7 +130,14 @@ public sealed partial class DesktopLyricsViewModel : ObservableObject
         Locked = settings.Locked;
     }
 
-    partial void OnIsEnabledChanged(bool value) => _lyrics.IsDesktopLyricsOpen = value;
+    /// <remarks>
+    /// 除了通知歌词页「桌面歌词开着」，还要落盘 —— 开关是「当前状态」，重启后要还原来那一份。
+    /// </remarks>
+    partial void OnIsEnabledChanged(bool value)
+    {
+        _lyrics.IsDesktopLyricsOpen = value;
+        Persist();
+    }
 
     partial void OnDualLineChanged(bool value) => Persist();
 
@@ -147,6 +156,7 @@ public sealed partial class DesktopLyricsViewModel : ObservableObject
 
         _store.Save(new DesktopLyricsSettings
         {
+            IsEnabled = IsEnabled,
             FontSize = FontSize,
             TextColorArgb = ToArgb(TextColor),
             DualLine = DualLine,

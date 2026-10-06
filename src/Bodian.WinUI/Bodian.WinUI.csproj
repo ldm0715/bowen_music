@@ -9,6 +9,8 @@
     <RootNamespace>Bodian.WinUI</RootNamespace>
     <AssemblyName>Bodian.WinUI</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- exe 自身的图标：资源管理器、开始菜单快捷方式、Alt-Tab 都读它 -->
+    <ApplicationIcon>Assets\Ripple.ico</ApplicationIcon>
 
     <!--
       ★ RuntimeIdentifier 是单数且不可省：开自包含后不带 RID 构建会直接失败
@@ -58,6 +60,18 @@
           Condition="Exists('$(LibMpvDir)libmpv-2.dll')"
           Link="libmpv-2.dll"
           CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      应用图标。**必须复制到输出目录**：任务栏图标、托盘图标与侧栏 Logo 都从输出目录读，
+      而 unpackaged 应用没有包身份，文件不在输出目录就是「图标不显示」。
+      四角已经处理成透明，见 docs/settings.md。
+    -->
+    <Content Include="Assets\Ripple.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\RippleLight.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Ripple.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\RippleLight.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

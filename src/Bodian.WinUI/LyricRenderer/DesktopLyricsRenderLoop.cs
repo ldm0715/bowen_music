@@ -25,7 +25,7 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
     private readonly CancellationTokenSource _stop = new();
     private readonly AutoResetEvent _resume = new(false);
     private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
-    private DesktopLyricsRenderInput _input = new(LyricDocument.Empty, "波点音乐", 0, 0, 1,
+    private DesktopLyricsRenderInput _input = new(LyricDocument.Empty, AppIdentity.DisplayName, 0, 0, 1,
         DesktopLyricsSettings.DefaultFontSize, Color.FromArgb(255, 0, 229, 191), false, DesktopLyricsAlignment.Center, false);
     private DesktopLyricsRenderInput? _applied;
     private DesktopLyricsLineRenderer? _current, _next;

@@ -11,12 +11,14 @@ using Bodian.WinUI.ViewModels;
 using Bodian.WinUI.Views;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI;
+using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 using Windows.Graphics;
 using Windows.UI;
 
@@ -135,6 +137,12 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </remarks>
     private NativeMethods.SubclassProc? _sessionWatchProc;
 
+    /// <summary>应用内快捷键的持有者。加速器按它的键位表装，见 <see cref="ConfigureShortcuts"/>。</summary>
+    private readonly IShortcutService _shortcuts;
+
+    /// <summary>托盘图标的句柄。留着是为了退出时释放 —— 它握着 .ico 的文件句柄。</summary>
+    private System.Drawing.Icon? _trayIcon;
+
     public MainWindow(
         INavigationService navigation,
         IBodianLogin login,
@@ -147,6 +155,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         SidebarViewModel sidebar,
         SearchViewModel search,
         ThemeViewModel theme,
+        IShortcutService shortcuts,
         IWindowPlacementStore placement,
         Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory,
         Func<Track, MvPage> mvFactory,
@@ -168,11 +177,13 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ArgumentNullException.ThrowIfNull(playlistDetailFactory);
         ArgumentNullException.ThrowIfNull(trackActions);
         ArgumentNullException.ThrowIfNull(notifications);
+        ArgumentNullException.ThrowIfNull(shortcuts);
 
         _navigation = navigation;
         _login = login;
         _sidebar = sidebar;
         _placement = placement;
+        _shortcuts = shortcuts;
         _playlistDetailFactory = playlistDetailFactory;
 
         Player = playerViewModel;
@@ -193,6 +204,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         {
             if (SearchPanel.Visibility == Visibility.Visible) PositionSearchPanel();
             QueuePane.Width = Math.Max(0, Math.Min(QueuePaneWidth, ShellRoot.ActualWidth - 32));
+
+            // 换到别的缩放档的显示器时窗口尺寸会变，这里顺带重量一次右侧留白。
+            UpdateTitleBarRightInsetCompensation();
         };
         Activated += (_, args) =>
         {
@@ -220,6 +234,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         ApplyWindowPlacement();
         ConfigureTitleBar();
+        ConfigureShortcuts();
         _renderActivity = new WindowRenderActivity(WinRT.Interop.WindowNative.GetWindowHandle(this), DispatcherQueue,
             Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory);
         _renderActivity.Changed += (_, _) => RenderingStateChanged?.Invoke(this, EventArgs.Empty);
@@ -239,6 +254,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             _renderActivity.Dispose();
             UnwatchSessionEnd();
             DisposeTray();
+
+            // 托盘图标握着 .ico 的文件句柄，要显式放掉。
+            _trayIcon?.Dispose();
+            _trayIcon = null;
+
             SaveWindowPlacement();
         };
 
@@ -319,12 +339,165 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppTitleBar.AutoRefreshDragRegions = false;
         SetTitleBar(AppTitleBar);
 
-        ShellRoot.ActualThemeChanged += (_, _) => UpdateCaptionButtonColors();
+        // 任务栏与 Alt-Tab 上显示的名字。标题栏本身是自绘的，看不到它，但系统那几处会读。
+        Title = AppIdentity.DisplayName;
+
+        // 窗口 / 任务栏图标。exe 自己那份由 csproj 的 ApplicationIcon 给，但 unpackaged
+        // 应用没有包身份，运行时再显式设一次最稳（缺文件就跳过，不至于启动不了）。
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Ripple.ico");
+        if (File.Exists(iconPath))
+        {
+            AppWindow.SetIcon(iconPath);
+
+            // 托盘图标走 Icon 而不是 IconSource：后者要先渲染 ImageSource 再转 ICO，
+            // 而 BitmapImage 是异步解码的，那一刻还没加载出来，转出来是一张全透明的图。
+            // Icon 直接读 .ico 文件，没有中间环节。见 MainWindow.xaml 里那段注释。
+            ApplyTrayIcon();
+        }
+
+        ShellRoot.ActualThemeChanged += (_, _) =>
+        {
+            UpdateCaptionButtonColors();
+            ApplyTrayIcon();
+        };
         AppTitleBar.RegisterPropertyChangedCallback(Control.ForegroundProperty, (_, _) => UpdateCaptionButtonColors());
         UpdateCaptionButtonColors();
+
+        // 右侧那截多留的空白要按实际 DPI 量，见方法上的说明。
+        UpdateTitleBarRightInsetCompensation();
     }
 
     /// <summary>原生窗口按钮共用透明背景，并随实际主题更新前景色。</summary>
+    /// <summary>
+    /// 把标题栏右侧那截多留的空白抵消掉，让按钮组贴近窗口三按钮。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// WinUI 的 <c>TitleBar</c> 模板最后一列（右侧留白）由控件代码直接从
+    /// <c>AppWindow.TitleBar.RightInset</c> 赋值，而那个值在部分 DPI 下返回的是**物理像素**、
+    /// 却被当成 DIP 用了，于是 100% 之外每个缩放档都会多留一截
+    /// （microsoft-ui-xaml#10344）。125% 下就是标题栏中间那块看着不舒服的空白。
+    /// </para>
+    /// <para>
+    /// <b>目标是量出来的，不是算出来的。</b> 用
+    /// <see cref="InputNonClientPointerSource.GetRegionRects"/> 取系统窗口三按钮的**真实矩形**，
+    /// 把按钮组的右边缘对到「离它们 <see cref="TitleBarRightGap"/> 的位置」。
+    /// 早先试过用 <c>GetSystemMetrics(SM_CXSIZE)</c> 三倍去估 caption 宽度，估小了，
+    /// 结果把按钮连同末尾那条竖线一起推到窗口按钮底下 —— 所以换成直接量。
+    /// </para>
+    /// <para>
+    /// 算的是「相对自然位置要挪多少」，每次重算都幂等：先把当前外边距加回去得到
+    /// 未施加补偿时的位置，再算目标位置与它的差。<b>需要往回推时一律夹到 0</b>，
+    /// 宁可留宽也不要把按钮压到窗口按钮上。
+    /// </para>
+    /// </remarks>
+    private void UpdateTitleBarRightInsetCompensation()
+    {
+        if (ShellRoot.XamlRoot is not { } xamlRoot
+            || ShellRoot.ActualWidth <= 0
+            || TitleBarRightHeader.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        if (CaptionButtonsLeftEdge(AppWindow.Id) is not { } captionLeftPixels)
+        {
+            return;
+        }
+
+        var scale = xamlRoot.RasterizationScale;
+        if (scale <= 0)
+        {
+            return;
+        }
+
+        // 目标：右边缘落在窗口按钮左边 TitleBarRightGap 处。区域矩形是物理像素。
+        var targetEdge = captionLeftPixels / scale - TitleBarRightGap;
+
+        var current = TitleBarRightHeader.Margin.Right;
+        var edge = TitleBarRightHeader
+            .TransformToVisual(ShellRoot)
+            .TransformPoint(new Point(TitleBarRightHeader.ActualWidth, 0)).X;
+
+        // 把当前外边距加回去 = 没施加补偿时它会落在哪里。
+        var naturalEdge = edge + current;
+
+        var margin = Math.Min(0, naturalEdge - targetEdge);
+        TitleBarRightHeader.Margin = new Thickness(0, 0, margin, 0);
+    }
+
+    /// <summary>按钮组与系统窗口三按钮之间保留的间距。</summary>
+    private const double TitleBarRightGap = 8;
+
+    /// <summary>
+    /// 系统窗口三按钮最左边那个的左边缘（物理像素，相对窗口）。
+    /// </summary>
+    /// <remarks>
+    /// 拿不到时返回 <c>null</c>：窗口还没建好、或者系统还没把区域报上来。
+    /// 这时候保持现状比乱挪安全。
+    /// </remarks>
+    private static double? CaptionButtonsLeftEdge(Microsoft.UI.WindowId windowId)
+    {
+        try
+        {
+            var source = InputNonClientPointerSource.GetForWindowId(windowId);
+            double left = double.MaxValue;
+
+            foreach (var kind in CaptionButtonKinds)
+            {
+                foreach (var rect in source.GetRegionRects(kind))
+                {
+                    left = Math.Min(left, rect.X);
+                }
+            }
+
+            return left == double.MaxValue ? null : left;
+        }
+        catch (Exception)
+        {
+            // 这个 API 在窗口还没进 compositor 时会抛，直接当作「暂时拿不到」。
+            return null;
+        }
+    }
+
+    private static readonly NonClientRegionKind[] CaptionButtonKinds =
+    [
+        NonClientRegionKind.Minimize,
+        NonClientRegionKind.Maximize,
+        NonClientRegionKind.Close,
+    ];
+
+    /// <summary>
+    /// 托盘图标跟随实际主题在深浅两版之间切。
+    /// </summary>
+    /// <remarks>
+    /// 托盘图标由 shell 绘制，**不会自动跟应用主题走**，只能自己换。
+    /// 顺序是「先挂新的、再放旧的」——反过来的话中间有一瞬间托盘是空的、图标会闪一下。
+    /// </remarks>
+    private void ApplyTrayIcon()
+    {
+        var name = ShellRoot.ActualTheme == ElementTheme.Dark ? "Ripple.ico" : "RippleLight.ico";
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", name);
+
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            var next = new System.Drawing.Icon(path);
+            Tray.Icon = next;
+            _trayIcon?.Dispose();
+            _trayIcon = next;
+        }
+        catch (Exception exception)
+        {
+            // 图标读不出来不该影响启动：托盘顶着一个默认图标，其余功能照常。
+            Debug.WriteLine($"托盘图标加载失败：{exception.Message}");
+        }
+    }
+
     private void UpdateCaptionButtonColors()
     {
         var titleBar = AppWindow.TitleBar;
@@ -350,6 +523,102 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         titleBar.ButtonPressedForegroundColor = foreground;
     }
 
+    /// <summary>
+    /// 装应用内快捷键。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 加速器挂在 <see cref="ShellRoot"/> 上：挂在这里等于「整窗口生效」，而 shell 根是
+    /// 全树唯一的稳定祖先。（<c>KeyboardAccelerator</c> 挂在 <c>Window</c> 上不被支持。）
+    /// </para>
+    /// <para>
+    /// XAML 那边的 <c>KeyboardAcceleratorPlacementMode="Hidden"</c> 是必须的：不设的话，
+    /// WinUI 会把加速器的提示塞进子树里所有自带提示的控件，出现「悬停播放条却显示空格」——
+    /// 与歌词页那三颗加速器同一条理由。
+    /// </para>
+    /// <para>
+    /// <b>Esc 不走这里。</b> 它不在 <see cref="ShortcutKey"/> 枚举里，仍由
+    /// <see cref="OnShellKeyDown"/> 那条优先级链独占（歌单浮层 → 队列抽屉 → 搜索面板）。
+    /// </para>
+    /// </remarks>
+    private void ConfigureShortcuts()
+    {
+        RebuildShortcutAccelerators();
+        _shortcuts.Changed += (_, _) => RebuildShortcutAccelerators();
+    }
+
+    private void RebuildShortcutAccelerators()
+    {
+        ShellRoot.KeyboardAccelerators.Clear();
+
+        foreach (var binding in _shortcuts.Bindings)
+        {
+            var accelerator = new KeyboardAccelerator
+            {
+                // 枚举值就是 Win32 虚拟键码，与 VirtualKey 同一套，见 ShortcutKey 的说明。
+                Key = (Windows.System.VirtualKey)(int)binding.Key,
+                Modifiers = ToVirtualKeyModifiers(binding.Modifiers),
+            };
+
+            accelerator.Invoked += OnShortcutInvoked;
+            ShellRoot.KeyboardAccelerators.Add(accelerator);
+        }
+    }
+
+    private void OnShortcutInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // ① 输入类控件聚焦时一律不接管。
+        //    ★ 不只是「别用空格切歌」—— 更要紧的是 Ctrl+←/→ 在文本框里是「按词移动光标」，
+        //      接管了就把搜索框的正常编辑破坏了。
+        if (IsTextInputFocused())
+        {
+            args.Handled = false;
+            return;
+        }
+
+        // ② 沉浸态（歌词页 / MV 页）下的**裸键**交给页面自己 —— 那两页各有自己的空格与 F11。
+        //    带修饰键的手势它们没占用，照常生效。显式判而不是赌框架的派发顺序。
+        if (_immersiveVisible && sender.Modifiers == Windows.System.VirtualKeyModifiers.None)
+        {
+            args.Handled = false;
+            return;
+        }
+
+        if (_shortcuts.Match((ShortcutKey)(int)sender.Key, ToShortcutModifiers(sender.Modifiers)) is { } action)
+        {
+            _shortcuts.Invoke(action);
+            args.Handled = true;
+        }
+    }
+
+    /// <remarks>
+    /// 覆盖 <c>AutoSuggestBox</c> 是必须的：标题栏那颗搜索框就是它，
+    /// 漏了会出现「在搜索框里打空格会切歌」这种一眼就能看见的事故。
+    /// </remarks>
+    private bool IsTextInputFocused() =>
+        FocusManager.GetFocusedElement(ShellRoot.XamlRoot)
+            is TextBox or RichEditBox or PasswordBox or AutoSuggestBox or NumberBox;
+
+    private static Windows.System.VirtualKeyModifiers ToVirtualKeyModifiers(ShortcutModifiers modifiers)
+    {
+        var result = Windows.System.VirtualKeyModifiers.None;
+        if (modifiers.HasFlag(ShortcutModifiers.Control)) result |= Windows.System.VirtualKeyModifiers.Control;
+
+        // Win32 的 Alt 在 WinRT 侧叫 Menu，两边名字不同但指的是同一个键。
+        if (modifiers.HasFlag(ShortcutModifiers.Alt)) result |= Windows.System.VirtualKeyModifiers.Menu;
+        if (modifiers.HasFlag(ShortcutModifiers.Shift)) result |= Windows.System.VirtualKeyModifiers.Shift;
+        return result;
+    }
+
+    private static ShortcutModifiers ToShortcutModifiers(Windows.System.VirtualKeyModifiers modifiers)
+    {
+        var result = ShortcutModifiers.None;
+        if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control)) result |= ShortcutModifiers.Control;
+        if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu)) result |= ShortcutModifiers.Alt;
+        if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift)) result |= ShortcutModifiers.Shift;
+        return result;
+    }
+
     private void OnThemeFlyoutOpening(object sender, object args) => SyncThemeSelection();
 
     /// <summary>
@@ -371,6 +640,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private void OnMiniPlayerClick(object sender, RoutedEventArgs e)
         => MiniPlayer.ToggleCommand.Execute(null);
+
+    /// <summary>
+    /// 标题栏那颗齿轮。<b>压栈</b>而不是换根：从「发现」进去，返回就该回到「发现」。
+    /// </summary>
+    /// <remarks>
+    /// 压栈还有个附带效果：侧栏高亮留在原来那一项（<c>Root</c> 没变），
+    /// 与详情页的语义一致 —— 设置是从当前地方临时打开的一层，不是侧栏上的一个位置。
+    /// </remarks>
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+        => _navigation.Navigate<SettingsPage>();
 
     private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -1168,6 +1447,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         // 这是行 0 的独立一列，不会自己跟着行 1 的侧栏动，只能手动同步。
         LogoHost.Width = compact ? Nav.CompactPaneLength : Nav.OpenPaneLength;
 
+        // 收起时只留图标。内边距同时收到 12：48 宽的轨道刚好 12 + 24(图标) + 12 居中，
+        // 留 24 的话图标会被顶到轨道右缘，与下面那排图标对不齐。
+        LogoLabel.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        LogoHost.Padding = compact ? new Thickness(12, 0, 12, 0) : new Thickness(24, 0, 0, 0);
+
         // 拖拽区按子元素边界算，而 AutoRefreshDragRegions 是关掉的，宽度变了要重算一次。
         // 排到队列尾：本方法由 IsPaneOpen 的属性回调触发，此刻模板还在切视觉状态。
         DispatcherQueue.TryEnqueue(() =>
@@ -1651,6 +1935,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         SetTitleBar(AppTitleBar);
         UpdateCaptionButtonColors();
+        UpdateTitleBarRightInsetCompensation();
     }
 
     /// <summary>

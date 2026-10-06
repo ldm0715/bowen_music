@@ -76,8 +76,37 @@ public sealed partial class LyricsViewModel : ObservableObject
         _engine.PositionChanged += OnPositionChanged;
 
         // 同步读，和主题一样：歌词页要在第一帧就按选择排好，异步读会先闪一下译文。
-        ShowTranslation = settings.Load().Normalized().ShowTranslation;
+        // 读到的是**默认值**，当前这一次从它起步，之后两者各走各的（见 SetDefaultShowTranslation）。
+        DefaultShowTranslation = settings.Load().Normalized().ShowTranslation;
+        ShowTranslation = DefaultShowTranslation;
         _loading = false;
+    }
+
+    /// <summary>
+    /// 默认是否显示译文。<b>只由设置页改写</b>，歌词页那颗按钮动不了它。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="ShowTranslation"/> 是两个东西：这个决定「以后每次打开歌词页默认怎么显示」，
+    /// 那个是「当前这一次显示不显示」。歌词页上临时关掉译文，不该把默认值也改掉。
+    /// </remarks>
+    public bool DefaultShowTranslation { get; private set; }
+
+    /// <summary>
+    /// 设置页改默认值：落盘，并让当前这一次也立刻跟上（不必重启）。
+    /// </summary>
+    public void SetDefaultShowTranslation(bool value)
+    {
+        if (DefaultShowTranslation == value)
+        {
+            return;
+        }
+
+        DefaultShowTranslation = value;
+        OnPropertyChanged(nameof(DefaultShowTranslation));
+        _settings.Save(new LyricsSettings { ShowTranslation = value });
+
+        // 同步应用到当前这次，否则用户改完默认值还要手动去歌词页再按一下才看到效果。
+        ShowTranslation = value;
     }
 
     /// <summary>
@@ -212,6 +241,10 @@ public sealed partial class LyricsViewModel : ObservableObject
             ? _engine.SeekAsync(Document.Lines[lineIndex].Start)
             : Task.CompletedTask;
 
+    /// <remarks>
+    /// <b>不落盘。</b> 歌词页那颗译文按钮改的是「当前这一次」，默认值只由设置页改写 ——
+    /// 在歌词页临时关掉译文，下次打开仍按默认值来。
+    /// </remarks>
     partial void OnShowTranslationChanged(bool value)
     {
         if (_loading)
@@ -219,11 +252,23 @@ public sealed partial class LyricsViewModel : ObservableObject
             return;
         }
 
-        _settings.Save(new LyricsSettings { ShowTranslation = value });
         SyncDocument();
     }
 
-    partial void OnIsOpenChanged(bool value) => OnActivationChanged();
+    /// <remarks>
+    /// <b>每次打开歌词页都从默认值起步。</b> 「默认」的语义就是「打开时用哪个」——
+    /// 只在构造函数里读一次的话，应用启动那一刻的值会一直粘到进程结束，
+    /// 中途在设置页改了默认值，已经打开过的这次也不会重新按默认值来。
+    /// </remarks>
+    partial void OnIsOpenChanged(bool value)
+    {
+        if (value)
+        {
+            ShowTranslation = DefaultShowTranslation;
+        }
+
+        OnActivationChanged();
+    }
 
     partial void OnIsDesktopLyricsOpenChanged(bool value) => OnActivationChanged();
 

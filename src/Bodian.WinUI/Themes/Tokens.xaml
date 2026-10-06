@@ -33,6 +33,15 @@
     -->
     <x:Double x:Key="SizePlaylistPaneWidth">380</x:Double>
 
+    <!--
+        设置页左侧分类栏。窗口窄到阈值以下时整条收成图标轨，只留图标与 ToolTip。
+        阈值按页面自身宽度算：默认窗口 1200 扣掉侧栏 200 与页边距 48 约 952，最小窗口 800 约 552
+        —— 也就是最小窗口下必然是图标轨，这是预期不是退化。阈值 720 = 栏 200 + 间隔 24 + 内容下限 496。
+    -->
+    <x:Double x:Key="SizeSettingsRailWidth">200</x:Double>
+    <x:Double x:Key="SizeSettingsRailCompactWidth">40</x:Double>
+    <x:Double x:Key="SizeSettingsRailCompactThreshold">720</x:Double>
+
     <!-- 列表行 -->
     <x:Double x:Key="SizeRowHeight">64</x:Double>
     <!--

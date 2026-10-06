@@ -55,6 +55,27 @@ public static class AppPaths
     public static string SettingsFile => Path.Combine(LocalAppData, "settings.json");
 
     /// <summary>
+    /// 可再生的数据目录（缓存）。**删掉不影响正确性**，只会让下次慢一点。
+    /// </summary>
+    /// <remarks>
+    /// 单独一层，以后加音频缓存之类不必再改这里。日志目录不放在它下面 ——
+    /// 日志是排查用的，不该被「清除缓存」一起清掉。
+    /// </remarks>
+    public static string CacheDirectory => Path.Combine(LocalAppData, "cache");
+
+    /// <summary>封面图片的磁盘缓存。见 <c>docs/settings.md</c> 的封面缓存一节。</summary>
+    public static string CoverCacheDirectory => Path.Combine(CacheDirectory, "covers");
+
+    /// <summary>
+    /// 应用内快捷键的键位绑定（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与界面偏好分开存</b>：键位是「这个人怎么用键盘」，改起来频率低、
+    /// 而且坏了会让整套快捷键失灵，单独一份便于出问题时直接删掉回到默认。
+    /// </remarks>
+    public static string ShortcutFile => Path.Combine(LocalAppData, "shortcuts.json");
+
+    /// <summary>
     /// 播放偏好（明文 JSON，目前只有播放模式一项）。
     /// </summary>
     /// <remarks>

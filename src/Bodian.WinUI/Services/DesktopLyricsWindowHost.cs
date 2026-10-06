@@ -53,6 +53,27 @@ public sealed class DesktopLyricsWindowHost : IDisposable
     /// <summary>当前窗口实例；没开过就是 <c>null</c>。给诊断用。</summary>
     public DesktopLyricsWindow? Window => _window;
 
+    /// <summary>
+    /// 启动时补一次初始状态：开关已经是开的就把窗口建出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 本类只对 <see cref="DesktopLyricsViewModel.IsEnabled"/> 的**变化**作出反应，
+    /// 而开关是落盘的：上次退出时开着，这次启动读到 <c>true</c> 却没有任何变更事件，
+    /// 窗口就永远建不出来 —— 表现为「按钮是开的，桌面上什么都没有」。
+    /// </para>
+    /// <para>
+    /// <b>必须在主窗口 Activate 之后调</b>：悬浮窗要拿主窗口当 owner，早于它建会失败。
+    /// </para>
+    /// </remarks>
+    public void ApplyInitialState()
+    {
+        if (_settings.IsEnabled)
+        {
+            Show();
+        }
+    }
+
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(DesktopLyricsViewModel.IsEnabled))

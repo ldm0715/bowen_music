@@ -8,4 +8,16 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
   </PropertyGroup>
 
+  <!--
+    应用版本号的**唯一来源**。放在这里而不是某个 csproj：一行同时覆盖 Core 与 WinUI，
+    免得两个程序集各自写一个版本号、慢慢对不上。设置在"关于"页显示它。
+
+    IncludeSourceRevisionInInformationalVersion 必须关掉：SDK 默认会把 <Version> 拼上
+    "+<git sha>" 的悬挂后缀，关于页上会显示成「0.1.0+3fa9c1」，很难看。
+  -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
 </Project>

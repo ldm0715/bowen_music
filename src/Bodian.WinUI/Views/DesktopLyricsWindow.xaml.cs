@@ -47,15 +47,11 @@ public sealed partial class DesktopLyricsWindow : Window
     private static readonly TimeSpan PlacementSaveDelay = TimeSpan.FromSeconds(1);
 
     /// <summary>
-    /// 可选文字颜色。**只给基础色，不做取色板** —— 桌面歌词条上摆一个色轮太重了，
-    /// 而这几个色在深浅壁纸上都能读。
+    /// 可选文字颜色。定义在模型里，与设置页共用同一份，见
+    /// <see cref="DesktopLyricsSettings.Palette"/>。
     /// </summary>
     private static readonly (uint Color, string Name)[] PaletteColors =
-    [
-        (0xFF00E5BF, "青绿"), (0xFF000000, "黑色"), (0xFFFF4D4F, "红色"),
-        (0xFFFF922B, "橙色"), (0xFFFADB14, "黄色"), (0xFF37D67A, "绿色"),
-        (0xFF4D9CFF, "蓝色"), (0xFFFF6FB5, "粉色"),
-    ];
+        [.. DesktopLyricsSettings.Palette.Select(entry => (entry.Argb, entry.Name))];
 
     private static readonly Color ToolbarIdleColor = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
     private static readonly Color ToolbarActiveColor = Color.FromArgb(0xFF, 0x00, 0xE5, 0xBF);

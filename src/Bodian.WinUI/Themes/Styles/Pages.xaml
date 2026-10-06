@@ -206,4 +206,73 @@
         <Setter Property="ItemContainerStyle" Value="{StaticResource BodianCoverCardItem}" />
     </Style>
 
+    <!--
+        设置页左侧的分类栏。用 ListView 而不是嵌套 NavigationView：后者会把 pane 背景、
+        亚克力与自适应逻辑一并带进来，而这个项目的侧栏高度公式已经证明它的模板行为要小心对待。
+        ListView 顺带免费给到上下键导航与选中态，配色直接复用 Theme.xaml 里已有的
+        ListViewItemBackground* 那一组，不需要新增任何画刷。
+    -->
+    <Style x:Key="BodianSettingsRail" TargetType="ListView">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="SelectionMode" Value="Single" />
+        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+
+    <!-- 与标题栏主题飞层里那份 ListViewItem 同源，两处的选中观感因此一致。 -->
+    <Style x:Key="BodianSettingsRailItem" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Margin" Value="0,2" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <!--
+        设置分组。★ 底色必须实色（HomeCardBackgroundBrush）：页面底色是氛围渐变，
+        半透明底会让同一张卡片上下两端的观感不一样。
+    -->
+    <Style x:Key="BodianSettingsCard" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource HomeCardBackgroundBrush}" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+        <Setter Property="Padding" Value="16,4" />
+    </Style>
+
+    <!-- 分组内相邻两行之间的 1 像素分割线。 -->
+    <Style x:Key="BodianSettingsRowDivider" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+    </Style>
+
+    <!-- 分组标题，与页内其它二级标题同层（14 半粗）。 -->
+    <Style x:Key="BodianSettingsGroupTitle" TargetType="TextBlock" BasedOn="{StaticResource BodianSectionTitle}" />
+
+    <!--
+        关于页那一排按钮。底色沿用 Button 的默认填充（不透明底 + 描边已经够），
+        只是把内边距放宽一点，让图标与文字在按钮里不贴边。
+
+        ★ 圆角用 RadiusMd（8），**不是 RadiusPill** —— 拉满会变成橄榄球，
+          与这一页其它圆角卡片不是一套语言。
+        ★ MinWidth 必须清零：Button 默认 MinWidth 是 120，不清零会被撑成长条。
+    -->
+    <Style x:Key="BodianAboutButton" TargetType="Button">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        说“强调”版：同样一排里的主行动（检查更新）。内边距与圆角必须与
+        BodianAboutButton 一致，否则同一排按钮会一高一矮。
+    -->
+    <Style x:Key="BodianAboutAccentButton" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
 </ResourceDictionary>

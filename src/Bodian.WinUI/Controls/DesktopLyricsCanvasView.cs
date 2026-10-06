@@ -160,7 +160,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
             _visual.Size = new Vector2((float)(Math.Ceiling(ActualWidth * scale) / scale),
                 (float)(Math.Ceiling(ActualHeight * scale) / scale));
         _loop.SetInput(new DesktopLyricsRenderInput(_lyrics.Document,
-            _lyrics.HasTrack ? "暂无歌词" : "波点音乐", ActualWidth, ActualHeight,
+            _lyrics.HasTrack ? "暂无歌词" : AppIdentity.DisplayName, ActualWidth, ActualHeight,
             XamlRoot.RasterizationScale, _settings.FontSize, _settings.TextColor,
             _settings.DualLine, _settings.Alignment, _engine.State == PlaybackState.Playing));
     }

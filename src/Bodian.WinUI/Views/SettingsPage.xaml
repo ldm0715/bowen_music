@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Bodian.WinUI.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    xmlns:models="using:Bodian.Core.Models"
+    xmlns:vm="using:Bodian.WinUI.ViewModels">
+
+    <Page.Resources>
+        <!--
+            ★ 这份模板必须留在页面里，不能挪进共享资源字典（踩过，理由见 SearchPage.xaml 那段长注释）：
+              `x:Bind` 放进 ResourceDictionary 会报 `WMC1119`；补 `x:Class` 之后编译能过、
+              但运行时绑定全不生效。
+
+            分类名随图标轨态整批显隐，状态挂在数据项上（SettingsCategoryItem.ShowLabel），
+            这样模板不必去够页面级的状态。
+        -->
+        <DataTemplate x:Key="SettingsCategoryTemplate" x:DataType="vm:SettingsCategoryItem">
+            <StackPanel
+                Orientation="Horizontal"
+                Spacing="12"
+                ToolTipService.ToolTip="{x:Bind Label}">
+                <controls:Icon
+                    Data="{x:Bind local:Formats.IconPaths(IconKey)}"
+                    Size="{StaticResource SizeIconSm}"
+                    VerticalAlignment="Center" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Text="{x:Bind Label}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind local:Formats.Visible(ShowLabel), Mode=OneWay}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!--
+            快捷键一行。右侧是一颗显示当前手势的按钮，点了开录制对话框。
+            末行不画分割线（IsLast）。
+
+            ★ 与上面那份分类模板同一个理由留在页面里，不能挪进共享字典。
+        -->
+        <DataTemplate x:Key="ShortcutRowTemplate" x:DataType="vm:ShortcutRowViewModel">
+            <StackPanel>
+                <controls:SettingsRow Header="{x:Bind Title}">
+                    <controls:SettingsRow.RightContent>
+                        <Button
+                            MinWidth="112"
+                            AutomationProperties.Name="{x:Bind Title}"
+                            Click="OnRebindShortcutClick"
+                            Content="{x:Bind GestureText, Mode=OneWay}"
+                            HorizontalAlignment="Right"
+                            Tag="{x:Bind Action}" />
+                    </controls:SettingsRow.RightContent>
+                </controls:SettingsRow>
+                <Border
+                    Style="{StaticResource BodianSettingsRowDivider}"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsLast)}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 存储一项：占用大小 + 清理按钮，下面一行是上一次的结果。 -->
+        <DataTemplate x:Key="StorageRowTemplate" x:DataType="vm:StorageRowViewModel">
+            <StackPanel>
+                <controls:SettingsRow Description="{x:Bind Description}" Header="{x:Bind Title}">
+                    <controls:SettingsRow.RightContent>
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="12"
+                            VerticalAlignment="Center">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind SizeText, Mode=OneWay}" />
+                            <Button
+                                Click="OnClearStorageClick"
+                                Content="清理"
+                                IsEnabled="{x:Bind CanClear, Mode=OneWay}"
+                                Tag="{x:Bind Kind}" />
+                        </StackPanel>
+                    </controls:SettingsRow.RightContent>
+                </controls:SettingsRow>
+
+                <TextBlock
+                    Margin="8,0,0,8"
+                    FontSize="{StaticResource FontSizeBody}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ResultText, Mode=OneWay}"
+                    Visibility="{x:Bind local:Formats.Visible(HasResult), Mode=OneWay}" />
+
+                <Border
+                    Style="{StaticResource BodianSettingsRowDivider}"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(IsLast)}" />
+            </StackPanel>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid
+        Style="{StaticResource BodianPageRoot}"
+        SizeChanged="OnPageSizeChanged">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Style="{StaticResource BodianPageTitle}" Text="设置" />
+
+        <Grid Grid.Row="1" ColumnSpacing="24">
+            <Grid.ColumnDefinitions>
+                <!--
+                    ★ 列宽写的是字面量，不能引 `SizeSettingsRailWidth`：那是 x:Double，
+                      ColumnDefinition.Width 要 GridLength，StaticResource 转不过去。
+                      运行时的两档宽度由代码从 Tokens 里读，见 SettingsPage.xaml.cs。
+                -->
+                <ColumnDefinition x:Name="RailColumn" Width="200" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+        <ListView
+            x:Name="Rail"
+            Grid.Column="0"
+            VerticalAlignment="Top"
+            ItemContainerStyle="{StaticResource BodianSettingsRailItem}"
+            ItemTemplate="{StaticResource SettingsCategoryTemplate}"
+            ItemsSource="{x:Bind ViewModel.Categories}"
+            SelectedIndex="{x:Bind ViewModel.SelectedCategoryIndex, Mode=TwoWay}"
+            Style="{StaticResource BodianSettingsRail}">
+            <ListView.Resources>
+                <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+            </ListView.Resources>
+        </ListView>
+
+            <!--
+                六个分区都常驻可视树、只切 Visibility —— 与关注的歌手页那两份列表同一个做法。
+                条数是固定的六份、内容也短，不需要虚拟化。
+            -->
+            <ScrollViewer
+                Grid.Column="1"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto">
+                <StackPanel Padding="0,0,0,16" Spacing="20">
+
+                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="外观" />
+                        <Border Style="{StaticResource BodianSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="跟随系统、浅色或深色" Header="主题">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ThemeOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow Description="搜索结果、收藏这些页的默认排布；在页面上切只影响当前这一次" Header="列表显示">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ListDisplayOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.ListDisplayIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPlaybackSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="播放" />
+                        <Border Style="{StaticResource BodianSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="以后取音源用的档位；改它不会打断正在播放的这首" Header="默认音质">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.QualityOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.QualityIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow Description="顺序播完即停、列表循环或列表随机" Header="播放模式">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.PlayModeOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.PlayModeIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsLyricsSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="歌词" />
+                        <Border Style="{StaticResource BodianSettingsCard}">
+                            <controls:SettingsRow Description="歌词带译文时默认一起显示，歌词页那颗按钮仍可临时改" Header="默认显示译文">
+                                <controls:SettingsRow.RightContent>
+                                    <ToggleSwitch
+                                        IsOn="{x:Bind ViewModel.DefaultShowTranslation, Mode=TwoWay}"
+                                        MinWidth="0"
+                                        OffContent=""
+                                        OnContent="" />
+                                </controls:SettingsRow.RightContent>
+                            </controls:SettingsRow>
+                        </Border>
+
+                        <!--
+                            桌面歌词这一段与歌词条自己的设置面板是同一份数据：两处改哪边都同步，
+                            因为绑的是同一个 DesktopLyricsViewModel 单例。
+                        -->
+                        <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="桌面歌词" />
+                        <Border Style="{StaticResource BodianSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="在桌面上浮一条跟随播放的歌词" Header="显示桌面歌词">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.IsEnabled, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Header="歌词字号">
+                                    <controls:SettingsRow.RightContent>
+                                        <Slider
+                                            Width="200"
+                                            Maximum="{x:Bind models:DesktopLyricsSettings.MaximumFontSize}"
+                                            Minimum="{x:Bind models:DesktopLyricsSettings.MinimumFontSize}"
+                                            StepFrequency="1"
+                                            Value="{x:Bind ViewModel.DesktopLyrics.FontSize, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="已唱部分的高亮色，未唱部分固定白色" Header="歌词颜色">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ColorOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.DesktopLyricsColorIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="同时显示当前句与下一句" Header="双行歌词">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.DualLine, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsAlignmentEnabled, Mode=OneWay}" Description="只在开了双行时可选" Header="双行对齐">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.AlignmentOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.DesktopLyricsAlignmentIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="锁上后不能拖动，也不能拉伸宽度" Header="锁定位置">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.Locked, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" Description="关掉之后整个歌词窗都可抓，方便摆位置" Header="鼠标穿透">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.DesktopLyrics.PassThrough, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            OffContent=""
+                                            OnContent="" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow IsRowEnabled="{x:Bind ViewModel.DesktopLyricsRowsEnabled, Mode=OneWay}" IsClickable="True" Click="OnResetDesktopLyricsClick" Header="恢复桌面歌词默认外观">
+                                    <controls:SettingsRow.RightContent>
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="字号、颜色、双行、对齐" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsShortcutsSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="快捷键" />
+                        <Border Style="{StaticResource BodianSettingsCard}">
+                            <ItemsControl
+                                ItemTemplate="{StaticResource ShortcutRowTemplate}"
+                                ItemsSource="{x:Bind ViewModel.Shortcuts.Rows}" />
+                        </Border>
+
+                        <!--
+                            只做应用内快捷键，不注册全局热键 —— 因此应用不在前台时不响应。
+                            这一句要写在界面上，否则用户会以为是坏了。
+                        -->
+                        <TextBlock Style="{StaticResource BodianPageStatus}" Text="只在本应用内生效；应用不在前台时不响应。点右侧按钮可以改键。" />
+                        <Button Command="{x:Bind ViewModel.Shortcuts.ResetAllCommand}" Content="恢复默认键位" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsStorageSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="存储" />
+                        <Border Style="{StaticResource BodianSettingsCard}">
+                            <ItemsControl
+                                ItemTemplate="{StaticResource StorageRowTemplate}"
+                                ItemsSource="{x:Bind ViewModel.Storage.Rows}" />
+                        </Border>
+
+                        <TextBlock Style="{StaticResource BodianPageStatus}" Text="清理只删这些可再生数据，账号、偏好与窗口位置不受影响。" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Command="{x:Bind ViewModel.Storage.ClearAllCommand}" Content="全部清理" />
+                            <Button Command="{x:Bind ViewModel.Storage.OpenDataDirectoryCommand}" Content="打开数据目录" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!--
+                        关于这一块**不写分组标题**：整块是居中的一列，顶上再挂一个「关于」
+                        只是把已经很明显的事再说一遍，还会把居中列压得偏下。
+                    -->
+                    <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAboutSelected), Mode=OneWay}">
+                        <StackPanel
+                            Margin="0,24,0,16"
+                            HorizontalAlignment="Center"
+                            Spacing="10">
+
+                            <!-- 深浅两版图标由主题字典选，见 Theme.xaml 的 AppIconSource。 -->
+                            <Image
+                                Width="96"
+                                Height="96"
+                                HorizontalAlignment="Center"
+                                Source="{ThemeResource AppIconSource}" />
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                FontSize="28"
+                                FontWeight="SemiBold"
+                                Text="{x:Bind local:Formats.AppName}" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                FontSize="{StaticResource FontSizeBody}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind ViewModel.About.VersionLabel}" />
+
+                            <TextBlock
+                                MaxWidth="420"
+                                Margin="0,4,0,0"
+                                HorizontalAlignment="Center"
+                                FontSize="{StaticResource FontSizeBody}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind ViewModel.About.DisclaimerText}"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+
+                            <StackPanel
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="12">
+                                <!-- 未配置时禁用（仓库还没建），不是坏了。 -->
+                                <Button
+                                    Command="{x:Bind ViewModel.About.OpenProjectCommand}"
+                                    IsEnabled="{x:Bind ViewModel.About.CanOpenProject}"
+                                    Style="{StaticResource BodianAboutButton}"
+                                    ToolTipService.ToolTip="仓库公开后可用">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <controls:Icon Data="{StaticResource IconWindow}" Size="{StaticResource SizeIconSm}" />
+                                        <TextBlock Text="项目主页" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button
+                                    Command="{x:Bind ViewModel.About.OpenRepositoryCommand}"
+                                    IsEnabled="{x:Bind ViewModel.About.CanOpenRepository}"
+                                    Style="{StaticResource BodianAboutButton}"
+                                    ToolTipService.ToolTip="仓库公开后可用">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <controls:Icon Data="{StaticResource IconShare}" Size="{StaticResource SizeIconSm}" />
+                                        <TextBlock Text="GitHub 仓库" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!--
+                                    检查更新。更新源还没配，点下去会显示「尚未配置更新源」，
+                                    并且**不会产生任何出站连接**（未配置时服务直接短路）。
+                                -->
+                                <Button
+                                    Command="{x:Bind ViewModel.About.CheckUpdateCommand}"
+                                    IsEnabled="{x:Bind ViewModel.About.CanCheck, Mode=OneWay}"
+                                    Style="{StaticResource BodianAboutAccentButton}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                        <TextBlock Text="检查更新" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button
+                                    Command="{x:Bind ViewModel.About.OpenDownloadCommand}"
+                                    Style="{StaticResource BodianAboutAccentButton}"
+                                    Visibility="{x:Bind local:Formats.Visible(ViewModel.About.HasDownload), Mode=OneWay}">
+                                    <TextBlock Text="前往下载" />
+                                </Button>
+                            </StackPanel>
+
+                            <ProgressRing
+                                Width="{StaticResource SizeProgressRing}"
+                                Height="{StaticResource SizeProgressRing}"
+                                HorizontalAlignment="Center"
+                                IsActive="{x:Bind ViewModel.About.IsChecking, Mode=OneWay}" />
+
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                FontSize="{StaticResource FontSizeBody}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind ViewModel.About.UpdateStatusText, Mode=OneWay}"
+                                TextAlignment="Center"
+                                Visibility="{x:Bind local:Formats.Visible(ViewModel.About.HasStatus), Mode=OneWay}" />
+
+                            <TextBlock
+                                Margin="0,12,0,0"
+                                HorizontalAlignment="Center"
+                                FontSize="{StaticResource FontSizeCaption}"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                Text="{x:Bind ViewModel.About.CopyrightText}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

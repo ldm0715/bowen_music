@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    设置页里的一行。承载全部形态：开关 / 下拉 / 按钮 / 只读文本 / 跳转，靠右侧的
+    ContentPresenter 接任意内容，不另开 Variant 枚举 —— 那样每加一种形态都得改控件。
+
+    ★ 这个控件里**没有 DataTemplate**，所以不受「x:Bind 放进共享字典会静默失效」那条约束。
+      设置页里唯二需要模板的地方（快捷键若干行、存储若干行）写在 SettingsPage.xaml 的
+      Page.Resources 里，见那边的注释。
+-->
+<UserControl
+    x:Class="Bodian.WinUI.Controls.SettingsRow"
+    x:Name="RowRoot"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls">
+
+    <!-- 根是 Border 而不是 Grid：整行可点时的高亮底需要一个能带圆角与内边距的面。 -->
+    <Border
+        x:Name="RowSurface"
+        Padding="8,10"
+        CornerRadius="{StaticResource RadiusSm}">
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 图标列。不给图标时整列塌掉，文字与无图标行仍然对齐。 -->
+            <controls:Icon
+                x:Name="GlyphIcon"
+                Width="{StaticResource SizeIconSm}"
+                Height="{StaticResource SizeIconSm}"
+                VerticalAlignment="Center"
+                Visibility="Collapsed" />
+
+            <StackPanel
+                Grid.Column="1"
+                Spacing="2"
+                VerticalAlignment="Center">
+                <TextBlock
+                    x:Name="HeaderText"
+                    TextWrapping="Wrap" />
+                <!--
+                    说明行。空说明整行塌掉（不是留一行空白）：用 Visibility 而不是给空串，
+                    否则每行都要多出一份行高。
+                -->
+                <TextBlock
+                    x:Name="DescriptionText"
+                    FontSize="{StaticResource FontSizeBody}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextWrapping="Wrap"
+                    Visibility="Collapsed" />
+            </StackPanel>
+
+            <StackPanel
+                Grid.Column="2"
+                Orientation="Horizontal"
+                Spacing="4"
+                VerticalAlignment="Center">
+                <ContentPresenter x:Name="RightHost" VerticalAlignment="Center" />
+                <!-- 跳转类行的右箭头，只在 IsClickable 时出现。 -->
+                <controls:Icon
+                    x:Name="ChevronIcon"
+                    Data="{StaticResource IconChevronRight}"
+                    Size="{StaticResource SizeIconSm}"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Visibility="Collapsed" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

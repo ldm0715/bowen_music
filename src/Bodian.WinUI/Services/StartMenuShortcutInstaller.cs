@@ -48,6 +48,9 @@ public sealed class StartMenuShortcutInstaller(ILogger<StartMenuShortcutInstalle
                 return;
             }
 
+            // 改过名的话，旧快捷方式要先清掉：留着开始菜单里会同名两条、指向同一个 exe。
+            RemoveLegacyShortcuts();
+
             var linkPath = ShortcutPath();
 
             if (IsUpToDate(linkPath, exe))
@@ -70,6 +73,30 @@ public sealed class StartMenuShortcutInstaller(ILogger<StartMenuShortcutInstalle
     private static string ShortcutPath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.Programs),
         AppIdentity.ShortcutFileName);
+
+    /// <summary>删掉改名前留下的那几条快捷方式。删不掉只记日志，不影响这次安装。</summary>
+    private void RemoveLegacyShortcuts()
+    {
+        var programs = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+
+        foreach (var name in AppIdentity.LegacyShortcutFileNames)
+        {
+            var path = Path.Combine(programs, name);
+
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    _logger.LogInformation("已删除改名前的快捷方式：{Path}", path);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "删除旧快捷方式失败：{Path}", path);
+            }
+        }
+    }
 
     private static bool IsSkipped() => Environment.GetEnvironmentVariable(SkipEnvironmentVariable)
         is { Length: > 0 } value && value != "0";

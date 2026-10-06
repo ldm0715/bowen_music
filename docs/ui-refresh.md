@@ -1821,3 +1821,113 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
 1177 项离线测试通过（`TrackActionsViewModelTests` 的假实现跟上了新签名，
 并补了成功 / 失败两条 severity 断言）。通知条的浮层位置与高度、三档圆点配色的实际观感、
 队列在连续操作下的节奏，以及全屏歌词页 / MV 页上是否真的可见，均未人工验收。
+
+## 29. 标题栏右侧留白的补偿（2026-10-06）
+
+标题栏那排按钮（账号 / 主题 / 小窗 / 设置）与系统窗口三按钮之间一直空着一块，
+看着像「这几个按钮被推得太远」。原因不在本项目的 XAML 里，而是 WinUI 的 `TitleBar` 控件：
+
+模板最后一列（右侧留白）由控件代码直接从 `AppWindow.TitleBar.RightInset` 赋值
+（`TitleBar.cpp` 的 `rightColumn.Width(GridLengthHelper::FromPixels(rightColumnInset))`），
+而那个值返回的是**物理像素**，却被当成 DIP 用了 —— 100% 之外每个缩放档都会多留一截。
+上游有对应报告（microsoft-ui-xaml#10344，实测 100% 时 138、150% 时 207），
+本机 125% 下多出来的是 34 DIP 左右。
+
+另外先把模板第 11 列的 `TitleBarMinDragRegionWidth` 从默认的 48 压到 8：那道空列夹在
+按钮组与窗口按钮之间，是设计上的拖动区，48 在这个布局里太宽。
+
+**修法是「直接量窗口按钮在哪」，不是估。**
+
+用 `InputNonClientPointerSource.GetRegionRects(NonClientRegionKind.Minimize / Maximize / Close)`
+取系统三按钮的**真实矩形**，把按钮组的右边缘对到「离它们 8 DIP」的位置。
+算的是「相对自然位置要挪多少」，所以每次重算都幂等：先把当前外边距加回去得到
+未施加补偿时的位置，再算它与目标位置的差。
+
+**需要往回推时一律夹到 0** —— 宁可留宽，也不要把按钮压到窗口按钮上。
+
+### 走错的一版（留个记性）
+
+第一版用 `GetSystemMetricsForDpi(SM_CXSIZE)` × 3 去估 caption 宽度，与控件实际留的
+`RightInset` 相减。思路是「上游修掉 bug 后差值自然归零」，听起来自洽，**但估小了**：
+按钮连同末尾那条 1 DIP 的竖线分节线一起被推到窗口按钮底下，看起来像按钮重叠、
+分节线被删了。
+
+教训是：**这类「上游值单位不确定」的问题，能直接量就别去估。**
+`GetRegionRects` 给的是系统自己报的矩形，不存在单位歧义，也就不存在估歪的方向。
+
+调用点：`ConfigureTitleBar`、`ShellRoot.SizeChanged`（换显示器 / 换缩放档）、
+`ExitImmersive`。
+
+**验证**：WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` WMC1506 警告。
+1347 项离线测试通过。**实际观感未人工验收** —— 需要确认按钮组贴近窗口按钮、
+末尾那条分节线仍可见、且在任何缩放档下都不与窗口按钮重叠。
+
+## 30. 应用图标与侧栏 Logo（2026-10-06）
+
+应用改名「波纹音乐」，图标同时落位。
+
+### 30.1 两份图标
+
+`src/Bodian.WinUI/Assets/` 下三份，都由 `snippet/波纹音乐.ico` 加工而来：
+
+| 文件 | 用途 |
+| --- | --- |
+| `Ripple.png` | 深色版（深蓝底 `#08205B` + 青涟漪），主题字典 Dark 用 |
+| `RippleLight.png` | 浅色版（淡蓝白底 + 压深过的青），主题字典 Light 用 |
+| `Ripple.ico` | 深色版多尺寸（16/24/32/48/64/128/256），exe 图标与深色主题下的托盘 |
+| `RippleLight.ico` | 浅色版多尺寸，浅色主题下的托盘 |
+
+**浅色版不是重画，是同一套几何重新配比。** 原图的青 `#7CEBF7` 放在浅底上会糊掉，
+所以按像素覆盖率把涟漪提出来，换成「淡出端深蓝 → 亮端压深过的青」重新合成。
+两版形状完全一致，不会出现「深浅两个 logo 长得不一样」。
+
+**四角是还原出来的，不是裁的。** 源文件是 24 位无 alpha，原本透明的四角被压成了白色。
+还原办法是**从四个角泛洪**找连通的白色区域——不能全局按「白」判断，
+因为涟漪中心那点亮色也是白的，全局判会把图形咬掉。泛洪之后再往外扩 3 圈，
+用亮度估覆盖率补上抗锯齿的边缘带。
+
+### 30.2 深浅切换靠主题字典，不靠代码
+
+`Themes/Theme.xaml` 的 Light / Dark 字典各放一份 `AppIconSource`，
+界面写 `{ThemeResource AppIconSource}` —— 主题一换自动重解析，
+**不需要在代码里监听 `ActualThemeChanged`**。
+
+高对比度沿用深色版：浅色版在白色高对比背景上整块会消失。
+
+### 30.2.1 托盘图标
+
+托盘图标由 shell 绘制，**不会自动跟应用主题走**，所以只能在 `ActualThemeChanged` 里自己换
+（`MainWindow.ApplyTrayIcon`），顺序是「先挂新的、再放旧的」——反过来的话中间有一瞬间托盘是空的。
+
+**赋值走 `Tray.Icon`（`System.Drawing.Icon`），不是 `Tray.IconSource`。** 踩过：
+`IconSource` 的类型是 `ImageSource`，库内部要把它渲染成 PNG 再由 `PngToIcoConverter` 转成 ICO；
+这条路对 `GeneratedIconSource`（矢量、同步画得出来）有效，对 `BitmapImage` 不行 ——
+**它是异步解码的**，库在属性变更那一刻就去渲染，图还没加载出来，
+转出来的是一张**全透明**的 ICO，表现成「托盘上什么都没有」。`Tray.Icon` 直接读 `.ico` 文件，没有中间环节。
+
+### 30.3 侧栏 Logo
+
+`LogoHost`（标题栏的 `LeftHeader`）从空占位换成「图标 24 + 名字」。
+
+- 左内边距 24 与 `SpacePagePadding` 的左值一致，页内内容、搜索框与 Logo 共用同一条左基准线。
+- **收起侧栏时只留图标**，内边距同时收到 12 —— 48 宽的轨道刚好 12 + 24 + 12 居中；
+  留 24 的话图标会被顶到右缘，与下面那排导航图标对不齐。
+- **文字上移 2 像素**（`RenderTransform` 的 `TranslateTransform`）。`TextBlock` 的行盒按拉丁字母的
+  上下伸部分配空间，而汉字的重心在 em 框里偏下 —— 两者都 `VerticalAlignment=Center` 时，
+  汉字看上去会低一两个像素。用 `RenderTransform` 而不是负 `Margin`：前者是纯视觉位移、正好 −2，
+  后者会被居中布局吃掉一半，调不到准数。
+
+### 30.4 改名的落点
+
+显示名的**唯一来源**是 `AppIdentity.DisplayName`：窗口标题、侧栏 Logo、托盘提示文本、
+桌面歌词的空态文案、关于页都从它取。界面侧统一走 `Formats.AppName` 转发，
+免得将来再改一次名又漏掉某一句。
+
+`AUMID` 保持不变（`Bodian.WinUI`）—— 改它会让已有的开始菜单快捷方式与 SMTC 会话失联。
+
+`AppIdentity.LegacyShortcutFileNames` 列出改名前用过的快捷方式文件名，
+安装新快捷方式时顺手删掉，否则开始菜单里会同时躺着「Bodian」与「波纹音乐」两条、
+指向同一个 exe。这个清单**只增不减**。
+
+**验证**：WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` WMC1506 警告。
+1347 项离线测试通过。**图标观感、侧栏展开／收起两种状态、任务栏与托盘图标均未人工验收。**

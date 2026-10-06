@@ -43,8 +43,11 @@ public sealed class PlaybackQualitySwitchTests
         Assert.Equal(1, started);
         Assert.Equal(1, changed);
         Assert.Equal(1, history.Count);
-        Assert.Equal(AudioQuality.High, coordinator.PreferredQuality);
-        Assert.Equal(AudioQuality.High, settings.Quality);
+        // ★ 切档位**不改默认音质**：默认值只由设置页改写。
+        //   播放条上切一次档位只影响当前这一首，不该决定下一首取源用哪个档位
+        //   （见 docs/settings.md 里「默认值」那一节）。这条断言与旧行为相反，是有意改的。
+        Assert.Equal(AudioQuality.Lossless, coordinator.PreferredQuality);
+        Assert.Equal(AudioQuality.Lossless, settings.Quality);
         Assert.False(coordinator.IsChangingQuality);
     }
 

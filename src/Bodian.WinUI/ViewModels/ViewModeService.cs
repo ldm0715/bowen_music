@@ -24,17 +24,26 @@ public sealed partial class ViewModeService : ObservableObject
 {
     private readonly IViewModeSettingsStore _store;
     private bool _useGrid;
+    private bool _defaultUseGrid;
 
     public ViewModeService(IViewModeSettingsStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
 
-        // 读一次就够：构造之后不再从文件读回来，改的都只是这一个属性。
-        _useGrid = store.Load().UseGrid;
+        // 读一次就够：构造之后不再从文件读回来。
+        // 读到的是**默认值**，当前状态下一次从它起步，之后两者各走各的。
+        _defaultUseGrid = store.Load().UseGrid;
+        _useGrid = _defaultUseGrid;
     }
 
-    /// <summary>用封面卡片而不是行列表。改了立刻落盘。</summary>
+    /// <summary>
+    /// 当前用不用封面卡片。
+    /// </summary>
+    /// <remarks>
+    /// <b>不落盘。</b> 页面工具栏上切一下只影响当前这一次浏览 —— 它是「这一眼想怎么看」，
+    /// 不是「以后都怎么看」。默认值在 <see cref="DefaultUseGrid"/>，只由设置页改写。
+    /// </remarks>
     public bool UseGrid
     {
         get => _useGrid;
@@ -45,9 +54,31 @@ public sealed partial class ViewModeService : ObservableObject
                 return;
             }
 
-            // 落盘在 setter 里，不在命令里：将来若有别的入口改这个值，也一样会记住。
             OnPropertyChanged(nameof(IsList));
+        }
+    }
+
+    /// <summary>
+    /// 默认排布方式。<b>只由设置页改写。</b>
+    /// </summary>
+    /// <remarks>
+    /// 写的时候同时落到当前状态上，用户改完不必去各页面再手动切一遍。
+    /// </remarks>
+    public bool DefaultUseGrid
+    {
+        get => _defaultUseGrid;
+        set
+        {
+            if (_defaultUseGrid == value)
+            {
+                return;
+            }
+
+            _defaultUseGrid = value;
+            OnPropertyChanged();
             _store.Save(new ViewModeSettings { UseGrid = value });
+
+            UseGrid = value;
         }
     }
 

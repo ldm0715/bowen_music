@@ -354,6 +354,18 @@ public static class Formats
     /// </remarks>
     public static string IconPaths(string key) => IconGeometry.Paths(key);
 
+    /// <summary>
+    /// 应用显示名。给侧栏 Logo 与托盘提示用。
+    /// </summary>
+    /// <remarks>
+    /// 转发 <c>AppIdentity.DisplayName</c> 而不是在 XAML 里直接写字符串：
+    /// 名字要改的时候只有 <c>AppIdentity</c> 一处要动，不会漏掉界面上某一句。
+    /// </remarks>
+    public static string AppName => AppIdentity.DisplayName;
+
+    /// <summary>标题栏的无障碍名。比 <see cref="AppName"/> 多一个后缀，读屏时才知道读的是哪一块。</summary>
+    public static string AppTitleBarName => $"{AppIdentity.DisplayName}标题栏";
+
     /// <summary>托盘菜单那颗播放/暂停按钮的图标：两态各一颗。与 <see cref="CollectIcon"/> 同一手法，不套函数。</summary>
     public static string PlayPauseIcon(bool isPlaying) => IconPaths(isPlaying ? "IconPause" : "IconPlay");
 
