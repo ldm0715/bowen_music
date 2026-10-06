@@ -113,7 +113,8 @@ public sealed partial class TrackRow : ObservableObject
     /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IndexVisibility), nameof(PlayGlyphVisibility),
-        nameof(MoreVisibility), nameof(SelectionCheckVisibility), nameof(ShowPlayingBars))]
+        nameof(MoreVisibility), nameof(SelectionCheckVisibility), nameof(ShowPlayingBars),
+        nameof(CanOpenArtist), nameof(CanOpenAlbum))]
     public partial bool IsSelectionMode { get; set; }
 
     /// <summary>多选态下这一行有没有被勾上。</summary>
@@ -135,6 +136,35 @@ public sealed partial class TrackRow : ObservableObject
 
     /// <summary>多选态下的勾选框。</summary>
     public Visibility SelectionCheckVisibility => Vis(IsSelectionMode);
+
+    // ── 行内跳转：名字能不能点开 ────────────────────────────────────────────
+
+    /// <summary>
+    /// 行里的歌手名能不能点开。与播放条第二行那一段是同一个入口。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>多选态排在最前</b>：那时点行是勾选，行里不该再开第二个入口 ——
+    /// 与「更多」按钮在多选态收起是同一口径。
+    /// </para>
+    /// <para>
+    /// <b>判据只看名字非空</b>，不在这里查有没有有效 id：那件事交给
+    /// <c>TrackActionsViewModel.OpenArtistAsync</c> 的降级链条去辨
+    /// （<c>Artists</c> → 详情补查 → 按 <c>&amp;</c> 拆串）。拆出来的候选一律没有 id，
+    /// 于是最坏也只是弹出几格点不动的卡片，绝不会跳错人。
+    /// </para>
+    /// </remarks>
+    public bool CanOpenArtist => !IsSelectionMode && ArtistText.Length > 0;
+
+    /// <summary>
+    /// 行里的专辑名能不能点开。
+    /// </summary>
+    /// <remarks>
+    /// <c>AlbumId == 0</c> 表示服务端没给这个字段（本地历史重建的曲目就是这样），跳不过去 ——
+    /// 与播放条第二行、曲目菜单里「查看专辑」灰掉用的是同一个判据。
+    /// 名称为空时同样不给点：那会变成一段点得到的空白。
+    /// </remarks>
+    public bool CanOpenAlbum => !IsSelectionMode && Source.AlbumId > 0 && AlbumName.Length > 0;
 
     private static Visibility Vis(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 }

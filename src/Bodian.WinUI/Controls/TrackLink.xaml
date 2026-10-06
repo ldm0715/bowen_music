@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.TrackLink"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Bodian.WinUI">
+
+    <!--
+        曲目行里的「歌手名」/「专辑名」：跳得过去时是链接，跳不过去时退成普通文字。
+        行模板只给 Row 与 Kind，判据、颜色、点了去哪都由本控件负责 —— 与 TrackMoreButton 同一契约。
+
+        ★ 为什么做成控件：行模板有两份（共享列表、搜索页综合结果），把这一坨写进每一份
+          就是要同步的复制品。（榜单页那份 BangTrackTemplate 故意不接，那一行不接任何交互。）
+
+        ★ 颜色取自播放条那三个键，所以两处看起来是同一个东西、换主题也一起变。
+          但播放条用的是内联 Hyperlink —— 它的默认样式常态就是强调色、悬停还带一层底色，
+          所以要自己写一份模板把这两点按下去。
+    -->
+    <UserControl.Resources>
+        <Style x:Key="TrackLinkTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
+
+        <Style x:Key="TrackLinkButtonStyle" TargetType="HyperlinkButton">
+            <!-- 常态色 = 播放条那一行的静止色，同一个键。 -->
+            <Setter Property="Foreground" Value="{ThemeResource HyperlinkForeground}" />
+            <!--
+                ★ Padding 必须清零：默认取 ButtonPadding(11,5,11,6)，
+                  不清零整段文字右移 11px、行高也跟着涨。
+                ★ HorizontalAlignment 与 HorizontalContentAlignment 同为 Left：
+                  两者同向才会「文字多长、热区多长」，不然点列的空白处也算点链接。
+            -->
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="HyperlinkButton">
+                        <ContentPresenter
+                            x:Name="ContentPresenter"
+                            Padding="{TemplateBinding Padding}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <!-- 悬停与按下换成播放条那两个键：同一套色。 -->
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource HyperlinkForegroundPointerOver}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource HyperlinkForegroundPressed}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled" />
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </ContentPresenter>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- 根 Grid 不设 Background：空白处不参与命中，点它照旧落到整行（播放 / 勾选）。 -->
+    <Grid>
+        <!-- 歌手：可点时是链接，点不动时是次级灰的普通文字。 -->
+        <Grid x:Name="ArtistRoot" Visibility="Collapsed">
+            <HyperlinkButton
+                Click="OnArtistClick"
+                Style="{StaticResource TrackLinkButtonStyle}"
+                Visibility="{x:Bind local:Formats.Visible(Row.CanOpenArtist), Mode=OneWay}">
+                <TextBlock Style="{StaticResource TrackLinkTextStyle}" Text="{x:Bind Row.ArtistText, Mode=OneWay}" />
+            </HyperlinkButton>
+
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource TrackLinkTextStyle}"
+                Text="{x:Bind Row.ArtistText, Mode=OneWay}"
+                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Row.CanOpenArtist), Mode=OneWay}" />
+        </Grid>
+
+        <!-- 专辑：同上，灰阶用三级。 -->
+        <Grid x:Name="AlbumRoot" Visibility="Collapsed">
+            <HyperlinkButton
+                Click="OnAlbumClick"
+                Style="{StaticResource TrackLinkButtonStyle}"
+                Visibility="{x:Bind local:Formats.Visible(Row.CanOpenAlbum), Mode=OneWay}">
+                <TextBlock Style="{StaticResource TrackLinkTextStyle}" Text="{x:Bind Row.AlbumName, Mode=OneWay}" />
+            </HyperlinkButton>
+
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                Style="{StaticResource TrackLinkTextStyle}"
+                Text="{x:Bind Row.AlbumName, Mode=OneWay}"
+                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Row.CanOpenAlbum), Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</UserControl>

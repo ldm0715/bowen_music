@@ -163,7 +163,7 @@ public sealed partial class PlayerBar : UserControl
 
         if (artist.Length > 0)
         {
-            ArtistLine.Inlines.Add(Link(artist, OnArtistLinkClick));
+            ArtistLine.Inlines.Add(InlineHyperlink.Create(artist, OnArtistLinkClick));
         }
 
         var album = ViewModel.AlbumText.Length > 0 ? ViewModel.AlbumText : track.AlbumName ?? "";
@@ -181,26 +181,8 @@ public sealed partial class PlayerBar : UserControl
         // 专辑 id 为 0 表示服务端没给（旧的历史条目就是这么来的），跳不过去，
         // 那就只当作普通文字显示，不给可点的样子。
         ArtistLine.Inlines.Add(track.AlbumId > 0
-            ? Link(album, OnAlbumLinkClick)
+            ? InlineHyperlink.Create(album, OnAlbumLinkClick)
             : new Run { Text = album });
-    }
-
-    /// <summary>
-    /// 造一段可点的内联文本。
-    /// </summary>
-    /// <remarks>
-    /// <b>不设 Foreground</b>：颜色由 <c>Themes/Theme.xaml</c> 里覆写的
-    /// <c>HyperlinkForeground*</c> 三个键决定（静止次级灰、悬停强调色）。
-    /// 在这里写局部值会压掉模板的悬停态，那正是要避免的坑。
-    /// <c>UnderlineStyle</c> 显式关掉：默认是 <c>Single</c>（静止就带下划线），
-    /// 而这一行要的是和原来一样的干净灰字。
-    /// </remarks>
-    private Hyperlink Link(string text, TypedEventHandler<Hyperlink, HyperlinkClickEventArgs> onClick)
-    {
-        var link = new Hyperlink { UnderlineStyle = UnderlineStyle.None };
-        link.Inlines.Add(new Run { Text = text });
-        link.Click += onClick;
-        return link;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

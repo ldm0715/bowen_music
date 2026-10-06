@@ -136,20 +136,14 @@
                         </Border>
                     </StackPanel>
 
-                    <TextBlock
-                        FontSize="{StaticResource FontSizeCaption}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind ArtistText}"
-                        TextTrimming="CharacterEllipsis" />
+                    <!-- 歌手名：链路与灰阶在 Controls/TrackLink 里，与 TrackListView 那份共用。 -->
+                    <controls:TrackLink Row="{x:Bind}" Kind="Artist" />
                 </StackPanel>
 
-                <TextBlock
+                <controls:TrackLink
                     Grid.Column="3"
-                    VerticalAlignment="Center"
-                    FontSize="{StaticResource FontSizeCaption}"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Text="{x:Bind AlbumName}"
-                    TextTrimming="CharacterEllipsis" />
+                    Kind="Album"
+                    Row="{x:Bind}" />
 
                 <!--
                     时长。TextBlock 没有 OpenType feature 属性（等宽数字做不到），
