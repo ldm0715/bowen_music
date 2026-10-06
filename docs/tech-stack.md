@@ -90,8 +90,8 @@
 
 ### libmpv-2.dll 的来源与许可
 
-- **来源**：`shinchiro/mpv-winbuild-cmake`（社区构建，mpv 官方不提供 Windows 构建）。最新 tag `20260928`，资产名形如 `mpv-dev-x86_64-20260928-git-<hash>.7z`
-- **mpv 版本**：稳定版 **v0.41.0**（2025-12-21）。**v0.42 未发布**（截至 2026-09-30）
+- **当前来源**：项目自行编译的音频精简构建；mpv 固定为 commit `e470f8986e`，属于 0.41.0 系列。完整记录见 [`libmpv-audio-build.md`](libmpv-audio-build.md)。
+- **回退基线**：`shinchiro/mpv-winbuild-cmake` 的固定 tag `20260928`，原社区 DLL 保留作验证样本编码与回退参考库。
 - **许可**：mpv 本体是 LGPLv2.1+，但 shinchiro 的默认构建启用了 GPL-only 组件，**整包按 GPLv2+ 分发**。本项目是 GPL-3.0，直接用即可（GPLv2+ 的「或更高版本」允许按 GPLv3 使用）
 - **红线**：**不要分发官方 PC 客户端里的 `E:\bodian\libmpv-2.dll`**——这条与许可无关
 - **分发方式**：unpackaged 下把 dll 放进输出目录，`<None Include="..." CopyToOutputDirectory="PreserveNewest" />`。x64 与 arm64 需分别出包
@@ -129,9 +129,9 @@
 3. `vo=null` / `vid=no` / `audio-display=no` / `keep-open=no` / `idle=yes` 这组 headless 选项在
    **构造之后**用 `SetPropertyString` 设置有效（构造时已经 `mpv_initialize` 过，所以走 property 而非 option）。
 
-**关于 dll 体积**：118 MB 未压缩，**已经是 strip 过的，没有可剥离的调试段**——93 MB 的 `.text` 是
-真代码，来自静态链接的 ffmpeg 与全部解码器。不要试图 strip 也不要为此换构建，理由与复现步骤见
-[`libmpv/README.md`](../libmpv/README.md)。
+**关于 DLL 体积**：当前使用音频精简构建，**7.97 MiB，比原版减少 93.1%**，Client API 仍为
+`0x20005`。构建、校验和、裁剪范围、播放验收、替换与回退及 Lua/ytdl 兼容调整统一见
+[`libmpv 音频精简构建与维护`](libmpv-audio-build.md)。
 
 ---
 

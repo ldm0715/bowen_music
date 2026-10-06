@@ -66,7 +66,7 @@
 | `tests/Bodian.Core.Tests/` | xunit.v3，用 `fixtures/` 的真实响应做断言，**零真实网络请求** |
 | `docs/` | 逆向勘查记录与设计方案。**开工前先读 [`docs/roadmap.md`](docs/roadmap.md)** |
 | `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具。**不参与 `Bodian.sln`**，但必须保持可独立构建 |
-| `libmpv/` | 音频引擎的原生库（115 MB，**不入版本控制**）。来源、校验和与复现步骤见该目录的 README |
+| `libmpv/` | 音频精简版原生库（7.97 MiB，**不入版本控制**）。构建、验证与回退见 [`libmpv-audio-build.md`](docs/libmpv-audio-build.md) |
 | `fixtures/` | 已脱敏的真实响应样本，单测的输入 |
 | `apk/` | 逆向用的原始安装包，**不入版本控制**（283 MB 第三方二进制，需自行放置） |
 
@@ -80,6 +80,7 @@
 | [`audio-quality-audit.md`](docs/audio-quality-audit.md) | 音质接口复核与解密交接：文档误读、APK 调用链、真实样本及未解决项 |
 | [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
+| [`libmpv-audio-build.md`](docs/libmpv-audio-build.md) | **libmpv 精简构建维护主文档**：115.22 → 7.97 MiB、裁剪范围、文件位置、构建、验证、替换、回退与排障 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`search.md`](docs/search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
 | [`comments-ui.md`](docs/comments-ui.md) | 评论入口与角标、列表与回复、发布和点赞、主题与图片查看、接口约束及验证 |

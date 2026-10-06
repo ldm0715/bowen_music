@@ -1,0 +1,56 @@
+{
+  "pkgconf": {
+    "repository": "pkgconf/pkgconf",
+    "ref": "pkgconf-2.4.3",
+    "url": "https://codeload.github.com/pkgconf/pkgconf/tar.gz/pkgconf-2.4.3",
+    "sha256": "cea5b0ed69806b69c1900ce2f6f223a33f15230ad797243634df9fd56e64b156"
+  },
+  "freetype": {
+    "repository": "freetype/freetype",
+    "ref": "VER-2-13-3",
+    "url": "https://codeload.github.com/freetype/freetype/tar.gz/VER-2-13-3",
+    "sha256": "bc5c898e4756d373e0d991bab053036c5eb2aa7c0d5c67e8662ddc6da40c4103"
+  },
+  "fribidi": {
+    "repository": "fribidi/fribidi",
+    "ref": "v1.0.16",
+    "url": "https://codeload.github.com/fribidi/fribidi/tar.gz/v1.0.16",
+    "sha256": "5a1d187a33daa58fcee2ad77f0eb9d136dd6fa4096239199ba31e850d397e8a8"
+  },
+  "harfbuzz": {
+    "repository": "harfbuzz/harfbuzz",
+    "ref": "10.4.0",
+    "url": "https://codeload.github.com/harfbuzz/harfbuzz/tar.gz/10.4.0",
+    "sha256": "0d25a3f74af4e8744700ac19050af5a80ae330378a5802a5cd71e523bb6fda1f"
+  },
+  "libass": {
+    "repository": "libass/libass",
+    "ref": "0.17.4",
+    "url": "https://codeload.github.com/libass/libass/tar.gz/0.17.4",
+    "sha256": "c287d180d93dc9c9021872574b618ac49027e84cc90e1289318b1ee68bb42251"
+  },
+  "libplacebo": {
+    "repository": "haasn/libplacebo",
+    "ref": "v7.360.1",
+    "url": "https://codeload.github.com/haasn/libplacebo/tar.gz/v7.360.1",
+    "sha256": "d05fdf90bea2f629eaa2d115e909fd356388ac639e54f77b87a018a6d76224bd"
+  },
+  "ffmpeg": {
+    "repository": "FFmpeg/FFmpeg",
+    "ref": "939c2c733",
+    "url": "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/939c2c733",
+    "sha256": "bb626bc5ee737199eca34e140bf84e8f7208f022e2849b36a7120f5ca5ee949f"
+  },
+  "mpv": {
+    "repository": "mpv-player/mpv",
+    "ref": "e470f8986e",
+    "url": "https://codeload.github.com/mpv-player/mpv/tar.gz/e470f8986e",
+    "sha256": "4d98d863180fcff21070e0141ea13805d4c87b2281e19d60e44cd52cb0693f22"
+  },
+  "vulkan-headers": {
+    "repository": "KhronosGroup/Vulkan-Headers",
+    "ref": "v1.4.304",
+    "url": "https://codeload.github.com/KhronosGroup/Vulkan-Headers/tar.gz/v1.4.304",
+    "sha256": "5e1a06b3f27e7581b55d1dea176fd97ee0a2f299406db2f437c1d2f297ceba5b"
+  }
+}

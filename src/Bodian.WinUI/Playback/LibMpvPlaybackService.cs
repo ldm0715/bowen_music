@@ -374,7 +374,11 @@ public sealed class LibMpvPlaybackService : IPlaybackService
             mpv.SetPropertyString("audio-display", "no");
             mpv.SetPropertyString("keep-open", "no");
             mpv.SetPropertyString("idle", "yes");
-            mpv.SetPropertyString("ytdl", "no");
+            // 音频精简构建禁用了 Lua，也就没有 ytdl 选项；完整构建仍关闭该脚本。
+            if (TryReadFlag(mpv, "options/ytdl") is not null)
+            {
+                mpv.SetPropertyString("ytdl", "no");
+            }
             mpv.SetPropertyString("gapless-audio", "yes");
 
             mpv.FileLoaded += (_, _) => OnFileLoaded();
