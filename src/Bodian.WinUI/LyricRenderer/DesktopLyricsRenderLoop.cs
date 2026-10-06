@@ -131,7 +131,12 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
         var next = input.DualLine && first + 1 < input.Document.Lines.Count ? input.Document.Lines[first + 1] : null;
         UpdateLines(current, next, input);
         var changed = _current!.UpdateHighlight(position, input.Document.Kind, index >= 0);
-        if (_next is not null) changed |= _next.UpdateHighlight(position, input.Document.Kind, active: false);
+        changed |= _current.UpdateScroll(position, input.Document.Kind, index >= 0, input.Width, input.Scale);
+        if (_next is not null)
+        {
+            changed |= _next.UpdateHighlight(position, input.Document.Kind, active: false);
+            changed |= _next.UpdateScroll(position, input.Document.Kind, active: false, input.Width, input.Scale);
+        }
         // 同一画面只提交一次；暂停、空态和音节间隙不反复清空再画相同的文字。
         if (!changed && previous == input && _drawnRevision == revision)
         {
@@ -189,12 +194,12 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
             _current?.Dispose();
             // 下一句的预排版在切句时直接接续，避免同一句重复测量。
             if (ReferenceEquals(_next?.Line, current)) { _current = _next; _next = null; }
-            else _current = new DesktopLyricsLineRenderer(device, current, fontSize, input.Width, input.Scale, input.Highlight);
+            else _current = new DesktopLyricsLineRenderer(device, current, fontSize, input.Scale, input.Highlight);
         }
         if (!ReferenceEquals(_next?.Line, next))
         {
             _next?.Dispose();
-            _next = next is null ? null : new DesktopLyricsLineRenderer(device, next, fontSize, input.Width, input.Scale, input.Highlight);
+            _next = next is null ? null : new DesktopLyricsLineRenderer(device, next, fontSize, input.Scale, input.Highlight);
         }
     }
 

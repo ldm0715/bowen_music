@@ -192,15 +192,21 @@
                       3. 其余（暂停 / 没歌词）→ 歌名 + 歌手
                 -->
                 <Grid Grid.Row="0" Grid.Column="1" MinWidth="0" Padding="12,0">
-                    <TextBlock
-                        x:Name="LyricLineText"
-                        FontSize="13"
-                        HorizontalAlignment="Center"
+                    <Canvas
+                        x:Name="LyricViewport"
+                        Height="24"
                         VerticalAlignment="Center"
-                        Text="{x:Bind Lyrics.CurrentLineText, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis"
-                        TextWrapping="NoWrap"
-                        Visibility="Collapsed" />
+                        SizeChanged="OnLyricViewportSizeChanged"
+                        Visibility="Collapsed">
+                        <Canvas.Clip>
+                            <RectangleGeometry x:Name="LyricViewportClip" />
+                        </Canvas.Clip>
+                        <TextBlock x:Name="LyricLineText" FontSize="13" TextWrapping="NoWrap" TextTrimming="None">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform x:Name="LyricShift" />
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                    </Canvas>
 
                     <StackPanel x:Name="InfoPanel" MinWidth="0" VerticalAlignment="Center" Spacing="1">
                         <TextBlock

@@ -1,6 +1,9 @@
 using Bodian.Core.Models;
+using Bodian.Core.Models.Lyrics;
+using Bodian.Core.Playback;
 using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Controls;
+using Bodian.WinUI.Playback;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -72,6 +75,11 @@ public sealed partial class MiniPlayerWindow : Window
     private readonly IMiniPlayerPlacementStore _placement;
     private readonly IWindowHandleProvider _mainWindow;
     private readonly ILogger _logger;
+    private readonly IPlaybackService _engine;
+    private readonly LyricsPlaybackClock _lyricClock = new(TimeProvider.System);
+    private LyricLine? _miniLyricLine;
+    private double _miniLyricWidth, _miniLyricHeight;
+    private bool _lyricRendering;
     private readonly nint _handle;
 
     private DispatcherQueueTimer? _pollTimer;
@@ -111,6 +119,7 @@ public sealed partial class MiniPlayerWindow : Window
         MiniPlayerViewModel settings,
         PlayerViewModel player,
         LyricsViewModel lyrics,
+        IPlaybackService engine,
         PlayQueueViewModel queue,
         ThemeViewModel theme,
         IMiniPlayerPlacementStore placement,
@@ -120,6 +129,7 @@ public sealed partial class MiniPlayerWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
+        ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(queue);
         ArgumentNullException.ThrowIfNull(theme);
         ArgumentNullException.ThrowIfNull(placement);
@@ -128,6 +138,7 @@ public sealed partial class MiniPlayerWindow : Window
         _settings = settings;
         Player = player;
         Lyrics = lyrics;
+        _engine = engine;
         Queue = queue;
         Theme = theme;
         _placement = placement;
@@ -161,6 +172,7 @@ public sealed partial class MiniPlayerWindow : Window
 
         Player.PropertyChanged += OnPlayerPropertyChanged;
         Lyrics.PropertyChanged += OnLyricsPropertyChanged;
+        _engine.PositionChanged += OnLyricPositionChanged;
 
         Closed += (_, _) => TearDown();
     }
@@ -196,6 +208,10 @@ public sealed partial class MiniPlayerWindow : Window
     public void ShowWindow()
     {
         _windowVisible = true;
+        _lyricClock.SetDuration(_engine.Duration);
+        _lyricClock.Sync(_engine.Position, force: true);
+        _lyricClock.SetPlaying(_engine.State == PlaybackState.Playing);
+        RefreshInfoSlot();
 
         if (_everShown)
         {
@@ -464,6 +480,7 @@ public sealed partial class MiniPlayerWindow : Window
 
     private void StopTimers()
     {
+        SetLyricRendering(false);
         _pollTimer?.Stop();
         _topmostTimer?.Stop();
         _placementTimer?.Stop();
@@ -652,21 +669,77 @@ public sealed partial class MiniPlayerWindow : Window
         var lyric = !transport && Player.IsPlaying && Lyrics.CurrentLineText.Length > 0;
 
         TransportPanel.Visibility = transport ? Visibility.Visible : Visibility.Collapsed;
-        LyricLineText.Visibility = lyric ? Visibility.Visible : Visibility.Collapsed;
+        LyricViewport.Visibility = lyric ? Visibility.Visible : Visibility.Collapsed;
         InfoPanel.Visibility = transport || lyric ? Visibility.Collapsed : Visibility.Visible;
+        UpdateMiniLyric();
+    }
+
+    private void OnLyricViewportSizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        LyricViewportClip.Rect = new Rect(0, 0, args.NewSize.Width, args.NewSize.Height);
+        UpdateMiniLyric();
+    }
+
+    private void OnLyricPositionChanged(object? sender, PlaybackPositionChangedEventArgs args)
+    {
+        _lyricClock.SetDuration(args.Duration);
+        _lyricClock.Sync(args.Position);
+    }
+
+    private void OnLyricRendering(object? sender, object args) => UpdateMiniLyric();
+
+    private void SetLyricRendering(bool enabled)
+    {
+        if (_lyricRendering == enabled) return;
+        _lyricRendering = enabled;
+        if (enabled) CompositionTarget.Rendering += OnLyricRendering;
+        else CompositionTarget.Rendering -= OnLyricRendering;
+    }
+
+    private void UpdateMiniLyric()
+    {
+        if (!_windowVisible || _collapsed || LyricViewport.Visibility != Visibility.Visible)
+        {
+            SetLyricRendering(false);
+            return;
+        }
+        var position = _lyricClock.Position;
+        var document = Lyrics.Document;
+        var index = document.IndexOfLineAt(position);
+        var line = index >= 0 ? document.Lines[index] : null;
+        if (!ReferenceEquals(_miniLyricLine, line))
+        {
+            _miniLyricLine = line;
+            LyricLineText.Text = line?.Text ?? string.Empty;
+            // Canvas 给文字完整的自然宽度，外层视口单独裁剪，不截断或缩小字形。
+            LyricLineText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            _miniLyricWidth = LyricLineText.DesiredSize.Width;
+            _miniLyricHeight = LyricLineText.DesiredSize.Height;
+        }
+        var width = LyricViewport.ActualWidth;
+        var overflowing = width > 0 && _miniLyricWidth > width;
+        var progress = line is null ? 0 : LyricHorizontalScroll.ProgressAt(line, document.Kind, position);
+        var x = overflowing ? -LyricHorizontalScroll.Offset(_miniLyricWidth, width, progress)
+            : (width - _miniLyricWidth) / 2;
+        var scale = Root.XamlRoot?.RasterizationScale ?? _scale;
+        LyricShift.X = Math.Round(x * scale) / scale;
+        LyricShift.Y = Math.Round((LyricViewport.ActualHeight - _miniLyricHeight) / 2 * scale) / scale;
+        // 只有可见长句订阅逐帧回调，悬停、收起、暂停和隐藏立即停止。
+        SetLyricRendering(overflowing && Player.IsPlaying);
     }
 
     private void OnPlayerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(PlayerViewModel.IsPlaying))
         {
+            _lyricClock.SetPlaying(Player.IsPlaying);
             RefreshInfoSlot();
         }
     }
 
     private void OnLyricsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(LyricsViewModel.CurrentLineText))
+        if (e.PropertyName is nameof(LyricsViewModel.CurrentLineText) or nameof(LyricsViewModel.Document))
         {
             RefreshInfoSlot();
         }
@@ -905,6 +978,7 @@ public sealed partial class MiniPlayerWindow : Window
         // ViewModel 比窗口活得久（它们常驻），不退订就是让窗口被这些事件引用着不放。
         Player.PropertyChanged -= OnPlayerPropertyChanged;
         Lyrics.PropertyChanged -= OnLyricsPropertyChanged;
+        _engine.PositionChanged -= OnLyricPositionChanged;
     }
 
     // ── 坐标换算 ────────────────────────────────────────────────────────────
