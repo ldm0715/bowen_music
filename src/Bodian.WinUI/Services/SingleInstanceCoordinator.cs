@@ -13,11 +13,9 @@ namespace Bodian.WinUI.Services;
 /// （SMTC）会话 —— 后者正是 <see cref="AppIdentity"/> 的注释里警告过的那种互相顶掉。
 /// </para>
 /// <para>
-/// <b>为什么在 App 构造函数里判，而不是自定义 Program.cs。</b> 生成的 Main 只有四行
-/// （初始化 COM 包装器 → <c>Application.Start</c> → 设同步上下文 → <c>new App()</c>），
-/// 而 App 的构造函数是其中最早的、我们控制得到的点 —— 它在建 DI 容器、建窗口、装开始菜单
-/// 快捷方式之前。接管 Program.cs 需要动 unpackaged + self-contained 的启动路径，
-/// 收益只有省下第二个进程那几百毫秒的 XAML 初始化，风险不成比例。
+/// <b>为什么仍在 App 构造函数里判。</b> 自定义 Program 只负责在 XAML 初始化前读取
+/// 输入法兼容偏好，然后复用原来的 COM 包装器、Application.Start 和同步上下文启动步骤。
+/// 单实例判定保留在 App 构造函数，仍早于 DI 容器、主窗口和开始菜单快捷方式。
 /// </para>
 /// <para>
 /// <b>为什么不用 WinAppSDK 自带的 <c>AppInstance</c>。</b> 三个额外负担：它的

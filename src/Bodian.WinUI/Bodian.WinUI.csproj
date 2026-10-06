@@ -6,6 +6,8 @@
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <!-- XAML 编译靠它，不能省 -->
     <UseWinUI>true</UseWinUI>
+    <!-- 输入法兼容选项需要在 Application.Start 之前应用。 -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <RootNamespace>Bodian.WinUI</RootNamespace>
     <AssemblyName>Bodian.WinUI</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>

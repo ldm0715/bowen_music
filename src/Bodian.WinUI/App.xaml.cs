@@ -105,6 +105,10 @@ public partial class App : Application
 
         // 外观设置同样是明文 JSON。构造参数里有个可选的路径，同样用显式工厂。
         // 它在主窗口构造时被同步读一次 —— 主题必须在第一帧之前定下来，否则会闪一下系统主题。
+        builder.Services.AddSingleton<IInputMethodSettingsStore>(sp => new JsonInputMethodSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonInputMethodSettingsStore>>()));
+        builder.Services.AddSingleton<InputMethodSettingsViewModel>();
+
         builder.Services.AddSingleton<IThemeSettingsStore>(sp => new JsonThemeSettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonThemeSettingsStore>>()));
 
@@ -364,6 +368,7 @@ public partial class App : Application
 
         _host = builder.Build();
         _host.Start();
+        Program.AttachLogger(_host.Services.GetRequiredService<ILogger<App>>());
 
         // 未处理异常必须进日志。
         // unpackaged + WinUI 下崩溃只留一句 STATUS_STOWED_EXCEPTION（0xC000027B），

@@ -33,6 +33,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bodian.Core\Bodian.Core.csproj" />
+    <!-- 只测导入表定位，不调用 Win32 或修改真实模块。 -->
+    <Compile Include="..\..\src\Bodian.WinUI\Services\LegacyImeCompatibility.cs" Link="Services\LegacyImeCompatibility.cs" />
     <!-- 评论 ViewModel 不依赖 WinUI，链接源文件验证请求取消和迟到响应，不加载 UI 运行时。 -->
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentsViewModel.cs" Link="ViewModels\SongCommentsViewModel.cs" />
     <Compile Include="..\..\src\Bodian.WinUI\ViewModels\SongCommentRow.cs" Link="ViewModels\SongCommentRow.cs" />

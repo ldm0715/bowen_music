@@ -1,0 +1,4 @@
+<Project>
+  <!-- Share the main application's versions through NuGet's standard discovery. -->
+  <Import Project="..\..\src\Directory.Packages.props" />
+</Project>

@@ -371,3 +371,19 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 - 封面磁盘缓存的「断网后仍显示看过的封面」这条路（单测只验键与淘汰，验不了图片管线）。
 - 深色模式下录制快捷键的对话框不是白板。
 - 桌面歌词开关落盘后：开着退出、重启应自动出现；用 ✕ 关掉后重启不应出现。
+
+
+## 9. 输入法兼容模式（2026-10-06，已获用户确认）
+
+入口：**设置 → 外观 → 输入法兼容模式（实验）**。默认关闭。中文候选框无法显示时可开启，
+然后从托盘菜单完全退出再重新打开；窗口 × 只隐藏。关闭开关同样在下次进程启动恢复正常初始化。
+
+偏好保存到 `%LOCALAPPDATA%\Bodian\input-method.json`，使用源生成 JSON。
+坏文件回退关闭、保留原文件；保存失败时开关恢复之前的状态并显示失败通知。
+
+最终处理只在 WinUI 初始化前跳过 `ImmDisableLegacyIME`，不更换输入框或样式，不接管 IMM 上下文、
+候选坐标、caret 或 TSF 文档。托盘流程保持原实现。用户已确认最终版本修好。
+
+用户常用 EXE 为 `src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe`。
+临时构建路径与它不同，旧进程仍在运行时，新 EXE 可能只唤醒旧实例；验收前应确认进程路径与构建版本。
+该处理依赖固定 WinUI 内部导入，升级运行时后需要重新验证，见 [`ime-candidate-window.md`](ime-candidate-window.md)。

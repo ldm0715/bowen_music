@@ -162,6 +162,15 @@
                                             SelectedIndex="{x:Bind ViewModel.ListDisplayIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow Header="输入法兼容模式（实验）" Description="中文候选框无法显示时可尝试开启；更改后需完全退出并重新打开应用">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.InputMethod.Enabled, Mode=TwoWay}"
+                                            MinWidth="0" OffContent="" OnContent=""
+                                            AutomationProperties.Name="输入法兼容模式" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
                             </StackPanel>
                         </Border>
                     </StackPanel>

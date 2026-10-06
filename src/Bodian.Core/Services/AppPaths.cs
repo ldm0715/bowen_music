@@ -54,6 +54,9 @@ public static class AppPaths
     /// </remarks>
     public static string SettingsFile => Path.Combine(LocalAppData, "settings.json");
 
+    /// <summary>输入法兼容偏好，默认关闭；在 XAML 初始化前读取。</summary>
+    public static string InputMethodSettingsFile => Path.Combine(LocalAppData, "input-method.json");
+
     /// <summary>
     /// 可再生的数据目录（缓存）。**删掉不影响正确性**，只会让下次慢一点。
     /// </summary>

@@ -40,7 +40,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         PlaybackCoordinator coordinator,
         ShortcutSettingsViewModel shortcuts,
         StorageSettingsViewModel storage,
-        AboutViewModel about)
+        AboutViewModel about,
+        InputMethodSettingsViewModel inputMethod)
     {
         ArgumentNullException.ThrowIfNull(theme);
         ArgumentNullException.ThrowIfNull(player);
@@ -51,6 +52,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(shortcuts);
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(about);
+        ArgumentNullException.ThrowIfNull(inputMethod);
 
         Theme = theme;
         Player = player;
@@ -61,6 +63,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Shortcuts = shortcuts;
         Storage = storage;
         About = about;
+        InputMethod = inputMethod;
 
         Categories =
         [
@@ -133,6 +136,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     /// <summary>关于分区。</summary>
     public AboutViewModel About { get; }
+
+    public InputMethodSettingsViewModel InputMethod { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAppearanceSelected))]
