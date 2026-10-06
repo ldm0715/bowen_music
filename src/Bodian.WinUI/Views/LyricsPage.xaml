@@ -73,35 +73,21 @@
                     <Grid />
                 </TitleBar.Content>
                 <TitleBar.RightHeader>
-                    <!-- RightHeader 只吃一个子元素，两颗按钮得套一层。 -->
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <!-- 译文的开关。与全屏那颗同一个模板；开/关只差图标的不透明度，
-                             见 LyricsPage.xaml.cs 的 SyncTranslation。 -->
-                        <Button x:Name="TranslationButton" Click="OnTranslationClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
-                            IsEnabled="{x:Bind Lyrics.HasTranslation, Mode=OneWay}"
-                            AutomationProperties.Name="显示译文">
-                            <Button.Resources>
-                                <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
-                                    盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
-                                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
-                            </Button.Resources>
+                    <!--
+                        译文那颗搬到了歌词区域右上角（见 MainStage），这一侧只剩全屏。
+                        ★ RightHeader 只吃一个子元素 —— 以后要在这侧再加按钮，记得套一层 StackPanel。
+                    -->
+                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
+                        <Button.Resources>
+                            <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
 
-                            <controls:Icon x:Name="TranslationIcon" Data="{StaticResource IconTranslate}" Size="{StaticResource SizeIconMd}" />
-                        </Button>
-
-                        <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
-                            AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
-                            <Button.Resources>
-                                <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
-                                    盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
-                                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
-                            </Button.Resources>
-
-                            <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
-                        </Button>
-                    </StackPanel>
+                        <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
+                    </Button>
                 </TitleBar.RightHeader>
             </TitleBar>
             <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top"
@@ -142,8 +128,37 @@
                 </Canvas>
                 <Grid Grid.Column="1" Margin="0,0,0,4">
                     <ContentControl x:Name="CanvasHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                    <!--
+                        译文开关。原本挂在标题栏右端、与全屏并排；搬到歌词区域右下角，是因为
+                        歌词画布占满整列，浮在右上角时鼠标过去容易先落到歌词行上（点行是跳转）。
+
+                        ★ 压在「回到当前歌词」下面一档：这颗占最底，那颗的底边距见下面它自己的 Margin。
+                          两者同时出现时上下错开，不会叠在一起。
+
+                        ★ 这首歌没有译文时整颗不显示（判据见 code-behind 的 SyncTranslationButtonVisibility）——
+                          留一颗点不动的按钮比没有它更让人困惑。显隐统一由那个方法一处算：
+                          没译文 / chrome 收起（沉浸） / 全屏，三条任一成立就藏。
+                          这里是 Collapsed 起步，免得页面刚加载、那个方法还没跑时先闪出来一下。
+                    -->
+                    <Button x:Name="TranslationButton" Click="OnTranslationClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,0"
+                        IsEnabled="{x:Bind Lyrics.HasTranslation, Mode=OneWay}"
+                        Visibility="Collapsed"
+                        AutomationProperties.Name="显示译文">
+                        <Button.Resources>
+                            <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
+
+                        <controls:Icon x:Name="TranslationIcon" Data="{StaticResource IconTranslate}" Size="{StaticResource SizeIconMd}" />
+                    </Button>
+
+                    <!-- ★ 底边距给译文按钮让位：那颗压在最底（底边距 0、高 32），这颗上抬到 56，
+                         两者之间留 24 的间隙。改按钮尺寸时这一个数要跟着重算。 -->
                     <Button x:Name="FollowButton" Content="回到当前歌词" Click="OnFollowClick"
-                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,20"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,56"
                         Visibility="Collapsed" AutomationProperties.Name="回到当前歌词" />
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" MaxWidth="420">
                         <ProgressRing Width="24" Height="24" IsActive="{x:Bind Lyrics.IsLoading, Mode=OneWay}"

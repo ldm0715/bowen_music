@@ -372,6 +372,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         FullscreenIcon.Data = ResourceIcon(_window.IsLyricsFullscreen ? "IconExitFullScreen" : "IconFullScreen");
         ToolTipService.SetToolTip(FullscreenButton, _window.IsLyricsFullscreen ? "退出全屏 (F11)" : "进入全屏 (F11)");
         UpdateChromeInsets();
+        SyncTranslationButtonVisibility();
         if (Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1")
             _logger.LogInformation("全屏阶段：同步标题栏 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(start).TotalMilliseconds);
         LyricsTitleBar.RecomputeDragRegions();
@@ -496,6 +497,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             visual.StartAnimation("Opacity", animation);
         }
         UpdateProgressAppearance();
+        SyncTranslationButtonVisibility();
     }
 
     /// <summary>音量弹层开着时控制台不能自己收走，否则展开的那颗按钮会跟着消失。</summary>
@@ -646,23 +648,51 @@ public sealed partial class LyricsPage : Page, INavigationAware
     /// 提示文案跟着翻面，鼠标停在上面能看出下一步会发生什么。
     /// </para>
     /// <para>
-    /// <b>这首歌没有译文时整颗禁用</b>（按钮的 <c>IsEnabled</c> 绑的是 <c>HasTranslation</c>），
-    /// 提示也跟着换成「没有译文」—— 否则用户点了没反应，只会以为开关坏了。
-    /// 这时不透明度交回 1，让模板的禁用态去负责变淡，免得两种「淡」叠在一起。
+    /// <b>这首歌没有译文时整颗不显示</b>，由 <see cref="SyncTranslationButtonVisibility"/> 负责 ——
+    /// 早先是留着禁用并提示「没有译文」，但一颗点不动的按钮挂在歌词上，用户只会去戳它。
+    /// 这里碰到没译文就把不透明度交回 1：藏起来的是按钮自己，留着上次的 0.45 反而会在下次
+    /// 显示出来时先淡一下。（<c>IsEnabled</c> 那条绑定留着不删 —— 万一显隐逻辑将来有疏漏，
+    /// 它还能兜住「点了没反应」。）
     /// </para>
     /// </remarks>
     private void SyncTranslation()
     {
+        SyncTranslationButtonVisibility();
+
         if (!Lyrics.HasTranslation)
         {
             TranslationIcon.Opacity = 1;
-            ToolTipService.SetToolTip(TranslationButton, "这首歌没有译文");
             return;
         }
 
         TranslationIcon.Opacity = Lyrics.ShowTranslation ? 1 : 0.45;
         ToolTipService.SetToolTip(TranslationButton, Lyrics.ShowTranslation ? "关闭译文" : "显示译文");
     }
+
+    /// <summary>
+    /// 译文按钮的显隐：没译文、chrome 收起（沉浸）、全屏 —— 三条任一成立就不显示。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>为什么要单独算一份</b>：它已经从标题栏搬到歌词区域里，不在
+    /// <see cref="SetChromeVisibility"/> 遍历的那几块里，那套淡入淡出管不到它。
+    /// </para>
+    /// <para>
+    /// <b>没译文就不显示</b>：留一颗点不动的按钮挂在歌词上，用户只会去戳它。
+    /// </para>
+    /// <para>
+    /// <b>全屏时连 chrome 可见也藏</b>：全屏是「专心看词」的模式，歌词上不该压着一颗按钮。
+    /// </para>
+    /// <para>
+    /// <b>三个入口都要调它</b> —— <see cref="SetChromeVisibility"/>（鼠标进出）、
+    /// <see cref="SyncFullscreen"/>（F11 切换）、<see cref="SyncTranslation"/>
+    /// （<c>HasTranslation</c> 会随换歌变），少一处就会出现「状态变了按钮没跟上」。
+    /// </para>
+    /// </remarks>
+    private void SyncTranslationButtonVisibility()
+        => TranslationButton.Visibility = _chromeVisible && !_window.IsLyricsFullscreen && Lyrics.HasTranslation
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
     /// <summary>译文按钮的状态由 ViewModel 两位共同决定，任一变化都要重画。</summary>
     private void OnLyricsChanged(object? sender, PropertyChangedEventArgs args)
