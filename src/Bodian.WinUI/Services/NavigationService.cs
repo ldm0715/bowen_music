@@ -24,7 +24,6 @@ public sealed class NavigationService : INavigationService
     private readonly NavigationStack<Page> _stack;
     private readonly Dictionary<Type, Page> _rootPages = [];
     private readonly LinkedList<Type> _rootRecency = new();
-    private readonly Dictionary<Type, Page> _recycledDetails = [];
 
     private ContentControl? _host;
     private ContentControl? _shownHost;
@@ -74,18 +73,10 @@ public sealed class NavigationService : INavigationService
     }
 
     internal TPage GetDetail<TPage, TModel>(TModel model, Func<TModel, TPage> create)
-        where TPage : Page, IReusableDetailPage<TModel>
+        where TPage : Page
     {
-        if (_recycledDetails.TryGetValue(typeof(TPage), out var candidate)
-            && !candidate.IsLoaded && candidate.Parent is null && !_stack.ContainsInstance(candidate))
-        {
-            _recycledDetails.Remove(typeof(TPage));
-            PageVisualResources.Reset(candidate);
-            CoverTransitionAnimator.Current?.ForgetPage(candidate);
-            var page = (TPage)candidate;
-            page.Rebind(model);
-            return page;
-        }
+        // 详情页拥有自己的 OneTime x:Bind 数据源。重新绑定旧页面会留下旧曲目集合，
+        // 离屏时清空原生列表也会破坏该绑定；每次进入新详情保持独立页面和数据源。
         return create(model);
     }
 
@@ -93,7 +84,6 @@ public sealed class NavigationService : INavigationService
     {
         _rootPages.Clear();
         _rootRecency.Clear();
-        _recycledDetails.Clear();
     }
 
     public void Navigate<TPage>() where TPage : Page =>
@@ -245,7 +235,6 @@ public sealed class NavigationService : INavigationService
 
         // 先通知离场，再换内容，最后通知进场 —— 顺序固定，页面可以放心在
         // OnNavigatedFrom 里释放、在 OnNavigatedTo 里重建。
-        var previous = _shown;
         if (_shown is not null) AppMotion.Reset(_shown);
         Notify(_shown, leaving: true);
 
@@ -257,7 +246,6 @@ public sealed class NavigationService : INavigationService
             _shownHost.Content = null;
         }
 
-        PageVisualResources.Track(next);
         _shownHost = nextHost;
         _shownHost.Content = next;
         _shown = next;
@@ -265,10 +253,6 @@ public sealed class NavigationService : INavigationService
             _ = AppMotion.EnterAsync(next, sharedCover is null ? x : 0, sharedCover is null ? y : 0);
 
         Notify(next, leaving: false);
-        // 仅保留每种已离开返回栈的详情页一份，下一张歌单/专辑重用其布局。
-        if (previous is IReusableDetailPage && !_stack.ContainsInstance(previous))
-            _recycledDetails[previous.GetType()] = previous;
-
         Navigated?.Invoke(this, next);
         if (sharedCover is not null) _ = CoverTransitionAnimator.Current?.PlayNavigationAsync(sharedCover);
         if (_diagnostics) _logger.LogInformation("页面切换 {Page}：UI 处理 {Elapsed:F2} ms", next.GetType().Name, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
