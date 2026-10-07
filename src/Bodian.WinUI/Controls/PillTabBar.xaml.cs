@@ -1,4 +1,8 @@
+using System.Numerics;
+using Bodian.WinUI.Services;
+using Windows.Foundation;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Bodian.WinUI.Controls;
@@ -26,7 +30,23 @@ public sealed partial class PillTabBar : UserControl
     /// </summary>
     private bool _syncing;
 
-    public PillTabBar() => InitializeComponent();
+    private Rect? _indicatorBounds;
+    private int _indicatorIndex = -1;
+    private int _selectionVersion;
+
+    public PillTabBar()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => UpdateIndicator(false);
+        Unloaded += (_, _) =>
+        {
+            _selectionVersion++;
+            _indicatorBounds = null;
+            _indicatorIndex = -1;
+            AppMotion.Reset(SelectionIndicator);
+        };
+        Tabs.LayoutUpdated += (_, _) => UpdateIndicator(false);
+    }
 
     public static readonly DependencyProperty ItemsSourceProperty = DependencyProperty.Register(
         nameof(ItemsSource),
@@ -38,7 +58,8 @@ public sealed partial class PillTabBar : UserControl
         nameof(SelectedIndex),
         typeof(int),
         typeof(PillTabBar),
-        new PropertyMetadata(0, (sender, args) => ((PillTabBar)sender).ApplySelectedIndex((int)args.NewValue)));
+        new PropertyMetadata(0, (sender, args) => ((PillTabBar)sender).OnSelectedIndexChanged(
+            (int)args.NewValue, (int)args.OldValue)));
 
     public static readonly DependencyProperty WrapItemsProperty = DependencyProperty.Register(
         nameof(WrapItems),
@@ -85,6 +106,53 @@ public sealed partial class PillTabBar : UserControl
         // 换数据源会把选中项清成 -1，所以重建之后要用属性里的值补回来。
         Tabs.SelectedIndex = SelectedIndex;
         _syncing = false;
+    }
+
+    private void OnSelectedIndexChanged(int index, int previous)
+    {
+        ApplySelectedIndex(index);
+        var version = ++_selectionVersion;
+        if (!IsLoaded || _syncing) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!IsLoaded || version != _selectionVersion) return;
+            UpdateIndicator(true);
+            DependencyObject? ancestor = this;
+            while (ancestor is not null && ancestor is not Page)
+                ancestor = VisualTreeHelper.GetParent(ancestor);
+            if (ancestor is not null) Motion.AnimateTabs(ancestor, Math.Sign(index - previous));
+        });
+    }
+
+    private void UpdateIndicator(bool animate)
+    {
+        if (!IsLoaded || Tabs.ContainerFromIndex(Tabs.SelectedIndex) is not FrameworkElement container
+            || container.ActualWidth <= 0 || container.ActualHeight <= 0)
+        {
+            SelectionIndicator.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var bounds = container.TransformToVisual(IndicatorLayer).TransformBounds(
+            new Rect(0, 0, container.ActualWidth, container.ActualHeight));
+        SelectionIndicator.Visibility = Visibility.Visible;
+        if (_indicatorBounds == bounds) return;
+        var previous = _indicatorBounds;
+        animate |= _indicatorIndex != Tabs.SelectedIndex && previous is not null;
+        _indicatorIndex = Tabs.SelectedIndex;
+        _indicatorBounds = bounds;
+        SelectionIndicator.Visibility = Visibility.Visible;
+        SelectionIndicator.Width = bounds.Width;
+        SelectionIndicator.Height = bounds.Height;
+        Canvas.SetLeft(SelectionIndicator, bounds.X);
+        Canvas.SetTop(SelectionIndicator, bounds.Y);
+        if (animate && previous is { } old && old.Width > 0 && old.Height > 0)
+        {
+            _ = AppMotion.PlayAsync(SelectionIndicator,
+                new Vector3((float)(old.X - bounds.X), (float)(old.Y - bounds.Y), 0), Vector3.Zero,
+                1, 1, new Vector3((float)(old.Width / bounds.Width), (float)(old.Height / bounds.Height), 1),
+                Vector3.One, AppMotion.Standard, topLeftOrigin: true);
+        }
+        else AppMotion.Reset(SelectionIndicator);
     }
 
     private void ApplySelectedIndex(int index)

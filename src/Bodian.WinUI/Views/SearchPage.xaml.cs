@@ -73,7 +73,10 @@ public sealed partial class SearchPage : Page, INavigationAware
     {
         switch (args.ClickedItem)
         {
-            case TrackRow row: ViewModel.PlayCommand.Execute(row.Source); break;
+            case TrackRow row:
+                CoverDropAnimation.Request((sender as ListViewBase)?.ContainerFromItem(row) as FrameworkElement, row.Source.Id);
+                ViewModel.PlayCommand.Execute(row.Source);
+                break;
             case Playlist playlist: _navigation.Navigate(_playlistFactory(playlist, playlist.SourceType)); break;
             case Album album: _navigation.Navigate(_albumFactory(album)); break;
             case Artist artist: _navigation.Navigate(_artistFactory(artist)); break;

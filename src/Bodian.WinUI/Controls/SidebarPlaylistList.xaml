@@ -89,7 +89,7 @@
                             <Border
                                 Background="{ThemeResource ControlFillColorDefaultBrush}"
                                 CornerRadius="{StaticResource RadiusXs}">
-                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
                             </Border>
 
                             <!--

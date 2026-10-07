@@ -22,7 +22,7 @@
         <DataTemplate x:Key="FollowedArtistRowTemplate" x:DataType="models:Artist">
             <Grid Padding="4,8" ColumnSpacing="16">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                     <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -41,7 +41,7 @@
                 VerticalAlignment="Top">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
-                <PersonPicture
+                <PersonPicture controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(Id)}"
                     Width="132"
                     Height="132"
                     DisplayName="{x:Bind Name}"

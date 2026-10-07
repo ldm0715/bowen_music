@@ -174,7 +174,6 @@ public sealed partial class LyricsPage : Page, INavigationAware
         SyncTranslation();
         _pointerTimer.Start();
         UpdatePointerLocation();
-        AnimateEntrance();
     }
 
     public void OnNavigatedFrom()
@@ -341,16 +340,6 @@ public sealed partial class LyricsPage : Page, INavigationAware
         animation.InsertKeyFrame(1, new Vector3(scale, scale, 1));
         animation.Duration = TimeSpan.FromMilliseconds(400);
         visual.StartAnimation("Scale", animation);
-    }
-
-    private void AnimateEntrance()
-    {
-        var visual = ElementCompositionPreview.GetElementVisual(LyricsRoot);
-        using var opacity = visual.Compositor.CreateScalarKeyFrameAnimation();
-        opacity.InsertKeyFrame(0, 0);
-        opacity.InsertKeyFrame(1, 1);
-        opacity.Duration = TimeSpan.FromMilliseconds(400);
-        visual.StartAnimation("Opacity", opacity);
     }
 
     private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)

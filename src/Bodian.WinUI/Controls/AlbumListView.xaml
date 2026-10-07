@@ -38,7 +38,7 @@
                         VerticalAlignment="Center"
                         Background="{ThemeResource ControlFillColorDefaultBrush}"
                         CornerRadius="4">
-                        <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
                     </Border>
 
                     <StackPanel

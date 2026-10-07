@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     页内页签条。选中的样子与侧栏一致：胶囊底 + 主文字色，没有下划线指示条、
-    没有滑动动画、没有可拖动的表头（那三样是 Pivot 默认模板带的）。
+    指示块使用独立合成动画移动，表头仍由原生列表处理键盘与选择。
 
     做法沿用主题弹层与音质菜单那一套（`MainWindow.xaml` 的主题列表、`AudioQualityPicker`）：
     原生 ListView + 局部关掉指示条与勾选，只留背景高亮。
@@ -25,9 +25,10 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#0D000000" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#1A000000" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#24000000" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2E000000" />
+                    <SolidColorBrush x:Key="PillSelectionBrush" Color="#1A000000" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
                     <SolidColorBrush x:Key="ListViewItemForeground" Color="#9E000000" />
                     <SolidColorBrush x:Key="ListViewItemForegroundPointerOver" Color="#E4000000" />
                     <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="#E4000000" />
@@ -35,9 +36,10 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#0DFFFFFF" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#1AFFFFFF" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#24FFFFFF" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#2EFFFFFF" />
+                    <SolidColorBrush x:Key="PillSelectionBrush" Color="#1AFFFFFF" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
                     <SolidColorBrush x:Key="ListViewItemForeground" Color="#C5FFFFFF" />
                     <SolidColorBrush x:Key="ListViewItemForegroundPointerOver" Color="#FFFFFFFF" />
                     <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="#FFFFFFFF" />
@@ -45,9 +47,10 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
                     <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="{ThemeResource SystemColorHighlightColor}" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="PillSelectionBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
                     <SolidColorBrush x:Key="ListViewItemForeground" Color="{ThemeResource SystemColorWindowTextColor}" />
                     <SolidColorBrush x:Key="ListViewItemForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
                     <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="{ThemeResource SystemColorHighlightTextColor}" />
@@ -64,6 +67,13 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
+    <Grid>
+        <Canvas x:Name="IndicatorLayer" IsHitTestVisible="False">
+            <Border x:Name="SelectionIndicator"
+                    Background="{ThemeResource PillSelectionBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
+                    Visibility="Collapsed" />
+        </Canvas>
     <ListView
         x:Name="Tabs"
         Padding="0"
@@ -94,4 +104,5 @@
             </Style>
         </ListView.ItemContainerStyle>
     </ListView>
+    </Grid>
 </UserControl>

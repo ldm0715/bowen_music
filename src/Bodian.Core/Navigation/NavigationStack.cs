@@ -135,5 +135,18 @@ public sealed class NavigationStack<T>(Func<T, object> identity)
         return previous;
     }
 
+    /// <summary>跳过不匹配的中间页，一次取得最终返回页；历史耗尽时落在根页。</summary>
+    public T? GoBackTo(Func<T, bool> destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        T? restored = null;
+        while (CanGoBack)
+        {
+            restored = GoBack();
+            if (restored is not null && destination(restored)) break;
+        }
+        return restored;
+    }
+
     private bool Same(T left, T right) => _identity(left).Equals(_identity(right));
 }

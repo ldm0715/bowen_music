@@ -1,3 +1,4 @@
+using Bodian.WinUI.Services;
 using Bodian.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -93,6 +94,7 @@ public sealed partial class SidebarPlaylistList : UserControl
     {
         if (e.ClickedItem is Playlist playlist)
         {
+            CoverTransitionAnimator.PrepareFromClick(List.ContainerFromItem(playlist) as FrameworkElement, Formats.PlaylistCoverKey(playlist.Id));
             PlaylistInvoked?.Invoke(this, playlist);
         }
     }

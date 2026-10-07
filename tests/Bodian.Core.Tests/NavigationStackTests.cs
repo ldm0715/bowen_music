@@ -226,6 +226,63 @@ public sealed class NavigationStackTests
         Assert.False(stack.CanGoBack);
     }
 
+    [Fact]
+    public void GoBackTo_SkipsLyricsBetweenMvAndTheOriginalPage()
+    {
+        var stack = NewStack();
+        var root = new Screen("发现");
+        var detail = new Screen("歌单详情", "111");
+        stack.Push(root);
+        stack.Push(detail);
+        stack.Push(new Screen("歌词"));
+        stack.Push(new Screen("MV"));
+
+        var restored = stack.GoBackTo(page => page.Kind is not "歌词" and not "MV");
+
+        Assert.Same(detail, restored);
+        Assert.Same(detail, stack.Current);
+        Assert.Same(root, stack.Root);
+        Assert.Equal(new[] { root }, stack.History);
+        Assert.True(stack.CanGoBack);
+    }
+
+    [Fact]
+    public void GoBackTo_MvOpenedDirectlyFromShell_ReturnsToTheSameShellInstance()
+    {
+        var stack = NewStack();
+        var shell = new Screen("我喜欢的");
+        stack.Push(shell);
+        stack.Push(new Screen("MV"));
+
+        Assert.Same(shell, stack.GoBackTo(page => page.Kind != "MV"));
+        Assert.False(stack.CanGoBack);
+    }
+
+    [Fact]
+    public void GoBackTo_NoMatchingAncestor_FallsBackToRoot()
+    {
+        var stack = NewStack();
+        var root = new Screen("发现");
+        stack.Push(root);
+        stack.Push(new Screen("歌词"));
+        stack.Push(new Screen("MV"));
+
+        Assert.Same(root, stack.GoBackTo(_ => false));
+        Assert.False(stack.CanGoBack);
+    }
+
+    [Fact]
+    public void GoBackTo_AtRoot_DoesNotNavigate()
+    {
+        var stack = NewStack();
+        var root = new Screen("发现");
+        stack.Push(root);
+
+        Assert.Null(stack.GoBackTo(_ => true));
+        Assert.Same(root, stack.Current);
+        Assert.Throws<ArgumentNullException>(() => stack.GoBackTo(null!));
+    }
+
     // ── 参数校验 ────────────────────────────────────────────────────────────
 
     [Fact]

@@ -32,7 +32,7 @@
                 PersonPicture 自带圆形裁剪与姓名首字占位，不必手写 Ellipse 蒙版。
                 详情没回来之前头像用的是导航带过来的那张，所以不需要占位骨架。
             -->
-            <PersonPicture
+            <PersonPicture x:Name="DetailCover" controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(ViewModel.Artist.Id), Mode=OneWay}"
                 Width="96"
                 Height="96"
                 VerticalAlignment="Top"
@@ -116,7 +116,7 @@
             SelectedIndex="{x:Bind ViewModel.SelectedTab, Mode=TwoWay}" />
 
         <!-- ── 歌曲 ─────────────────────────────────────────────────────── -->
-        <Grid Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsSongsTab), Mode=OneWay}">
+        <Grid controls:Motion.TabContent="True" Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsSongsTab), Mode=OneWay}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -153,7 +153,7 @@
         </Grid>
 
         <!-- ── 专辑（卡片网格）───────────────────────────────────────────── -->
-        <Grid Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAlbumsTab), Mode=OneWay}">
+        <Grid controls:Motion.TabContent="True" Grid.Row="2" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAlbumsTab), Mode=OneWay}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -286,7 +286,7 @@
                                 Background="{ThemeResource ControlFillColorDefaultBrush}"
                                 CornerRadius="{StaticResource RadiusMd}">
                                 <Grid>
-                                    <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                                    <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
 
                                     <!-- 右下角的曲目数角标。压在图上，用 MediaOverlay 那一对色 -->
                                     <Border
@@ -350,7 +350,7 @@
 
         <!-- ── 介绍 ─────────────────────────────────────────────────────── -->
         <!-- 实测这份文案是整篇人物生平（周杰伦那条 12466 字符），必须单独滚动 -->
-        <ScrollViewer
+        <ScrollViewer controls:Motion.TabContent="True"
             Grid.Row="2"
             Padding="0,0,24,0"
             VerticalScrollBarVisibility="Auto"

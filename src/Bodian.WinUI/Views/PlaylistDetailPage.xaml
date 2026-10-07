@@ -36,7 +36,7 @@
                 VerticalAlignment="Center"
                 Background="{ThemeResource ControlFillColorDefaultBrush}"
                 CornerRadius="{StaticResource RadiusMd}">
-                <Image Source="{x:Bind local:Formats.CoverSource(ViewModel.CoverImage), Mode=OneWay}" Stretch="UniformToFill" />
+                <Image x:Name="DetailCover" controls:Motion.SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(ViewModel.Playlist.Id), Mode=OneWay}" Source="{x:Bind local:Formats.CoverSource(ViewModel.CoverImage), Mode=OneWay}" Stretch="UniformToFill" />
             </Border>
 
             <StackPanel

@@ -30,7 +30,7 @@
                     Background="{ThemeResource ControlFillColorDefaultBrush}"
                     CornerRadius="{StaticResource RadiusMd}">
                     <Grid>
-                        <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
 
                         <Border
                             Margin="0,0,8,8"

@@ -2,10 +2,12 @@
 
 非官方第三方桌面客户端（对接波点音乐服务），目标平台 Windows 10 / 11。
 
-> **当前状态（2026-10-06）：P0–P5、P7、P8 与设置页完成，1347 个离线测试通过。**
+> **当前状态（2026-10-07）：P0–P5、P7、P8、设置页与应用动画完成，1417 个离线测试通过。**
 > 设置页（外观／播放／歌词／快捷键／存储／关于）与「实时状态 / 默认值 / 当前值」三种值的分野见
 > [`docs/settings.md`](docs/settings.md)；应用更名为「波纹音乐」并落位深浅两版图标，见
 > [`docs/ui-refresh.md`](docs/ui-refresh.md) §30。
+> 页面、Tab、横向卡片和共享封面动画已接入；首播封面下坠、歌词封面放大/回位、MV 直接退出及主题过渡见
+> [`docs/animations.md`](docs/animations.md)。
 > 已支持登录、综合与分类搜索、热榜与本地搜索历史、播放、SMTC、曲库与歌单、评论与回复；
 > 搜索默认分段显示综合结果，“更多”进入分类 tab，入口面板与主题浮窗使用相同的半透明背景。
 > 搜索框左侧统一提供返回按钮（间距 8 DIP），支持逐级返回；歌词页保留原来的 ↓ 收起按钮。
@@ -81,6 +83,7 @@
 | [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`libmpv-audio-build.md`](docs/libmpv-audio-build.md) | **libmpv 精简构建维护主文档**：115.22 → 7.97 MiB、裁剪范围、文件位置、构建、验证、替换、回退与排障 |
+| [`animations.md`](docs/animations.md) | 页面 / Tab / 卡片切换、共享封面、歌词展开回位、MV 直接退出、主题资源保护与验证 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`search.md`](docs/search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
 | [`comments-ui.md`](docs/comments-ui.md) | 评论入口与角标、列表与回复、发布和点赞、主题与图片查看、接口约束及验证 |

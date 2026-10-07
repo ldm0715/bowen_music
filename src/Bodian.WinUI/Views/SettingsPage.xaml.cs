@@ -56,6 +56,9 @@ public sealed partial class SettingsPage : Page, INavigationAware
 
     public SettingsViewModel ViewModel { get; }
 
+    private void OnCategoryMotionChanged(object sender, SelectionChangedEventArgs args)
+        => DispatcherQueue.TryEnqueue(() => Controls.Motion.AnimateTabs(this, 0));
+
     public void OnNavigatedTo()
     {
         Subscribe();

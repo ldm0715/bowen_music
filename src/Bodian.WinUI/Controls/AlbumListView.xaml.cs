@@ -1,3 +1,4 @@
+using Bodian.WinUI.Services;
 using System.Windows.Input;
 using Bodian.Core.Models;
 using Microsoft.UI.Xaml;
@@ -88,6 +89,7 @@ public sealed partial class AlbumListView : UserControl
     {
         if (e.ClickedItem is Album album)
         {
+            CoverTransitionAnimator.PrepareFromClick(List.ContainerFromItem(album) as FrameworkElement, Formats.AlbumCoverKey(album.Id));
             AlbumInvoked?.Invoke(this, album);
         }
     }

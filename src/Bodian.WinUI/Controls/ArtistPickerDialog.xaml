@@ -63,7 +63,7 @@
             <DataTemplate x:DataType="vm:ArtistChoice">
                 <StackPanel Width="88" Spacing="6">
                     <!-- 找得到：PersonPicture 自带圆形裁剪与姓名首字占位（同歌手详情页头部） -->
-                    <PersonPicture
+                    <PersonPicture controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(Id)}"
                         Width="72"
                         Height="72"
                         HorizontalAlignment="Center"

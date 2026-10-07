@@ -142,6 +142,17 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     /// <summary>托盘图标的句柄。留着是为了退出时释放 —— 它握着 .ico 的文件句柄。</summary>
     private System.Drawing.Icon? _trayIcon;
+    private System.Drawing.Icon? _darkTrayIcon;
+    private System.Drawing.Icon? _lightTrayIcon;
+    private bool _themeChromeUpdateQueued;
+
+    private readonly CoverDropAnimation? _coverMotion;
+    private readonly CoverTransitionAnimator? _coverTransitions;
+    private readonly ThemeTransitionAnimator? _themeTransitions;
+    private bool _nextImmersiveEntryFromImmersive;
+    private int _immersiveMotionVersion;
+    private float _immersiveEntryY;
+    private bool _backFocusPending;
 
     public MainWindow(
         INavigationService navigation,
@@ -160,7 +171,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory,
         Func<Track, MvPage> mvFactory,
         TrackActionsService trackActions,
-        NotificationViewModel notifications)
+        NotificationViewModel notifications,
+        Playback.PlaybackCoordinator playback)
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(login);
@@ -250,14 +262,21 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Closed += (_, _) =>
         {
             _closed = true;
+            _immersiveMotionVersion++;
+            AppMotion.Reset(ImmersiveHost);
+            _coverMotion?.Dispose();
+            _coverTransitions?.Dispose();
+            Theme.Transition = null;
+            _themeTransitions?.Dispose();
             MiniPlayer.PropertyChanged -= OnMiniPlayerPropertyChanged;
             _renderActivity.Dispose();
             UnwatchSessionEnd();
             DisposeTray();
 
             // 托盘图标握着 .ico 的文件句柄，要显式放掉。
-            _trayIcon?.Dispose();
-            _trayIcon = null;
+            _darkTrayIcon?.Dispose();
+            _lightTrayIcon?.Dispose();
+            _darkTrayIcon = _lightTrayIcon = _trayIcon = null;
 
             SaveWindowPlacement();
         };
@@ -267,7 +286,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         WatchSessionEnd();
 
         // 歌词页与 MV 页都是全窗沉浸，进 ImmersiveHost；其余进常规的 PageHost。
-        _navigation.Attach(PageHost, page => page is LyricsPage or MvPage ? ImmersiveHost : PageHost);
+        _navigation.Attach(PageHost, page => page is LyricsPage or MvPage ? ImmersiveHost : PageHost,
+            AnimateBeforeNavigationAsync);
         _navigation.Navigated += OnNavigated;
 
         var playerBar = new PlayerBar(playerViewModel, lyricsViewModel, desktopLyrics, navigation);
@@ -282,6 +302,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             trackActions.Create(track), ShellRoot.XamlRoot, ShellRoot.ActualTheme);
         playerBar.AlbumRequested += (_, track) => trackActions.Create(track).OpenAlbum();
         PlayerHost.Content = playerBar;
+        _themeTransitions = new ThemeTransitionAnimator(ShellRoot, ThemeTransitionVeil, () => !IsRenderingSuspended);
+        Theme.Transition = _themeTransitions.ChangeAsync;
+        _coverTransitions = new CoverTransitionAnimator(ShellRoot, CoverMotionOverlay);
+        _coverMotion = new CoverDropAnimation(_coverTransitions, playerBar.CoverAnimationTarget, playback);
 
         // 抽屉的滑入用 Translation 独立于布局（与歌词页的评论面板同一套），先打开这个通道。
         ElementCompositionPreview.SetIsTranslationEnabled(QueuePane, true);
@@ -355,12 +379,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             ApplyTrayIcon();
         }
 
-        ShellRoot.ActualThemeChanged += (_, _) =>
-        {
-            UpdateCaptionButtonColors();
-            ApplyTrayIcon();
-        };
-        AppTitleBar.RegisterPropertyChangedCallback(Control.ForegroundProperty, (_, _) => UpdateCaptionButtonColors());
+        ShellRoot.ActualThemeChanged += (_, _) => QueueThemeChromeUpdate();
+        AppTitleBar.RegisterPropertyChangedCallback(Control.ForegroundProperty, (_, _) => QueueThemeChromeUpdate());
         UpdateCaptionButtonColors();
 
         // 右侧那截多留的空白要按实际 DPI 量，见方法上的说明。
@@ -472,23 +492,37 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </summary>
     /// <remarks>
     /// 托盘图标由 shell 绘制，**不会自动跟应用主题走**，只能自己换。
-    /// 顺序是「先挂新的、再放旧的」——反过来的话中间有一瞬间托盘是空的、图标会闪一下。
+    /// 深浅两版图标各创建一次，主题切换只替换引用；窗口关闭时统一释放。
     /// </remarks>
+    private void QueueThemeChromeUpdate()
+    {
+        if (_closed || _themeChromeUpdateQueued) return;
+        _themeChromeUpdateQueued = true;
+        if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            _themeChromeUpdateQueued = false;
+            if (_closed) return;
+            UpdateCaptionButtonColors();
+            ApplyTrayIcon();
+        })) _themeChromeUpdateQueued = false;
+    }
+
     private void ApplyTrayIcon()
     {
-        var name = ShellRoot.ActualTheme == ElementTheme.Dark ? "Ripple.ico" : "RippleLight.ico";
-        var path = Path.Combine(AppContext.BaseDirectory, "Assets", name);
-
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
+        var dark = ShellRoot.ActualTheme == ElementTheme.Dark;
+        var next = dark ? _darkTrayIcon : _lightTrayIcon;
+        if (ReferenceEquals(_trayIcon, next) && next is not null) return;
         try
         {
-            var next = new System.Drawing.Icon(path);
+            if (next is null)
+            {
+                var path = Path.Combine(AppContext.BaseDirectory, "Assets", dark ? "Ripple.ico" : "RippleLight.ico");
+                if (!File.Exists(path)) return;
+                next = new System.Drawing.Icon(path);
+                if (dark) _darkTrayIcon = next;
+                else _lightTrayIcon = next;
+            }
             Tray.Icon = next;
-            _trayIcon?.Dispose();
             _trayIcon = next;
         }
         catch (Exception exception)
@@ -1311,16 +1345,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </para>
     /// </remarks>
     public void ExitImmersiveToShell()
-    {
-        GoBack();
+        => NavigateBack(() => _navigation.GoBackTo(page => page is not LyricsPage and not MvPage));
 
-        while (_navigation.Current is LyricsPage or MvPage && _navigation.CanGoBack)
-        {
-            GoBack();
-        }
-    }
+    public void GoBack() => NavigateBack(_navigation.GoBack);
 
-    public void GoBack()
+    private void NavigateBack(Action navigate)
     {
         if (_isChangingLyricsPresenter) return;
         if (!_navigation.CanGoBack) return;
@@ -1329,13 +1358,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         try
         {
             DismissSearchUi();
-            _navigation.GoBack();
-            // 返回到根页时按钮会被禁用，把焦点放回页面，避免落到旁边的搜索框。
-            if (_navigation.Current is { } page)
-            {
-                var target = FocusManager.FindFirstFocusableElement(page) as UIElement ?? page;
-                target.Focus(FocusState.Programmatic);
-            }
+            _backFocusPending = true;
+            navigate();
             DismissSearchUi();
         }
         finally
@@ -1808,14 +1832,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     public void EnterImmersive(FrameworkElement titleBar)
     {
         RestoreNativeCaption();
+        _coverMotion?.Cancel();
+        _immersiveMotionVersion++;
+        _immersiveEntryY = _nextImmersiveEntryFromImmersive ? 28 : (float)ShellRoot.ActualHeight * 0.94f;
+        _nextImmersiveEntryFromImmersive = false;
         _immersiveVisible = true;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = titleBar;
         DismissSearchUi();
-        ShellBackdrop.Visibility = Visibility.Collapsed;
-        AppTitleBar.Visibility = Visibility.Collapsed;
-        Nav.Visibility = Visibility.Collapsed;
-        PlayerHost.Visibility = Visibility.Collapsed;
+        // 展开时保留外壳作背景，动画结束后再收起，行高在过渡中保持稳定。
+        SetShellSurfaceVisible(true);
 
         // 播放条一收，第 2 行的高度就归零，通知条会跟着掉到窗口底部、压在沉浸页自己的传输按钮上。
         // 按沉浸页的量抬一次，见 ImmersiveNotificationInset。
@@ -1918,16 +1944,15 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <summary>退出沉浸态，恢复外壳。与 <see cref="EnterImmersive"/> 成对。</summary>
     public void ExitImmersive()
     {
+        _immersiveMotionVersion++;
+        AppMotion.Reset(ImmersiveHost);
         RestoreNativeCaption();
         RestoreLyricsPresenter();
         _immersiveVisible = false;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = null;
         ImmersiveHost.Visibility = Visibility.Collapsed;
-        ShellBackdrop.Visibility = Visibility.Visible;
-        AppTitleBar.Visibility = Visibility.Visible;
-        Nav.Visibility = Visibility.Visible;
-        PlayerHost.Visibility = Visibility.Visible;
+        SetShellSurfaceVisible(true);
 
         // 播放条回来了，通知条也跟着回到「播放条上方」那个位置。
         NotificationBar.Margin = new Thickness(0, 0, 0, NotificationBottomGap);
@@ -1998,8 +2023,70 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _hiddenCaptionPresenter = null;
     }
 
+    private void SetShellSurfaceVisible(bool visible)
+    {
+        var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        ShellBackdrop.Visibility = visibility;
+        AppTitleBar.Visibility = visibility;
+        Nav.Visibility = visibility;
+        PlayerHost.Visibility = visibility;
+    }
+
+    private async Task AnimateBeforeNavigationAsync(Page current, Page next)
+    {
+        _coverMotion?.Cancel();
+        _nextImmersiveEntryFromImmersive = (current is LyricsPage or MvPage) && (next is LyricsPage or MvPage);
+        if (current is not LyricsPage and not MvPage || next is LyricsPage or MvPage) return;
+        _immersiveMotionVersion++;
+        SetShellSurfaceVisible(true);
+        if (_closed || IsRenderingSuspended || _isChangingLyricsPresenter)
+        {
+            AppMotion.Reset(ImmersiveHost);
+            return;
+        }
+        if (current is LyricsPage)
+        {
+            // 外壳重新测量后，播放条的封面才有可用落点；封面在独立层中回位。
+            ShellRoot.UpdateLayout();
+            await Task.WhenAll(
+                _coverTransitions?.PlayLyricsDepartureAsync(next) ?? Task.FromResult(false),
+                AppMotion.ExitAsync(ImmersiveHost, 0, 0, TimeSpan.FromMilliseconds(420)));
+        }
+        else
+        {
+            await AppMotion.ExitAsync(ImmersiveHost, 0, (float)ShellRoot.ActualHeight * 0.94f,
+                AppMotion.Collapse, 1, bottomOrigin: true);
+        }
+    }
+
+    private async Task AnimateImmersiveEntranceAsync(Page page)
+    {
+        var version = ++_immersiveMotionVersion;
+        var height = _immersiveEntryY;
+        var coverEntrance = _coverTransitions?.HasLyricsEntrance(page) == true;
+        var finished = await AppMotion.EnterAsync(ImmersiveHost, 0, coverEntrance ? 0 : height,
+            coverEntrance ? TimeSpan.FromMilliseconds(520)
+                : height > 28 ? AppMotion.Expand : AppMotion.Standard,
+            coverEntrance || page is MvPage ? 1 : 0.97f, bottomOrigin: true);
+        if (!finished || _closed || version != _immersiveMotionVersion
+            || !ReferenceEquals(_navigation.Current, page)) return;
+        SetShellSurfaceVisible(false);
+    }
+
     private void OnNavigated(object? sender, Page page)
     {
+        _coverMotion?.Cancel();
+        if (page is LyricsPage or MvPage) _ = AnimateImmersiveEntranceAsync(page);
+        if (_backFocusPending)
+        {
+            _backFocusPending = false;
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_closed || !ReferenceEquals(_navigation.Current, page)) return;
+                var target = FocusManager.FindFirstFocusableElement(page) as UIElement ?? page;
+                target.Focus(FocusState.Programmatic);
+            });
+        }
         SyncSelection();
         if (!_immersiveVisible) DispatcherQueue.TryEnqueue(() =>
         {

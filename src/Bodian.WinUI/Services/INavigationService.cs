@@ -65,7 +65,8 @@ public interface INavigationIdentity
 public interface INavigationService : INotifyPropertyChanged
 {
     /// <summary>由宿主窗口在构造后调一次，把承载页面用的 <see cref="ContentControl"/> 交进来。</summary>
-    void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null);
+    void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null,
+        Func<Page, Page, Task>? beforeNavigate = null);
 
     /// <summary>
     /// 切到某个页面（<b>压栈</b>，用于详情页）。当前页已经是同一个身份时什么都不做。
@@ -119,6 +120,9 @@ public interface INavigationService : INotifyPropertyChanged
 
     /// <summary>回到上一个页面。栈空时什么都不做。</summary>
     void GoBack();
+
+    /// <summary>跳过中间页面，直接返回最近符合条件的页面。</summary>
+    void GoBackTo(Func<Page, bool> destination);
 
     /// <summary>
     /// 每次当前页真的变了之后触发，参数是新的当前页。

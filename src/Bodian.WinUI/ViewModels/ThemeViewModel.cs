@@ -22,6 +22,7 @@ namespace Bodian.WinUI.ViewModels;
 public sealed partial class ThemeViewModel : ObservableObject
 {
     private readonly IThemeSettingsStore _store;
+    internal Func<Action, Task>? Transition { get; set; }
 
     public ThemeViewModel(IThemeSettingsStore store)
     {
@@ -81,12 +82,17 @@ public sealed partial class ThemeViewModel : ObservableObject
         Current = theme;
         _store.Save(new ThemeSettings(theme));
 
-        OnPropertyChanged(nameof(Current));
-        OnPropertyChanged(nameof(RequestedTheme));
-        OnPropertyChanged(nameof(CurrentLabel));
-        OnPropertyChanged(nameof(CurrentIcon));
-        OnPropertyChanged(nameof(IsSystem));
-        OnPropertyChanged(nameof(IsLight));
-        OnPropertyChanged(nameof(IsDark));
+        void NotifyTheme()
+        {
+            OnPropertyChanged(nameof(Current));
+            OnPropertyChanged(nameof(RequestedTheme));
+            OnPropertyChanged(nameof(CurrentLabel));
+            OnPropertyChanged(nameof(CurrentIcon));
+            OnPropertyChanged(nameof(IsSystem));
+            OnPropertyChanged(nameof(IsLight));
+            OnPropertyChanged(nameof(IsDark));
+        }
+        if (Transition is { } transition) _ = transition(NotifyTheme);
+        else NotifyTheme();
     }
 }

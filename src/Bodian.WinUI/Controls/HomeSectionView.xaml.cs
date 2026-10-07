@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Bodian.WinUI.Services;
 using Bodian.Core.Models.Home;
 using Bodian.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
@@ -95,7 +96,14 @@ public sealed partial class HomeSectionView : UserControl
         _ => 0,
     };
 
-    private void OnStripSizeChanged(object sender, SizeChangedEventArgs e) => SyncPage(resetToFirst: false);
+    private void OnStripSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        StripHost.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry
+        {
+            Rect = new Windows.Foundation.Rect(0, 0, e.NewSize.Width, e.NewSize.Height)
+        };
+        SyncPage(resetToFirst: false);
+    }
 
     private void OnPreviousClick(object sender, RoutedEventArgs e) => TurnPage(-1);
 
@@ -129,6 +137,7 @@ public sealed partial class HomeSectionView : UserControl
         var anchor = _pageSize <= 0 ? -1 : _pageIndex * _pageSize;
         var page = CardStripPaging.Resolve(width, step, _items.Count, anchor);
 
+        AppMotion.Reset(ItemsList);
         _measuredWidth = width;
         _pageSize = size;
         _pageIndex = page.PageIndex;
@@ -143,13 +152,16 @@ public sealed partial class HomeSectionView : UserControl
     /// 越界的兜底靠 <see cref="CardStripPaging.Resolve"/> 的夹取：已经到头时算出来的还是当前页，
     /// 于是直接返回。正常路径上按钮本来就已经藏起来了。
     /// </remarks>
-    private void TurnPage(int delta)
+    private async void TurnPage(int delta)
     {
         var page = CardStripPaging.Resolve(AvailableWidth, Step, _items.Count, (_pageIndex + delta) * _pageSize);
         if (page.PageIndex == _pageIndex) return;
 
         _pageIndex = page.PageIndex;
-        ApplyPage(page);
+        _hasPreviousPage = page.HasPrevious;
+        _hasNextPage = page.HasNext;
+        UpdatePagerVisibility();
+        await AppMotion.SwapAsync(ItemsList, () => ApplyPage(page), Math.Sign(delta));
     }
 
     private void ApplyPage(CardStripPage page)
@@ -259,6 +271,7 @@ public sealed partial class HomeSectionView : UserControl
         // 而模板已经换成按 HomeCard 编译的那种，x:Bind 的 SetDataRoot 强转会抛
         // ArgumentException，整个进程崩掉（表现是 STATUS_STOWED_EXCEPTION 0xC000027B）。
         // 早退是允许的（等 SizeChanged 再填），但**不能带着上一组的项早退**。
+        AppMotion.Reset(view.ItemsList);
         view._pageItems.Clear();
         view.ApplyItemTemplate();
 
@@ -272,6 +285,11 @@ public sealed partial class HomeSectionView : UserControl
     {
         if (e.ClickedItem is HomeCard card)
         {
+            var source = ItemsList.ContainerFromItem(card) as FrameworkElement;
+            if (card.Track is { } track && CardInvoked is not null)
+                CoverDropAnimation.Request(source, track.Id);
+            else if (card.Playlist is { } playlist)
+                CoverTransitionAnimator.PrepareFromClick(source, Formats.PlaylistCoverKey(playlist.Id));
             CardInvoked?.Invoke(this, card);
         }
     }
@@ -279,8 +297,10 @@ public sealed partial class HomeSectionView : UserControl
     /// <summary>点单曲列里的某一行。要播的是这一行，不是整列。</summary>
     private void OnTrackTapped(object sender, TappedRoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: HomeCard card })
+        if (sender is FrameworkElement { Tag: HomeCard card } element)
         {
+            if (card.Track is { } track && CardInvoked is not null)
+                CoverDropAnimation.Request(element, track.Id);
             CardInvoked?.Invoke(this, card);
         }
     }

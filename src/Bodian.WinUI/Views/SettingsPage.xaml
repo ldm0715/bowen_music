@@ -124,6 +124,7 @@
             ItemTemplate="{StaticResource SettingsCategoryTemplate}"
             ItemsSource="{x:Bind ViewModel.Categories}"
             SelectedIndex="{x:Bind ViewModel.SelectedCategoryIndex, Mode=TwoWay}"
+            SelectionChanged="OnCategoryMotionChanged"
             Style="{StaticResource BodianSettingsRail}">
             <ListView.Resources>
                 <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
@@ -143,7 +144,7 @@
                 VerticalScrollMode="Auto">
                 <StackPanel Padding="0,0,0,16" Spacing="20">
 
-                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="外观" />
                         <Border Style="{StaticResource BodianSettingsCard}">
                             <StackPanel>
@@ -175,7 +176,7 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPlaybackSelected), Mode=OneWay}">
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPlaybackSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="播放" />
                         <Border Style="{StaticResource BodianSettingsCard}">
                             <StackPanel>
@@ -198,7 +199,7 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsLyricsSelected), Mode=OneWay}">
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsLyricsSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="歌词" />
                         <Border Style="{StaticResource BodianSettingsCard}">
                             <controls:SettingsRow Description="歌词带译文时默认一起显示，歌词页那颗按钮仍可临时改" Header="默认显示译文">
@@ -298,7 +299,7 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsShortcutsSelected), Mode=OneWay}">
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsShortcutsSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="快捷键" />
                         <Border Style="{StaticResource BodianSettingsCard}">
                             <ItemsControl
@@ -314,7 +315,7 @@
                         <Button Command="{x:Bind ViewModel.Shortcuts.ResetAllCommand}" Content="恢复默认键位" />
                     </StackPanel>
 
-                    <StackPanel Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsStorageSelected), Mode=OneWay}">
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsStorageSelected), Mode=OneWay}">
                         <TextBlock Style="{StaticResource BodianSettingsGroupTitle}" Text="存储" />
                         <Border Style="{StaticResource BodianSettingsCard}">
                             <ItemsControl
@@ -333,7 +334,7 @@
                         关于这一块**不写分组标题**：整块是居中的一列，顶上再挂一个「关于」
                         只是把已经很明显的事再说一遍，还会把居中列压得偏下。
                     -->
-                    <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAboutSelected), Mode=OneWay}">
+                    <StackPanel controls:Motion.TabContent="True" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAboutSelected), Mode=OneWay}">
                         <StackPanel
                             Margin="0,24,0,16"
                             HorizontalAlignment="Center"

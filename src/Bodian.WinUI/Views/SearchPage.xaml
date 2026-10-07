@@ -10,7 +10,7 @@
         <DataTemplate x:Key="SearchPlaylistTemplate" x:DataType="models:Playlist">
             <Grid Padding="4,8" ColumnSpacing="16">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                     <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
                     <StackPanel Orientation="Horizontal" Spacing="4"><TextBlock Text="{x:Bind MusicCount}" /><TextBlock Text="首歌曲" /></StackPanel>
@@ -20,7 +20,7 @@
         <DataTemplate x:Key="SearchAlbumTemplate" x:DataType="models:Album">
             <Grid Padding="4,8" ColumnSpacing="16">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                     <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{x:Bind ArtistText}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
@@ -30,7 +30,7 @@
         <DataTemplate x:Key="SearchArtistTemplate" x:DataType="models:Artist">
             <Grid Padding="4,8" ColumnSpacing="16">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
+                <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Width="64" Height="64" Stretch="UniformToFill" />
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                     <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{x:Bind Summary}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -68,7 +68,7 @@
                     Background="{ThemeResource ControlFillColorDefaultBrush}"
                     CornerRadius="{StaticResource RadiusMd}">
                     <Grid>
-                        <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.AlbumCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
 
                         <Border
                             Margin="0,0,8,8"
@@ -126,7 +126,7 @@
                     Background="{ThemeResource ControlFillColorDefaultBrush}"
                     CornerRadius="{StaticResource RadiusMd}">
                     <Grid>
-                        <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                        <Image controls:Motion.SharedCoverKey="{x:Bind local:Formats.PlaylistCoverKey(Id)}" Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
 
                         <Border
                             Margin="0,0,8,8"
@@ -166,7 +166,7 @@
                 VerticalAlignment="Top">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
-                <PersonPicture
+                <PersonPicture controls:Motion.SharedCoverKey="{x:Bind local:Formats.ArtistCoverKey(Id)}"
                     Width="132"
                     Height="132"
                     DisplayName="{x:Bind Name}"
@@ -392,7 +392,7 @@
               同一份集合同时喂给两者，但任一时刻只有一个在布局里 —— 能实现容器的只有它，
               所以不会一边滚一边被另一边再触发一次翻页。
         -->
-        <controls:VirtualizedListView
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
             Grid.Row="3"
             x:Name="OverviewList"
             ContainerContentChanging="OnOverviewContainerContentChanging"
@@ -413,7 +413,7 @@
             </controls:VirtualizedListView.ItemContainerStyle>
         </controls:VirtualizedListView>
 
-        <controls:TrackListView
+        <controls:TrackListView controls:Motion.TabContent="True"
             x:Name="SearchTracksList"
             Grid.Row="3"
             HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
@@ -429,7 +429,7 @@
             </controls:TrackListView.Footer>
         </controls:TrackListView>
 
-        <controls:VirtualizedListView
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
             Grid.Row="3"
             IsItemClickEnabled="True"
             ItemClick="OnPlaylistClick"
@@ -447,7 +447,7 @@
             </controls:VirtualizedListView.Footer>
         </controls:VirtualizedListView>
 
-        <GridView
+        <GridView controls:Motion.TabContent="True"
             Grid.Row="3"
             Style="{StaticResource BodianCoverCardGrid}"
             controls:CoverCardLayout.CoverSize="132"
@@ -471,7 +471,7 @@
             </GridView.Footer>
         </GridView>
 
-        <controls:VirtualizedListView
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
             Grid.Row="3"
             IsItemClickEnabled="True"
             ItemClick="OnAlbumClick"
@@ -489,7 +489,7 @@
             </controls:VirtualizedListView.Footer>
         </controls:VirtualizedListView>
 
-        <GridView
+        <GridView controls:Motion.TabContent="True"
             Grid.Row="3"
             Style="{StaticResource BodianCoverCardGrid}"
             controls:CoverCardLayout.CoverSize="132"
@@ -512,7 +512,7 @@
             </GridView.Footer>
         </GridView>
 
-        <controls:VirtualizedListView
+        <controls:VirtualizedListView controls:Motion.TabContent="True"
             Grid.Row="3"
             IsItemClickEnabled="True"
             ItemClick="OnArtistClick"
@@ -530,7 +530,7 @@
             </controls:VirtualizedListView.Footer>
         </controls:VirtualizedListView>
 
-        <GridView
+        <GridView controls:Motion.TabContent="True"
             Grid.Row="3"
             Style="{StaticResource BodianCoverCardGrid}"
             controls:CoverCardLayout.CoverSize="132"

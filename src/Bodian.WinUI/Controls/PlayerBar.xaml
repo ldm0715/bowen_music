@@ -79,7 +79,7 @@
                     ToolTipService.ToolTip="打开歌词页">
                     <Border Width="{StaticResource SizeCoverRow}" Height="{StaticResource SizeCoverRow}"
                         Background="{ThemeResource ControlFillColorDefaultBrush}" CornerRadius="{StaticResource RadiusMd}">
-                        <Image Source="{x:Bind ViewModel.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
+                        <Image x:Name="PlayerCoverImage" controls:Motion.SharedCoverKey="{x:Bind local:Formats.TrackCoverKey(ViewModel.CurrentTrackId), Mode=OneWay}" Source="{x:Bind ViewModel.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
                     </Border>
                 </Button>
                 <Grid x:Name="SongInfo" Grid.Column="1" MinWidth="0"

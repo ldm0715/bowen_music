@@ -888,6 +888,7 @@
         <!-- 页面宿主与侧栏从同一行开始；搜索入口统一放在上方标题栏。 -->
         <ContentControl
             x:Name="PageHost"
+            controls:Motion.ClipToBounds="True"
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch" />
         </NavigationView>
@@ -910,6 +911,8 @@
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch"
             Visibility="Collapsed" />
+        <Canvas x:Name="CoverMotionOverlay" Grid.RowSpan="3" IsHitTestVisible="False" />
+        <Border x:Name="ThemeTransitionVeil" Grid.RowSpan="3" IsHitTestVisible="False" />
         <!--
             播放队列抽屉。
 

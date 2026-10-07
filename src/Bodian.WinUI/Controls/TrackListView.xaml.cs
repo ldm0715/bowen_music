@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Windows.Input;
 using Bodian.Core.Models;
 using Bodian.WinUI.ViewModels;
+using Bodian.WinUI.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -472,6 +473,8 @@ public sealed partial class TrackListView : UserControl
             return;
         }
 
+        if (TrackInvoked is not null)
+            CoverDropAnimation.Request(List.ContainerFromItem(row) as FrameworkElement, row.Source.Id);
         TrackInvoked?.Invoke(this, row.Source);
     }
 

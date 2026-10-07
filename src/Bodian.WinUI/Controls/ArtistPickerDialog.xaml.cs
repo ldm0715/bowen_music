@@ -1,4 +1,5 @@
 using Bodian.WinUI.ViewModels;
+using Bodian.WinUI.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -93,6 +94,7 @@ public sealed partial class ArtistPickerDialog : UserControl
             return;
         }
 
+        CoverTransitionAnimator.PrepareFromClick(ArtistGrid.ContainerFromItem(artist) as FrameworkElement, Formats.ArtistCoverKey(artist.Id));
         Selected = artist;
         ChoiceMade?.Invoke(this, EventArgs.Empty);
     }

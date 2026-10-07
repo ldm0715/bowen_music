@@ -242,6 +242,12 @@ public static class Formats
     /// </remarks>
     public static ImageSource? CoverSource(Uri? uri) => CoverImageCache.Get(uri, 256);
 
+    public static string ArtistCoverKey(long id) => id > 0 ? $"artist:{id}" : "";
+    public static string PlaylistCoverKey(long id) => id > 0 ? $"playlist:{id}" : "";
+    public static string AlbumCoverKey(long id) => id > 0 ? $"album:{id}" : "";
+    public static string TrackCoverKey(long? id) => id is > 0 ? $"track:{id}" : "";
+    public static string HomePlaylistCoverKey(Playlist? playlist) => PlaylistCoverKey(playlist?.Id ?? 0);
+
     public static Visibility CommentImageVisibility(Uri? uri) => Visible(uri is not null);
     public static Visibility CommentRepliesVisibility(long count) => Visible(count > 0);
     public static string CommentCount(long count) => count.ToString("N0", CultureInfo.CurrentCulture);

@@ -1,3 +1,4 @@
+using Bodian.WinUI.Services;
 using System.Windows.Input;
 using Bodian.Core.Models;
 using Microsoft.UI.Xaml;
@@ -87,6 +88,7 @@ public sealed partial class PlaylistListView : UserControl
     {
         if (e.ClickedItem is Playlist playlist)
         {
+            CoverTransitionAnimator.PrepareFromClick(List.ContainerFromItem(playlist) as FrameworkElement, Formats.PlaylistCoverKey(playlist.Id));
             PlaylistInvoked?.Invoke(this, playlist);
         }
     }

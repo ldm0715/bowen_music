@@ -18,6 +18,8 @@ namespace Bodian.WinUI.Controls;
 /// <summary>底部播放条。</summary>
 public sealed partial class PlayerBar : UserControl
 {
+    internal FrameworkElement CoverAnimationTarget => PlayerCoverImage;
+
     private readonly INavigationService _navigation;
     private FrameworkElement? _progressThumb;
     private Rectangle? _progressTrack;

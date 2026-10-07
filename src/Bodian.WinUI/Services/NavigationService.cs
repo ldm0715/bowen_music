@@ -28,6 +28,12 @@ public sealed class NavigationService : INavigationService
     private ContentControl? _host;
     private ContentControl? _shownHost;
     private Func<Page, ContentControl>? _selectHost;
+    private Func<Page, Page, Task>? _beforeNavigate;
+    private Page? _pendingPage;
+    private float _pendingX;
+    private float _pendingY;
+    private bool _departing;
+    private CoverTransitionAnimator.NavigationCover? _pendingCover;
 
     /// <summary>当前真正挂在宿主上的页面。用来判断「这次到底变没变」。</summary>
     private Page? _shown;
@@ -57,11 +63,13 @@ public sealed class NavigationService : INavigationService
 
     public Page? Root => _stack.Root;
 
-    public void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null)
+    public void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null,
+        Func<Page, Page, Task>? beforeNavigate = null)
     {
         ArgumentNullException.ThrowIfNull(host);
         _host = host;
         _selectHost = selectHost;
+        _beforeNavigate = beforeNavigate;
     }
 
     public void Navigate<TPage>() where TPage : Page =>
@@ -94,17 +102,17 @@ public sealed class NavigationService : INavigationService
                 _rootRecency.RemoveLast();
             }
         }
-        Show(_stack.NavigateRoot(page));
+        Show(_stack.NavigateRoot(page), 0, 20);
     }
 
-    public void NavigateRoot(Page page) => Show(_stack.NavigateRoot(page));
+    public void NavigateRoot(Page page) => Show(_stack.NavigateRoot(page), 0, 20);
 
     public void Reset<TPage>() where TPage : Page
     {
         // 登录/登出重置时清缓存，避免旧账号数据被复用。
         _rootPages.Clear();
         _rootRecency.Clear();
-        Show(_stack.Reset(_services.GetRequiredService<TPage>()));
+        Show(_stack.Reset(_services.GetRequiredService<TPage>()), 0, 20);
     }
 
     public void GoBack()
@@ -112,7 +120,7 @@ public sealed class NavigationService : INavigationService
         // 栈空时 GoBack 返回 null，这里自然什么都不做。
         if (_stack.GoBack() is { } page)
         {
-            Show(page);
+            Show(page, -28, 0);
         }
     }
 
@@ -125,12 +133,80 @@ public sealed class NavigationService : INavigationService
     /// <see cref="INavigationAware.OnNavigatedFrom"/> / <see cref="INavigationAware.OnNavigatedTo"/>
     /// —— 后者会让页面白白重取一次数据。
     /// </remarks>
-    private void Show(Page next)
+    public void GoBackTo(Func<Page, bool> destination)
+    {
+        // 栈里可以跳过歌词页，但宿主只切一次，不调用中间页的进场/离场动画。
+        if (_stack.GoBackTo(destination) is { } page) Show(page, -28, 0);
+    }
+
+    private void Show(Page next, float x = 28, float y = 0)
+    {
+        _pendingPage = next;
+        _pendingX = x;
+        _pendingY = y;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanGoBack)));
+        // 返回栈立即前进，视觉离场只跑一次；连点返回或直接选页时提交最后的目标。
+        if (_departing)
+        {
+            _pendingCover = null;
+            return;
+        }
+        if (ReferenceEquals(_shown, next))
+        {
+            _pendingPage = null;
+            return;
+        }
+        _pendingCover = CoverTransitionAnimator.Current?.PrepareNavigation(_shown, next, x < 0);
+        if (_shown is not null && _beforeNavigate is not null)
+        {
+            var departure = _beforeNavigate(_shown, next);
+            if (!departure.IsCompletedSuccessfully)
+            {
+                _departing = true;
+                _ = CompleteDepartureAsync(departure);
+                return;
+            }
+        }
+        CommitPending();
+    }
+
+    private async Task CompleteDepartureAsync(Task departure)
+    {
+        try { await departure; }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "页面离场动画失败，直接完成导航");
+        }
+        finally { _departing = false; }
+        // 窗口已经关闭时，不再挂载页面或重新开启播放。
+        if (_host is not { IsLoaded: true })
+        {
+            _pendingPage = null;
+            return;
+        }
+        CommitPending();
+    }
+
+    private void CommitPending()
+    {
+        if (_pendingPage is not { } next) return;
+        var x = _pendingX;
+        var y = _pendingY;
+        _pendingPage = null;
+        var sharedCover = _pendingCover;
+        _pendingCover = null;
+        if (ReferenceEquals(_shown, next))
+        {
+            // 离场途中又回到原页，只恢复视觉状态，不重复页面生命周期。
+            Navigated?.Invoke(this, next);
+            return;
+        }
+        ShowCore(next, x, y, sharedCover);
+    }
+
+    private void ShowCore(Page next, float x, float y, CoverTransitionAnimator.NavigationCover? sharedCover)
     {
         var started = Stopwatch.GetTimestamp();
-        // 换根可能只清空历史、继续显示同一实例；返回按钮仍必须同步为不可用。
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanGoBack)));
-
         if (ReferenceEquals(_shown, next))
         {
             return;
@@ -145,20 +221,27 @@ public sealed class NavigationService : INavigationService
 
         // 先通知离场，再换内容，最后通知进场 —— 顺序固定，页面可以放心在
         // OnNavigatedFrom 里释放、在 OnNavigatedTo 里重建。
+        if (_shown is not null) AppMotion.Reset(_shown);
         Notify(_shown, leaving: true);
 
-        if (_shownHost is not null)
+        var nextHost = _selectHost?.Invoke(next) ?? _host;
+        // 常规页留在外壳中作为展开/收起的背景；生命周期仍按离场、进场各通知一次。
+        if (_shownHost is not null && (ReferenceEquals(_shownHost, nextHost)
+            || !ReferenceEquals(_shownHost, _host)))
         {
             _shownHost.Content = null;
         }
 
-        _shownHost = _selectHost?.Invoke(next) ?? _host;
+        _shownHost = nextHost;
         _shownHost.Content = next;
         _shown = next;
+        if (ReferenceEquals(_shownHost, _host))
+            _ = AppMotion.EnterAsync(next, sharedCover is null ? x : 0, sharedCover is null ? y : 0);
 
         Notify(next, leaving: false);
 
         Navigated?.Invoke(this, next);
+        if (sharedCover is not null) _ = CoverTransitionAnimator.Current?.PlayNavigationAsync(sharedCover);
         if (_diagnostics) _logger.LogInformation("页面切换 {Page}：UI 处理 {Elapsed:F2} ms", next.GetType().Name, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
     }
 
