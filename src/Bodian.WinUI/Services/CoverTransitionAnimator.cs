@@ -60,6 +60,8 @@ internal sealed class CoverTransitionAnimator : IDisposable
         animator._explicitSource = new ExplicitSource(key, snapshot, new WeakReference<FrameworkElement>(cover), Stopwatch.GetTimestamp());
     }
 
+    internal void ForgetPage(Page page) => _origins.Remove(page);
+
     internal Snapshot? Capture(FrameworkElement? source)
     {
         var cover = FindImage(source);
@@ -217,6 +219,7 @@ internal sealed class CoverTransitionAnimator : IDisposable
             if (ready.Task.IsCompleted) return;
             _cancelTargetLayout = null;
             timeout.Stop();
+            timeout.Tick -= OnTimeout;
             target.Loaded -= loaded;
             target.SizeChanged -= sized;
             _root.LayoutUpdated -= layout;
@@ -234,7 +237,8 @@ internal sealed class CoverTransitionAnimator : IDisposable
         target.SizeChanged += sized;
         _root.LayoutUpdated += layout;
         _cancelTargetLayout = () => Finish(false);
-        timeout.Tick += (_, _) => Finish(false);
+        void OnTimeout(DispatcherQueueTimer sender, object args) => Finish(false);
+        timeout.Tick += OnTimeout;
         timeout.Start();
         target.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, Check);
         if (_diagnostics) _logger.LogInformation("共享封面等待首播目标布局");
@@ -322,9 +326,16 @@ internal sealed class CoverTransitionAnimator : IDisposable
         RoutedEventHandler? unloaded = null;
         void Finish(bool finished)
         {
+            if (completion.Task.IsCompleted) return;
             _cancelFlight = null;
             batch.Completed -= completed;
             target.Unloaded -= unloaded;
+            visual.StopAnimation("Translation");
+            visual.StopAnimation("Scale");
+            visual.StopAnimation("RotationAngle");
+            visual.Clip = null;
+            if (ghost.Child is Image image) image.Source = null;
+            ghost.Child = null;
             batch.Dispose();
             _overlay.Children.Remove(ghost);
             clip.Dispose();

@@ -4,6 +4,7 @@ using System.Numerics;
 using Bodian.Core.Playback;
 using Bodian.WinUI.LyricRenderer;
 using Bodian.WinUI.Playback;
+using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -32,6 +33,7 @@ public sealed partial class LyricsCanvasView : UserControl
     private double _fontSize = 40;
     private bool _loaded;
     private bool _paused;
+    private bool _resourcesSuspended;
     private bool _broken;
     private CanvasDevice? _canvasDevice;
     private CompositionSurfaceBrush? _surfaceBrush;
@@ -79,6 +81,23 @@ public sealed partial class LyricsCanvasView : UserControl
         }
     }
 
+    public bool IsResourceSuspended
+    {
+        get => _resourcesSuspended;
+        set
+        {
+            if (_resourcesSuspended == value) return;
+            _resourcesSuspended = value;
+            if (!_loaded) return;
+            if (value) ReleaseSurface();
+            else
+            {
+                Guarded(nameof(CreateSurface), CreateSurface);
+                UpdateRenderingSubscription();
+            }
+        }
+    }
+
     public void SetFontSize(double fontSize)
     {
         _fontSize = fontSize;
@@ -99,7 +118,7 @@ public sealed partial class LyricsCanvasView : UserControl
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _subscribedRoot = XamlRoot;
         if (_subscribedRoot is not null) _subscribedRoot.Changed += OnXamlRootChanged;
-        Guarded(nameof(CreateSurface), CreateSurface);
+        if (!_resourcesSuspended) Guarded(nameof(CreateSurface), CreateSurface);
         UpdateRenderingSubscription();
     }
 
@@ -121,8 +140,9 @@ public sealed partial class LyricsCanvasView : UserControl
 
     private void CreateSurface()
     {
-        // 与 CanvasControl 的共享设备隔离，后台歌词的长帧不占用 UI 绘图设备锁。
-        _canvasDevice = new CanvasDevice();
+        // 后台绘图共用设备，避免歌词、频谱、倒影各建一套 D3D 驱动资源。
+        var deviceLease = BackgroundCanvasDeviceLease.Acquire();
+        _canvasDevice = deviceLease.Device;
         _canvasDevice.DeviceLost += OnDeviceLost;
         var compositor = ElementCompositionPreview.GetElementVisual(Canvas).Compositor;
         var graphicsDevice = CanvasComposition.CreateCompositionGraphicsDevice(compositor, _canvasDevice);
@@ -134,7 +154,6 @@ public sealed partial class LyricsCanvasView : UserControl
         _surfaceVisual.RelativeSizeAdjustment = Vector2.Zero;
         _surfaceVisual.Brush = _surfaceBrush;
         ElementCompositionPreview.SetElementChildVisual(Canvas, _surfaceVisual);
-        var canvasDevice = _canvasDevice;
         LyricsRenderLoop? loop = null;
         loop = new LyricsRenderLoop(_canvasDevice, graphicsDevice, surface, _clock, _animationClock, _loggerFactory,
             browsing => DispatcherQueue.TryEnqueue(() =>
@@ -151,7 +170,11 @@ public sealed partial class LyricsCanvasView : UserControl
             }),
             () => DispatcherQueue.TryEnqueue(() =>
             {
-                try { surface.Dispose(); graphicsDevice.Dispose(); canvasDevice.Dispose(); }
+                try
+                {
+                    try { surface.Dispose(); }
+                    finally { try { graphicsDevice.Dispose(); } finally { deviceLease.Dispose(); } }
+                }
                 catch (Exception exception) { _logger.LogWarning(exception, "释放歌词合成资源失败"); }
             }));
         _renderLoop = loop;
@@ -172,7 +195,11 @@ public sealed partial class LyricsCanvasView : UserControl
         _surfaceVisual = null;
         _surfaceBrush = null;
         _canvasDevice = null;
-        _browsing = false;
+        if (_browsing)
+        {
+            _browsing = false;
+            BrowsingChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private void OnDeviceLost(CanvasDevice sender, object args)
@@ -283,9 +310,13 @@ public sealed partial class LyricsCanvasView : UserControl
     {
         _clock.SetDuration(args.Duration);
         _clock.Sync(args.Position);
+        _renderLoop?.Invalidate();
     }
     private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)
-        => _clock.SetPlaying(args.State == PlaybackState.Playing);
+    {
+        _clock.SetPlaying(args.State == PlaybackState.Playing);
+        _renderLoop?.Invalidate();
+    }
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(LyricsViewModel.Document)) _renderLoop?.SetDocument(_viewModel.Document);

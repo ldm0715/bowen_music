@@ -24,6 +24,24 @@ public sealed class NavigationStackTests
 
     private static NavigationStack<Screen> NewStack() => new(screen => screen.Identity);
 
+    [Fact]
+    public void ContainsInstance_ProtectsCurrentAndHistoryUntilTheyLeaveTheStack()
+    {
+        var stack = NewStack();
+        var root = new Screen("发现");
+        var detail = new Screen("歌单", "1");
+        stack.NavigateRoot(root);
+        stack.Push(detail);
+        Assert.True(stack.ContainsInstance(root));
+        Assert.True(stack.ContainsInstance(detail));
+        Assert.False(stack.ContainsInstance(new Screen("歌单", "1")));
+        stack.GoBack();
+        Assert.True(stack.ContainsInstance(root));
+        Assert.False(stack.ContainsInstance(detail));
+        stack.NavigateRoot(new Screen("乐库"));
+        Assert.False(stack.ContainsInstance(root));
+    }
+
     // ── 栈底即根 ────────────────────────────────────────────────────────────
 
     [Fact]

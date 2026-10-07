@@ -1,6 +1,9 @@
 using Bodian.Core.Media;
 using Bodian.Core.Services.Abstractions;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml;
+using Windows.Storage.Streams;
+using Windows.Graphics.Imaging;
 
 namespace Bodian.WinUI.Media;
 
@@ -16,16 +19,17 @@ namespace Bodian.WinUI.Media;
 /// <para>
 /// <b><see cref="Get"/> 必须保持同步签名。</b> 它被 <c>Formats.CoverSource</c> 在
 /// <c>x:Bind</c> 里同步调用，分布在十几个页面的模板中；改成返回 <c>Task</c> 要动全应用所有模板。
-/// 磁盘命中那条路走 <see cref="BitmapImage.SetSourceAsync"/> —— 它允许图片先挂到
+/// 图像解码统一走 <see cref="BitmapImage.SetSourceAsync"/> —— 它允许图片先挂到
 /// <c>Image.Source</c>、之后再填充，所以「先给控件、后有图」是安全的。
 /// </para>
 /// </remarks>
 internal static class CoverImageCache
 {
-    private const int Capacity = 128;
-    private const long DecodedByteCapacity = 64L * 1024 * 1024;
+    private const int Capacity = 48;
+    private const long DecodedByteCapacity = 8L * 1024 * 1024;
 
     private static long _estimatedDecodedBytes;
+    private static readonly SemaphoreSlim DecodeGate = new(2);
     private static ICoverDiskCache? _disk;
     private static readonly Dictionary<(Uri Uri, int Pixels), LinkedListNode<Entry>> Entries = [];
     private static readonly LinkedList<Entry> Recency = new();
@@ -39,6 +43,16 @@ internal static class CoverImageCache
         Entries.Clear();
         Recency.Clear();
         _estimatedDecodedBytes = 0;
+    }
+
+    public static void TrimLargeImages()
+    {
+        for (var node = Recency.First; node is not null;)
+        {
+            var next = node.Next;
+            if (node.Value.Key.Pixels > 256) Remove(node.Value);
+            node = next;
+        }
     }
 
     public static BitmapImage? Get(Uri? uri, int pixels)
@@ -57,7 +71,6 @@ internal static class CoverImageCache
         var image = new BitmapImage { DecodePixelWidth = pixels };
         var fallback = CoverArtUrl.Fallback(source) ?? (source != uri ? uri : null);
         var entry = new Entry(key, image, (long)pixels * pixels * 4, fallback);
-        image.ImageFailed += (_, _) => OnImageFailed(entry);
 
         // 先登记再发起加载：失败事件可能很快到达，必须能移除对应条目。
         var node = Recency.AddFirst(entry);
@@ -72,40 +85,90 @@ internal static class CoverImageCache
         return image;
     }
 
-    private static void Load(Entry entry, Uri source)
+    private static void Load(Entry entry, Uri source) => _ = LoadAsync(entry, source);
+
+    private static async Task LoadAsync(Entry entry, Uri source)
+    {
+        try
+        {
+            await LoadStreamAsync(entry, source);
+        }
+        catch (Exception)
+        {
+            if (!entry.HasTriedFallback && entry.Fallback is { } fallback)
+            {
+                entry.HasTriedFallback = true;
+                await LoadAsync(entry, fallback);
+                return;
+            }
+            Remove(entry);
+        }
+    }
+
+    private static async Task LoadStreamAsync(Entry entry, Uri source)
     {
         var cacheKey = CoverCacheKey.For(source, entry.Key.Pixels);
-        if (_disk is not null && _disk.TryGetPath(cacheKey, out var path) && path is not null)
+        if (_disk is not null)
         {
-            entry.IsReadingDisk = true;
-            _ = LoadFromDiskAsync(entry, path, source, cacheKey);
+            // 网络图也先进入已有的有界磁盘缓存，复用同一下载，避免 URI 图片缓存再持有一份解码资源。
+            if (!_disk.TryGetPath(cacheKey, out _)) await _disk.WriteThroughAsync(cacheKey, source);
+            if (_disk.TryGetPath(cacheKey, out var path) && path is not null)
+            {
+                try
+                {
+                    using var file = File.OpenRead(path);
+                    await ApplyStreamAsync(entry.Image, file.AsRandomAccessStream());
+                    return;
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    // 已缓存的文件被清理或读取失败，仍可退回原地址；不删除用户磁盘上的文件。
+                }
+            }
         }
-        else
-        {
-            LoadFromNetwork(entry, source, cacheKey);
-        }
+        using var stream = await RandomAccessStreamReference.CreateFromUri(source).OpenReadAsync();
+        await ApplyStreamAsync(entry.Image, stream);
     }
 
-    private static void LoadFromNetwork(Entry entry, Uri source, string cacheKey)
+    private static async Task ApplyStreamAsync(BitmapImage image, IRandomAccessStream stream)
     {
-        entry.Image.UriSource = source;
-        _ = _disk?.WriteThroughAsync(cacheKey, source);
-    }
-
-    private static void OnImageFailed(Entry entry)
-    {
-        // SetSourceAsync 的失败由磁盘读取任务处理，先重新请求同一地址。
-        if (entry.IsReadingDisk) return;
-
-        if (!entry.HasTriedFallback && entry.Fallback is { } fallback)
+        await DecodeGate.WaitAsync();
+        var failed = false;
+        void OnFailed(object sender, ExceptionRoutedEventArgs args) => failed = true;
+        image.ImageFailed += OnFailed;
+        try
         {
-            entry.HasTriedFallback = true;
-            Load(entry, fallback);
-            return;
+            var decoder = await BitmapDecoder.CreateAsync(stream);
+            var scale = Math.Min(1, image.DecodePixelWidth / (double)Math.Max(decoder.PixelWidth, decoder.PixelHeight));
+            if (scale >= 1)
+            {
+                stream.Seek(0);
+                await image.SetSourceAsync(stream);
+            }
+            else
+            {
+                // DecodePixelWidth 不限制 WinUI 持有的原始编码数据。先生成真实缩略图，
+                // 让未知 CDN 返回的 3000/4000 px 图片也受本地缓存预算约束。
+                var width = Math.Max(1U, (uint)Math.Round(decoder.PixelWidth * scale));
+                var height = Math.Max(1U, (uint)Math.Round(decoder.PixelHeight * scale));
+                using var pixels = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8,
+                    BitmapAlphaMode.Premultiplied,
+                    new BitmapTransform { ScaledWidth = width, ScaledHeight = height },
+                    ExifOrientationMode.RespectExifOrientation, ColorManagementMode.DoNotColorManage);
+                using var thumbnail = new InMemoryRandomAccessStream();
+                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, thumbnail);
+                encoder.SetSoftwareBitmap(pixels);
+                await encoder.FlushAsync();
+                thumbnail.Seek(0);
+                await image.SetSourceAsync(thumbnail);
+            }
+            if (failed) throw new InvalidDataException("Cover image decoding failed.");
         }
-
-        // 终态失败不保留空位图；下次绑定可以重新加载，且本次不会无限重试。
-        Remove(entry);
+        finally
+        {
+            image.ImageFailed -= OnFailed;
+            DecodeGate.Release();
+        }
     }
 
     private static void Remove(Entry entry)
@@ -118,41 +181,8 @@ internal static class CoverImageCache
         _estimatedDecodedBytes -= entry.EstimatedBytes;
     }
 
-    /// <remarks>
-    /// 流必须在 SetSourceAsync 完成后才释放。磁盘读取失败时回到同一地址的网络请求，
-    /// 网络再失败才尝试备用地址，避免两条失败路径同时改写位图。
-    /// </remarks>
-    private static async Task LoadFromDiskAsync(Entry entry, string path, Uri source, string cacheKey)
-    {
-        try
-        {
-            using var stream = File.OpenRead(path);
-            await entry.Image.SetSourceAsync(stream.AsRandomAccessStream());
-            entry.IsReadingDisk = false;
-        }
-        catch (Exception)
-        {
-            entry.IsReadingDisk = false;
-            TryDelete(path);
-            LoadFromNetwork(entry, source, cacheKey);
-        }
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // 删不掉就算了，下次读取失败仍可退回网络。
-        }
-    }
-
     private sealed record Entry((Uri Uri, int Pixels) Key, BitmapImage Image, long EstimatedBytes, Uri? Fallback)
     {
-        public bool IsReadingDisk { get; set; }
         public bool HasTriedFallback { get; set; }
     }
 }

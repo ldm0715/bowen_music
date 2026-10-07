@@ -144,4 +144,45 @@ public sealed class LyricsScrollAnimatorTests
         }
     }
 
+    [Fact]
+    public void SettledScroll_DoesNotRequestContinuousFrames()
+    {
+        var animator = new LyricsScrollAnimator();
+        animator.Reset(100, 0);
+        Assert.False(animator.IsAnimating);
+        animator.Retarget(400, 50, TimeSpan.Zero);
+        Assert.True(animator.IsAnimating);
+        for (var frame = 1; frame <= 480; frame++)
+            animator.Update(TimeSpan.FromSeconds(frame / 120.0), 1.0 / 120);
+        Assert.False(animator.IsAnimating);
+        animator.Update(TimeSpan.FromSeconds(5), 1);
+        Assert.False(animator.HasMoved);
+        Assert.False(animator.IsAnimating);
+    }
+
+    [Fact]
+    public void StaggeredLines_KeepAnimationAliveWhileWaitingToStart()
+    {
+        var animator = new LyricsScrollAnimator();
+        animator.Reset(5, 0);
+        animator.Retarget(100, 0, TimeSpan.Zero);
+        animator.Update(TimeSpan.FromSeconds(1.0 / 120), 1.0 / 120);
+        Assert.Equal(0, animator.OffsetAt(4));
+        Assert.True(animator.IsAnimating);
+        Assert.True(animator.HasMoved);
+    }
+
+    [Fact]
+    public void RetargetingSettledScroll_WakesAnimationAgain()
+    {
+        var animator = new LyricsScrollAnimator();
+        animator.Reset(3, 100);
+        animator.Retarget(100, 1, TimeSpan.Zero);
+        Assert.False(animator.IsAnimating);
+        animator.Retarget(250, 1, TimeSpan.FromSeconds(1));
+        Assert.True(animator.IsAnimating);
+        animator.Update(TimeSpan.FromSeconds(1.1), 0.1);
+        Assert.True(animator.HasMoved);
+    }
+
 }

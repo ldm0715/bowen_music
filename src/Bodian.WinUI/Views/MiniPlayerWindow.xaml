@@ -97,11 +97,7 @@
                 x:Name="QueueCard"
                 Visibility="Collapsed"
                 Background="{ThemeResource CommentPanelBackgroundBrush}">
-                <controls:PlayQueuePanel
-                    x:Name="QueueView"
-                    ClearRequested="OnClearQueueRequested"
-                    CloseRequested="OnCloseQueueRequested"
-                    ViewModel="{x:Bind Queue}" />
+                <!-- 打开队列时才创建列表，关闭后释放实现的容器。 -->
             </Border>
 
             <!--
@@ -178,7 +174,7 @@
                     <Border x:Name="CoverFallback" Background="{ThemeResource ControlFillColorDefaultBrush}" />
                     <Border x:Name="Cover">
                         <Border.Background>
-                            <ImageBrush ImageSource="{x:Bind Player.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
+                            <ImageBrush x:Name="MiniCoverBrush" Stretch="UniformToFill" />
                         </Border.Background>
                     </Border>
                 </Grid>

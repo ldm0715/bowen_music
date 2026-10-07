@@ -24,10 +24,17 @@ public sealed class AudioSpectrumView : UserControl
         _engine = engine;
         _source = source;
         IsHitTestVisible = false;
-        _canvas = new CompositionCanvasHost("频谱", (device, _) => new SpectrumRenderer(device, source, () => _playing));
+        _canvas = new CompositionCanvasHost("频谱", (device, _) => new SpectrumRenderer(device, source, () => _playing),
+            framesPerSecond: 60);
         Content = _canvas;
         Loaded += (_, _) => { _loaded = true; _engine.StateChanged += OnStateChanged; UpdatePlayback(); };
         Unloaded += (_, _) => { _loaded = false; _engine.StateChanged -= OnStateChanged; _source.Stop(); };
+    }
+
+    public bool IsResourceSuspended
+    {
+        get => _canvas.IsResourceSuspended;
+        set { _canvas.IsResourceSuspended = value; UpdatePlayback(); }
     }
 
     public bool IsPaused
@@ -40,7 +47,7 @@ public sealed class AudioSpectrumView : UserControl
     private void UpdatePlayback()
     {
         _playing = _engine.State == PlaybackState.Playing;
-        if (_loaded && !_paused && _playing) _source.Start();
+        if (_loaded && !_paused && !_canvas.IsResourceSuspended && _playing) _source.Start();
         else _source.Stop();
         _canvas.IsPaused = _paused;
         _canvas.Invalidate();

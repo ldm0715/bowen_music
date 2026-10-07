@@ -18,6 +18,8 @@ internal sealed class DesktopLyricsLineRenderer : IDisposable
     private readonly CanvasRenderTarget _colors;
     private readonly AlphaMaskEffect _image;
     private readonly double _imageX, _imageY, _imageWidth, _imageHeight;
+    private readonly CanvasDevice _device;
+    private readonly Color _highlight;
     private double _scrollOffset = double.NaN;
 
     public DesktopLyricsLineRenderer(CanvasDevice device, LyricLine line, double fontSize,
@@ -71,8 +73,8 @@ internal sealed class DesktopLyricsLineRenderer : IDisposable
         using (var session = _colors.CreateDrawingSession()) session.Clear(White);
         _image = new AlphaMaskEffect { Source = _colors, AlphaMask = _mask };
         highlight.A = 255;
-        foreach (var glyph in _rendered.Glyphs)
-            glyph.Brush = new CanvasLinearGradientBrush(device, highlight, White);
+        _highlight = highlight;
+        _device = device;
     }
 
     public LyricLine Line { get; }
@@ -94,19 +96,23 @@ internal sealed class DesktopLyricsLineRenderer : IDisposable
             glyph.LastProgress = progress;
             var feather = Math.Max(1, glyph.Bounds.Width * 0.5);
             var edge = glyph.Bounds.X - feather / 2 + progress * (glyph.Bounds.Width + feather);
-            glyph.Brush!.StartPoint = new Vector2((float)(edge - feather / 2), 0);
+            if (progress <= 0) continue;
+            glyph.Brush ??= new CanvasLinearGradientBrush(_device, _highlight, White);
+            glyph.Brush.StartPoint = new Vector2((float)(edge - feather / 2), 0);
             glyph.Brush.EndPoint = new Vector2((float)(edge + feather / 2), 0);
         }
         if (!changed) return false;
         // 颜色纹理始终不透明，最终 alpha 完全取自只画过一次的字形遮罩。
-        using var session = _colors.CreateDrawingSession();
-        session.Clear(White);
-        session.Antialiasing = CanvasAntialiasing.Aliased;
-        session.Transform = Matrix3x2.CreateTranslation((float)-_imageX, (float)-_imageY);
-        foreach (var glyph in _rendered.Glyphs)
+        using (var session = _colors.CreateDrawingSession())
         {
-            if (glyph.LastProgress <= 0 || glyph.Bounds.Width <= 0) continue;
-            session.FillRectangle(new Rect(glyph.Bounds.X, _imageY, glyph.Bounds.Width, _imageHeight), glyph.Brush!);
+            session.Clear(White);
+            session.Antialiasing = CanvasAntialiasing.Aliased;
+            session.Transform = Matrix3x2.CreateTranslation((float)-_imageX, (float)-_imageY);
+            foreach (var glyph in _rendered.Glyphs)
+            {
+                if (glyph.LastProgress <= 0 || glyph.Bounds.Width <= 0) continue;
+                session.FillRectangle(new Rect(glyph.Bounds.X, _imageY, glyph.Bounds.Width, _imageHeight), glyph.Brush!);
+            }
         }
         return true;
     }

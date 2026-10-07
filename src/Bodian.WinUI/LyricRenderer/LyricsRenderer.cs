@@ -31,7 +31,10 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private long _lastJump = -1;
     private double[] _scales = [];
     private double[] _scaleVelocities = [];
+    private readonly object _hitRectGate = new();
     private Rect[] _hitRects = [];
+    private Rect[] _nextHitRects = [];
+    private bool _scaleAnimating;
     private double[] _centers = [];
     private CanvasLinearGradientBrush? _edgeBrush;
     private Color _played = Color.FromArgb(242, 255, 255, 255);
@@ -67,10 +70,12 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
 
     public int LineIndexAt(double y)
     {
-        var rects = Volatile.Read(ref _hitRects);
-        for (var i = 0; i < rects.Length; i++)
-            if (rects[i].Height > 0 && y >= rects[i].Top && y <= rects[i].Bottom) return i;
-        return -1;
+        lock (_hitRectGate)
+        {
+            for (var i = 0; i < _hitRects.Length; i++)
+                if (_hitRects[i].Height > 0 && y >= _hitRects[i].Top && y <= _hitRects[i].Bottom) return i;
+            return -1;
+        }
     }
 
     public void RebuildDeviceResources(CanvasDevice device)
@@ -113,11 +118,33 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _height = height;
     }
 
-    public void Update(TimeSpan position, TimeSpan now, long jumpCount)
+    public bool IsMotionAnimating => _scroll.IsAnimating || _scaleAnimating;
+
+    public bool NeedsContinuousFrames(bool playing)
     {
+        if (IsMotionAnimating) return true;
+        if (!playing || IsBrowsing || _document.Kind != LyricKind.WordByWord || CurrentIndex < 0 || CurrentIndex >= _document.Lines.Count) return false;
+        foreach (var syllable in _document.Lines[CurrentIndex].Syllables)
+            if (syllable.Duration > TimeSpan.Zero && _position >= syllable.Start && _position < syllable.End) return true;
+        return false;
+    }
+
+    public bool Update(TimeSpan position, TimeSpan now, long jumpCount)
+    {
+        var previousPosition = _position;
+        var previousIndex = CurrentIndex;
+        var wasBrowsing = IsBrowsing;
+        var changed = _layoutDirty || _maskDirty;
         _position = LyricMotionMath.AdvanceHighlight(_position, position, _lastJump != jumpCount);
         var rebuilt = EnsureLayout();
-        if (_device?.Snapshot is not { Count: > 0 } snapshot || _height <= 0) return;
+        if (_device?.Snapshot is not { Count: > 0 } snapshot || _height <= 0)
+        {
+            CurrentIndex = -1;
+            _scaleAnimating = false;
+            if (_scroll.Count > 0) _scroll.Reset(0, 0);
+            EnsureMask();
+            return changed;
+        }
         var current = Math.Max(0, snapshot.Document.IndexOfLineAt(_position));
         var target = snapshot.Tops[current] + snapshot.Lines[current].Height / 2 - _height * settings.PlayingLineTopOffsetFactor;
         var seconds = _lastFrame == default ? 1.0 / 60 : Math.Clamp((now - _lastFrame).TotalSeconds, 0, 1);
@@ -145,20 +172,31 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _focusIndex = IsBrowsing
             ? LyricMotionMath.NearestLine(centers, _height * settings.PlayingLineTopOffsetFactor)
             : current;
-        var rects = new Rect[snapshot.Count];
+        var rects = _nextHitRects;
+        _scaleAnimating = false;
         for (var i = 0; i < snapshot.Count; i++)
         {
             var active = i == _focusIndex && (IsBrowsing || _position >= snapshot.Document.Lines[i].Start);
             var scaleTarget = active ? settings.CurrentLineScale : settings.InactiveLineScale;
+            var previousScale = _scales[i];
             (_scales[i], _scaleVelocities[i]) = LyricMotionMath.AdvanceSpring(
                 _scales[i], _scaleVelocities[i], scaleTarget, seconds, 16, 1);
+            if (Math.Abs(_scales[i] - scaleTarget) < 0.0001 && Math.Abs(_scaleVelocities[i]) < 0.0001)
+                (_scales[i], _scaleVelocities[i]) = (scaleTarget, 0);
+            else _scaleAnimating = true;
+            changed |= previousScale != _scales[i];
             var height = snapshot.Lines[i].Height;
             var top = snapshot.Tops[i] - _scroll.OffsetAt(i);
             rects[i] = new Rect(0, top + height * (1 - _scales[i]) / 2 - settings.LineGap / 2,
                 _width, height * _scales[i] + settings.LineGap);
         }
         // 点击使用这一帧各行的实际位置，包含错峰弹簧的偏移。
-        Volatile.Write(ref _hitRects, rects);
+        lock (_hitRectGate) Array.Copy(rects, _hitRects, rects.Length);
+        // 包含音节结束的最后一帧；跨过短音节或停在间隙也要提交正确的颜色。
+        if (!IsBrowsing && _document.Kind == LyricKind.WordByWord && previousPosition != _position)
+            foreach (var syllable in _document.Lines[current].Syllables)
+                if (syllable.ProgressAt(previousPosition) != syllable.ProgressAt(_position)) { changed = true; break; }
+        return changed || rebuilt || _scroll.HasMoved || current != previousIndex || wasBrowsing != IsBrowsing;
     }
 
     public void Draw(CanvasDrawingSession session)
@@ -173,7 +211,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
             {
                 var line = snapshot.Lines[index];
                 var top = snapshot.Tops[index] - _scroll.OffsetAt(index);
-                if (top + line.Height < -settings.BaseFontSize || top > _height + settings.BaseFontSize) continue;
+                // 只保留视口附近的纹理；已经播放过的行不会累积整首歌的 GPU 位图和长音缓存。
+                if (top + line.Height < -settings.BaseFontSize || top > _height + settings.BaseFontSize)
+                {
+                    var margin = settings.BaseFontSize * settings.ViewportMarginLines;
+                    if (top + line.Height < -margin || top > _height + margin) line.ReleaseDrawingResources();
+                    else line.ReleaseActiveResources();
+                    continue;
+                }
+                if (index != CurrentIndex || IsBrowsing) line.ReleaseActiveResources();
                 EnsurePlainImage(line);
                 var active = index == CurrentIndex && _position >= snapshot.Document.Lines[index].Start;
                 var center = new Vector2(0, (float)(top + line.Height / 2));
@@ -181,7 +227,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
                 if ((IsBrowsing && index == _focusIndex) || (index == hovered && !active))
                 {
-                    session.DrawImage(line.FocusedImage!, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
+                    line.FocusedImage ??= line.GlyphMask!.Paint(_played);
+                    session.DrawImage(line.FocusedImage, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
                 }
                 else if (active && !IsBrowsing)
                 {
@@ -190,8 +237,10 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 else
                 {
                     var distance = Math.Abs(index - _focusIndex);
-                    line.Blur!.BlurAmount = (float)Math.Min(settings.FarBlurAmount, Math.Max(0, distance - 1) * 1.25);
-                    if (line.Blur.BlurAmount < 0.01)
+                    var blurAmount = (float)Math.Min(settings.FarBlurAmount, Math.Max(0, distance - 1) * 1.25);
+                    // 同值也写效果属性会使缓存失效；只有焦点距离变化才重算模糊。
+                    if (line.BlurAmount != blurAmount) line.Blur!.BlurAmount = line.BlurAmount = blurAmount;
+                    if (blurAmount < 0.01)
                         session.DrawImage(line.PlainImage!, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
                     else session.DrawImage(line.Blur, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
                 }
@@ -203,16 +252,13 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private void EnsurePlainImage(LyricsLineLayout line)
     {
         if (line.PlainImage is not null && line.GlyphMask?.Dpi == _dpi) return;
-        line.ActiveImage?.Dispose(); line.ActiveImage = null;
-        line.Blur?.Dispose();
-        line.PlainImage?.Dispose();
-        line.FocusedImage?.Dispose();
-        line.GlyphMask?.Dispose();
+        line.ReleaseDrawingResources();
         line.GlyphMask = new LyricsLineGlyphMask(_creator!, line, _dpi);
         line.PlainImage = line.GlyphMask.Paint(WithOpacity(_played, settings.InactiveLineOpacity));
-        line.FocusedImage = line.GlyphMask.Paint(_played);
+        line.BlurAmount = 0;
         line.Blur = new GaussianBlurEffect
         {
+            BlurAmount = 0,
             Source = line.PlainImage,
             BorderMode = EffectBorderMode.Soft,
             CacheOutput = true,
@@ -242,6 +288,19 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         if (!_layoutDirty || _creator is null || _device is null || _width <= 0) return false;
         var key = new LayoutKey(_document, Math.Max(1, _width - 28), settings.BaseFontSize, _played, _unplayed);
+        if (_device.Snapshot is { } previous)
+            foreach (var line in previous.Lines) line.ReleaseDrawingResources();
+        _device.Snapshot = null;
+        for (var node = _layouts.First; node is not null;)
+        {
+            var next = node.Next;
+            if (!ReferenceEquals(node.Value.Key.Document, _document))
+            {
+                _layouts.Remove(node);
+                node.Value.Snapshot.Dispose();
+            }
+            node = next;
+        }
         var cached = _layouts.First;
         while (cached is not null && cached.Value.Key != key) cached = cached.Next;
         if (cached is not null)
@@ -266,6 +325,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         Array.Fill(_scales, settings.InactiveLineScale);
         _scaleVelocities = new double[_scales.Length];
         _centers = new double[_scales.Length];
+        _nextHitRects = new Rect[_scales.Length];
+        lock (_hitRectGate) _hitRects = new Rect[_scales.Length];
         _layoutDirty = false;
         _logger.LogInformation("全屏歌词排版：{Count} 行，字号 {FontSize:F1}，视口 {Width:F0}×{Height:F0}",
             _scales.Length, settings.BaseFontSize, _width, _height);
@@ -298,7 +359,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _device?.Dispose();
         _device = null;
         _creator = null;
-        Volatile.Write(ref _hitRects, []);
+        lock (_hitRectGate) _hitRects = [];
+        _nextHitRects = [];
         _lastFrame = default;
         _browseTarget = null;
         _pointerY = null;

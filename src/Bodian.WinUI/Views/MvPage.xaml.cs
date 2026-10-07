@@ -71,6 +71,9 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
     public void OnNavigatedTo()
     {
         _window.EnterImmersive(MvTitleBar);
+        _window.VisibilityChanged += OnWindowVisibilityChanged;
+        _window.RenderingStateChanged += OnWindowRenderingStateChanged;
+        UpdateVideoPresentation();
         _viewModel.PauseAudioForVideo();
         UpdateChromeInsets();
         _ = _viewModel.LoadAsync(Track);
@@ -78,6 +81,8 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
 
     public void OnNavigatedFrom()
     {
+        _window.VisibilityChanged -= OnWindowVisibilityChanged;
+        _window.RenderingStateChanged -= OnWindowRenderingStateChanged;
         _viewModel.PropertyChanged -= OnViewModelChanged;
         _viewModel.RestoreAudioAfterVideo();
 
@@ -104,6 +109,8 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
     /// </remarks>
     public void OnShuttingDown()
     {
+        _window.VisibilityChanged -= OnWindowVisibilityChanged;
+        _window.RenderingStateChanged -= OnWindowRenderingStateChanged;
         _viewModel.PropertyChanged -= OnViewModelChanged;
 
         // ★ 与 OnNavigatedFrom 同一条硬约束：**先解绑元素，再释放播放器**。
@@ -133,7 +140,7 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
         // ViewModel 之后才释放它（顺序不能反，见 MvViewModel.Promote）。
         if (args.PropertyName is nameof(MvViewModel.Player))
         {
-            VideoSurface.SetMediaPlayer(ViewModel.Player);
+            UpdateVideoPresentation();
         }
 
         if (args.PropertyName is nameof(MvViewModel.PositionSeconds) or nameof(MvViewModel.DurationSeconds))
@@ -146,6 +153,17 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
         {
             UpdateVideoRect();
         }
+    }
+
+    private void OnWindowVisibilityChanged(object? sender, WindowVisibilityChangedEventArgs args) => UpdateVideoPresentation();
+    private void OnWindowRenderingStateChanged(object? sender, EventArgs args) => UpdateVideoPresentation();
+
+    private void UpdateVideoPresentation()
+    {
+        var suspended = !_window.IsWindowVisible || _window.IsMinimized;
+        // 解绑不可见的画面宿主，声音和时间轴继续由播放器管理。
+        VideoSurface.SetMediaPlayer(suspended ? null : ViewModel.Player);
+        ViewModel.SetPresentationSuspended(suspended);
     }
 
     // ── 画面比例 ────────────────────────────────────────────────────────────

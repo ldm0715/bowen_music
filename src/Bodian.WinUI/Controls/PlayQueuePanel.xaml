@@ -156,7 +156,7 @@
                                 VerticalAlignment="Center"
                                 Background="{ThemeResource ControlFillColorDefaultBrush}"
                                 CornerRadius="{StaticResource RadiusMd}">
-                                <Image Source="{x:Bind local:Formats.CoverSource(CoverImage)}" Stretch="UniformToFill" />
+                                <Image Source="{x:Bind local:Formats.RowCoverSource(CoverImage)}" Stretch="UniformToFill" />
                             </Border>
 
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
@@ -250,7 +250,7 @@
                         VerticalAlignment="Center"
                         Background="{ThemeResource ControlFillColorDefaultBrush}"
                         CornerRadius="{StaticResource RadiusMd}">
-                        <Image Source="{x:Bind local:Formats.CoverSource(DraggedRow.CoverImage), Mode=OneWay}" Stretch="UniformToFill" />
+                        <Image Source="{x:Bind local:Formats.RowCoverSource(DraggedRow.CoverImage), Mode=OneWay}" Stretch="UniformToFill" />
                     </Border>
 
                     <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">

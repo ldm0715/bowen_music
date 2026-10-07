@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using Bodian.Core.Threading;
 using HanumanInstitute.LibMpv;
 using HanumanInstitute.LibMpv.Core;
@@ -42,6 +43,7 @@ public sealed class LibMpvPlaybackService : IPlaybackService
     private DispatcherQueue? _dispatcher;
 
     private MpvContext? _mpv;
+    private long _lastPropertyPoll;
     private string? _unavailableReason;
     private PlaybackState _state = PlaybackState.Idle;
     private TimeSpan _position;
@@ -302,6 +304,10 @@ public sealed class LibMpvPlaybackService : IPlaybackService
             return;
         }
 
+        // Tick 比 UI 上报密得多；先节流，再跨原生边界读取位置/时长/状态。
+        var timestamp = Stopwatch.GetTimestamp();
+        if (_lastPropertyPoll != 0 && Stopwatch.GetElapsedTime(_lastPropertyPoll, timestamp).TotalMilliseconds < 100) return;
+        _lastPropertyPoll = timestamp;
         // idle 状态下 time-pos 不存在，读不到是正常的。
         if (ReadDouble(mpv, "time-pos") is not { } seconds)
         {
@@ -380,6 +386,10 @@ public sealed class LibMpvPlaybackService : IPlaybackService
                 mpv.SetPropertyString("ytdl", "no");
             }
             mpv.SetPropertyString("gapless-audio", "yes");
+            // 音乐不需要视频播放器的百兆预读；保留网络缓冲和向后 seek。
+            mpv.SetPropertyString("demuxer-max-bytes", "16MiB");
+            mpv.SetPropertyString("demuxer-max-back-bytes", "4MiB");
+            mpv.SetPropertyString("cache-secs", "60");
 
             mpv.FileLoaded += (_, _) => OnFileLoaded();
             mpv.EndFile += (_, e) => OnEndFile(e);

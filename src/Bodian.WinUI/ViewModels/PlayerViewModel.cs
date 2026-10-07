@@ -29,6 +29,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     private readonly BodianSession _session;
     private readonly IClipboardService _clipboard;
     private readonly ILogger<PlayerViewModel> _logger;
+    private int _coverDecodePixels = 256;
 
     public PlayerViewModel(
         PlaybackCoordinator coordinator,
@@ -535,12 +536,20 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// <remarks>
     /// 播不成的时候也要铺 —— 用户得知道刚才想播的是哪一首、以及它为什么播不了。
     /// </remarks>
+    internal void SetCoverDecodePixels(int pixels)
+    {
+        pixels = Math.Clamp(pixels, 128, 1024);
+        if (_coverDecodePixels == pixels) return;
+        _coverDecodePixels = pixels;
+        CoverImage = CoverImageCache.Get(CurrentCoverUri, pixels);
+    }
+
     private void ApplyTrackDetails(Track track)
     {
         AlbumText = track.AlbumName ?? "";
 
         // BitmapImage 自己异步加载；地址失效时图是空的，不影响布局。
-        CoverImage = CoverImageCache.Get(track.CoverImage, 1024);
+        CoverImage = CoverImageCache.Get(track.CoverImage, _coverDecodePixels);
 
         // 氛围背景靠这个自己去解码取色。
         CurrentCoverUri = track.CoverImage;

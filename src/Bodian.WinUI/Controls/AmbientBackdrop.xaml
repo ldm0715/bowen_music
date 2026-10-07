@@ -9,10 +9,8 @@
     VerticalContentAlignment="Stretch"
     IsHitTestVisible="False">
 
-    <!--
-        原生 Composition 光晕挂在这个宿主上，几何与漂移动画见代码。
-        每团的绘制范围包含完整椭圆，边缘已衰减为透明；只在宿主处裁剪窗口。
-        浅色、深色的整体强度仍由主题资源控制。
-    -->
-    <Grid x:Name="Host" Opacity="{ThemeResource AmbientOpacity}" />
+    <!-- 封面颜色变化时更新小尺寸背景图，窗口缩放复用已有像素。 -->
+    <Grid x:Name="Host" Opacity="{ThemeResource AmbientOpacity}">
+        <Image x:Name="BackdropImage" Stretch="Fill" />
+    </Grid>
 </UserControl>

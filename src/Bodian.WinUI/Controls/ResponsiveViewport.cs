@@ -28,14 +28,22 @@ public sealed class ResponsiveViewport : Panel
             ?? NullLoggerFactory.Instance).CreateLogger<ResponsiveViewport>();
         _timer = DispatcherQueue.CreateTimer();
         _timer.IsRepeating = false;
-        _timer.Tick += (_, _) => { _commit = true; InvalidateMeasure(); };
         Loaded += (_, _) =>
         {
+            _timer.Tick += OnCommitTimer;
             var visual = ElementCompositionPreview.GetElementVisual(this);
             visual.Clip = visual.Compositor.CreateInsetClip();
         };
-        Unloaded += (_, _) => { _timer.Stop(); _budget.Reset(); _commit = true; };
+        Unloaded += (_, _) =>
+        {
+            _timer.Stop();
+            _timer.Tick -= OnCommitTimer;
+            _budget.Reset();
+            _commit = true;
+        };
     }
+
+    private void OnCommitTimer(DispatcherQueueTimer sender, object args) { _commit = true; InvalidateMeasure(); }
 
     public bool IsInteractive
     {

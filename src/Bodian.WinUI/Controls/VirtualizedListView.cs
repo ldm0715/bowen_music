@@ -27,11 +27,18 @@ public sealed class VirtualizedListView : ListView
         _diagnosticsTimer = DispatcherQueue.CreateTimer();
         _diagnosticsTimer.Interval = TimeSpan.FromMilliseconds(500);
         _diagnosticsTimer.IsRepeating = false;
-        _diagnosticsTimer.Tick += (_, _) => ReportRealization();
         ContainerContentChanging += OnContainerChanged;
-        Loaded += (_, _) => { _loaded = true; ScheduleReport(); };
-        Unloaded += (_, _) => { _loaded = false; _diagnosticsTimer.Stop(); _realized.Clear(); };
+        Loaded += (_, _) => { _loaded = true; _diagnosticsTimer.Tick += OnDiagnosticsTick; ScheduleReport(); };
+        Unloaded += (_, _) =>
+        {
+            _loaded = false;
+            _diagnosticsTimer.Stop();
+            _diagnosticsTimer.Tick -= OnDiagnosticsTick;
+            _realized.Clear();
+        };
     }
+
+    private void OnDiagnosticsTick(DispatcherQueueTimer sender, object args) => ReportRealization();
 
     protected override Size MeasureOverride(Size availableSize)
     {

@@ -42,6 +42,10 @@ public sealed class NavigationStack<T>(Func<T, object> identity)
 
     public bool CanGoBack => _history.Count > 0;
 
+    /// <summary>按实例检查当前页与返回栈，避免复用仍能返回的页面。</summary>
+    public bool ContainsInstance(T page)
+        => ReferenceEquals(Current, page) || _history.Any(item => ReferenceEquals(item, page));
+
     /// <summary>当前页之前的页面，最靠近当前页的在最后。</summary>
     public IReadOnlyList<T> History => _history;
 

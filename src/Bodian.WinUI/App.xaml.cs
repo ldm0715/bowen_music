@@ -261,15 +261,13 @@ public partial class App : Application
         builder.Services.AddTransient<SongCommentsViewModel>();
         builder.Services.AddTransient<LyricsPage>();
 
-        // MV 页：ViewModel 必须是 transient —— 它持有 MediaPlayer，页面退出就 Dispose，
-        // 复用同一个实例会在第二次进 MV 页时操作一个已经释放的播放器。
-        builder.Services.AddTransient<MvViewModel>();
-
+        // 页面拥有播放器的生命周期；从根容器解析 IDisposable transient 会被保留到退出。
         // MV 页要带「哪首歌」构造，DI 解析不出来 —— 用工厂。
         builder.Services.AddTransient<Func<Track, MvPage>>(sp => track =>
             new MvPage(
                 sp.GetRequiredService<MainWindow>(),
-                sp.GetRequiredService<MvViewModel>(),
+                new MvViewModel(sp.GetRequiredService<IBodianApi>(),
+                    sp.GetRequiredService<PlayerViewModel>(), sp.GetRequiredService<ILogger<MvViewModel>>()),
                 track));
         builder.Services.AddTransient<FavoritesViewModel>();
         builder.Services.AddTransient<FavoritesPage>();
@@ -303,17 +301,17 @@ public partial class App : Application
 
         // 乐库分类页要带「哪个大类」构造，DI 解析不出来 —— 用工厂。
         builder.Services.AddTransient<Func<MusicCategoryGroup, LibraryCategoryPage>>(sp =>
-            group => new LibraryCategoryPage(
+            group => ((NavigationService)sp.GetRequiredService<INavigationService>()).GetDetail<LibraryCategoryPage, LibraryCategoryViewModel>(
                 new LibraryCategoryViewModel(
                     sp.GetRequiredService<IBodianApi>(),
                     group,
                     sp.GetRequiredService<ILogger<LibraryCategoryViewModel>>()),
-                sp.GetRequiredService<INavigationService>(),
-                sp.GetRequiredService<Func<Album, AlbumDetailPage>>()));
+                model => new LibraryCategoryPage(model, sp.GetRequiredService<INavigationService>(),
+                sp.GetRequiredService<Func<Album, AlbumDetailPage>>())));
 
         // 专辑详情页要带「哪张专辑」构造，DI 解析不出来 —— 用工厂。
         builder.Services.AddTransient<Func<Album, AlbumDetailPage>>(sp => album =>
-            new AlbumDetailPage(
+            ((NavigationService)sp.GetRequiredService<INavigationService>()).GetDetail<AlbumDetailPage, AlbumDetailViewModel>(
                 new AlbumDetailViewModel(
                     sp.GetRequiredService<IBodianApi>(),
                     sp.GetRequiredService<PlaybackCoordinator>(),
@@ -322,20 +320,21 @@ public partial class App : Application
                     sp.GetRequiredService<INoticeSink>(),
                     album,
                     sp.GetRequiredService<ILogger<AlbumDetailViewModel>>()),
-                sp.GetRequiredService<INavigationService>(),
-                sp.GetRequiredService<Func<Artist, ArtistDetailPage>>()));
+                model => new AlbumDetailPage(model, sp.GetRequiredService<INavigationService>(),
+                sp.GetRequiredService<Func<Artist, ArtistDetailPage>>())));
 
         // AI 歌单页要带「哪个序号 + 什么标题」构造，DI 解析不出来 —— 用工厂。
         // 标题一并传进去：模块里那一组的标题与详情响应的 title 实测逐字相同，
         // 先填上可以让页面在请求回来之前就有标题，不至于空着。
         builder.Services.AddTransient<Func<AiPlaylistRef, string, AiPlaylistPage>>(sp => (target, title) =>
-            new AiPlaylistPage(
+            ((NavigationService)sp.GetRequiredService<INavigationService>()).GetDetail<AiPlaylistPage, AiPlaylistViewModel>(
                 new AiPlaylistViewModel(
                     sp.GetRequiredService<IBodianApi>(),
                     sp.GetRequiredService<PlaybackCoordinator>(),
                     target,
                     title,
-                    sp.GetRequiredService<ILogger<AiPlaylistViewModel>>())));
+                    sp.GetRequiredService<ILogger<AiPlaylistViewModel>>()),
+                model => new AiPlaylistPage(model)));
 
         // 榜详情要带「哪个榜」构造，DI 解析不出来 —— 用工厂。
         builder.Services.AddTransient<Func<Bang, BangDetailPage>>(sp => bang =>
@@ -348,7 +347,7 @@ public partial class App : Application
         // 歌单详情要带「哪个歌单 + 哪个 source」构造，DI 解析不出来 —— 用工厂交给调用方，
         // 侧栏（自建歌单，source=5）与发现页（公开歌单，source=4）各传各的。
         builder.Services.AddTransient<Func<Playlist, int, PlaylistDetailPage>>(sp => (playlist, source) =>
-            new PlaylistDetailPage(
+            ((NavigationService)sp.GetRequiredService<INavigationService>()).GetDetail<PlaylistDetailPage, PlaylistDetailViewModel>(
                 new PlaylistDetailViewModel(
                     sp.GetRequiredService<IBodianApi>(),
                     sp.GetRequiredService<PlaybackCoordinator>(),
@@ -359,12 +358,13 @@ public partial class App : Application
                     sp.GetRequiredService<INoticeSink>(),
                     sp.GetRequiredService<IPlaylistLibrarySink>(),
                     sp.GetRequiredService<ILogger<PlaylistDetailViewModel>>()),
-                sp.GetRequiredService<IWindowHandleProvider>()));
+                model => new PlaylistDetailPage(model, sp.GetRequiredService<IWindowHandleProvider>())));
 
         // Win2D 歌词控件由歌词页构造注入（XAML 实例化要求无参构造，所以不能直接写在 XAML 里）
         builder.Services.AddTransient<LyricsCanvasView>();
-        builder.Services.AddTransient<AudioSpectrumSource>();
-        builder.Services.AddTransient<AudioSpectrumView>();
+        builder.Services.AddTransient<AudioSpectrumView>(sp => new AudioSpectrumView(
+            sp.GetRequiredService<IPlaybackService>(),
+            new AudioSpectrumSource(sp.GetRequiredService<ILogger<AudioSpectrumSource>>())));
 
         _host = builder.Build();
         _host.Start();

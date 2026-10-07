@@ -47,13 +47,6 @@ public sealed partial class VolumeButton : UserControl
         _closeTimer = DispatcherQueue.CreateTimer();
         _closeTimer.Interval = PointerLeaveDelay;
         _closeTimer.IsRepeating = false;
-        _closeTimer.Tick += (_, _) =>
-        {
-            if (!_pointerOver && !_dragging && VolumeSlider.FocusState != FocusState.Keyboard)
-            {
-                SetPopupOpen(false);
-            }
-        };
 
         // Slider 会处理内部指针事件，仍需接收它们以维持拖动状态。
         IconButton.AddHandler(PointerEnteredEvent, new PointerEventHandler(OnVolumePointerEntered), true);
@@ -67,7 +60,7 @@ public sealed partial class VolumeButton : UserControl
         VolumeSlider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
         VolumeSlider.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
 
-        Loaded += (_, _) => AttachVolumeSource();
+        Loaded += (_, _) => { _closeTimer.Tick += OnCloseTimer; AttachVolumeSource(); };
         Unloaded += OnUnloaded;
     }
 
@@ -102,6 +95,12 @@ public sealed partial class VolumeButton : UserControl
         _dragging = false;
         DetachVolumeSource();
         ClosePopup();
+        _closeTimer.Tick -= OnCloseTimer;
+    }
+
+    private void OnCloseTimer(DispatcherQueueTimer sender, object args)
+    {
+        if (!_pointerOver && !_dragging && VolumeSlider.FocusState != FocusState.Keyboard) SetPopupOpen(false);
     }
 
     /// <remarks>

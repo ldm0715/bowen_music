@@ -33,7 +33,7 @@ public sealed class CoverDiskCache : ICoverDiskCache, IDisposable
     private readonly HttpClient _http;
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _gate = new(MaxConcurrentDownloads);
-    private readonly ConcurrentDictionary<string, Task> _inFlight = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<Task>> _inFlight = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _missing = new(StringComparer.Ordinal);
 
     /// <summary>目录内已知的总字节数。<c>-1</c> 表示还没量过。</summary>
@@ -90,7 +90,10 @@ public sealed class CoverDiskCache : ICoverDiskCache, IDisposable
 
         // 同一个键可能在一次滚动里被请求很多次（虚拟化容器反复要同一张图）。
         // 按 key 去重，保证同时只下一份。
-        return _inFlight.GetOrAdd(cacheKey, key => DownloadAsync(key, source, cancellationToken));
+        // 先发布 Lazy 再启动下载。GetOrAdd 的工厂可能并发执行，且同步失败可能早于条目插入。
+        // 两者都不能留下重复下载或已完成任务，让后续请求永久复用一次失败。
+        return _inFlight.GetOrAdd(cacheKey, key => new Lazy<Task>(
+            () => DownloadAsync(key, source, cancellationToken), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
     }
 
     public Task<CoverCacheUsage> MeasureAsync(CancellationToken cancellationToken = default)

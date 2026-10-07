@@ -19,24 +19,28 @@ internal interface ICompositionCanvasRenderer : IDisposable
     bool Draw(CanvasDrawingSession session, double width, double height, TimeSpan now);
 }
 
-/// <summary>UI 只管理合成视图；尺寸变更、绘制和绘图资源在独立的 120 Hz 循环处理。</summary>
+/// <summary>UI 只管理合成视图；尺寸变更、绘制和绘图资源由限帧的独立后台循环处理。</summary>
 internal sealed class CompositionCanvasHost : UserControl
 {
     private readonly Grid _host = new();
     private readonly Func<CanvasDevice, CancellationToken, ICompositionCanvasRenderer> _factory;
     private readonly ILogger _logger;
     private readonly string _name;
+    private readonly double _framesPerSecond;
     private SpriteVisual? _visual;
     private CompositionSurfaceBrush? _brush;
     private CanvasDevice? _device;
     private SurfaceWorker? _worker;
     private XamlRoot? _root;
     private bool _paused;
+    private bool _resourcesSuspended;
     private bool _loaded;
 
-    public CompositionCanvasHost(string name, Func<CanvasDevice, CancellationToken, ICompositionCanvasRenderer> factory)
+    public CompositionCanvasHost(string name, Func<CanvasDevice, CancellationToken, ICompositionCanvasRenderer> factory,
+        double framesPerSecond = 120)
     {
         _name = name;
+        _framesPerSecond = framesPerSecond;
         _factory = factory;
         _logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<CompositionCanvasHost>();
@@ -48,7 +52,7 @@ internal sealed class CompositionCanvasHost : UserControl
             _loaded = true;
             _root = XamlRoot;
             if (_root is not null) _root.Changed += OnRootChanged;
-            CreateSurface();
+            if (!_resourcesSuspended) CreateSurface();
         };
         Unloaded += (_, _) =>
         {
@@ -65,6 +69,19 @@ internal sealed class CompositionCanvasHost : UserControl
         set { if (_paused == value) return; _paused = value; _worker?.SetPaused(value); }
     }
 
+    public bool IsResourceSuspended
+    {
+        get => _resourcesSuspended;
+        set
+        {
+            if (_resourcesSuspended == value) return;
+            _resourcesSuspended = value;
+            if (!_loaded) return;
+            if (value) ReleaseSurface();
+            else CreateSurface();
+        }
+    }
+
     public void Invalidate() => _worker?.Invalidate();
 
     private void OnRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => UpdateViewport();
@@ -73,7 +90,8 @@ internal sealed class CompositionCanvasHost : UserControl
 
     private void CreateSurface()
     {
-        var device = new CanvasDevice();
+        var deviceLease = BackgroundCanvasDeviceLease.Acquire();
+        var device = deviceLease.Device;
         _device = device;
         device.DeviceLost += OnDeviceLost;
         var compositor = ElementCompositionPreview.GetElementVisual(_host).Compositor;
@@ -86,10 +104,14 @@ internal sealed class CompositionCanvasHost : UserControl
         _visual.RelativeSizeAdjustment = Vector2.One;
         _visual.Brush = _brush;
         ElementCompositionPreview.SetElementChildVisual(_host, _visual);
-        _worker = new SurfaceWorker(device, surface, _factory, _logger, _name,
+        _worker = new SurfaceWorker(device, surface, _factory, _logger, _name, _framesPerSecond,
             () => DispatcherQueue.TryEnqueue(() =>
             {
-                try { surface.Dispose(); graphics.Dispose(); device.Dispose(); }
+                try
+                {
+                    try { surface.Dispose(); }
+                    finally { try { graphics.Dispose(); } finally { deviceLease.Dispose(); } }
+                }
                 catch (Exception exception) { _logger.LogWarning(exception, "释放 {Name} 合成资源失败", _name); }
             }));
         UpdateViewport();
@@ -121,17 +143,34 @@ internal sealed class CompositionCanvasHost : UserControl
 
     private sealed class SurfaceWorker(CanvasDevice device, CompositionDrawingSurface surface,
         Func<CanvasDevice, CancellationToken, ICompositionCanvasRenderer> factory,
-        ILogger logger, string name, Action release)
+        ILogger logger, string name, double framesPerSecond, Action release)
     {
         private readonly CancellationTokenSource _stop = new();
+        private readonly object _lifetimeGate = new();
         private readonly AutoResetEvent _wake = new(false);
         private Viewport _viewport = new(0, 0, 1, 0);
         private int _paused, _dirty = 1, _stopped;
 
         public void Start() => new Thread(Run) { IsBackground = true, Name = $"Bodian {name} renderer" }.Start();
-        public void Stop() { if (Interlocked.Exchange(ref _stopped, 1) == 0) _stop.Cancel(); }
+        public void Stop()
+        {
+            lock (_lifetimeGate)
+            {
+                if (_stopped != 0) return;
+                _stopped = 1;
+                _stop.Cancel();
+            }
+        }
         public void SetPaused(bool value) { Volatile.Write(ref _paused, value ? 1 : 0); Invalidate(); }
-        public void Invalidate() { Volatile.Write(ref _dirty, 1); _wake.Set(); }
+        public void Invalidate()
+        {
+            lock (_lifetimeGate)
+            {
+                if (_stopped != 0) return;
+                Volatile.Write(ref _dirty, 1);
+                _wake.Set();
+            }
+        }
         public void SetViewport(double width, double height, double scale)
         {
             var old = _viewport;
@@ -146,7 +185,7 @@ internal sealed class CompositionCanvasHost : UserControl
             try
             {
                 renderer = factory(device, _stop.Token);
-                using var pacer = new FramePacer(120, _stop.Token.WaitHandle);
+                using var pacer = new FramePacer(framesPerSecond, _stop.Token.WaitHandle);
                 var statistics = new FrameStatistics(logger, name);
                 WaitHandle[] handles = [_stop.Token.WaitHandle, _wake];
                 var clock = Stopwatch.StartNew();
@@ -193,7 +232,16 @@ internal sealed class CompositionCanvasHost : UserControl
             {
                 try { renderer?.Dispose(); }
                 catch (Exception exception) { logger.LogWarning(exception, "释放 {Name} 绘制资源失败", name); }
-                release();
+                try { release(); }
+                finally
+                {
+                    lock (_lifetimeGate)
+                    {
+                        _stopped = 1;
+                        _wake.Dispose();
+                        _stop.Dispose();
+                    }
+                }
             }
         }
 

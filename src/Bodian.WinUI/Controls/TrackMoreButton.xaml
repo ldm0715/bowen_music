@@ -43,10 +43,7 @@
                     </Style>
                 </Flyout.FlyoutPresenterStyle>
 
-                <controls:TrackActionsMenu
-                    x:Name="Menu"
-                    CloseRequested="OnMenuCloseRequested"
-                    ViewModel="{x:Bind ViewModel, Mode=OneWay}" />
+                <!-- 菜单在首次打开时创建，关闭后释放，歌曲行不预建隐藏的列表与按钮。 -->
             </Flyout>
         </Button.Flyout>
     </Button>

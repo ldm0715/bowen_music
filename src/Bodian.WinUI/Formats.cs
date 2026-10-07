@@ -241,6 +241,7 @@ public static class Formats
     /// 返回 <c>null</c> 时 Image 是空的，外层 Border 的底色会露出来。
     /// </remarks>
     public static ImageSource? CoverSource(Uri? uri) => CoverImageCache.Get(uri, 256);
+    public static ImageSource? RowCoverSource(Uri? uri) => CoverImageCache.Get(uri, 128);
 
     public static string ArtistCoverKey(long id) => id > 0 ? $"artist:{id}" : "";
     public static string PlaylistCoverKey(long id) => id > 0 ? $"playlist:{id}" : "";

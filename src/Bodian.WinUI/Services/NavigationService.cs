@@ -24,6 +24,7 @@ public sealed class NavigationService : INavigationService
     private readonly NavigationStack<Page> _stack;
     private readonly Dictionary<Type, Page> _rootPages = [];
     private readonly LinkedList<Type> _rootRecency = new();
+    private readonly Dictionary<Type, Page> _recycledDetails = [];
 
     private ContentControl? _host;
     private ContentControl? _shownHost;
@@ -72,6 +73,29 @@ public sealed class NavigationService : INavigationService
         _beforeNavigate = beforeNavigate;
     }
 
+    internal TPage GetDetail<TPage, TModel>(TModel model, Func<TModel, TPage> create)
+        where TPage : Page, IReusableDetailPage<TModel>
+    {
+        if (_recycledDetails.TryGetValue(typeof(TPage), out var candidate)
+            && !candidate.IsLoaded && candidate.Parent is null && !_stack.ContainsInstance(candidate))
+        {
+            _recycledDetails.Remove(typeof(TPage));
+            PageVisualResources.Reset(candidate);
+            CoverTransitionAnimator.Current?.ForgetPage(candidate);
+            var page = (TPage)candidate;
+            page.Rebind(model);
+            return page;
+        }
+        return create(model);
+    }
+
+    public void ReleaseCachedPages()
+    {
+        _rootPages.Clear();
+        _rootRecency.Clear();
+        _recycledDetails.Clear();
+    }
+
     public void Navigate<TPage>() where TPage : Page =>
         Show(_stack.Push(_stack.Current is TPage current && current is not INavigationIdentity
             ? current : _services.GetRequiredService<TPage>()));
@@ -96,7 +120,7 @@ public sealed class NavigationService : INavigationService
             _rootPages[type] = page;
             _rootRecency.Remove(type);
             _rootRecency.AddFirst(type);
-            if (_rootPages.Count > 8 && _rootRecency.Last is { } oldest)
+            if (_rootPages.Count > 3 && _rootRecency.Last is { } oldest)
             {
                 _rootPages.Remove(oldest.Value);
                 _rootRecency.RemoveLast();
@@ -221,6 +245,7 @@ public sealed class NavigationService : INavigationService
 
         // 先通知离场，再换内容，最后通知进场 —— 顺序固定，页面可以放心在
         // OnNavigatedFrom 里释放、在 OnNavigatedTo 里重建。
+        var previous = _shown;
         if (_shown is not null) AppMotion.Reset(_shown);
         Notify(_shown, leaving: true);
 
@@ -232,6 +257,7 @@ public sealed class NavigationService : INavigationService
             _shownHost.Content = null;
         }
 
+        PageVisualResources.Track(next);
         _shownHost = nextHost;
         _shownHost.Content = next;
         _shown = next;
@@ -239,6 +265,9 @@ public sealed class NavigationService : INavigationService
             _ = AppMotion.EnterAsync(next, sharedCover is null ? x : 0, sharedCover is null ? y : 0);
 
         Notify(next, leaving: false);
+        // 仅保留每种已离开返回栈的详情页一份，下一张歌单/专辑重用其布局。
+        if (previous is IReusableDetailPage && !_stack.ContainsInstance(previous))
+            _recycledDetails[previous.GetType()] = previous;
 
         Navigated?.Invoke(this, next);
         if (sharedCover is not null) _ = CoverTransitionAnimator.Current?.PlayNavigationAsync(sharedCover);

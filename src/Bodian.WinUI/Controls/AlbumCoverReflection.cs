@@ -1,4 +1,5 @@
 using System.Numerics;
+using Bodian.Core.Media;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Graphics.Canvas;
@@ -23,7 +24,7 @@ public sealed class AlbumCoverReflection : UserControl
         var logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<AlbumCoverReflection>();
         _canvas = new CompositionCanvasHost("倒影", (device, token) =>
-            new ReflectionRenderer(device, () => Volatile.Read(ref _coverUri), token, logger));
+            new ReflectionRenderer(device, () => Volatile.Read(ref _coverUri), token, logger), framesPerSecond: 30);
         Content = _canvas;
     }
 
@@ -34,6 +35,7 @@ public sealed class AlbumCoverReflection : UserControl
     }
 
     public bool IsPaused { get => _canvas.IsPaused; set => _canvas.IsPaused = value; }
+    public bool IsResourceSuspended { get => _canvas.IsResourceSuspended; set => _canvas.IsResourceSuspended = value; }
 
     private static void OnCoverChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
     {
@@ -92,7 +94,7 @@ public sealed class AlbumCoverReflection : UserControl
                 if (uri is not null)
                 {
                     _loadCancellation = CancellationTokenSource.CreateLinkedTokenSource(_stop);
-                    _loading = CanvasBitmap.LoadAsync(_device, uri).AsTask(_loadCancellation.Token);
+                    _loading = CanvasBitmap.LoadAsync(_device, CoverArtUrl.Jpeg(uri, 512)).AsTask(_loadCancellation.Token);
                 }
             }
             if (_loading is { IsCompleted: true } loading)

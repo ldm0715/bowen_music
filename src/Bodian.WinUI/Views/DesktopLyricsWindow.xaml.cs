@@ -43,6 +43,7 @@ public sealed partial class DesktopLyricsWindow : Window
     private const int ToolbarHideDelayMilliseconds = 180;
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(30);
+    private static readonly TimeSpan IdlePollInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan TopmostInterval = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan PlacementSaveDelay = TimeSpan.FromSeconds(1);
 
@@ -82,6 +83,9 @@ public sealed partial class DesktopLyricsWindow : Window
     private bool _adjustingFontSize;
     private bool _dragging;
     private bool _resizing;
+    private bool _toolbarSubscribed;
+    private bool _pointerRefresh = true;
+    private NativeMethods.NativePoint? _lastCursor;
     private NativeMethods.NativePoint _gestureCursorOrigin;
     private PointInt32 _gestureWindowOrigin;
     private SizeInt32 _gestureWindowSize;
@@ -110,8 +114,6 @@ public sealed partial class DesktopLyricsWindow : Window
         InitializeComponent();
         _canvas = new DesktopLyricsCanvasView(settings, lyrics, engine, loggerFactory ?? NullLoggerFactory.Instance);
         LyricStack.Children.Add(_canvas);
-        Player.PropertyChanged += OnPlayerPropertyChanged;
-        Player.Statistics.PropertyChanged += OnStatisticsPropertyChanged;
         UpdatePlaybackAppearance();
 
         _handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -119,7 +121,7 @@ public sealed partial class DesktopLyricsWindow : Window
 
         ConfigureWindowForm();
         _resizeCursor = new DesktopLyricsResizeCursor(_handle, BeginNativeResize, ContinueGesture, EndGesture);
-        AppWindow.Changed += (_, _) => UpdateResizeEdge();
+        AppWindow.Changed += (_, _) => { _pointerRefresh = true; UpdateResizeEdge(); };
         ApplyPlacement();
         BuildColorPalette();
         FontSizeSlider.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnFontSizePointerPressed), true);
@@ -140,8 +142,7 @@ public sealed partial class DesktopLyricsWindow : Window
 
         ApplySettings();
         _initializing = false;
-        StartTimers();
-        _canvas.IsPaused = false;
+        _canvas.IsPaused = true;
     }
 
     /// <summary>把窗口藏起来。宿主在关闭桌面歌词时调它。</summary>
@@ -150,6 +151,9 @@ public sealed partial class DesktopLyricsWindow : Window
         _windowVisible = false;
         _resizeCursor.Update(default, false);
         _canvas.IsPaused = true;
+        _canvas.IsResourceSuspended = true;
+        Bindings.StopTracking();
+        SetToolbarSubscriptions(false);
         CloseSettings();
         SetToolbarVisible(false);
         SetPassThrough(true);
@@ -166,6 +170,11 @@ public sealed partial class DesktopLyricsWindow : Window
     public void ShowWindow()
     {
         _windowVisible = true;
+        _lastCursor = null;
+        _pointerRefresh = true;
+        Bindings.Update();
+        SetToolbarSubscriptions(true);
+        ApplySettings();
         if (_everShown)
         {
             AppWindow.Show(activateWindow: false);
@@ -180,6 +189,7 @@ public sealed partial class DesktopLyricsWindow : Window
         UpdateResizeEdge();
 
         StartTimers();
+        _canvas.IsResourceSuspended = false;
         _canvas.IsPaused = false;
     }
 
@@ -468,7 +478,7 @@ public sealed partial class DesktopLyricsWindow : Window
         if (_pollTimer is null)
         {
             _pollTimer = DispatcherQueue.CreateTimer();
-            _pollTimer.Interval = PollInterval;
+            _pollTimer.Interval = IdlePollInterval;
             _pollTimer.IsRepeating = true;
             _pollTimer.Tick += (_, _) => UpdatePointerState();
         }
@@ -505,6 +515,7 @@ public sealed partial class DesktopLyricsWindow : Window
 
         _pollTimer.Start();
         _topmostTimer.Start();
+        UpdatePointerState();
     }
 
     private void StopTimers()
@@ -563,6 +574,9 @@ public sealed partial class DesktopLyricsWindow : Window
         {
             return;
         }
+        if (!_pointerRefresh && _lastCursor is { } previous && previous.X == cursor.X && previous.Y == cursor.Y) return;
+        _lastCursor = cursor;
+        _pointerRefresh = false;
         _scale = NativeMethods.GetDpiForWindow(_handle) / 96.0;
         UpdateResizeEdge();
 
@@ -571,6 +585,8 @@ public sealed partial class DesktopLyricsWindow : Window
         var inWindow = cursor.X >= origin.X && cursor.X < origin.X + size.Width
             && cursor.Y >= origin.Y && cursor.Y < origin.Y + size.Height;
 
+        var interval = inWindow ? PollInterval : IdlePollInterval;
+        if (_pollTimer is not null && _pollTimer.Interval != interval) _pollTimer.Interval = interval;
         if (inWindow)
         {
             _toolbarHideTimer?.Stop();
@@ -767,7 +783,27 @@ public sealed partial class DesktopLyricsWindow : Window
     }
 
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-        => ApplySettings();
+    {
+        _pointerRefresh = true;
+        if (_windowVisible || _initializing) ApplySettings();
+    }
+
+    private void SetToolbarSubscriptions(bool enabled)
+    {
+        if (_toolbarSubscribed == enabled) return;
+        _toolbarSubscribed = enabled;
+        if (enabled)
+        {
+            Player.PropertyChanged += OnPlayerPropertyChanged;
+            Player.Statistics.PropertyChanged += OnStatisticsPropertyChanged;
+            UpdatePlaybackAppearance();
+        }
+        else
+        {
+            Player.PropertyChanged -= OnPlayerPropertyChanged;
+            Player.Statistics.PropertyChanged -= OnStatisticsPropertyChanged;
+        }
+    }
 
     private void OnPlayerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {

@@ -30,11 +30,13 @@ namespace Bodian.WinUI.Controls;
 public sealed partial class TrackMoreButton : UserControl
 {
     private TrackActionsService? _service;
+    private TrackActionsMenu? _menu;
 
     public TrackMoreButton()
     {
         InitializeComponent();
         Loaded += (_, _) => EnsureService();
+        Unloaded += (_, _) => { MoreFlyout.Hide(); ReleaseMenu(); };
     }
 
     /// <summary>这一行对应的数据。</summary>
@@ -44,7 +46,7 @@ public sealed partial class TrackMoreButton : UserControl
         typeof(TrackMoreButton),
         new PropertyMetadata(null, OnRowChanged));
 
-    /// <summary>菜单的状态与动作，<see cref="Row"/> 变化时现造一个。</summary>
+    /// <summary>菜单的状态与动作，只在菜单打开期间持有。</summary>
     public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(
         nameof(ViewModel),
         typeof(TrackActionsViewModel),
@@ -76,9 +78,7 @@ public sealed partial class TrackMoreButton : UserControl
 
         button.MoreFlyout.Hide();
 
-        button.ViewModel = e.NewValue is TrackRow row && button.EnsureService() is { } service
-            ? service.Create(row.Source)
-            : null;
+        button.ReleaseMenu();
     }
 
     private TrackActionsService? EnsureService()
@@ -101,12 +101,13 @@ public sealed partial class TrackMoreButton : UserControl
 
     private void OnFlyoutOpening(object? sender, object e)
     {
-        if (Row is { } row)
-        {
-            row.IsMenuOpen = true;
-        }
-
-        Menu.Initialize();
+        if (Row is not { } row || EnsureService() is not { } service) return;
+        row.IsMenuOpen = true;
+        ViewModel = service.Create(row.Source);
+        _menu = new TrackActionsMenu { ViewModel = ViewModel };
+        _menu.CloseRequested += OnMenuCloseRequested;
+        MoreFlyout.Content = _menu;
+        _menu.Initialize();
     }
 
     private void OnFlyoutClosed(object? sender, object e)
@@ -116,7 +117,21 @@ public sealed partial class TrackMoreButton : UserControl
             row.IsMenuOpen = false;
         }
 
-        Menu.Reset();
+        ReleaseMenu();
+    }
+
+    private void ReleaseMenu()
+    {
+        if (_menu is not null)
+        {
+            _menu.CloseRequested -= OnMenuCloseRequested;
+            _menu.Reset();
+            MoreFlyout.Content = null;
+            _menu.ViewModel = null;
+            _menu = null;
+        }
+        ViewModel = null;
+        if (Row is { } row) row.IsMenuOpen = false;
     }
 
     /// <summary>菜单里的某个动作要求关窗。它是内容控件，拿不到这个 Flyout，只能往上抛。</summary>

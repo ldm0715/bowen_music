@@ -4,6 +4,7 @@ using Bodian.Core.Playback;
 using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Controls;
 using Bodian.WinUI.Playback;
+using Bodian.WinUI.Media;
 using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -67,6 +68,7 @@ public sealed partial class MiniPlayerWindow : Window
     private const double DefaultMarginDip = 24;
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(30);
+    private static readonly TimeSpan IdlePollInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan TopmostInterval = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan CollapseDelay = TimeSpan.FromMilliseconds(200);
     private static readonly TimeSpan PlacementSaveDelay = TimeSpan.FromSeconds(1);
@@ -79,7 +81,10 @@ public sealed partial class MiniPlayerWindow : Window
     private readonly LyricsPlaybackClock _lyricClock = new(TimeProvider.System);
     private LyricLine? _miniLyricLine;
     private double _miniLyricWidth, _miniLyricHeight;
-    private bool _lyricRendering;
+    private DispatcherQueueTimer? _lyricTimer;
+    private bool _subscriptionsActive;
+    private bool _bindingsSuspended;
+    private PlayQueuePanel? _queueView;
     private readonly nint _handle;
 
     private DispatcherQueueTimer? _pollTimer;
@@ -170,9 +175,8 @@ public sealed partial class MiniPlayerWindow : Window
         ProgressSlider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(OnProgressCaptureLost), true);
         ProgressSlider.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(OnProgressCaptureLost), true);
 
-        Player.PropertyChanged += OnPlayerPropertyChanged;
-        Lyrics.PropertyChanged += OnLyricsPropertyChanged;
-        _engine.PositionChanged += OnLyricPositionChanged;
+        Bindings.StopTracking();
+        _bindingsSuspended = true;
 
         Closed += (_, _) => TearDown();
     }
@@ -189,6 +193,8 @@ public sealed partial class MiniPlayerWindow : Window
         VolumeFlyout.Hide();
         _edge = MiniPlayerDockEdge.None;
         Queue.IsMiniPlayerOpen = false;
+        ReleaseQueueView();
+        SuspendVisualUpdates();
 
         StopTimers();
         SavePlacement();
@@ -208,9 +214,7 @@ public sealed partial class MiniPlayerWindow : Window
     public void ShowWindow()
     {
         _windowVisible = true;
-        _lyricClock.SetDuration(_engine.Duration);
-        _lyricClock.Sync(_engine.Position, force: true);
-        _lyricClock.SetPlaying(_engine.State == PlaybackState.Playing);
+        ResumeVisualUpdates();
         RefreshInfoSlot();
 
         if (_everShown)
@@ -402,8 +406,11 @@ public sealed partial class MiniPlayerWindow : Window
         if (plan is null)
         {
             PanelHost.Visibility = Visibility.Collapsed;
+            ReleaseQueueView();
             return;
         }
+        if (queue) EnsureQueueView();
+        else ReleaseQueueView();
 
         PanelHost.Visibility = Visibility.Visible;
         PanelHost.Height = plan.Value.PanelHeight;
@@ -415,6 +422,25 @@ public sealed partial class MiniPlayerWindow : Window
         // 抽屉里一次只装一样：队列面板优先，其次是歌名那一行。
         QueueCard.Visibility = queue ? Visibility.Visible : Visibility.Collapsed;
         TrackDrawer.Visibility = queue ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void EnsureQueueView()
+    {
+        if (_queueView is not null) return;
+        _queueView = new PlayQueuePanel { ViewModel = Queue };
+        _queueView.ClearRequested += OnClearQueueRequested;
+        _queueView.CloseRequested += OnCloseQueueRequested;
+        QueueCard.Child = _queueView;
+    }
+
+    private void ReleaseQueueView()
+    {
+        if (_queueView is null) return;
+        _queueView.ClearRequested -= OnClearQueueRequested;
+        _queueView.CloseRequested -= OnCloseQueueRequested;
+        QueueCard.Child = null;
+        _queueView.ClearValue(PlayQueuePanel.ViewModelProperty);
+        _queueView = null;
     }
 
     private void ApplyWindowRect(WindowPlacement rect)
@@ -439,7 +465,7 @@ public sealed partial class MiniPlayerWindow : Window
         if (_pollTimer is null)
         {
             _pollTimer = DispatcherQueue.CreateTimer();
-            _pollTimer.Interval = PollInterval;
+            _pollTimer.Interval = IdlePollInterval;
             _pollTimer.IsRepeating = true;
             _pollTimer.Tick += (_, _) => PollCursor();
         }
@@ -480,7 +506,7 @@ public sealed partial class MiniPlayerWindow : Window
 
     private void StopTimers()
     {
-        SetLyricRendering(false);
+        StopLyricTimer();
         _pollTimer?.Stop();
         _topmostTimer?.Stop();
         _placementTimer?.Stop();
@@ -517,12 +543,14 @@ public sealed partial class MiniPlayerWindow : Window
     /// </remarks>
     private void PollCursor()
     {
-        _scale = NativeMethods.GetDpiForWindow(_handle) / 96.0;
-
-        if (!NativeMethods.GetCursorPos(out var cursor))
-        {
-            return;
-        }
+        if (!NativeMethods.GetCursorPos(out var cursor)) return;
+        var nearWindow = cursor.X >= _windowRect.X - Scaled(WakeSlackDip)
+            && cursor.X < _windowRect.X + _windowRect.Width + Scaled(WakeSlackDip)
+            && cursor.Y >= _windowRect.Y - Scaled(WakeSlackDip)
+            && cursor.Y < _windowRect.Y + _windowRect.Height + Scaled(WakeSlackDip);
+        var interval = nearWindow || _dragging ? PollInterval : IdlePollInterval;
+        if (_pollTimer is not null && _pollTimer.Interval != interval) _pollTimer.Interval = interval;
+        if (nearWindow || _dragging) _scale = NativeMethods.GetDpiForWindow(_handle) / 96.0;
 
         if (_collapsed && _edge != MiniPlayerDockEdge.None)
         {
@@ -569,6 +597,7 @@ public sealed partial class MiniPlayerWindow : Window
 
         _bar = MiniPlayerGeometry.Expand(_bar, _edge, Scaled(BarWidthDip), WorkArea());
         _collapsed = false;
+        ResumeVisualUpdates();
 
         // 光标此刻就在条上（这正是展开的原因），所以悬停态直接置位 ——
         // 窗口刚从穿透切回可命中，PointerEntered 不一定会补发。
@@ -595,6 +624,7 @@ public sealed partial class MiniPlayerWindow : Window
         _drawerOpen = false;
 
         SetPassThrough(true);
+        SuspendVisualUpdates();
         RefreshInfoSlot();
         ApplyLayout();
         QueuePlacementSave();
@@ -611,7 +641,7 @@ public sealed partial class MiniPlayerWindow : Window
             ? exStyle | NativeMethods.WsExTransparent
             : exStyle & ~NativeMethods.WsExTransparent;
 
-        NativeMethods.SetWindowLongPtr(_handle, NativeMethods.GwlExStyle, (nint)updated);
+        if (updated != exStyle) NativeMethods.SetWindowLongPtr(_handle, NativeMethods.GwlExStyle, (nint)updated);
     }
 
     // ── 悬停：信息区换传输按钮 + 弹歌名抽屉 ─────────────────────────────────
@@ -684,23 +714,70 @@ public sealed partial class MiniPlayerWindow : Window
     {
         _lyricClock.SetDuration(args.Duration);
         _lyricClock.Sync(args.Position);
+        UpdateMiniLyric();
     }
 
-    private void OnLyricRendering(object? sender, object args) => UpdateMiniLyric();
+    private void StopLyricTimer() => _lyricTimer?.Stop();
 
-    private void SetLyricRendering(bool enabled)
+    private void ScheduleLyricUpdate(LyricDocument document, TimeSpan position, bool overflowing)
     {
-        if (_lyricRendering == enabled) return;
-        _lyricRendering = enabled;
-        if (enabled) CompositionTarget.Rendering += OnLyricRendering;
-        else CompositionTarget.Rendering -= OnLyricRendering;
+        var delay = LyricRefreshSchedule.NextUpdateDelay(document, position, Player.IsPlaying,
+            animateHighlight: false, overflowing);
+        if (!delay.HasValue) { _lyricTimer?.Stop(); return; }
+        if (_lyricTimer is null)
+        {
+            _lyricTimer = DispatcherQueue.CreateTimer();
+            _lyricTimer.IsRepeating = false;
+            _lyricTimer.Tick += (_, _) => UpdateMiniLyric();
+        }
+        _lyricTimer.Stop();
+        _lyricTimer.Interval = delay.Value;
+        _lyricTimer.Start();
     }
+
+    private void ResumeVisualUpdates()
+    {
+        PlayingBars.SetWindowRendering(Root.XamlRoot, true);
+        if (_bindingsSuspended) { Bindings.Update(); _bindingsSuspended = false; }
+        if (!_subscriptionsActive)
+        {
+            _subscriptionsActive = true;
+            Player.PropertyChanged += OnPlayerPropertyChanged;
+            Lyrics.PropertyChanged += OnLyricsPropertyChanged;
+            _engine.PositionChanged += OnLyricPositionChanged;
+        }
+        _lyricClock.SetDuration(_engine.Duration);
+        _lyricClock.Sync(_engine.Position, force: true);
+        _lyricClock.SetPlaying(_engine.State == PlaybackState.Playing);
+        UpdateCoverImage();
+    }
+
+    private void SuspendVisualUpdates()
+    {
+        PlayingBars.SetWindowRendering(Root.XamlRoot, false);
+        StopLyricTimer();
+        if (!_bindingsSuspended) { Bindings.StopTracking(); _bindingsSuspended = true; }
+        if (_subscriptionsActive)
+        {
+            _subscriptionsActive = false;
+            Player.PropertyChanged -= OnPlayerPropertyChanged;
+            Lyrics.PropertyChanged -= OnLyricsPropertyChanged;
+            _engine.PositionChanged -= OnLyricPositionChanged;
+        }
+        MiniCoverBrush.ImageSource = null;
+        _miniLyricLine = null;
+        LyricLineText.Text = string.Empty;
+    }
+
+    private void UpdateCoverImage()
+        => MiniCoverBrush.ImageSource = CoverImageCache.Get(Player.CurrentCoverUri,
+            Math.Clamp((int)Math.Ceiling(64 * _scale), 64, 256));
 
     private void UpdateMiniLyric()
     {
         if (!_windowVisible || _collapsed || LyricViewport.Visibility != Visibility.Visible)
         {
-            SetLyricRendering(false);
+            StopLyricTimer();
             return;
         }
         var position = _lyricClock.Position;
@@ -722,14 +799,17 @@ public sealed partial class MiniPlayerWindow : Window
         var x = overflowing ? -LyricHorizontalScroll.Offset(_miniLyricWidth, width, progress)
             : (width - _miniLyricWidth) / 2;
         var scale = Root.XamlRoot?.RasterizationScale ?? _scale;
-        LyricShift.X = Math.Round(x * scale) / scale;
-        LyricShift.Y = Math.Round((LyricViewport.ActualHeight - _miniLyricHeight) / 2 * scale) / scale;
-        // 只有可见长句订阅逐帧回调，悬停、收起、暂停和隐藏立即停止。
-        SetLyricRendering(overflowing && Player.IsPlaying);
+        var shiftX = Math.Round(x * scale) / scale;
+        var shiftY = Math.Round((LyricViewport.ActualHeight - _miniLyricHeight) / 2 * scale) / scale;
+        if (LyricShift.X != shiftX) LyricShift.X = shiftX;
+        if (LyricShift.Y != shiftY) LyricShift.Y = shiftY;
+        // 只在长句实际推进时最多 60 Hz；短句、音节间隙与句尾等到下一时间点。
+        ScheduleLyricUpdate(document, position, overflowing);
     }
 
     private void OnPlayerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(PlayerViewModel.CurrentCoverUri)) UpdateCoverImage();
         if (e.PropertyName == nameof(PlayerViewModel.IsPlaying))
         {
             _lyricClock.SetPlaying(Player.IsPlaying);
@@ -973,6 +1053,8 @@ public sealed partial class MiniPlayerWindow : Window
     {
         _windowVisible = false;
         StopTimers();
+        SuspendVisualUpdates();
+        ReleaseQueueView();
         SavePlacement();
 
         // ViewModel 比窗口活得久（它们常驻），不退订就是让窗口被这些事件引用着不放。

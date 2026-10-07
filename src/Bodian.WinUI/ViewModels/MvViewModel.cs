@@ -110,16 +110,13 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
 
     /// <summary>正在飞的那次换档。<b>连点时用它把上一次取消掉</b>，只让最后一次落地。</summary>
     private CancellationTokenSource? _switchCts;
+    private readonly CancellationTokenSource _lifetime = new();
 
     /// <summary>装上新源的时刻（<c>Environment.TickCount64</c>）；0 表示没有在等的源。见看门狗。</summary>
     private long _awaitingOpenSince;
 
     /// <summary>正在准备中的备用播放器。<b>它打开成功之前，现役那一条继续放着。</b></summary>
-    private MediaPlayer? _staging;
-
-    /// <summary>备用播放器上的源打开了 / 失败了。都由后台线程置位。</summary>
-    private volatile bool _stagingOpened;
-    private volatile bool _stagingFailed;
+    private Action? _releaseStaging;
 
     /// <summary>新源多久没打开就认作失败。MV 直链是普通 MP4，正常几秒内就出声了。</summary>
     private const int SourceOpenTimeoutMs = 10_000;
@@ -133,6 +130,7 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
     private bool _reportedNaturalSize;
 
     private bool _disposed;
+    private bool _presentationSuspended;
 
     public MvViewModel(IBodianApi api, PlayerViewModel audio, ILogger<MvViewModel>? logger = null)
     {
@@ -149,7 +147,7 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         _positionTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _positionTimer.Interval = TimeSpan.FromMilliseconds(PositionPollMilliseconds);
         _positionTimer.IsRepeating = true;
-        _positionTimer.Tick += (_, _) => Poll();
+        _positionTimer.Tick += OnPositionTick;
 
         // 初始的「当前档」标记。之后由 OnQualityChanged 维护。
         foreach (var option in QualityOptions)
@@ -326,6 +324,8 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
     public async Task<bool> LoadAsync(Track track, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(track);
+        if (_disposed) return false;
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
 
         _musicId = track.Id;
         Title = track.Title;
@@ -336,7 +336,8 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
 
         try
         {
-            var mv = await _api.GetMvInfoAsync(track.Id, Quality, cancellationToken).ConfigureAwait(true);
+            var mv = await _api.GetMvInfoAsync(track.Id, Quality, request.Token).ConfigureAwait(true);
+            if (_disposed || request.IsCancellationRequested) return false;
 
             if (mv is null)
             {
@@ -348,6 +349,10 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
 
             Install(mv);
             return true;
+        }
+        catch (OperationCanceledException) when (_disposed)
+        {
+            return false;
         }
         catch (OperationCanceledException)
         {
@@ -396,10 +401,6 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
             "MV 源加载失败：{Error}（HRESULT 0x{Code:X8}）{Message}",
             args.Error, args.ExtendedErrorCode.HResult, args.ErrorMessage);
 
-        if (ReferenceEquals(sender, _staging))
-        {
-            _stagingFailed = true;
-        }
     }
 
     /// <summary>把 MV 装进现役播放器并放起来。<b>只用于首次加载。</b></summary>
@@ -454,7 +455,7 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         // 每次换档都会给 MediaPlayer 赋一次 Source，两次叠在一起会把播放器塞进坏状态 ——
         // 表现是「切得快就卡住，之后换哪一档都播不了」。取消上一次 + 丢弃过期响应即可避免。
         _switchCts?.Cancel();
-        var cts = new CancellationTokenSource();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _switchCts = cts;
         var token = cts.Token;
 
@@ -488,6 +489,7 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
 
             // 续播由 Promote 在里面武装（装上新源之后才设），
             // 否则装源前那 200ms 里轮询会把这次定位消耗在**旧源**上。
+            if (token.IsCancellationRequested || _disposed) { ReleasePlayer(prepared); return; }
             Promote(prepared, mv, resume);
 
             _logger.LogInformation("MV 换档 {Quality}：已切过去，续播 {Position:F1}s",
@@ -503,6 +505,11 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
             StatusIsError = true;
             StatusText = "切换画质失败，仍在放原来那一档。";
         }
+        finally
+        {
+            if (ReferenceEquals(_switchCts, cts)) _switchCts = null;
+            cts.Dispose();
+        }
     }
 
     /// <summary>
@@ -516,40 +523,47 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
     /// </remarks>
     private async Task<MediaPlayer?> PrepareAsync(MvInfo mv, CancellationToken token)
     {
+        _releaseStaging?.Invoke();
         var staging = NewPlayer();
-        _staging = staging;
-        _stagingOpened = false;
-        _stagingFailed = false;
-
-        staging.MediaOpened += (_, _) => _stagingOpened = true;
-        staging.Source = MediaSource.CreateFromUri(mv.VideoUrl);
-
-        for (var waited = 0;
-             waited < SourceOpenTimeoutMs && !_stagingOpened && !_stagingFailed && !_disposed;
-             waited += 100)
+        var opened = 0;
+        var failed = 0;
+        var released = 0;
+        var prepared = false;
+        void Release()
         {
-            await Task.Delay(100, token).ConfigureAwait(true);
+            if (Interlocked.Exchange(ref released, 1) == 0) ReleasePlayer(staging);
         }
-
-        _staging = null;
-
-        if (_stagingOpened && !token.IsCancellationRequested && !_disposed)
+        Action release = Release;
+        _releaseStaging = release;
+        staging.MediaOpened += (_, _) => Interlocked.Exchange(ref opened, 1);
+        staging.MediaFailed += (_, _) => Interlocked.Exchange(ref failed, 1);
+        try
         {
-            return staging;
+            staging.Source = MediaSource.CreateFromUri(mv.VideoUrl);
+            for (var waited = 0;
+                 waited < SourceOpenTimeoutMs && Volatile.Read(ref opened) == 0 && Volatile.Read(ref failed) == 0 && !_disposed;
+                 waited += 100)
+                await Task.Delay(100, token).ConfigureAwait(true);
+
+            if (Volatile.Read(ref opened) != 0 && !token.IsCancellationRequested && !_disposed)
+            {
+                prepared = true;
+                return staging;
+            }
+            if (!token.IsCancellationRequested && !_disposed)
+            {
+                StatusIsError = true;
+                StatusText = "这一档没能加载出来，仍在放原来那一档。";
+                _logger.LogWarning("MV 换档：新源在 {Timeout}ms 内没打开，放弃切换", SourceOpenTimeoutMs);
+            }
+            return null;
         }
-
-        // 准备失败：丢掉备用播放器，现役那条继续放，什么都不动。
-        staging.Source = null;
-        staging.Dispose();
-
-        if (!token.IsCancellationRequested && !_disposed)
+        finally
         {
-            StatusIsError = true;
-            StatusText = "这一档没能加载出来，仍在放原来那一档。";
-            _logger.LogWarning("MV 换档：新源在 {Timeout}ms 内没打开，放弃切换", SourceOpenTimeoutMs);
+            if (ReferenceEquals(_releaseStaging, release)) _releaseStaging = null;
+            // 包含 Task.Delay 被取消、快速连点换档和退出页面，不能留下备用解码器。
+            if (!prepared) Release();
         }
-
-        return null;
     }
 
     /// <summary>
@@ -582,8 +596,7 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         _positionTimer.Start();
         IsPlaying = true;
 
-        previous.Source = null;
-        previous.Dispose();
+        ReleasePlayer(previous);
     }
 
     public void TogglePlayPause()
@@ -771,6 +784,29 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
     [RelayCommand]
     private Task RetryAsync() => SwitchQualityAsync();
 
+    private void OnPositionTick(DispatcherQueueTimer sender, object args) => Poll();
+
+    public void SetPresentationSuspended(bool suspended)
+    {
+        if (_disposed) return;
+        _presentationSuspended = suspended;
+        // 后台保留播放和试看限制；没有试看限制时减少 UI 进度属性更新。
+        _positionTimer.Interval = TimeSpan.FromMilliseconds(suspended && PreviewLimit is null ? 1000 : PositionPollMilliseconds);
+        if (!suspended) Poll();
+    }
+
+    partial void OnPreviewLimitChanged(TimeSpan? value)
+        => _positionTimer.Interval = TimeSpan.FromMilliseconds(_presentationSuspended && value is null ? 1000 : PositionPollMilliseconds);
+
+    private void ReleasePlayer(MediaPlayer player)
+    {
+        player.MediaFailed -= OnMediaFailed;
+        var source = player.Source;
+        player.Source = null;
+        (source as IDisposable)?.Dispose();
+        player.Dispose();
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -779,16 +815,14 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         }
 
         _disposed = true;
+        _lifetime.Cancel();
         _switchCts?.Cancel();
         _resumeAfterOpen = null;
         _positionTimer.Stop();
-
-        // 备用播放器还没扶正就离场：它从没绑到元素上，直接丢。
-        _staging?.Source = null;
-        _staging?.Dispose();
-        _staging = null;
-
-        Player.Source = null;
-        Player.Dispose();
+        _positionTimer.Tick -= OnPositionTick;
+        _releaseStaging?.Invoke();
+        _releaseStaging = null;
+        ReleasePlayer(Player);
+        _lifetime.Dispose();
     }
 }

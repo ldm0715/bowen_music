@@ -35,7 +35,7 @@
                 不必在代码里监听 ActualThemeChanged。高对比度沿用深色版 ——
                 浅色版在白色高对比背景上整块会消失。
             -->
-            <BitmapImage x:Key="AppIconSource" UriSource="/Assets/RippleLight.png" />
+            <BitmapImage x:Key="AppIconSource" DecodePixelWidth="64" UriSource="/Assets/RippleLight.png" />
 
             <!--
                 ── 行内超链接（TextBlock 里的 <Hyperlink>）──
@@ -226,7 +226,7 @@
         -->
         <ResourceDictionary x:Key="Dark">
 
-            <BitmapImage x:Key="AppIconSource" UriSource="/Assets/Ripple.png" />
+            <BitmapImage x:Key="AppIconSource" DecodePixelWidth="64" UriSource="/Assets/Ripple.png" />
 
             <!-- 行内超链接三态。理由与浅色那一份相同，见上面的说明。 -->
             <SolidColorBrush x:Key="HyperlinkForeground" Color="#C5FFFFFF" />
@@ -362,7 +362,7 @@
         <ResourceDictionary x:Key="HighContrast">
 
             <!-- 高对比度沿用深色版，理由见 Light 那一份的注释。 -->
-            <BitmapImage x:Key="AppIconSource" UriSource="/Assets/Ripple.png" />
+            <BitmapImage x:Key="AppIconSource" DecodePixelWidth="64" UriSource="/Assets/Ripple.png" />
 
             <!-- 评论控件在高对比度下使用系统配色。 -->
             <SolidColorBrush x:Key="CommentPanelBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />

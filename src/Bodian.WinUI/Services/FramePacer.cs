@@ -10,7 +10,7 @@ internal sealed class FramePacer : IDisposable
 {
     private readonly SafeWaitHandle _timer;
     private readonly nint[] _handles;
-    private readonly double _frameTicks;
+    private double _frameTicks;
     private double _deadline;
 
     public FramePacer(double framesPerSecond, WaitHandle stop)
@@ -23,6 +23,7 @@ internal sealed class FramePacer : IDisposable
     }
 
     public void Reset() => _deadline = Stopwatch.GetTimestamp();
+    public void SetFrameRate(double framesPerSecond) => _frameTicks = Stopwatch.Frequency / framesPerSecond;
 
     public bool WaitForNextFrame()
     {

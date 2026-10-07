@@ -11,7 +11,7 @@ namespace Bodian.WinUI.Views;
 /// <remarks>
 /// <b>压在栈上的详情页，不是根</b>：侧栏该继续高亮「乐库」。
 /// </remarks>
-public sealed partial class LibraryCategoryPage : Page
+public sealed partial class LibraryCategoryPage : Page, IReusableDetailPage<LibraryCategoryViewModel>
 {
     private readonly INavigationService _navigation;
     private readonly Func<Album, AlbumDetailPage> _albumDetailFactory;
@@ -32,7 +32,14 @@ public sealed partial class LibraryCategoryPage : Page
         InitializeComponent();
     }
 
-    public LibraryCategoryViewModel ViewModel { get; }
+    public LibraryCategoryViewModel ViewModel { get; private set; }
+
+    void IReusableDetailPage<LibraryCategoryViewModel>.Rebind(LibraryCategoryViewModel model)
+    {
+        Bindings.StopTracking();
+        ViewModel = model;
+        Bindings.Update();
+    }
 
     /// <summary>点专辑 → 专辑详情。压栈，侧栏继续高亮「乐库」。</summary>
     private void OnAlbumClick(object sender, ItemClickEventArgs e)

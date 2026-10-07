@@ -3,6 +3,7 @@ using System.Numerics;
 using Bodian.Core.Playback;
 using Bodian.WinUI.LyricRenderer;
 using Bodian.WinUI.Playback;
+using Bodian.WinUI.Services;
 using Bodian.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graphics.Canvas;
@@ -30,10 +31,12 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
     private DesktopLyricsRenderLoop? _loop;
     private DispatcherQueueTimer? _resizeTimer;
     private CanvasDevice? _device;
+    private BackgroundCanvasDeviceLease? _deviceLease;
     private CompositionSurfaceBrush? _brush;
     private SpriteVisual? _visual;
     private XamlRoot? _subscribedRoot;
     private bool _loaded, _paused, _broken, _disposed;
+    private bool _resourcesSuspended = true;
 
     public DesktopLyricsCanvasView(DesktopLyricsViewModel settings, LyricsViewModel lyrics,
         IPlaybackService engine, ILoggerFactory loggerFactory)
@@ -59,9 +62,25 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         }
     }
 
+    public bool IsResourceSuspended
+    {
+        get => _resourcesSuspended;
+        set
+        {
+            if (_resourcesSuspended == value || _disposed) return;
+            _resourcesSuspended = value;
+            if (value)
+            {
+                Unload();
+                ReleaseSurface();
+            }
+            else if (IsLoaded) OnLoaded(this, new RoutedEventArgs());
+        }
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
-        if (_loaded || _disposed) return;
+        if (_loaded || _disposed || _resourcesSuspended) return;
         _loaded = true;
         _clock.SetDuration(_engine.Duration);
         _clock.Sync(_engine.Position, force: true);
@@ -96,7 +115,9 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         try
         {
             _broken = false;
-            var device = new CanvasDevice();
+            var deviceLease = BackgroundCanvasDeviceLease.Acquire();
+            _deviceLease = deviceLease;
+            var device = deviceLease.Device;
             _device = device;
             device.DeviceLost += OnDeviceLost;
             var compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
@@ -120,7 +141,11 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
                 }),
                 () => DispatcherQueue.TryEnqueue(() =>
                 {
-                    try { surface.Dispose(); graphics.Dispose(); device.Dispose(); }
+                    try
+                    {
+                        try { surface.Dispose(); }
+                        finally { try { graphics.Dispose(); } finally { deviceLease.Dispose(); } }
+                    }
                     catch (Exception exception) { _logger.LogWarning(exception, "释放桌面歌词合成资源失败"); }
                 }));
             _loop = loop;
@@ -148,7 +173,8 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         _visual = null;
         _brush = null;
         // 开始绘制后由渲染线程结束回调释放设备，避免与最后一帧竞争。
-        if (loop is null) _device?.Dispose();
+        if (loop is null) _deviceLease?.Dispose();
+        _deviceLease = null;
         _device = null;
     }
 
@@ -170,7 +196,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         var previous = _clock.Position;
         _clock.SetDuration(args.Duration);
         _clock.Sync(args.Position);
-        if (_engine.State == PlaybackState.Playing || _clock.Position != previous) _loop?.Invalidate();
+        if (_engine.State == PlaybackState.Playing || _clock.Position != previous) _loop?.NotifyPositionChanged();
     }
 
     private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)

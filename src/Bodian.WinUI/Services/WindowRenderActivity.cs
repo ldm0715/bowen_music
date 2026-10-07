@@ -10,7 +10,7 @@ namespace Bodian.WinUI.Services;
 /// <summary>在 XAML 处理窗口消息前暂停视觉刷新；不改变音频播放状态。</summary>
 internal sealed class WindowRenderActivity : IDisposable
 {
-    private const uint WmSize = 0x0005, WmNcDestroy = 0x0082, WmNcCalcSize = 0x0083;
+    private const uint WmSize = 0x0005, WmShowWindow = 0x0018, WmNcDestroy = 0x0082, WmNcCalcSize = 0x0083;
     private const uint WmEnterSizeMove = 0x0231, WmExitSizeMove = 0x0232;
     private readonly nint _window;
     private readonly NativeMethods.SubclassProc _callback;
@@ -34,7 +34,8 @@ internal sealed class WindowRenderActivity : IDisposable
         if (!NativeMethods.SetWindowSubclass(window, _callback, 1, 0))
             throw new Win32Exception(Marshal.GetLastWin32Error(), "无法监听窗口绘制状态");
         IsMinimized = NativeMethods.IsIconic(window);
-        _suspended = IsMinimized;
+        IsVisible = ((long)NativeMethods.GetWindowLongPtr(window, -16) & 0x10000000L) != 0;
+        _suspended = IsMinimized || !IsVisible;
         _transitionTimer = dispatcher.CreateTimer();
         _transitionTimer.Interval = TimeSpan.FromMilliseconds(50);
         _transitionTimer.IsRepeating = false;
@@ -53,6 +54,7 @@ internal sealed class WindowRenderActivity : IDisposable
     public bool IsInteractive => _interactive;
     public bool IsSuspended => _suspended;
     public bool IsMinimized { get; private set; }
+    public bool IsVisible { get; private set; }
 
     public void BeginTransition()
     {
@@ -88,6 +90,10 @@ internal sealed class WindowRenderActivity : IDisposable
                     _interactive = false;
                     InteractionChanged?.Invoke(this, EventArgs.Empty);
                     ReplayWindowPosition();
+                    Publish();
+                    break;
+                case WmShowWindow:
+                    IsVisible = wParam != 0;
                     Publish();
                     break;
                 case WmSize:
@@ -142,9 +148,11 @@ internal sealed class WindowRenderActivity : IDisposable
 
     private void Publish()
     {
-        var suspended = _transition || IsMinimized;
+        var suspended = _transition || IsMinimized || !IsVisible;
         if (_suspended == suspended) return;
         _suspended = suspended;
+        if (_diagnostics) _logger.LogInformation("窗口绘制状态：可见 {Visible}，最小化 {Minimized}，暂停 {Suspended}",
+            IsVisible, IsMinimized, suspended);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 

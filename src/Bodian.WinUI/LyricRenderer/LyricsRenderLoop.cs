@@ -26,6 +26,7 @@ internal sealed class LyricsRenderLoop
     private readonly Action _releaseGraphics;
     private readonly ConcurrentQueue<Action<LyricsRenderer>> _commands = new();
     private readonly CancellationTokenSource _stop = new();
+    private readonly object _lifetimeGate = new();
     private readonly AutoResetEvent _resume = new(false);
     private readonly Stopwatch _animationClock;
     private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
@@ -33,6 +34,7 @@ internal sealed class LyricsRenderLoop
     private int _paused = 1;
     private int _forceResize;
     private int _stopped;
+    private int _dirty = 1;
     private bool _browsing;
     private double _width, _height, _scale, _fontSize = 40;
     private long _statsStarted, _previousDraw;
@@ -63,9 +65,29 @@ internal sealed class LyricsRenderLoop
         thread.Start();
     }
     public int LineIndexAt(double y) => _renderer.LineIndexAt(y);
-    public void Send(Action<LyricsRenderer> command) => _commands.Enqueue(command);
+    public void Send(Action<LyricsRenderer> command)
+    {
+        lock (_lifetimeGate)
+        {
+            if (_stopped != 0) return;
+            _commands.Enqueue(command);
+            Invalidate();
+        }
+    }
+    public void Invalidate()
+    {
+        lock (_lifetimeGate)
+        {
+            if (_stopped != 0) return;
+            Volatile.Write(ref _dirty, 1);
+            _resume.Set();
+        }
+    }
     public void SetDocument(LyricDocument document)
-        => Volatile.Write(ref _input, _input with { Document = document });
+    {
+        Volatile.Write(ref _input, _input with { Document = document });
+        Invalidate();
+    }
     public void SetViewport(double width, double height, double scale, double fontSize)
     {
         var input = _input;
@@ -75,18 +97,24 @@ internal sealed class LyricsRenderLoop
             Width = width, Height = height, Scale = scale, FontSize = fontSize,
             ResizeTimestamp = Stopwatch.GetTimestamp(),
         });
+        Invalidate();
     }
 
     public void SetPaused(bool paused)
     {
         if (!paused) Volatile.Write(ref _forceResize, 1);
         Volatile.Write(ref _paused, paused ? 1 : 0);
-        if (!paused) _resume.Set();
+        Invalidate();
     }
 
     public void Stop()
     {
-        if (Interlocked.Exchange(ref _stopped, 1) == 0) _stop.Cancel();
+        lock (_lifetimeGate)
+        {
+            if (_stopped != 0) return;
+            _stopped = 1;
+            _stop.Cancel();
+        }
     }
 
     private void Run()
@@ -96,18 +124,26 @@ internal sealed class LyricsRenderLoop
             _renderer.RebuildDeviceResources(_device);
             using var timer = new FramePacer(120, _stop.Token.WaitHandle);
             WaitHandle[] wakeHandles = [_stop.Token.WaitHandle, _resume];
+            var animated = false;
             while (!_stop.IsCancellationRequested)
             {
-                if (Volatile.Read(ref _paused) != 0)
+                var paused = Volatile.Read(ref _paused) != 0;
+                if (paused || (!animated && Volatile.Read(ref _dirty) == 0))
                 {
-                    if (WaitHandle.WaitAny(wakeHandles) == 0) break;
+                    // 静止时保留已提交的合成表面。播放或浏览期间只低频检查下一句/返回跟随。
+                    var timeout = !paused && (_clock.IsPlaying || _browsing) ? 50 : Timeout.Infinite;
+                    if (WaitHandle.WaitAny(wakeHandles, timeout) == 0) break;
                     timer.Reset();
                     ResetStatistics();
-                    continue;
                 }
+                if (Volatile.Read(ref _paused) != 0) continue;
+                // 滚动保留 120 Hz；仅扫色时 60 Hz，减少整块表面的合成提交。
+                timer.SetFrameRate(_renderer.IsMotionAnimating ? 120 : 60);
                 if (!timer.WaitForNextFrame()) break;
                 if (Volatile.Read(ref _paused) != 0) continue;
+                Interlocked.Exchange(ref _dirty, 0);
                 DrawFrame();
+                animated = _renderer.NeedsContinuousFrames(_clock.IsPlaying);
             }
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
@@ -127,6 +163,16 @@ internal sealed class LyricsRenderLoop
                 _releaseGraphics();
             }
             catch (Exception exception) { _logger.LogWarning(exception, "释放歌词绘制资源失败"); }
+            finally
+            {
+                lock (_lifetimeGate)
+                {
+                    _stopped = 1;
+                    _commands.Clear();
+                    _resume.Dispose();
+                    _stop.Dispose();
+                }
+            }
         }
     }
 
@@ -153,8 +199,10 @@ internal sealed class LyricsRenderLoop
         }
         _renderer.SetFontSize(_fontSize);
         _renderer.SetDocument(input.Document);
-        while (_commands.TryDequeue(out var command)) command(_renderer);
-        _renderer.Update(_clock.Position, _animationClock.Elapsed, _clock.JumpCount);
+        var commanded = false;
+        while (_commands.TryDequeue(out var command)) { command(_renderer); commanded = true; }
+        var changed = _renderer.Update(_clock.Position, _animationClock.Elapsed, _clock.JumpCount);
+        if (!resized && !commanded && !changed) return;
         using (var session = CanvasComposition.CreateDrawingSession(_surface,
             new Rect(0, 0, Math.Ceiling(_width * _scale), Math.Ceiling(_height * _scale)), (float)(_scale * 96)))
         {

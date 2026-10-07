@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using Bodian.Core.Media;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -19,7 +20,8 @@ public sealed class LyricsBackdrop : UserControl
         nameof(CoverUri), typeof(Uri), typeof(LyricsBackdrop), new PropertyMetadata(null, OnCoverChanged));
 
     private const double SurfaceSize = 384;
-    private readonly CanvasControl _canvas;
+    private CanvasControl? _canvas;
+    private readonly Viewbox _host = new() { Stretch = Stretch.UniformToFill };
     private readonly DispatcherQueueTimer _fadeTimer;
     private readonly Stopwatch _fadeClock = new();
     private readonly ILogger? _logger;
@@ -30,6 +32,7 @@ public sealed class LyricsBackdrop : UserControl
     private int _request;
     private bool _loaded;
     private bool _paused;
+    private bool _resourcesSuspended;
     private double _fade = 1;
 
     public LyricsBackdrop()
@@ -37,19 +40,11 @@ public sealed class LyricsBackdrop : UserControl
         IsHitTestVisible = false;
         // 模糊背景只需低分辨率缓存；窗口缩放交给合成器，避免每个 WM_SIZE
         // 都分配一张窗口大小的 Win2D 表面并重跑模糊效果。
-        _canvas = new CanvasControl
-        {
-            Width = SurfaceSize, Height = SurfaceSize,
-            ClearColor = Windows.UI.Color.FromArgb(0, 0, 0, 0),
-        };
-        Content = new Viewbox { Child = _canvas, Stretch = Stretch.UniformToFill };
+        Content = _host;
         _logger = (Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory)
             ?.CreateLogger<LyricsBackdrop>();
         _fadeTimer = DispatcherQueue.CreateTimer();
-        _fadeTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / 120);
-        _fadeTimer.Tick += OnFadeTick;
-        _canvas.CreateResources += OnCreateResources;
-        _canvas.Draw += OnDraw;
+        _fadeTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / 60);
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
@@ -71,7 +66,29 @@ public sealed class LyricsBackdrop : UserControl
             else if (_loaded)
             {
                 if (_fade < 1) _fadeTimer.Start();
-                _canvas.Invalidate();
+                _canvas?.Invalidate();
+            }
+        }
+    }
+
+    public bool IsResourceSuspended
+    {
+        get => _resourcesSuspended;
+        set
+        {
+            if (_resourcesSuspended == value) return;
+            _resourcesSuspended = value;
+            if (value)
+            {
+                _request++;
+                _requestedUri = null;
+                ClearSurfaces();
+                ReleaseCanvas();
+            }
+            else if (_loaded)
+            {
+                EnsureCanvas();
+                _ = LoadCoverAsync();
             }
         }
     }
@@ -82,10 +99,38 @@ public sealed class LyricsBackdrop : UserControl
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
         _loaded = true;
+        _fadeTimer.Tick += OnFadeTick;
+        if (!_resourcesSuspended) EnsureCanvas();
         var visual = ElementCompositionPreview.GetElementVisual(this);
         visual.Clip = visual.Compositor.CreateInsetClip();
-        _canvas.Invalidate();
+        _canvas?.Invalidate();
         _ = LoadCoverAsync();
+    }
+
+    private void EnsureCanvas()
+    {
+        if (_canvas is not null) return;
+        // 页面离开后能释放完整设备；默认共享设备会在首次进入歌词后留在进程里。
+        _canvas = new CanvasControl
+        {
+            Width = SurfaceSize, Height = SurfaceSize, UseSharedDevice = false,
+            ClearColor = Windows.UI.Color.FromArgb(0, 0, 0, 0),
+        };
+        _canvas.CreateResources += OnCreateResources;
+        _canvas.Draw += OnDraw;
+        _host.Child = _canvas;
+    }
+
+    private void ReleaseCanvas()
+    {
+        var canvas = _canvas;
+        _canvas = null;
+        _device = null;
+        if (canvas is null) return;
+        canvas.CreateResources -= OnCreateResources;
+        canvas.Draw -= OnDraw;
+        _host.Child = null;
+        canvas.RemoveFromVisualTree();
     }
 
     private void OnCreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)
@@ -94,12 +139,13 @@ public sealed class LyricsBackdrop : UserControl
         ClearSurfaces();
         _requestedUri = null;
         _device = sender.Device;
+        _device.MaximumCacheSize = 2UL * 1024 * 1024;
         _ = LoadCoverAsync();
     }
 
     private async Task LoadCoverAsync()
     {
-        if (!_loaded || _device is not { } device) return;
+        if (!_loaded || _resourcesSuspended || _device is not { } device) return;
         var uri = CoverUri;
         if (uri == _requestedUri && _current is not null) return;
         _requestedUri = uri;
@@ -107,13 +153,13 @@ public sealed class LyricsBackdrop : UserControl
         if (uri is null)
         {
             ClearSurfaces();
-            _canvas.Invalidate();
+            _canvas?.Invalidate();
             return;
         }
 
         try
         {
-            var bitmap = await CanvasBitmap.LoadAsync(device, uri);
+            var bitmap = await CanvasBitmap.LoadAsync(device, CoverArtUrl.Jpeg(uri, (int)SurfaceSize));
             if (!_loaded || request != _request || device != _device)
             {
                 bitmap.Dispose();
@@ -126,14 +172,14 @@ public sealed class LyricsBackdrop : UserControl
             _fade = 0;
             _fadeClock.Restart();
             if (!_paused) _fadeTimer.Start();
-            _canvas.Invalidate();
+            _canvas?.Invalidate();
         }
         catch (Exception exception)
         {
             if (!_loaded || request != _request) return;
             _logger?.LogWarning(exception, "全屏歌词封面背景加载失败");
             ClearSurfaces();
-            _canvas.Invalidate();
+            _canvas?.Invalidate();
         }
     }
 
@@ -141,7 +187,7 @@ public sealed class LyricsBackdrop : UserControl
     {
         var progress = Math.Clamp(_fadeClock.Elapsed.TotalMilliseconds / 600, 0, 1);
         _fade = progress * progress * (3 - 2 * progress);
-        _canvas.Invalidate();
+        _canvas?.Invalidate();
         if (progress < 1) return;
         _fadeTimer.Stop();
         _previous?.Dispose();
@@ -158,15 +204,15 @@ public sealed class LyricsBackdrop : UserControl
 
     private void DrawSurface(CanvasDrawingSession session, CoverSurface surface, double opacity)
     {
-        if (opacity <= 0 || _canvas.ActualWidth <= 0 || _canvas.ActualHeight <= 0) return;
+        if (opacity <= 0 || _canvas is not { } canvas || canvas.ActualWidth <= 0 || canvas.ActualHeight <= 0) return;
         var size = surface.Bitmap.Size;
-        var scale = Math.Max(_canvas.ActualWidth / size.Width, _canvas.ActualHeight / size.Height) * 1.1;
+        var scale = Math.Max(canvas.ActualWidth / size.Width, canvas.ActualHeight / size.Height) * 1.1;
         var displayScale = Math.Max(ActualWidth, ActualHeight) / SurfaceSize;
         surface.Blur.BlurAmount = (float)(52 / (scale * Math.Max(0.1, displayScale)));
         var previousTransform = session.Transform;
         session.Transform = Matrix3x2.CreateScale((float)scale)
-            * Matrix3x2.CreateTranslation((float)((_canvas.ActualWidth - size.Width * scale) / 2),
-                (float)((_canvas.ActualHeight - size.Height * scale) / 2));
+            * Matrix3x2.CreateTranslation((float)((canvas.ActualWidth - size.Width * scale) / 2),
+                (float)((canvas.ActualHeight - size.Height * scale) / 2));
         using (session.CreateLayer((float)(opacity * 0.72))) session.DrawImage(surface.Blur);
         session.Transform = previousTransform;
     }
@@ -182,10 +228,15 @@ public sealed class LyricsBackdrop : UserControl
     private void OnUnloaded(object sender, RoutedEventArgs args)
     {
         _loaded = false;
+        _fadeTimer.Tick -= OnFadeTick;
         _request++;
         _device = null;
         _requestedUri = null;
         ClearSurfaces();
+        ReleaseCanvas();
+        var visual = ElementCompositionPreview.GetElementVisual(this);
+        visual.Clip?.Dispose();
+        visual.Clip = null;
     }
 
     private sealed class CoverSurface(CanvasBitmap bitmap) : IDisposable

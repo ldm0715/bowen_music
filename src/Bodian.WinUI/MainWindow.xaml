@@ -949,10 +949,7 @@
                 BorderThickness="1"
                 CornerRadius="16"
                 RequestedTheme="{x:Bind Theme.RequestedTheme, Mode=OneWay}">
-                <controls:PlayQueuePanel
-                    ClearRequested="OnClearQueueRequested"
-                    CloseRequested="OnQueueCloseRequested"
-                    ViewModel="{x:Bind Queue}" />
+                <!-- 队列内容按需创建，关闭时释放已实现的列表容器。 -->
             </Border>
         </Grid>
 

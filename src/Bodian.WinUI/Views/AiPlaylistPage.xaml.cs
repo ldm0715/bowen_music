@@ -12,7 +12,7 @@ namespace Bodian.WinUI.Views;
 /// <remarks>
 /// <b>压在栈上的详情页，不是根</b>：侧栏该继续高亮「发现」。
 /// </remarks>
-public sealed partial class AiPlaylistPage : Page, INavigationAware
+public sealed partial class AiPlaylistPage : Page, INavigationAware, IReusableDetailPage<AiPlaylistViewModel>
 {
     public AiPlaylistPage(AiPlaylistViewModel viewModel)
     {
@@ -23,7 +23,15 @@ public sealed partial class AiPlaylistPage : Page, INavigationAware
         InitializeComponent();
     }
 
-    public AiPlaylistViewModel ViewModel { get; }
+    public AiPlaylistViewModel ViewModel { get; private set; }
+
+    void IReusableDetailPage<AiPlaylistViewModel>.Rebind(AiPlaylistViewModel model)
+    {
+        Bindings.StopTracking();
+        ViewModel = model;
+        AiTracksList.IsSelectionMode = false;
+        Bindings.Update();
+    }
 
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
 

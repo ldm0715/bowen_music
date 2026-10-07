@@ -92,6 +92,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private readonly IWindowPlacementStore _placement;
     private readonly WindowRenderActivity _renderActivity;
     private readonly Func<Playlist, int, PlaylistDetailPage> _playlistDetailFactory;
+    private PlayQueuePanel? _queuePanel;
 
     /// <summary>
     /// 上一次算高度时的两个输入。**没有它就会死循环**：见 <see cref="SyncPlaylistSectionHeight"/>。
@@ -249,7 +250,19 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ConfigureShortcuts();
         _renderActivity = new WindowRenderActivity(WinRT.Interop.WindowNative.GetWindowHandle(this), DispatcherQueue,
             Application.Current.Resources["BodianLoggerFactory"] as ILoggerFactory);
-        _renderActivity.Changed += (_, _) => RenderingStateChanged?.Invoke(this, EventArgs.Empty);
+        _renderActivity.Changed += (_, _) =>
+        {
+            _windowVisible = _renderActivity.IsVisible;
+            if (_renderActivity.IsMinimized || !_windowVisible) ReleaseBackgroundCaches();
+            UpdateShellResourceState();
+            RenderingStateChanged?.Invoke(this, EventArgs.Empty);
+        };
+        VisibilityChanged += (_, args) =>
+        {
+            _windowVisible = args.Visible;
+            if (!args.Visible) ReleaseBackgroundCaches();
+            UpdateShellResourceState();
+        };
         _renderActivity.InteractionChanged += (_, _) =>
         {
             WindowViewport.IsInteractive = _renderActivity.IsInteractive;
@@ -1251,6 +1264,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         }
 
         Queue.IsOpen = true;
+        _queuePanel ??= new PlayQueuePanel { ViewModel = Queue };
+        _queuePanel.ClearRequested += OnClearQueueRequested;
+        _queuePanel.CloseRequested += OnQueueCloseRequested;
+        QueuePane.Child = _queuePanel;
 
         // Translation 独立于 XAML 布局，只给抽屉一个轻微的滑入动画。收起时不放动画：
         // 元素马上就 Collapsed 了，看不着。
@@ -1262,7 +1279,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         visual.StartAnimation("Translation.X", slide);
     }
 
-    private void CloseQueue() => Queue.IsOpen = false;
+    private void CloseQueue()
+    {
+        Queue.IsOpen = false;
+        if (_queuePanel is null) return;
+        _queuePanel.ClearRequested -= OnClearQueueRequested;
+        _queuePanel.CloseRequested -= OnQueueCloseRequested;
+        QueuePane.Child = null;
+        _queuePanel.ClearValue(PlayQueuePanel.ViewModelProperty);
+        _queuePanel = null;
+    }
 
     private void OnQueueDismissTapped(object sender, TappedRoutedEventArgs args)
     {
@@ -1815,8 +1841,25 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void OnPaneRetryClick(object sender, RoutedEventArgs e) => _ = LoadSidebarAsync();
 
     public event EventHandler? RenderingStateChanged;
+    private bool _windowVisible = true;
+
+    private void UpdateShellResourceState()
+    {
+        if (_closed) return;
+        PlayingBars.SetWindowRendering(ShellRoot.XamlRoot, _windowVisible && !_renderActivity.IsSuspended);
+        ShellBackdrop.IsResourceSuspended = ShellBackdrop.Visibility != Visibility.Visible
+            || !_windowVisible || _renderActivity.IsMinimized;
+    }
+
+    private void ReleaseBackgroundCaches()
+    {
+        Bodian.WinUI.Media.CoverImageCache.Clear();
+        _navigation.ReleaseCachedPages();
+    }
+
     public bool IsRenderingSuspended => _renderActivity.IsSuspended;
     public bool IsMinimized => _renderActivity.IsMinimized;
+    public bool IsWindowVisible => _renderActivity.IsVisible;
 
     internal bool IsChangingLyricsPresenter => _isChangingLyricsPresenter;
 
@@ -2030,6 +2073,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppTitleBar.Visibility = visibility;
         Nav.Visibility = visibility;
         PlayerHost.Visibility = visibility;
+        UpdateShellResourceState();
     }
 
     private async Task AnimateBeforeNavigationAsync(Page current, Page next)

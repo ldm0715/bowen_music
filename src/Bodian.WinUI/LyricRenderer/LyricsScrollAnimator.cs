@@ -12,6 +12,8 @@ internal sealed class LyricsScrollAnimator
     private int _anchor;
     private bool _stagger = true;
     public int Count => _positions.Length;
+    public bool IsAnimating { get; private set; }
+    public bool HasMoved { get; private set; }
 
     public void Reset(int count, double target)
     {
@@ -21,6 +23,7 @@ internal sealed class LyricsScrollAnimator
         Array.Fill(_positions, target);
         Array.Fill(_targets, target);
         Target = target;
+        IsAnimating = HasMoved = false;
     }
 
     public double Target { get; private set; }
@@ -31,17 +34,21 @@ internal sealed class LyricsScrollAnimator
         _started = now;
         _anchor = anchor;
         _stagger = stagger;
+        IsAnimating = _positions.Any(position => position != target);
     }
 
     public void Update(TimeSpan now, double seconds)
     {
+        IsAnimating = HasMoved = false;
         for (var i = 0; i < _positions.Length; i++)
         {
+            var previous = _positions[i];
             if (!_stagger || i == _anchor)
             {
                 _targets[i] = Target;
                 (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSettlingSpring(
                     _positions[i], _velocities[i], Target, seconds);
+                RecordMotion(i, previous);
                 continue;
             }
             var delay = _stagger ? Math.Min(0.21, Math.Abs(i - _anchor) * 0.035) : 0;
@@ -51,11 +58,18 @@ internal sealed class LyricsScrollAnimator
             if (waitingSeconds > 0)
                 (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSettlingSpring(
                     _positions[i], _velocities[i], _targets[i], waitingSeconds);
-            if (activeSeconds <= 0) continue;
+            if (activeSeconds <= 0) { RecordMotion(i, previous); continue; }
             _targets[i] = Target;
             (_positions[i], _velocities[i]) = LyricMotionMath.AdvanceSettlingSpring(
                 _positions[i], _velocities[i], _targets[i], activeSeconds);
+            RecordMotion(i, previous);
         }
+    }
+
+    private void RecordMotion(int index, double previous)
+    {
+        HasMoved |= previous != _positions[index];
+        IsAnimating |= _positions[index] != Target || _velocities[index] != 0;
     }
 
     public double OffsetAt(int index) => _positions[index];

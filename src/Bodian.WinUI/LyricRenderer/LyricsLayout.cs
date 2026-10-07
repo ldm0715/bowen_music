@@ -103,6 +103,7 @@ internal sealed class LyricsLineLayout : IDisposable
     public CanvasRenderTarget? FocusedImage { get; set; }
     public LyricsLineGlyphMask? GlyphMask { get; set; }
     public GaussianBlurEffect? Blur { get; set; }
+    public float BlurAmount { get; set; }
     public bool ActivePrepared { get; set; }
     public LyricsActiveLineImage? ActiveImage { get; set; }
 
@@ -110,19 +111,32 @@ internal sealed class LyricsLineLayout : IDisposable
 
     public float Height { get; }
 
-    public void Dispose()
+    public void ReleaseActiveResources()
     {
-        foreach (var syllable in LongSyllables)
-        {
-            syllable.Dispose();
-        }
-
         ActiveImage?.Dispose();
+        ActiveImage = null;
+        foreach (var syllable in LongSyllables) syllable.Dispose();
+        LongSyllables = [];
         foreach (var glyph in Glyphs) glyph.Brush?.Dispose();
+        Glyphs = [];
+        GlyphsPrepared = ActivePrepared = false;
+    }
+
+    public void ReleaseDrawingResources()
+    {
+        ReleaseActiveResources();
         Blur?.Dispose();
         PlainImage?.Dispose();
         FocusedImage?.Dispose();
         GlyphMask?.Dispose();
+        Blur = null;
+        PlainImage = FocusedImage = null;
+        GlyphMask = null;
+    }
+
+    public void Dispose()
+    {
+        ReleaseDrawingResources();
         Layout.Dispose();
     }
 }

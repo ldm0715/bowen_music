@@ -26,7 +26,7 @@
     </Page.KeyboardAccelerators>
     <Grid x:Name="LyricsRoot" Background="#0B1222" SizeChanged="OnRootSizeChanged">
         <controls:LyricsBackdrop x:Name="BackdropView" CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
-        <controls:AmbientBackdrop Opacity="0.18" />
+        <controls:AmbientBackdrop x:Name="AmbientView" Opacity="0.18" />
         <Border IsHitTestVisible="False">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">

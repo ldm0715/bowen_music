@@ -35,6 +35,7 @@ public sealed class LyricsPlaybackClock
         => TimeSpan.FromTicks(ClampPositionTicks(PositionTicksAt(Volatile.Read(ref _anchor), _time.GetTimestamp())));
 
     public long JumpCount => Interlocked.Read(ref _jumpCount);
+    public bool IsPlaying => Volatile.Read(ref _anchor).Playing;
 
     public void Sync(TimeSpan position, bool force = false)
     {

@@ -1,13 +1,13 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
 using Bodian.Core.Models.Account;
+using Bodian.WinUI.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Bodian.WinUI.ViewModels;
 
@@ -60,8 +60,8 @@ public sealed partial class AccountViewModel : ObservableObject
         {
             var uri = _login.Account?.Avatar;
 
-            // BitmapImage 会自己异步加载；地址失效时图是空的，不影响布局。
-            return uri is null ? null : new BitmapImage(uri);
+            // 标题栏和账号弹层复用同一张缩略图，避免每次绑定解码一张原尺寸头像。
+            return CoverImageCache.Get(uri, 128);
         }
     }
 

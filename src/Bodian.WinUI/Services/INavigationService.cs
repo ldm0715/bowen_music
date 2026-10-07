@@ -64,6 +64,9 @@ public interface INavigationIdentity
 /// </remarks>
 public interface INavigationService : INotifyPropertyChanged
 {
+    /// <summary>释放侧栏的闲置页面缓存；当前页和返回栈继续由导航栈持有。</summary>
+    void ReleaseCachedPages();
+
     /// <summary>由宿主窗口在构造后调一次，把承载页面用的 <see cref="ContentControl"/> 交进来。</summary>
     void Attach(ContentControl host, Func<Page, ContentControl>? selectHost = null,
         Func<Page, Page, Task>? beforeNavigate = null);

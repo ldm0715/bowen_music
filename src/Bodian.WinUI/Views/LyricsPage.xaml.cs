@@ -93,20 +93,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _chromeTimer = DispatcherQueue.CreateTimer();
         _chromeTimer.Interval = TimeSpan.FromSeconds(3);
         _chromeTimer.IsRepeating = false;
-        _chromeTimer.Tick += (_, _) => HideChrome();
         _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
         _pointerTimer = DispatcherQueue.CreateTimer();
         _pointerTimer.Interval = TimeSpan.FromMilliseconds(200);
-        _pointerTimer.Tick += (_, _) => UpdatePointerLocation();
         _layoutTimer = DispatcherQueue.CreateTimer();
         _layoutTimer.Interval = TimeSpan.FromMilliseconds(120);
         _layoutTimer.IsRepeating = false;
-        _layoutTimer.Tick += (_, _) =>
-        {
-            if (_window.IsRenderingSuspended) return;
-            _layoutPending = false;
-            UpdateLayoutSizing();
-        };
         AddHandler(KeyDownEvent, new KeyEventHandler(OnChromeKeyDown), true);
         AddHandler(PointerEnteredEvent, new PointerEventHandler(OnPointerActivity), true);
         AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerActivity), true);
@@ -154,6 +146,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     public void OnNavigatedTo()
     {
+        _chromeTimer.Tick += OnChromeTimer;
+        _pointerTimer.Tick += OnPointerTimer;
+        _layoutTimer.Tick += OnLayoutTimer;
+        Player.SetCoverDecodePixels(1024);
+        _windowVisible = _window.AppWindow.IsVisible;
         _themeRoot = _window.ThemeRoot;
         _themeRoot.ActualThemeChanged += OnAppThemeChanged;
         SyncCommentsTheme();
@@ -185,6 +182,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _chromeTimer.Stop();
         _pointerTimer.Stop();
         _layoutTimer.Stop();
+        _chromeTimer.Tick -= OnChromeTimer;
+        _pointerTimer.Tick -= OnPointerTimer;
+        _layoutTimer.Tick -= OnLayoutTimer;
         ProgressTimePopup.IsOpen = false;
         _window.VisibilityChanged -= OnWindowVisibilityChanged;
         _window.RenderingStateChanged -= OnWindowRenderingStateChanged;
@@ -197,8 +197,19 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
         Lyrics.IsOpen = false;
+        Player.SetCoverDecodePixels(256);
+        Bodian.WinUI.Media.CoverImageCache.TrimLargeImages();
         UpdatePause();
         _window.ExitImmersive();
+    }
+
+    private void OnChromeTimer(DispatcherQueueTimer sender, object args) => HideChrome();
+    private void OnPointerTimer(DispatcherQueueTimer sender, object args) => UpdatePointerLocation();
+    private void OnLayoutTimer(DispatcherQueueTimer sender, object args)
+    {
+        if (_window.IsRenderingSuspended) return;
+        _layoutPending = false;
+        UpdateLayoutSizing();
     }
 
     private void OnWindowVisibilityChanged(object? sender, WindowVisibilityChangedEventArgs args)
@@ -250,6 +261,13 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _spectrum.IsPaused = _canvas.IsPaused;
         ReflectionView.IsPaused = _canvas.IsPaused;
         BackdropView.IsPaused = _canvas.IsPaused;
+        // 过渡仅暂停绘制；真正进入后台才释放设备和纹理，避免全屏切换反复重建。
+        var releaseResources = !Lyrics.IsOpen || !_windowVisible || !_window.IsWindowVisible || _window.IsMinimized;
+        _canvas.IsResourceSuspended = releaseResources;
+        _spectrum.IsResourceSuspended = releaseResources;
+        ReflectionView.IsResourceSuspended = releaseResources;
+        BackdropView.IsResourceSuspended = releaseResources;
+        AmbientView.IsResourceSuspended = releaseResources;
     }
     private void OnRootSizeChanged(object sender, SizeChangedEventArgs args)
     {

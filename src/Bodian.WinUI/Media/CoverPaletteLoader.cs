@@ -1,7 +1,8 @@
 using Bodian.Core.Media;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Graphics.Canvas;
+using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
 using Windows.UI;
 
 namespace Bodian.WinUI.Media;
@@ -13,7 +14,7 @@ namespace Bodian.WinUI.Media;
 /// <para>
 /// <b>必须走 <see cref="CoverArtUrl.Jpeg"/> 改写的地址，不能直接用原始封面地址。</b>
 /// 原始地址多半是 WebP，而 <b>Win10 不预装 WebP 编解码器</b>（要另外装商店的扩展）。
-/// Win2D 走 WIC，在干净的 Win10 上会<b>静默失败</b> —— 开发机装过扩展，所以看不出来。
+/// 解码依赖系统编解码器；改写地址避免依赖可选的 WebP 扩展。
 /// 改写成 <c>.jpg</c> 顺带把图缩到 60px，代价可以忽略。
 /// </para>
 /// <para>
@@ -64,6 +65,8 @@ public sealed class CoverPaletteLoader
         }
     }
 
+    public void CancelPending() => _cts?.Cancel();
+
     private async Task<IReadOnlyList<RgbColor>> ExtractAsync(Uri? cover, CancellationToken token)
     {
         var url = CoverArtUrl.Jpeg(cover, SampleSize);
@@ -77,32 +80,26 @@ public sealed class CoverPaletteLoader
 
         try
         {
-            using var bitmap = await CanvasBitmap.LoadAsync(CanvasDevice.GetSharedDevice(), url)
+            // 小图取色只需 CPU 像素；不为 60×60 的图片创建并常驻 D3D 共享设备。
+            using var stream = await RandomAccessStreamReference.CreateFromUri(url).OpenReadAsync()
                 .AsTask(token).ConfigureAwait(false);
-
+            var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(token).ConfigureAwait(false);
+            var scale = Math.Min(1, SampleSize / (double)Math.Max(decoder.PixelWidth, decoder.PixelHeight));
+            var width = Math.Max(1, (uint)Math.Round(decoder.PixelWidth * scale));
+            var height = Math.Max(1, (uint)Math.Round(decoder.PixelHeight * scale));
+            var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Straight,
+                new BitmapTransform { ScaledWidth = width, ScaledHeight = height },
+                ExifOrientationMode.RespectExifOrientation, ColorManagementMode.DoNotColorManage)
+                .AsTask(token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
-
-            var pixels = bitmap.GetPixelColors();
-
-            // Win2D 给的是 BGRA —— 与 ColorQuantizer 约定的顺序一致，逐字节摊平即可。
-            var bgra = new byte[pixels.Length * 4];
-
-            for (var i = 0; i < pixels.Length; i++)
-            {
-                var color = pixels[i];
-
-                bgra[(i * 4) + 0] = color.B;
-                bgra[(i * 4) + 1] = color.G;
-                bgra[(i * 4) + 2] = color.R;
-                bgra[(i * 4) + 3] = color.A;
-            }
+            var bgra = pixels.DetachPixelData();
 
             var dominant = ColorQuantizer.Dominant(bgra);
 
             _logger.LogInformation(
                 "氛围取色：解码 {Width}×{Height}，主色 {Dominant}，地址 {Url}",
-                bitmap.SizeInPixels.Width,
-                bitmap.SizeInPixels.Height,
+                width,
+                height,
                 dominant is null ? "（无）" : $"#{dominant.Value.R:X2}{dominant.Value.G:X2}{dominant.Value.B:X2}",
                 url);
 

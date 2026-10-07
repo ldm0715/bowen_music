@@ -17,12 +17,13 @@ internal sealed record DesktopLyricsRenderInput(LyricDocument Document, string P
     double Width, double Height, double Scale, double FontSize, Color Highlight,
     bool DualLine, DesktopLyricsAlignment Alignment, bool IsPlaying);
 
-/// <summary>120Hz 后台绘制桌面歌词；缓存实际字形，逐字扫色不经过 XAML 属性系统。</summary>
+/// <summary>按歌词时间轴唤醒；逐字或长句滚动最高 60 Hz，静止时保留已提交表面。</summary>
 internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDrawingSurface surface,
     LyricsPlaybackClock clock, ILogger logger, Action failed, Action releaseGraphics)
 {
     private static readonly Color Clear = Color.FromArgb(0, 0, 0, 0);
     private readonly CancellationTokenSource _stop = new();
+    private readonly object _lifetimeGate = new();
     private readonly AutoResetEvent _resume = new(false);
     private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
     private DesktopLyricsRenderInput _input = new(LyricDocument.Empty, AppIdentity.DisplayName, 0, 0, 1,
@@ -49,27 +50,40 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
     }
     public void Invalidate()
     {
-        if (Volatile.Read(ref _stopped) != 0) return;
-        Interlocked.Increment(ref _inputRevision);
-        _resume.Set();
+        lock (_lifetimeGate)
+        {
+            if (_stopped != 0) return;
+            Interlocked.Increment(ref _inputRevision);
+            _resume.Set();
+        }
+    }
+    public void NotifyPositionChanged()
+    {
+        lock (_lifetimeGate)
+            if (_stopped == 0) _resume.Set();
     }
     public void Start() => new Thread(Run) { IsBackground = true, Name = "Bodian desktop lyrics renderer" }.Start();
     public void SetPaused(bool paused)
     {
         if (Volatile.Read(ref _stopped) != 0) return;
         Volatile.Write(ref _paused, paused ? 1 : 0);
-        if (!paused) _resume.Set();
+        NotifyPositionChanged();
     }
     public void Stop()
     {
-        if (Interlocked.Exchange(ref _stopped, 1) == 0) _stop.Cancel();
+        lock (_lifetimeGate)
+        {
+            if (_stopped != 0) return;
+            _stopped = 1;
+            _stop.Cancel();
+        }
     }
 
     private void Run()
     {
         try
         {
-            using var timer = new FramePacer(120, _stop.Token.WaitHandle);
+            using var timer = new FramePacer(60, _stop.Token.WaitHandle);
             WaitHandle[] wake = [_stop.Token.WaitHandle, _resume];
             while (!_stop.IsCancellationRequested)
             {
@@ -82,19 +96,22 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
                     _statsMilliseconds = _statsMaximum = 0;
                     continue;
                 }
-                if (!Volatile.Read(ref _input).IsPlaying)
+                DrawFrame();
+                var input = Volatile.Read(ref _input);
+                var resizePending = input.Width > 0 && input.Height > 0 && _applied is not null
+                    && (_applied.Width != input.Width || _applied.Height != input.Height || _applied.Scale != input.Scale);
+                var delay = LyricRefreshSchedule.NextUpdateDelay(input.Document, clock.Position, input.IsPlaying,
+                    animateHighlight: true, overflowing: _current?.Bounds.Width > input.Width);
+                if (!resizePending && delay is { } interval && interval <= LyricRefreshSchedule.AnimationInterval)
                 {
-                    DrawFrame();
-                    // 尺寸合并期间即使暂停也等待到期后补完整帧，不能完全依赖 UI 的尺寸定时器。
-                    var pending = Volatile.Read(ref _input);
-                    var resizePending = pending.Width > 0 && pending.Height > 0 && _applied is not null
-                        && (_applied.Width != pending.Width || _applied.Height != pending.Height || _applied.Scale != pending.Scale);
-                    if (WaitHandle.WaitAny(wake, resizePending ? 100 : Timeout.Infinite) == 0) break;
-                    timer.Reset();
+                    if (!timer.WaitForNextFrame()) break;
                     continue;
                 }
-                if (!timer.WaitForNextFrame()) break;
-                if (Volatile.Read(ref _paused) == 0) DrawFrame();
+                // 等待下一音节、切句或位置校正；暂停及空态不轮询。尺寸合并仍补最终帧。
+                var timeout = resizePending ? 100 : delay.HasValue
+                    ? (int)Math.Clamp(Math.Ceiling(delay.Value.TotalMilliseconds), 1, int.MaxValue) : Timeout.Infinite;
+                if (WaitHandle.WaitAny(wake, timeout) == 0) break;
+                timer.Reset();
             }
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
@@ -105,10 +122,24 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
         }
         finally
         {
-            Interlocked.Exchange(ref _stopped, 1);
-            _current?.Dispose();
-            _next?.Dispose();
-            releaseGraphics();
+            try
+            {
+                _current?.Dispose();
+                _next?.Dispose();
+            }
+            finally
+            {
+                try { releaseGraphics(); }
+                finally
+                {
+                    lock (_lifetimeGate)
+                    {
+                        _stopped = 1;
+                        _resume.Dispose();
+                        _stop.Dispose();
+                    }
+                }
+            }
         }
     }
 
@@ -129,8 +160,10 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
         var first = Math.Max(0, index);
         var current = input.Document.IsEmpty ? Placeholder(input.Placeholder) : input.Document.Lines[first];
         var next = input.DualLine && first + 1 < input.Document.Lines.Count ? input.Document.Lines[first + 1] : null;
+        var linesChanged = !ReferenceEquals(_current?.Line, current) || !ReferenceEquals(_next?.Line, next);
         UpdateLines(current, next, input);
         var changed = _current!.UpdateHighlight(position, input.Document.Kind, index >= 0);
+        changed |= linesChanged;
         changed |= _current.UpdateScroll(position, input.Document.Kind, index >= 0, input.Width, input.Scale);
         if (_next is not null)
         {
@@ -170,9 +203,11 @@ internal sealed class DesktopLyricsRenderLoop(CanvasDevice device, CompositionDr
         var previous = _applied;
         if (previous is null || previous.Width != input.Width || previous.Height != input.Height || previous.Scale != input.Scale)
             CanvasComposition.Resize(surface, new Size(Math.Ceiling(input.Width * input.Scale), Math.Ceiling(input.Height * input.Scale)));
-        if (previous is null || previous.FontSize != input.FontSize || previous.Highlight != input.Highlight
-            || previous.Width != input.Width || previous.Height != input.Height || previous.Scale != input.Scale
-            || previous.DualLine != input.DualLine || !ReferenceEquals(previous.Document, input.Document))
+        var fontSize = DesktopLyricsLayoutMetrics.Calculate(input.FontSize, input.Height, input.DualLine).FontSize;
+        var previousFontSize = previous is null ? 0
+            : DesktopLyricsLayoutMetrics.Calculate(previous.FontSize, previous.Height, previous.DualLine).FontSize;
+        if (previous is null || previousFontSize != fontSize || previous.Highlight != input.Highlight
+            || previous.Scale != input.Scale || !ReferenceEquals(previous.Document, input.Document))
         {
             _current?.Dispose(); _current = null;
             _next?.Dispose(); _next = null;

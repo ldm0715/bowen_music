@@ -12,6 +12,13 @@ public sealed class ViewPerformanceContractTests
     private static bool IsScrollingList(XElement element)
         => element.Name.LocalName is "ListView" or "VirtualizedListView" or "GridView" or "TrackListView" or "AlbumListView";
 
+    [Fact]
+    public void SongRows_DoNotConstructHiddenActionMenus()
+    {
+        var document = XDocument.Load(Path.Combine(UiRoot, "Controls", "TrackMoreButton.xaml"));
+        Assert.DoesNotContain(document.Descendants(), element => element.Name.LocalName == "TrackActionsMenu");
+    }
+
     [Theory]
     [InlineData("BangListPage.xaml")]
     [InlineData("SearchPage.xaml")]

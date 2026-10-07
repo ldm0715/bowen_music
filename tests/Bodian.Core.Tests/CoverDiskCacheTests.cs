@@ -77,6 +77,45 @@ public sealed class CoverDiskCacheTests : IDisposable
     }
 
     [Fact]
+    public async Task WriteThrough_SynchronousFailureDoesNotKeepACompletedRequest()
+    {
+        var handler = StubHandler.WithStatus(HttpStatusCode.NotFound);
+        using var cache = NewCache(handler);
+        await cache.WriteThroughAsync("retry", Url("a"), Ct);
+        await cache.WriteThroughAsync("retry", Url("a"), Ct);
+        Assert.Equal(2, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task WriteThrough_ConcurrentReadersShareOneDownload()
+    {
+        using var handler = new DelayedHandler();
+        using var cache = new CoverDiskCache(handler, _directory);
+        var requests = Enumerable.Range(0, 12).Select(_ => cache.WriteThroughAsync("shared", Url("a"), Ct)).ToArray();
+        Assert.Equal(1, handler.RequestCount);
+        handler.Complete();
+        await Task.WhenAll(requests);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.True(cache.TryGetPath("shared", out _));
+    }
+
+    private sealed class DelayedHandler : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource<HttpResponseMessage> _response = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _requestCount;
+        public int RequestCount => Volatile.Read(ref _requestCount);
+        public void Complete() => _response.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent([1, 2, 3]),
+        });
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requestCount);
+            return _response.Task.WaitAsync(cancellationToken);
+        }
+    }
+
+    [Fact]
     public async Task WriteThrough_LeavesNoTemporaryFileBehind()
     {
         var handler = StubHandler.WithBody([1, 2, 3]);
