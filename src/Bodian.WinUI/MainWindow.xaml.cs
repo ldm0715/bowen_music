@@ -1069,9 +1069,20 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <remarks>
     /// <b>登录成功也会触发这个事件</b>，但那时 <c>IsAuthenticated</c> 为真：不在这里导航
     /// （由登录页自己切页，避免两处同时导航），只负责把侧栏的数据换成新账号的。
+    /// <para>
+    /// <b>事件可能来自线程池</b>：换取会话的最后一步（<c>BodianLogin.Adopt</c>）是
+    /// <c>ConfigureAwait(false)</c> 之后的续体。而下面要改 <c>Nav</c>、搜索框、侧栏列表这些 UI 对象，
+    /// 跨线程访问会抛 0x8001010E。不记日志：本类没有日志设施（同 <see cref="DisposeTray"/> 的取舍）。
+    /// </para>
     /// </remarks>
     private void OnAccountChanged(object? sender, EventArgs e)
     {
+        if (!DispatcherQueue.HasThreadAccess)
+        {
+            DispatcherQueue.TryEnqueue(() => OnAccountChanged(sender, e));
+            return;
+        }
+
         if (!_login.IsAuthenticated)
         {
             ShowLogin();

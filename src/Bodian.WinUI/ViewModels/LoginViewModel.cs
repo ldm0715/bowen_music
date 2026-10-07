@@ -50,11 +50,24 @@ public sealed partial class LoginViewModel : ObservableObject
     [ObservableProperty]
     public partial string StatusText { get; set; } = "准备中…";
 
-    /// <summary>正在获取二维码或等待扫码。</summary>
+    /// <summary>
+    /// 正在获取二维码，或已扫码、正在换取会话。
+    /// </summary>
+    /// <remarks>
+    /// <b>不含「等着用户扫码」那一段。</b> 那个标题会驱动弹窗里的 <c>ProgressRing</c>，
+    /// 挂在整段轮询上就会变成「二维码已经显示出来了，圈还在码上面转个不停」，
+    /// 看着像一直没加载完 —— 而实际上用户这时该做的就是去扫码。
+    /// </remarks>
     [ObservableProperty]
     public partial bool IsWaiting { get; set; }
 
-    /// <summary>可以点「刷新二维码」。</summary>
+    /// <summary>
+    /// 可以点「刷新二维码」。
+    /// </summary>
+    /// <remarks>
+    /// 二维码一显示出来就置 <c>true</c>，而不是等轮询结束。否则那 5 分钟里
+    /// 用户既看着圈转、又点不动这颗按钮，没有任何自救手段。
+    /// </remarks>
     [ObservableProperty]
     public partial bool CanRefresh { get; set; } = true;
 
@@ -73,7 +86,13 @@ public sealed partial class LoginViewModel : ObservableObject
     /// <summary>页面卸载时调用，停掉轮询。</summary>
     public void Deactivate() => StopPolling();
 
-    [RelayCommand]
+    /// <remarks>
+    /// <b>允许重入</b>：默认的 <c>AsyncRelayCommand</c> 在执行期间会把按钮禁掉，
+    /// 而本命令的执行期等于整段轮询（最长 5 分钟）——那正好又堵死了「重新取一张码」。
+    /// 重入是安全的：<see cref="StartAsync"/> 一进来就先 <see cref="StopPolling"/> 掐掉上一轮，
+    /// 而 <c>finally</c> 里的判等保证各自只清自己那份。
+    /// </remarks>
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private Task RefreshAsync() => StartAsync();
 
     private async Task StartAsync()
@@ -96,6 +115,10 @@ public sealed partial class LoginViewModel : ObservableObject
             QrImage = _qrImages.Create(challenge.LandingPage.ToString());
             StatusText = "用波点 App 扫描二维码";
 
+            // 码已经出来了：停转圈、放开采刷新，剩下的时间交还给用户去扫码。
+            IsWaiting = false;
+            CanRefresh = true;
+
             await PollUntilDoneAsync(challenge, cts.Token);
         }
         catch (OperationCanceledException)
@@ -112,11 +135,15 @@ public sealed partial class LoginViewModel : ObservableObject
             IsWaiting = false;
             CanRefresh = true;
 
+            // 判等只管「字段还是不是自己那次」——更新一轮已经开始了就别去清它。
+            // 但 cts 是本方法独占的，成功分支会先调 StopPolling() 把它从字段上摘掉，
+            // 所以释放不能跟着判等走，否则每成功登录一次漏一个 CancellationTokenSource。
             if (ReferenceEquals(_polling, cts))
             {
                 _polling = null;
-                cts.Dispose();
             }
+
+            cts.Dispose();
         }
     }
 
@@ -139,6 +166,9 @@ public sealed partial class LoginViewModel : ObservableObject
                     return;
 
                 case QrScanStatus.Confirmed:
+                    // 从这里开始又是「等服务端」，把圈转回来并锁住刷新 —— 这次是真的在加载。
+                    IsWaiting = true;
+                    CanRefresh = false;
                     StatusText = "已扫码，正在登录…";
                     await CompleteAsync(challenge, cancellationToken);
                     return;

@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
@@ -25,6 +26,15 @@ public sealed partial class AccountViewModel : ObservableObject
     private readonly IBodianApi _api;
     private readonly BodianSession _session;
     private readonly ILogger<AccountViewModel> _logger;
+
+    /// <summary>
+    /// 本 VM 属性通知的归属线程。
+    /// </summary>
+    /// <remarks>
+    /// 由 <see cref="MainWindow"/> 在 UI 线程上构造，所以这里取到的就是主窗口队列。
+    /// 没有它，<see cref="OnAccountChanged"/> 从线程池过来时会去改 x:Bind 的目标对象并抛 0x8001010E。
+    /// </remarks>
+    private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
 
     private AccountMetadata? _metadata;
     private AccountPlayData? _playData;
@@ -210,6 +220,20 @@ public sealed partial class AccountViewModel : ObservableObject
 
     private void OnAccountChanged(object? sender, EventArgs e)
     {
+        // 换取会话的最后一步（BodianLogin.Adopt → RaiseAccountChanged）在线程池上完成，
+        // 这个事件会从非 UI 线程过来；而这里发的 PropertyChanged 被 MainWindow 的 x:Bind 同步消费，
+        // 会去碰 ToolTipService 这类 UI 对象。WinUI 3 跨线程访问直接抛 0x8001010E，
+        // 且它发生在凭据落盘之后 —— 表现为「弹窗卡住，但重启后已经登录」。
+        if (_dispatcher is { HasThreadAccess: false } dispatcher)
+        {
+            if (!dispatcher.TryEnqueue(() => OnAccountChanged(sender, e)))
+            {
+                _logger.LogWarning("账号变更无法投递回 UI 线程，标题栏账号信息不会更新");
+            }
+
+            return;
+        }
+
         // 换号 / 登出：上一份统计不能再给新账号看，就地清空。
         // 不在这里拉 —— 拉取由下拉框打开驱动，见 RefreshStatsAsync。
         _statsCts?.Cancel();

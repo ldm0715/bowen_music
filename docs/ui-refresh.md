@@ -611,6 +611,9 @@ Win2D 走 WIC 在干净的 Win10 上会**静默失败**（开发机装过扩展�
 通透度与居中登录弹窗仍待用户验收；需手动检查退出登录后的居中位置、刷新二维码、深浅主题显示
 及扫码成功后的关闭和页面跳转。
 
+**登录弹窗已于 2026-10-07 验收。** 这次验收把两个既有缺陷翻了出来（扫码成功后不关闭不跳转、
+二维码显示后仍转圈且刷新按钮锁死），根因与改法见 §33；主题弹层的深浅模式通透度仍待验收。
+
 ## 12. 收起侧栏背景与曲目列表间距（2026-10-01）
 
 `NavigationViewItemButtonMargin` 从左右 8 DIP 恢复为原生的左右 4 DIP；上下仍为 2 DIP。
@@ -2019,3 +2022,55 @@ MDL2 的墨水量与本套路径不是逐颗一致，整体观感仍需人工比
 
 **验证**：用户确认分类栏与侧栏都滑动、重复点当前项不动、窗口缩放与滚动直接落位。
 WinUI 构建通过，0 错误，1438 项离线测试通过。
+
+## 33. 扫码登录：事件线程归属与轮询期状态提示（2026-10-07）
+
+用户报的是「二维码出来了但一直转圈；扫码后进不去主界面，只能退出重进」。这是**两个互不相干的缺陷**，
+第一次只修了后者，还把前者误判成「按设计如此」搁置了 —— 记在这里免得再犯。
+
+### 33.1 `AccountChanged` 会从线程池触发，订阅方必须自己回 UI 线程
+
+**根因**：`BodianLogin.CompleteAsync` 对网络调用用了 `ConfigureAwait(false)`，所以它之后的续体
+（`Adopt` → `RaiseAccountChanged`）跑在**线程池线程**上。而 `IBodianLogin.AccountChanged` 的两个订阅方
+都直接改 UI：`AccountViewModel.OnAccountChanged` 发出的 `PropertyChanged` 被 `MainWindow.xaml` 的
+`Mode=OneWay` `x:Bind` 同步消费（落到 `ToolTipService.SetToolTip`），`MainWindow.OnAccountChanged`
+则改 `Nav.IsPaneVisible`、搜索框可见性与侧栏那个 `ObservableCollection`。WinUI 3 跨线程访问直接抛
+`COMException 0x8001010E`。
+
+**为什么表现成「扫码后进不去、退出重进反而能进」**：异常发生在 `_credentials.Save(...)` 与
+`_session.Set(...)` **之后**，所以 token 已经落盘；`Adopt` 抛出后 `CompleteAsync` faulted，
+`LoginViewModel.CompleteAsync` 里的 `LoggedIn?.Invoke` 再也到不了 —— 弹窗不关、不导航。
+重启时 `TryRestorePersistedSession()` 是在 UI 线程上同步跑的，**同一份** `RaiseAccountChanged()`
+走对了线程，于是「重启反而能进」。日志里 `登录成功` 与 `扫码登录失败` 成对出现就是这条路径的指纹。
+
+**改法：修在订阅端，Core 不动。** 线程亲和性属于 UI 对象，不该让 Core 知道 UI 线程。
+`AccountViewModel` 用 `DispatcherQueue.GetForCurrentThread()` 存一个字段（与 `PlayQueueViewModel` 同款写法），
+两个 `OnAccountChanged` 开头各加一道「不在本线程就 `TryEnqueue` 回来」的闸门。
+修在订阅端还有个附带好处：服务端返 `11012` 时传输层是在后台线程清会话的，
+那条路径同样会触发 `AccountChanged`，一并覆盖。`MainWindow` 不记投递失败的日志 ——
+该类刻意没有日志设施，取舍同 `DisposeTray`。
+
+### 33.2 二维码出来之后不该继续转圈，刷新按钮不该锁 5 分钟
+
+`IsWaiting` 原本的含义是「正在获取二维码**或等待扫码**」，而它驱动弹窗里的 `ProgressRing`；
+`CanRefresh` 更是在整段轮询结束之后才置回 `true`。两者叠加就是：二维码已经清清楚楚显示出来了，
+圈还在码上面转个不停（看着像永远加载不完），而那 5 分钟里「刷新二维码」按钮点不动 ——
+用户想重新取一张码没有任何手段。用户说的「一直刷新转圈」指的就是这个，不是网络问题。
+
+改法：`IsWaiting` 收窄为「正在取码 / 已扫码正在换取会话」，码一渲染出来就置 `false`，`CanRefresh` 同时置 `true`。
+`RefreshCommand` 加 `AllowConcurrentExecutions = true` —— 否则 `AsyncRelayCommand` 会在执行期间
+（等于整段轮询）把按钮禁掉，等于换个地方继续堵死同一件事。重入是安全的：`StartAsync` 一进来先
+`StopPolling()` 掐掉上一轮，`finally` 里的判等保证各自只清自己那份。
+
+顺带修掉一个泄漏：成功分支先调 `StopPolling()` 把 `_polling` 摘成 `null`，使 `StartAsync` 的 `finally`
+判等失败、那个 `CancellationTokenSource` 永不释放（每次成功登录漏一个）。现在判等只管清字段，
+`Dispose` 无条件执行。
+
+**验证**：用户复测确认 —— 二维码显示时圈消失、刷新按钮即时可点、扫码后弹窗自动关闭并进入「我喜欢的」。
+WinUI 构建通过，0 错误，1 个既有 `AiPlaylistPage.xaml:28` `WMC1506` 警告；1438 项离线测试通过。
+
+**未验证**：本轮改动全在 `Bodian.WinUI` 且属线程边界行为，而 `tests/` 下只有 `Bodian.Core.Tests`
+（用 `<Compile Include>` 链源码，只覆盖不含 WinUI 类型的 VM），**没有回归测试可加**。
+
+**用户验收时顺带撞到的另一件事**：退出应用后立刻双击 exe 没有反应。已确认与本节两处修复无关，
+是既有的收尾期原生崩溃，单独记在 [`backlog.md`](backlog.md) 的「退出时的原生崩溃」一节。
