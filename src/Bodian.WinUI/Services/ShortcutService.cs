@@ -66,11 +66,17 @@ public sealed class ShortcutService : IShortcutService
             // 音量走 PlayerViewModel.Volume：播放条那颗滑块绑的是同一个值，会跟着动。
             // 不落盘，与音量本身的现状一致（会话级）。
             case ShortcutAction.VolumeUp:
-                _player.Volume = Math.Min(100, _player.Volume + VolumeStep);
+                AdjustVolume(VolumeStep);
                 break;
 
             case ShortcutAction.VolumeDown:
-                _player.Volume = Math.Max(0, _player.Volume - VolumeStep);
+                AdjustVolume(-VolumeStep);
+                break;
+
+            // 与点击音量图标走的是同一条：静音标记 + 推给引擎的实际音量都在
+            // PlayerViewModel.ToggleMute 里，这里不重复一套。
+            case ShortcutAction.ToggleMute:
+                _player.ToggleMute();
                 break;
 
             case ShortcutAction.ToggleFavorite:
@@ -80,6 +86,24 @@ public sealed class ShortcutService : IShortcutService
             default:
                 throw new ArgumentOutOfRangeException(nameof(action));
         }
+    }
+
+    /// <summary>
+    /// 音量加减。
+    /// </summary>
+    /// <remarks>
+    /// <b>先解除静音，再改音量。</b> 只靠「改音量即解除静音」那条是不够的：
+    /// 静音时数值恰好在 100（或 0），按对应方向键算出来还是同一个数，
+    /// <c>OnVolumeChanged</c> 根本不会触发 —— 用户会觉得「按了没反应，还是没声音」。
+    /// </remarks>
+    private void AdjustVolume(double delta)
+    {
+        if (_player.IsMuted)
+        {
+            _player.ToggleMute();
+        }
+
+        _player.Volume = Math.Clamp(_player.Volume + delta, 0, 100);
     }
 
     private void Apply(ShortcutSettings settings)

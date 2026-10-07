@@ -32,6 +32,7 @@ public sealed class ShortcutSettingsTests
         AssertGesture(ShortcutAction.NextTrack, ShortcutKey.Right, ShortcutModifiers.Control);
         AssertGesture(ShortcutAction.VolumeUp, ShortcutKey.Up, ShortcutModifiers.Control);
         AssertGesture(ShortcutAction.VolumeDown, ShortcutKey.Down, ShortcutModifiers.Control);
+        AssertGesture(ShortcutAction.ToggleMute, ShortcutKey.M, ShortcutModifiers.Control);
         AssertGesture(ShortcutAction.ToggleFavorite, ShortcutKey.L, ShortcutModifiers.Control);
     }
 

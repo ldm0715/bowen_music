@@ -28,6 +28,7 @@ public sealed record ShortcutSettings
             new(ShortcutAction.NextTrack, ShortcutKey.Right, ShortcutModifiers.Control),
             new(ShortcutAction.VolumeUp, ShortcutKey.Up, ShortcutModifiers.Control),
             new(ShortcutAction.VolumeDown, ShortcutKey.Down, ShortcutModifiers.Control),
+            new(ShortcutAction.ToggleMute, ShortcutKey.M, ShortcutModifiers.Control),
             new(ShortcutAction.ToggleFavorite, ShortcutKey.L, ShortcutModifiers.Control),
         ],
     };

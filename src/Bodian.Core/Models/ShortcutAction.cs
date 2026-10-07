@@ -16,6 +16,16 @@ public enum ShortcutAction
     VolumeDown = 4,
 
     ToggleFavorite = 5,
+
+    /// <summary>
+    /// 静音开关。
+    /// </summary>
+    /// <remarks>
+    /// <b>值取 6 而不是插在 VolumeDown 后面。</b> 枚举值虽按名字落盘（见
+    /// <c>ShortcutSettingsJsonContext</c>），没必要时就更不该动已有成员的值 ——
+    /// 设置页里的行序由 <see cref="ShortcutActions.All"/> 决定，与这里的数值无关。
+    /// </remarks>
+    ToggleMute = 6,
 }
 
 /// <summary>
@@ -35,6 +45,7 @@ public static class ShortcutActions
         ShortcutAction.NextTrack,
         ShortcutAction.VolumeUp,
         ShortcutAction.VolumeDown,
+        ShortcutAction.ToggleMute,
         ShortcutAction.ToggleFavorite,
     ];
 
@@ -46,6 +57,7 @@ public static class ShortcutActions
         ShortcutAction.NextTrack => "下一首",
         ShortcutAction.VolumeUp => "音量 +",
         ShortcutAction.VolumeDown => "音量 -",
+        ShortcutAction.ToggleMute => "静音开关",
         ShortcutAction.ToggleFavorite => "收藏歌曲",
         _ => action.ToString(),
     };

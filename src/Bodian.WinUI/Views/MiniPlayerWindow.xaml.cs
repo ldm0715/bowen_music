@@ -680,6 +680,16 @@ public sealed partial class MiniPlayerWindow : Window
 
     private void OnVolumeFlyoutOpened(object? sender, object e) => _flyoutOpen = true;
 
+    /// <summary>
+    /// 滑条左边那颗静音开关。
+    /// </summary>
+    /// <remarks>
+    /// 走的是与播放条那颗、以及 <c>Ctrl+M</c> 同一个 <see cref="PlayerViewModel.ToggleMute"/>：
+    /// 只压静音标记、音量字段保持原值，所以滑块停在原地，再点一下就恢复。
+    /// 弹层不关 —— 用户要看着图标变。
+    /// </remarks>
+    private void OnVolumeMuteClick(object sender, RoutedEventArgs e) => Player.ToggleMute();
+
     /// <remarks>弹层期间窗口是钉住的，关掉之后按当前状态重新算一次，别把那笔账留着。</remarks>
     private void OnVolumeFlyoutClosed(object? sender, object e)
     {
@@ -750,6 +760,7 @@ public sealed partial class MiniPlayerWindow : Window
         _lyricClock.Sync(_engine.Position, force: true);
         _lyricClock.SetPlaying(_engine.State == PlaybackState.Playing);
         UpdateCoverImage();
+        UpdateVolumeMuteState();
     }
 
     private void SuspendVisualUpdates()
@@ -810,12 +821,26 @@ public sealed partial class MiniPlayerWindow : Window
     private void OnPlayerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(PlayerViewModel.CurrentCoverUri)) UpdateCoverImage();
+        if (e.PropertyName == nameof(PlayerViewModel.IsMuted)) UpdateVolumeMuteState();
         if (e.PropertyName == nameof(PlayerViewModel.IsPlaying))
         {
             _lyricClock.SetPlaying(Player.IsPlaying);
             RefreshInfoSlot();
         }
     }
+
+    /// <summary>
+    /// 静音时整颗音量按钮切到强调色。
+    /// </summary>
+    /// <remarks>
+    /// 点击语义在主窗口与小窗之间不同（见 MiniPlayerWindow.xaml 里那段注释），但
+    /// <b>静音是个状态、两处必须长得一样</b> —— 按 Ctrl+M 之后小窗上也得看得出来。
+    /// </remarks>
+    private void UpdateVolumeMuteState()
+        => VisualStateManager.GoToState(
+            VolumeButton,
+            Player.IsMuted ? "Muted" : "Audible",
+            useTransitions: false);
 
     private void OnLyricsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {

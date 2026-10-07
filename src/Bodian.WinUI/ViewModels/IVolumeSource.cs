@@ -30,5 +30,17 @@ public interface IVolumeSource : INotifyPropertyChanged
     double Volume { get; set; }
 
     /// <summary>是否静音。音量按钮据此在中/静音两只图标之间切。</summary>
+    /// <remarks>
+    /// 只读：静音由 <see cref="ToggleMute"/> 翻转，界面不直接写这个值。
+    /// </remarks>
     bool IsMuted { get; }
+
+    /// <summary>
+    /// 切换静音。<b>点击音量图标走的就是这一条</b>，静音快捷键也走它。
+    /// </summary>
+    /// <remarks>
+    /// 不做成可写属性是因为它背后不止一个字段（静音标记 + 推给引擎的实际音量），
+    /// 一个 setter 藏这么多事比一个动词难读。
+    /// </remarks>
+    void ToggleMute();
 }

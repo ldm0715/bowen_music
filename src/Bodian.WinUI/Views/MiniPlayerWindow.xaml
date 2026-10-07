@@ -279,12 +279,34 @@
                         音量。**不复用 VolumeButton** —— 它弹出的是一条竖直滑条，在 64 DIP 高的
                         小窗上会被裁掉（那个控件里还有一条「任何宿主页都不许改成横向滑条」的约束，
                         所以这里另起一颗，不复用它）。两者共用同一个 Player.Volume，值仍然一致。
+
+                        ★ 点击语义与主播放条那份**刻意不一致**：主播放条点击是静音、悬停开滑条，
+                          小窗这里点击仍然是开滑条。小窗按钮挤在 64 DIP 里，悬停展开会被鼠标频繁扫到，
+                          而它体积小、本来就是「快速看一眼/切歌」，滑条留成点击更顺手。
+                          静音入口因此挪进弹层 —— 见下面滑条左边那颗（VolumeMuteButton）。
+                          这颗按钮本身仍然只表示状态：图标随 IsMuted 切，静音时整颗染强调色 + 强调底色。
                     -->
                     <Button
                         x:Name="VolumeButton"
                         AutomationProperties.Name="音量"
                         Style="{StaticResource PlayerRoundIconButtonStyle}"
                         ToolTipService.ToolTip="音量">
+                        <!--
+                            静音时染强调色 + 强调底色，与主播放条那颗同款。
+                            Setter 的 Target 指向这颗按钮自己 —— 状态组就挂在它身上，
+                            而 Target 名在声明处的名字域（本页面）里解析。
+                        -->
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="MuteStates">
+                                <VisualState x:Name="Audible" />
+                                <VisualState x:Name="Muted">
+                                    <VisualState.Setters>
+                                        <Setter Target="VolumeButton.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                        <Setter Target="VolumeButton.Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
                         <Button.Flyout>
                             <!--
                                 ★ ShouldConstrainToRootBounds="False" 不能省。
@@ -306,13 +328,40 @@
                                     </Style>
                                 </Flyout.FlyoutPresenterStyle>
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <controls:Icon
-                                        Data="{StaticResource IconVolume}"
-                                        Size="16"
-                                        VerticalAlignment="Center" />
+                                    <!--
+                                        静音开关：滑条左边这颗。点击只切静音，**不动滑块的值** ——
+                                        与播放条那颗完全同一套语义（含 Ctrl+M）。小窗的主音量按钮仍然
+                                        是「点击展开滑条」，静音入口收在这里。
+                                        ★ 三样东西（这颗按钮、滑条、右边百分比）都要显式 Center：
+                                          横向 StackPanel 里默认 Stretch，各自高度不同就会错行。
+                                    -->
+                                    <Button
+                                        x:Name="VolumeMuteButton"
+                                        Width="24"
+                                        Height="24"
+                                        AutomationProperties.Name="静音"
+                                        Click="OnVolumeMuteClick"
+                                        Style="{StaticResource PlayerRoundIconButtonStyle}"
+                                        ToolTipService.ToolTip="点击静音"
+                                        VerticalAlignment="Center">
+                                        <Grid>
+                                            <controls:Icon
+                                                Data="{StaticResource IconVolume}"
+                                                Size="16"
+                                                VerticalAlignment="Center"
+                                                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsMuted), Mode=OneWay}" />
+                                            <controls:Icon
+                                                Data="{StaticResource IconVolumeMute}"
+                                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                Size="16"
+                                                VerticalAlignment="Center"
+                                                Visibility="{x:Bind local:Formats.Visible(Player.IsMuted), Mode=OneWay}" />
+                                        </Grid>
+                                    </Button>
                                     <Slider
                                         x:Name="VolumeSlider"
                                         Width="140"
+                                        VerticalAlignment="Center"
                                         AutomationProperties.Name="音量"
                                         Maximum="100"
                                         Minimum="0"
@@ -321,8 +370,16 @@
                                         <Slider.Resources>
                                             <x:Double x:Key="SliderTrackThemeHeight">3</x:Double>
                                             <x:Double x:Key="SliderHorizontalHeight">24</x:Double>
-                                            <x:Double x:Key="SliderPreContentMargin">0</x:Double>
-                                            <x:Double x:Key="SliderPostContentMargin">0</x:Double>
+                                            <!--
+                                                ★ 这两条是轨道**上下**的留白，模板里占的是 Auto 高的行，
+                                                  不是 *：留白 + 轨道加起来小于盒子厚度时，内容就顶在上边、不居中。
+                                                  所以三者必须凑够盒子的 24：10.5 + 3 + 10.5 = 24。
+                                                  （横向进度条那条是 10 + 1.5 + 10 ≈ 22、竖向音量滑条是
+                                                  10 + 2 + 10 = 22，同一套算法。这里原先写 0/0，轨道就被顶到
+                                                  上边缘、比左边的静音图标和右边的百分比高出约 10px。）
+                                            -->
+                                            <x:Double x:Key="SliderPreContentMargin">10.5</x:Double>
+                                            <x:Double x:Key="SliderPostContentMargin">10.5</x:Double>
                                             <x:Double x:Key="SliderHorizontalThumbWidth">12</x:Double>
                                             <x:Double x:Key="SliderHorizontalThumbHeight">12</x:Double>
                                             <x:Double x:Key="SliderInnerThumbWidth">0</x:Double>

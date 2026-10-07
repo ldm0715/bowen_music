@@ -29,6 +29,10 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     private readonly BodianSession _session;
     private readonly IClipboardService _clipboard;
     private readonly ILogger<PlayerViewModel> _logger;
+
+    /// <summary>静音标记与「改音量即解除静音」那条规则。</summary>
+    private readonly VolumeState _volumeState = new();
+
     private int _coverDecodePixels = 256;
 
     public PlayerViewModel(
@@ -255,8 +259,21 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMuted))]
     public partial double Volume { get; set; } = 100;
+
     /// <summary>是否静音。音量按钮据此在中/静音两个图标之间切。</summary>
-    public bool IsMuted => Volume <= 0;
+    /// <remarks>
+    /// <b>两条路都算静音</b>：显式点了静音开关，或者音量被拖到 0。
+    /// 后半条是原有语义，保留 —— 滑条拉到 0 时用户看到的就该是静音图标。
+    /// </remarks>
+    public bool IsMuted => _volumeState.Muted || Volume <= 0;
+
+    /// <inheritdoc />
+    public void ToggleMute()
+    {
+        _volumeState.Toggle();
+        _engine.SetVolume(_volumeState.EffectiveVolume(Volume));
+        OnPropertyChanged(nameof(IsMuted));
+    }
 
     [ObservableProperty]
     public partial bool CanGoNext { get; set; }
@@ -413,7 +430,20 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         }
     }
 
-    partial void OnVolumeChanged(double value) => _engine.SetVolume(value);
+    /// <remarks>
+    /// <b>两条路都在这一个方法里，顺序不能反。</b> 用户显式改了音量（拖滑条、或 Ctrl+↑/↓ 走
+    /// <c>ShortcutService</c>）就说明他要听见声音，静音标记要在这一刻解除；而真正送引擎的是
+    /// <see cref="VolumeState.EffectiveVolume"/> —— 顺序反过来会在解除静音的那一次把音量送成 0。
+    /// </remarks>
+    partial void OnVolumeChanged(double value)
+    {
+        if (_volumeState.OnVolumeSet(value))
+        {
+            OnPropertyChanged(nameof(IsMuted));
+        }
+
+        _engine.SetVolume(_volumeState.EffectiveVolume(value));
+    }
 
     // ── 引擎事件 ────────────────────────────────────────────────────────────
 

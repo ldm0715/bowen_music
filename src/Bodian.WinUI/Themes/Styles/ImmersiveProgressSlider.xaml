@@ -14,6 +14,13 @@
 
     ★ 底部播放条**不用**这一份，它是有意做成另一种的：细轨道（1.5）+ 强调色 +
       悬停才出滑块，并且兼作内容区与播放栏的分界。见 ui-refresh.md §10 / §23。
+
+    ★ 改这里的数字前先读这条：`SliderPreContentMargin` + `SliderTrackThemeHeight` +
+      `SliderPostContentMargin` **必须凑够滑条的厚度**（横向是高度、竖向是宽度）。
+      模板里那两段留白占的是 **Auto 高的行、不是 ***，三者加起来小于盒子厚度时
+      轨道就顶在上边缘、不居中 —— 而通栏进度条左右没有比对物，错了也看不出来。
+      下面这三行是 0 + 2 + 0 = 2，配 22 高的盒子，轨道其实贴着上边（2026-10-07 在小窗那条
+      音量滑条上暴露出来才发现，见 ui-refresh.md §34.4）。这里是既有观感，暂不动。
 -->
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

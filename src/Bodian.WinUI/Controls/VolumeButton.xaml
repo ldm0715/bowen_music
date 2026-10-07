@@ -19,7 +19,7 @@
 
     <Grid>
         <!--
-            音量：一颗图标按钮，悬停或点击才在上方展开竖向滑条。
+            音量：一颗图标按钮，点击静音；悬停、或键盘上/下键才在上方展开竖向滑条。
             按钮外观与右区其它按钮共用一套（PlayerRoundIconButtonStyle），
             播放条、歌词页与 MV 页因此长得一样。
 
@@ -27,11 +27,30 @@
               把它们接到一起的是 IVolumeSource；**任何一个宿主页都不许把这个交互
               改成横向外显的滑条** —— MV 页早先就是那样写的，用户明确要求过不许。
         -->
+        <!--
+            静音时整颗按钮染强调色 + 强调底色，与播放条的桌面歌词开关（PlayerBar.xaml 里那个
+            DesktopLyricsStates）逐字同款。★ 状态组必须挂在 UserControl 的根元素上、
+              GoToState 传 this：控件本体内部没有模板名域，写在 Button 上 Setter 的 Target 找不到。
+        -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="MuteStates">
+                <VisualState x:Name="Audible" />
+                <VisualState x:Name="Muted">
+                    <VisualState.Setters>
+                        <Setter Target="IconButton.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <Setter Target="IconButton.Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <Button
             x:Name="IconButton"
-            AutomationProperties.Name="音量"
+            AutomationProperties.Name="静音"
             Click="OnVolumeClick"
-            Style="{StaticResource PlayerRoundIconButtonStyle}">
+            KeyDown="OnVolumeButtonKeyDown"
+            Style="{StaticResource PlayerRoundIconButtonStyle}"
+            ToolTipService.ToolTip="点击静音；悬停或按 ↑ / ↓ 调音量">
             <!-- 矢量路径：与旁边「歌词」同尺寸即同样大，不再需要字号换算与上移补偿。 -->
             <Grid>
                 <controls:Icon Size="16" Data="{StaticResource IconVolume}"

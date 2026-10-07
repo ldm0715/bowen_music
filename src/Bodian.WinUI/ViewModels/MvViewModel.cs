@@ -93,6 +93,10 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
 
     private readonly IBodianApi _api;
     private readonly PlayerViewModel _audio;
+
+    /// <summary>静音标记与「改音量即解除静音」那条规则。</summary>
+    private readonly Playback.VolumeState _volumeState = new();
+
     private readonly ILogger<MvViewModel> _logger;
     private readonly DispatcherQueueTimer _positionTimer;
 
@@ -228,7 +232,21 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
         set => Volume = value / 100;
     }
 
-    bool IVolumeSource.IsMuted => Volume <= 0;
+    /// <remarks>
+    /// 与 <see cref="PlayerViewModel.IsMuted"/> 同款的两条路：显式静音，或者音量被拉到 0。
+    /// </remarks>
+    bool IVolumeSource.IsMuted => _volumeState.Muted || Volume <= 0;
+
+    /// <remarks>
+    /// 这里送的是 0–1 的 <see cref="Volume"/>（<c>MediaPlayer.Volume</c> 的标度），
+    /// 不是 <see cref="IVolumeSource.Volume"/> 那套 0–100 —— 换算只发生在那个显式属性里。
+    /// </remarks>
+    void IVolumeSource.ToggleMute()
+    {
+        _volumeState.Toggle();
+        Player.Volume = _volumeState.EffectiveVolume(Volume);
+        OnPropertyChanged(nameof(IVolumeSource.IsMuted));
+    }
 
     /// <summary>试看上限；不限期为空。</summary>
     [ObservableProperty]
@@ -310,7 +328,11 @@ public sealed partial class MvViewModel : ObservableObject, IDisposable, IVolume
 
     partial void OnVolumeChanged(double value)
     {
-        Player.Volume = Math.Clamp(value, 0, 1);
+        // 用户显式改音量就解除静音，理由与 PlayerViewModel.OnVolumeChanged 相同。
+        // 必须排在算 EffectiveVolume 之前，否则解除静音的这一次会把音量送成 0。
+        _volumeState.OnVolumeSet(value);
+
+        Player.Volume = _volumeState.EffectiveVolume(Math.Clamp(value, 0, 1));
 
         // 静音图标要跟着翻。PlayerViewModel 那边由 [NotifyPropertyChangedFor] 负责，
         // 这里的 IsMuted 是显式接口实现，得手动报一次。

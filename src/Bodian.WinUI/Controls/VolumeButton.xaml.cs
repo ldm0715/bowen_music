@@ -11,13 +11,14 @@ using VirtualKey = Windows.System.VirtualKey;
 namespace Bodian.WinUI.Controls;
 
 /// <summary>
-/// 音量入口：一颗图标按钮，悬停或点击才在上方展开竖向滑条。
+/// 音量入口：一颗图标按钮，点击静音、悬停或上/下键展开竖向滑条。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 播放条、歌词页与 MV 页共用这一份 —— <b>音量交互本来就该一样</b>：一颗图标按钮，
-/// 悬停或点击才在上方展开竖向滑条。三处的音量数值互不相干（前两处走 libmpv、
-/// MV 走 <c>MediaPlayer</c>），把它们接到一起的是 <see cref="IVolumeSource"/>。
+/// 播放条、歌词页与 MV 页共用这一份 —— <b>音量交互本来就该一样</b>：点击图标是静音开关，
+/// 悬停、或用键盘的上/下键才在上方展开竖向滑条（Spotify 与系统音量那套手势）。
+/// 三处的音量数值互不相干（前两处走 libmpv、MV 走 <c>MediaPlayer</c>），
+/// 把它们接到一起的是 <see cref="IVolumeSource"/>。
 /// </para>
 /// <para>
 /// ★ <b>任何一个宿主页都不许把这个交互改成横向外显的滑条</b> —— MV 页早先就是这么写的，
@@ -60,12 +61,21 @@ public sealed partial class VolumeButton : UserControl
         VolumeSlider.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
         VolumeSlider.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnVolumeSliderReleased), true);
 
-        Loaded += (_, _) => { _closeTimer.Tick += OnCloseTimer; AttachVolumeSource(); };
+        Loaded += (_, _) =>
+        {
+            _closeTimer.Tick += OnCloseTimer;
+            AttachVolumeSource();
+            UpdateMuteVisualState();
+        };
         Unloaded += OnUnloaded;
     }
 
     private static void OnDisplayChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
-        => ((VolumeButton)sender).Bindings.Update();
+    {
+        var button = (VolumeButton)sender;
+        button.Bindings.Update();
+        button.UpdateMuteVisualState();
+    }
 
     public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(
         nameof(ViewModel), typeof(IVolumeSource), typeof(VolumeButton), new PropertyMetadata(null, OnDisplayChanged));
@@ -130,13 +140,29 @@ public sealed partial class VolumeButton : UserControl
         _subscribed = null;
     }
 
+    /// <remarks>
+    /// 静音状态也要盯着 —— 点按钮与按静音快捷键都不经过本控件的 Click，
+    /// 只改视图模型上的标记，界面靠这条通知跟上。
+    /// </remarks>
     private void OnVolumeSourceChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(IVolumeSource.Volume))
+        if (args.PropertyName == nameof(IVolumeSource.IsMuted))
+        {
+            UpdateMuteVisualState();
+        }
+
+        if (args.PropertyName is nameof(IVolumeSource.Volume) or nameof(IVolumeSource.IsMuted))
         {
             ShowVolumeForExternalChange();
         }
     }
+
+    /// <summary>静音时整颗按钮切到强调色，与桌面歌词开关同款。</summary>
+    private void UpdateMuteVisualState()
+        => VisualStateManager.GoToState(
+            this,
+            ViewModel?.IsMuted == true ? "Muted" : "Audible",
+            useTransitions: false);
 
     /// <summary>
     /// 音量刚在别处被改过：把弹层露出来，并在 <see cref="ExternalChangeHold"/> 之后收起。
@@ -184,13 +210,27 @@ public sealed partial class VolumeButton : UserControl
         ScheduleVolumeClose();
     }
 
-    private void OnVolumeClick(object sender, RoutedEventArgs e)
+    /// <summary>点击图标 = 静音开关。滑条不在这里开 —— 悬停与上/下键各有一条路。</summary>
+    private void OnVolumeClick(object sender, RoutedEventArgs e) => ViewModel?.ToggleMute();
+
+    /// <summary>
+    /// 用键盘打开滑条。
+    /// </summary>
+    /// <remarks>
+    /// <b>这条是补出来的，不是多余的。</b> 点击改静音之前，键盘用户是靠「点击顺带聚焦滑条」
+    /// 进去的；改成静音之后那条路就断了，而滑条原本只有悬停一个入口 —— 键盘用户会完全够不着。
+    /// 上/下键与滑条竖起来的方向一致，也与 <c>Escape</c> 关闭回按钮对称。
+    /// </remarks>
+    private void OnVolumeButtonKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        ShowVolumePopup();
-        if (IconButton.FocusState == FocusState.Keyboard)
+        if (e.Key is not (VirtualKey.Up or VirtualKey.Down))
         {
-            VolumeSlider.Focus(FocusState.Keyboard);
+            return;
         }
+
+        ShowVolumePopup();
+        VolumeSlider.Focus(FocusState.Keyboard);
+        e.Handled = true;
     }
 
     private void ShowVolumePopup()
