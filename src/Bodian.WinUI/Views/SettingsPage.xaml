@@ -116,10 +116,31 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
+        <!--
+            分类栏的选中高亮块：把设置页分类当成一条不能收起的侧栏，用侧栏那一套
+            （Controls/SelectionPill 负责量位置与滑动）。
+
+            包一层 Top 对齐的 Grid 是为了让画布高度等于分类栏高度 —— Canvas 自己不按子元素撑高，
+            直接放进单元格会铺满整格，栏内滚动时块会溢到栏外（ClipToBounds 也裁不到）。
+            这一层必须排在列表**之前**（画在下面），项的文字才压在高亮块之上。
+        -->
+        <Grid Grid.Column="0" VerticalAlignment="Top">
+            <Canvas IsHitTestVisible="False" controls:Motion.ClipToBounds="True">
+                <!--
+                    刻意不写 Visibility="Collapsed"：Collapsed 出生会让它的 Loaded 事件不触发，
+                    而 AppMotion 起动画前要判 element.IsLoaded，判不过就永远不起飞、只留一次瞬跳。
+                    没设位置时它是 0 尺寸，本来也画不出来；真正要收起时由 SelectionPill 设 Collapsed。
+                -->
+                <Border
+                    Background="{ThemeResource SelectionPillBrush}"
+                    CornerRadius="{StaticResource RadiusSm}"
+                    controls:SelectionPill.Owner="{x:Bind Rail}" />
+            </Canvas>
+
         <ListView
             x:Name="Rail"
-            Grid.Column="0"
             VerticalAlignment="Top"
+            Background="Transparent"
             ItemContainerStyle="{StaticResource BodianSettingsRailItem}"
             ItemTemplate="{StaticResource SettingsCategoryTemplate}"
             ItemsSource="{x:Bind ViewModel.Categories}"
@@ -127,10 +148,41 @@
             SelectionChanged="OnCategoryMotionChanged"
             Style="{StaticResource BodianSettingsRail}">
             <ListView.Resources>
-                <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
-                <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+                <ResourceDictionary>
+                    <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                    <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+
+                    <!--
+                        选中底改由上面那块浮动 Border 画，这里把项自己那层压成透明 ——
+                        不压的话会出现「旧项瞬间亮着 + 浮动块慢慢追上」的双高亮。
+
+                        只写浅色/深色两档，高对比度那档留空（用系统自带的那套）：那一档浮动块是
+                        透明刷，系统配色下不做自绘高亮。空字典是刻意的，不是漏写。
+
+                        选中态设透明、hover/pressed 取与未选中态同一档：叠在 10% 的块上观感与原来
+                        接近（原来 14% / 18%），而且悬停选中项仍有反馈 —— 三项都设透明的话，
+                        悬停当前分类会完全没有反应。
+
+                        色号与 Theme.xaml 里的 NavigationViewItemBackgroundSelected 一致，
+                        侧栏、分类栏与页内页签条的选中底色因此是同一个深浅。
+                    -->
+                    <ResourceDictionary.ThemeDictionaries>
+                        <ResourceDictionary x:Key="Light">
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#0D000000" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#14000000" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="Dark">
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#0DFFFFFF" />
+                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#14FFFFFF" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="HighContrast" />
+                    </ResourceDictionary.ThemeDictionaries>
+                </ResourceDictionary>
             </ListView.Resources>
         </ListView>
+        </Grid>
 
             <!--
                 六个分区都常驻可视树、只切 Visibility —— 与关注的歌手页那两份列表同一个做法。

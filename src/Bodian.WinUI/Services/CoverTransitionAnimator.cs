@@ -183,12 +183,18 @@ internal sealed class CoverTransitionAnimator : IDisposable
             if (IsWithin(preferred, page) && Motion.GetSharedCoverKey(preferred) == navigation.Key) target = preferred;
         }
         target ??= FindVisibleCover(page.Content as DependencyObject, navigation.Key);
+        // 新页面刚挂上树时 Loaded 早于首次 arrange：页头封面此刻还没有尺寸，上面那次查找必然落空，
+        // 于是整段动画被静默跳过（症状是「有时候点歌单没有封面放大，过一会再点又有了」）。
+        // 这里补上等待，与播放条下坠那条路径同一套处理。
+        target ??= await WaitForNavigationTargetAsync(page, navigation.Key, version);
         if (target is null)
         {
             // 原卡片已离屏或不存在时，保留内容淡入，不强行滚动用户的列表。
             if (_diagnostics) _logger.LogInformation("共享封面回退：{Page}，未找到可见目标 {Key}", page.GetType().Name, navigation.Key);
             return;
         }
+        // 等待期间可能又发生了一次导航，旧封面不能再飞到新页面上。
+        if (_disposed || version != _navigationVersion) return;
         await PlayAsync(navigation.Source, target, falling: false,
             navigation.IsLyrics ? TimeSpan.FromMilliseconds(520)
                 : navigation.Backwards ? TimeSpan.FromMilliseconds(340) : TimeSpan.FromMilliseconds(420));
@@ -242,6 +248,72 @@ internal sealed class CoverTransitionAnimator : IDisposable
         timeout.Start();
         target.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, Check);
         if (_diagnostics) _logger.LogInformation("共享封面等待首播目标布局");
+        return ready.Task;
+    }
+
+    /// <summary>
+    /// 等目标页里的共享封面就位（导航用）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 新页面是「先挂上宿主、再走布局」的：<c>Loaded</c> 常常早于首次 arrange，
+    /// 那一刻页头封面的 <c>ActualWidth</c> 还是 0，<see cref="Visible"/> 判它不可见，
+    /// 于是整段封面交接被静默跳过（表现是「有时候点歌单没有封面放大的动画」）。
+    /// 补这个窗口的办法与 <see cref="WaitForTargetLayoutAsync"/> 相同：挂页面的
+    /// <c>Loaded</c> / <c>SizeChanged</c> 与外壳的 <c>LayoutUpdated</c> 三条通道，
+    /// 再在低优先级入队一次立刻检查；2 秒仍未就绪就放弃，只保留内容过渡。
+    /// </para>
+    /// <para>
+    /// 期间发生新导航（版本号变了）、窗口尺寸变化或 <see cref="Dispose"/> 都会取消，返回 <c>null</c>。
+    /// </para>
+    /// </remarks>
+    private Task<FrameworkElement?> WaitForNavigationTargetAsync(Page page, string key, int version)
+    {
+        if (_disposed || !AppMotion.IsEnabled) return Task.FromResult<FrameworkElement?>(null);
+
+        var ready = new TaskCompletionSource<FrameworkElement?>();
+        var timeout = _root.DispatcherQueue.CreateTimer();
+        timeout.Interval = TimeSpan.FromSeconds(2);
+        timeout.IsRepeating = false;
+        RoutedEventHandler? loaded = null;
+        SizeChangedEventHandler? sized = null;
+        EventHandler<object>? layout = null;
+        void Finish(FrameworkElement? target)
+        {
+            if (ready.Task.IsCompleted) return;
+            _cancelTargetLayout = null;
+            timeout.Stop();
+            timeout.Tick -= OnTimeout;
+            page.Loaded -= loaded;
+            page.SizeChanged -= sized;
+            _root.LayoutUpdated -= layout;
+            ready.TrySetResult(target);
+        }
+        void Check()
+        {
+            if (ready.Task.IsCompleted) return;
+            if (_disposed || version != _navigationVersion)
+            {
+                // 又发生了一次导航：这一轮已经作废，别把旧封面飞到新页面上。
+                Finish(null);
+            }
+            else if (FindVisibleCover(page.Content as DependencyObject, key) is { } cover)
+            {
+                Finish(cover);
+            }
+        }
+        loaded = (_, _) => Check();
+        sized = (_, _) => Check();
+        layout = (_, _) => Check();
+        page.Loaded += loaded;
+        page.SizeChanged += sized;
+        _root.LayoutUpdated += layout;
+        _cancelTargetLayout = () => Finish(null);
+        void OnTimeout(DispatcherQueueTimer sender, object args) => Finish(null);
+        timeout.Tick += OnTimeout;
+        timeout.Start();
+        page.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, Check);
+        if (_diagnostics) _logger.LogInformation("共享封面等待导航目标布局 {Key}", key);
         return ready.Task;
     }
 

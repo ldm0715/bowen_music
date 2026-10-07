@@ -165,6 +165,16 @@
             <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#24000000" />
             <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#2E000000" />
 
+            <!--
+                列表选中那块「浮动高亮」的底色（侧栏与设置页分类栏都用 Controls/SelectionPill 画）。
+                选中底改由它来画，项自己的那层在各自的 XAML 里被抑制成透明，高亮块才能跨项滑动。
+                值必须与上面的 NavigationViewItemBackgroundSelected 一致（列表那边
+                ListViewItemBackgroundSelected 也是同一个色号）—— 底色只是从项挪到了这一层，
+                深浅两档对不上就能看出色差。
+                高对比度那档是 Transparent：那一档保留系统自带的选中底，浮动块不参与。
+            -->
+            <SolidColorBrush x:Key="SelectionPillBrush" Color="#1A000000" />
+
             <!-- 未选中是次级文字色，选中/hover 提到主文字色 —— 这是参照物层级感的来源 -->
             <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#9E000000" />
             <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#E4000000" />
@@ -316,6 +326,9 @@
             <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#24FFFFFF" />
             <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#2EFFFFFF" />
 
+            <!-- 列表选中浮动高亮的底色，与上面的 NavigationViewItemBackgroundSelected / ListViewItemBackgroundSelected 一致。 -->
+            <SolidColorBrush x:Key="SelectionPillBrush" Color="#1AFFFFFF" />
+
             <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#C5FFFFFF" />
             <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#C5FFFFFF" />
@@ -383,6 +396,11 @@
             <Color x:Key="BrandAccentOnSurface">{ThemeResource SystemColorHighlightColor}</Color>
             <Color x:Key="BrandOnAccent">{ThemeResource SystemColorHighlightTextColor}</Color>
             <SolidColorBrush x:Key="ThemeFlyoutBackground" Color="{ThemeResource SystemColorWindowColor}" />
+
+            <!-- 列表选中浮动高亮：这一档保留系统自带的选中底（系统配色），浮动块不参与。
+                 透明是刻意的 —— 侧栏、设置页分类栏与页内页签条摆在一起时，选中底才都跟系统走。
+                 这个键在另外两档里也有，不能省：自造键三档不齐会在启动时抛 XamlParseException。 -->
+            <SolidColorBrush x:Key="SelectionPillBrush" Color="Transparent" />
 
             <!-- 半透明黑压在封面上时，高对比度用户设的前景/背景色可能读不出来，
                  所以这里改跟系统配色走。 -->

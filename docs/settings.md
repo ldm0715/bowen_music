@@ -38,8 +38,20 @@
 - 分类是视图状态，不是导航状态。
 
 不用嵌套 `NavigationView`：那会把 pane 背景、亚克力与自适应逻辑一并带进来。
-`ListView` 顺带免费给到上下键导航与选中态，配色直接复用 `Theme.xaml` 里已有的
-`ListViewItemBackground*`，不新增任何画刷。
+`ListView` 顺带免费给到上下键导航与选中态。
+
+**选中底是画出来的，不是列表项自己画的**（2026-10-07）：分类栏就是「一条不能收起的侧栏」，
+所以与侧栏共用 `Controls/SelectionPill` —— 选中项一变，那张浮动 `Border` 从旧位置滑到新位置。
+代价是两件事必须一起做对：
+
+- 列表项自己的选中底要在 `ListView.Resources` 里压成透明（`ListViewItemBackgroundSelected` 及其
+  PointerOver / Pressed 三个键，写法同 `AudioQualityPicker.xaml`），否则会出现
+  「旧项瞬间亮着 + 高亮块慢慢追上」的双高亮；
+- 高亮块要画在列表**之下**：包一层 `Top` 对齐的 `Grid`，`Canvas` + `Border` 在前、`ListView` 在后。
+  因此这条栏必须保持透明底（`Background="Transparent"`）—— 项的文字才压在高亮块之上。
+
+底色用 `SelectionPillBrush`，与 `NavigationViewItemBackgroundSelected` 同色号
+（`#1A000000` / `#1AFFFFFF`），高对比度那档是 `Transparent`（保留系统自带的选中底）。
 
 **窄窗口下收成 40 DIP 图标轨，不折行、也不变成横向条**——那种横排页签正是这一页要避开的形态。
 阈值 720 = 栏 200 + 间隔 24 + 内容下限 496，按页面自身宽度判。最小窗口（800）下必然是图标轨，

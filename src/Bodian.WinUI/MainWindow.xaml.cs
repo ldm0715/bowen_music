@@ -2072,6 +2072,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ShellBackdrop.Visibility = visibility;
         AppTitleBar.Visibility = visibility;
         Nav.Visibility = visibility;
+        SidebarIndicatorLayer.Visibility = visibility; // 高亮块画在 Nav 底下，跟着外壳一起藏
         PlayerHost.Visibility = visibility;
         UpdateShellResourceState();
     }
@@ -2138,6 +2139,20 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         });
     }
 
+    /// <summary>当前根页对应的侧栏项。没有对应项的根页（搜索页、歌单详情）是 <c>null</c>。</summary>
+    private NavigationViewItem? CurrentNavItem => _navigation.Root switch
+    {
+        DiscoverPage => DiscoverItem,
+        BangListPage => BangsItem,
+        LibraryPage => LibraryItem,
+        FavoritesPage => FavoritesItem,
+        RecentPage => RecentItem,
+        CollectedAlbumsPage => CollectedAlbumsItem,
+        CollectedPlaylistsPage => CollectedPlaylistsItem,
+        FollowedArtistsPage => FollowedArtistsItem,
+        _ => null,
+    };
+
     /// <summary>
     /// 把侧栏高亮同步到当前**根页**。
     /// </summary>
@@ -2154,18 +2169,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </remarks>
     private void SyncSelection()
     {
-        Nav.SelectedItem = _navigation.Root switch
-        {
-            DiscoverPage => DiscoverItem,
-            BangListPage => BangsItem,
-            LibraryPage => LibraryItem,
-            FavoritesPage => FavoritesItem,
-            RecentPage => RecentItem,
-            CollectedAlbumsPage => CollectedAlbumsItem,
-            CollectedPlaylistsPage => CollectedPlaylistsItem,
-            FollowedArtistsPage => FollowedArtistsItem,
-            _ => null,
-        };
+        Nav.SelectedItem = CurrentNavItem;
 
         // 只推面板底部那一份：收起态浮层里用的是 PlaylistListView，它不支持选中态
         // （那是一个「挑一个就走」的浮层，不留高亮）。

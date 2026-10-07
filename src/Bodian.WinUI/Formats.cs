@@ -105,6 +105,37 @@ public static class Formats
         return Math.Max(160, availableWidth - reserved);
     }
 
+    /// <summary>
+    /// 曲目行里歌名之后那两个角标占掉的宽度，配 <c>Controls/TitleClamp</c> 用来算歌名的宽度上限。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与 <see cref="PlayerTitleMaxWidth"/> 同一个理由 —— 歌名与角标在横向
+    /// <see cref="StackPanel"/> 里才会紧贴，代价是 StackPanel 不约束子元素宽度，
+    /// 所以歌名必须自己带上限，否则长歌名会把角标顶出列宽、被裁掉一截
+    /// （表现是 MV 角标的 V 少一块）。
+    /// </para>
+    /// <para>
+    /// <b>角标宽度按「字号 11 + 左右内边距 6」估，间距取自那个 StackPanel 的 <c>Spacing</c>，
+    /// 改 <c>TrackListView.xaml</c> / <c>SearchPage.xaml</c> 里的角标样式时要一起改。</b>
+    /// 取的是两个角标里更宽的那个（「付费」是两枚汉字，宽于 "VIP" 与 "MV"），
+    /// 所以按数量线性相加即可 —— 少留一点只是歌名早一点省略，多留会重演截断。
+    /// </para>
+    /// </remarks>
+    public static double BadgeReserve(Visibility payBadge, Visibility mvBadge)
+    {
+        var count = (payBadge == Visibility.Visible ? 1 : 0) + (mvBadge == Visibility.Visible ? 1 : 0);
+
+        // 间距按「每枚角标一个」算：角标紧跟在歌名后面，第一个角标也占一段。
+        return count == 0 ? 0 : count * (RowBadgeWidth + RowBadgeSpacing);
+    }
+
+    /// <summary>曲目行角标的估宽。两处模板里的 <c>Padding="6,1"</c> + 字号 11 撑出来就是这个量级。</summary>
+    private const double RowBadgeWidth = 36;
+
+    /// <summary>曲目行歌名与角标、以及角标彼此之间的间距。与那两处模板里 <c>Spacing="6"</c> 一致。</summary>
+    private const double RowBadgeSpacing = 6;
+
     /// <summary>播放条信息块的常规宽度。窄窗口会缩短，曲名按当前宽度为徽标留位。</summary>
     public static double PlayerInfoBlockWidth => 220;
 

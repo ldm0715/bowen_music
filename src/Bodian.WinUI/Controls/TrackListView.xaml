@@ -128,15 +128,23 @@
                         Grid.Column="2"
                         VerticalAlignment="Center"
                         Spacing="2">
+                        <!--
+                            歌名与两个角标放在同一个横向 StackPanel 里，角标才会紧跟歌名。
+                            代价是它按无限宽度测量子元素，歌名的省略号等于没写 ——
+                            长歌名会原样占满，把末尾的角标顶出列宽、裁掉一截
+                            （看到「MV 的 V 少一块」就是这么来的）。
+                            所以歌名要自己带上限：本列宽度减去角标占位，由 TitleClamp 刷。
+                        -->
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock
                                 FontSize="{StaticResource FontSizeBodyLarge}"
                                 Text="{x:Bind Title}"
-                                TextTrimming="CharacterEllipsis" />
+                                TextTrimming="CharacterEllipsis"
+                                controls:TitleClamp.Reserve="{x:Bind local:Formats.BadgeReserve(PayLabelVisibility, MvLabelVisibility)}" />
 
                             <!-- 付费标识：让用户在点之前就知道要不要会员 -->
                             <Border
-                                Padding="5,0"
+                                Padding="6,1"
                                 VerticalAlignment="Center"
                                 Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
                                 CornerRadius="{StaticResource RadiusXs}"
@@ -149,7 +157,7 @@
                                 这里点它没有反应，与旁边的付费角标同一语义。
                             -->
                             <Border
-                                Padding="5,0"
+                                Padding="6,1"
                                 VerticalAlignment="Center"
                                 Background="{ThemeResource SystemFillColorAttentionBackgroundBrush}"
                                 CornerRadius="{StaticResource RadiusXs}"

@@ -388,6 +388,27 @@
                             <!-- 正下方居中，与主题弹层一致。之前用 BottomEdgeAlignedRight，
                                  弹窗比头像按钮宽得多，右对齐会把整块甩到头像左边去。 -->
                             <Flyout Opening="OnAccountFlyoutOpening" Placement="Bottom">
+                                <!--
+                                    底色与主题弹层用同一个实色画刷。
+                                    不写这段的话会回落到框架默认的 FlyoutPresenter 样式 ——
+                                    它的背景是亚克力（半透明），叠在窗口的氛围渐变上，
+                                    亮色主题看着接近实色、暗色主题就明显透，像是两个主题不一致。
+
+                                    显式给 Style 会整份替换掉框架默认样式，所以 Padding 与 MaxWidth
+                                    要照着原来的值写回来（框架默认是 12 与 456）：
+                                    漏掉 MaxWidth，下面那个昵称的省略号就不生效、长昵称会把弹层撑宽。
+                                    这里不用主题弹层的 Padding="6" —— 那份的内容是自带内边距的列表，
+                                    这份是裸 StackPanel，保持 12。
+                                -->
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="Background" Value="{ThemeResource ThemeFlyoutBackground}" />
+                                        <Setter Property="Padding" Value="12" />
+                                        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+                                        <Setter Property="MaxWidth" Value="456" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+
                                 <StackPanel MinWidth="200" Spacing="12">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <Border
@@ -670,6 +691,38 @@
             </TitleBar.RightHeader>
         </TitleBar>
 
+        <!--
+            侧栏选中高亮块。位置与滑动由 Controls/SelectionPill 负责（设置页的分类栏用同一个）。
+
+            这一层必须排在 NavigationView **之前**（画在它下面），导航项的文字才压在高亮块之上。
+            这依赖侧栏面板是透明的 —— Theme.xaml 里把 NavigationViewDefaultPaneBackground 等
+            四个键都覆写成了 Transparent，NavigationView 自己也不设 Background。
+            哪天侧栏改回不透明底，症状会是「侧栏没有高亮」，那时把这一层挪到 NavigationView 之后，
+            代价是底色必须永远半透明，否则会盖住选中的文字。
+
+            宽度按展开态取：收起态（48px 图标轨）那块本来就只有 40 宽。
+            ClipToBounds：菜单区滚起来时项会跑到行外，不裁的话块会溢到标题栏上。
+            IsHitTestVisible=False：这一层只负责画，指针事件仍归侧栏。
+        -->
+        <Canvas
+            x:Name="SidebarIndicatorLayer"
+            Grid.Row="1"
+            Width="{StaticResource SizeSidebarWidth}"
+            HorizontalAlignment="Left"
+            IsHitTestVisible="False"
+            controls:Motion.ClipToBounds="True">
+            <!--
+                不写 Visibility="Collapsed"：Collapsed 出生会让它的 Loaded 不触发，
+                而 AppMotion 起动画前要判 element.IsLoaded，判不过就只留一次瞬跳。
+                没设位置时它是 0 尺寸，画不出来；真要收起时由 SelectionPill 设 Collapsed。
+            -->
+            <Border
+                x:Name="SidebarIndicator"
+                Background="{ThemeResource SelectionPillBrush}"
+                CornerRadius="{StaticResource ControlCornerRadius}"
+                controls:SelectionPill.Owner="{x:Bind Nav}" />
+        </Canvas>
+
         <NavigationView
             x:Name="Nav"
             Grid.Row="1"
@@ -679,6 +732,37 @@
             ItemInvoked="OnItemInvoked"
             OpenPaneLength="{StaticResource SizeSidebarWidth}"
             PaneDisplayMode="Left">
+
+        <!--
+            选中底改由上面那块浮动 Border 画，这里把导航项自己那层压成透明 ——
+            不压的话会出现「旧项瞬间亮着 + 浮动块慢慢追上」的双高亮。
+
+            只写浅色/深色两档，高对比度那档留空（用系统自带的那套）：系统配色下不做自绘高亮，
+            侧栏与页内页签条才都跟系统走。留空的空字典是刻意的，不是漏写。
+
+            选中态设透明、hover/pressed 取与未选中态同一档：叠在 10% 的块上观感与原来接近，
+            而且悬停选中项仍有反馈 —— 三项都设透明的话，悬停当前项会完全没有反应。
+
+            NavigationViewItemBackgroundSelected* 是框架自己的键，系统主题字典里有定义，
+            这里只是覆盖它，所以不会出现「自造键三档不齐」那种启动异常。
+        -->
+        <NavigationView.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.ThemeDictionaries>
+                    <ResourceDictionary x:Key="Light">
+                        <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="Transparent" />
+                        <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#0D000000" />
+                        <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#14000000" />
+                    </ResourceDictionary>
+                    <ResourceDictionary x:Key="Dark">
+                        <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="Transparent" />
+                        <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#0DFFFFFF" />
+                        <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#14FFFFFF" />
+                    </ResourceDictionary>
+                    <ResourceDictionary x:Key="HighContrast" />
+                </ResourceDictionary.ThemeDictionaries>
+            </ResourceDictionary>
+        </NavigationView.Resources>
 
         <NavigationView.MenuItems>
             <NavigationViewItem
@@ -926,9 +1010,11 @@
               抽屉开在下面也没人看得见。现在歌词页自己的传输组也有队列按钮了，
               再让它排在下面就是「点了没反应」。
 
-            ★ 背景用 CommentPanelBackgroundBrush 而不是 ThemeFlyoutBackground：后者是 #CC 的
-              半透明，铺满一整条抽屉时底下的正文会透出来。这块实色面板与评论抽屉同源，
-              理由也在那边（「实色面板保证封面颜色和动态背景不会透过正文」）。
+            ★ 背景用 CommentPanelBackgroundBrush 而不是 ThemeFlyoutBackground：两者现在都是实色
+              （#FAFBFD / #FAFAFA），但后者是弹层底色、靠外圈阴影与描边分层，而这条抽屉铺满
+              窗口一整侧，与评论抽屉同源更合适（理由也在那边：
+              「实色面板保证封面颜色和动态背景不会透过正文」）。
+              2026-10-04 之前 ThemeFlyoutBackground 还是 #CC 半透明，那时这条是必需的。
 
             ★ **四角全圆、离窗口边留出边距**，是一张浮起来的卡片，不是贴边的侧板：
               贴边那种只有左侧圆角，右下两侧顶在窗口边上，视觉上更像把内容区切了一刀。
