@@ -677,7 +677,87 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 异常由 <see cref="AccountViewModel.RefreshStatsAsync"/> 自己吞掉 ——
     /// 漏出去会变成 UnobservedTaskException，被 App 记成 Critical 日志。
     /// </remarks>
-    private void OnAccountFlyoutOpening(object sender, object args) => _ = Account.RefreshStatsAsync();
+    private void OnAccountFlyoutOpening(object sender, object args)
+    {
+        _ = Account.RefreshStatsAsync();
+        Account.RefreshRememberedAccounts();
+    }
+
+    /// <summary>
+    /// 进「切换账号」二级列表。
+    /// </summary>
+    /// <remarks>
+    /// <b>靠 <c>AppMotion.SwapAsync</c> 换内容</b>，与页内 Tab、发现页卡片换页是同一套：
+    /// 旧内容沿进/退方向淡出，换完再让新内容从反方向进来。
+    /// 动画元素是两块面板共同的父节点 —— 只动画内容，不动弹层本身（弹层尺寸会随内容变，
+    /// 那是布局的事，插手会让它抖）。
+    /// </remarks>
+    private void OnShowSwitchListClick(object sender, RoutedEventArgs e)
+        => _ = AppMotion.SwapAsync(AccountFlyoutRoot, Account.ShowSwitchList, 1);
+
+    /// <summary>从二级列表退回账号信息。<c>-1</c> 让进出方向对称。</summary>
+    private void OnHideSwitchListClick(object sender, RoutedEventArgs e)
+        => _ = AppMotion.SwapAsync(AccountFlyoutRoot, Account.HideSwitchList, -1);
+
+    /// <summary>
+    /// 从「切换账号」列表里移除一个账号。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>确认框放在窗口而不是视图模型</b>：那是一个界面决策（要不要弹、按钮怎么摆），
+    /// 而 <c>XamlRoot</c> 也拿不到视图模型里去。做法与「清空播放列表」一致。
+    /// </para>
+    /// <para>
+    /// <b>确认文案要写明「不动本地数据」</b>：用户看到「移除」会担心连播放记录一起没了，
+    /// 而这两件事确实是分开的（<c>accounts\&lt;uid&gt;\</c> 原样留着）。
+    /// </para>
+    /// </remarks>
+    private async void OnForgetRememberedAccountClick(object sender, RoutedEventArgs e)
+    {
+        if (RowOf(sender) is not { } row)
+        {
+            return;
+        }
+
+        var dialog = CreateAppDialog($"移除「{row.DisplayName}」？");
+        dialog.Content = "只移除这台机器上保存的登录凭据，之后要重新扫码或收验证码才能登回来。"
+            + "该账号的播放记录、搜索历史仍保留在本机。";
+        dialog.PrimaryButtonText = "移除";
+        dialog.CloseButtonText = "取消";
+        dialog.DefaultButton = ContentDialogButton.Close;
+
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        Account.ForgetAccount(row);
+    }
+
+    /// <summary>
+    /// 切到列表里的另一个账号。
+    /// </summary>
+    /// <remarks>
+    /// <b>切完把弹层收起来。</b> 不收的话，弹层还停在「切换账号」那一屏、而统计是空的
+    /// （换号时旧数据已被清掉，新数据要等下次打开才拉）—— 看起来像没切成。
+    /// 收起之后标题栏头像立刻变成新账号的，那个变化本身就是反馈。
+    /// </remarks>
+    private void OnSwitchRememberedAccountClick(object sender, RoutedEventArgs e)
+    {
+        if (RowOf(sender) is not { } row)
+        {
+            return;
+        }
+
+        if (Account.SwitchAccount(row))
+        {
+            AccountButton.Flyout?.Hide();
+        }
+    }
+
+    /// <summary>取出行模板里的那一行。两个 Click 共用一个取法。</summary>
+    private static RememberedAccountRow? RowOf(object sender) =>
+        (sender as FrameworkElement)?.DataContext as RememberedAccountRow;
 
     private void SyncThemeSelection() => ThemeOptions.SelectedItem = Theme.Current switch
     {
@@ -1111,6 +1191,14 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (!_login.IsAuthenticated)
         {
             ShowLogin();
+
+            // 主动登出是用户自己的动作，不必解释；被服务端判死（11012）要说一句 ——
+            // 否则用户只看到自己莫名其妙被踢了出来。切到一个失效账号时走的也是这条路。
+            if (_login.LastSessionEndWasServerInitiated)
+            {
+                Notifications.Show("该账号的登录已失效，请重新登录", NoticeSeverity.Error);
+            }
+
             return;
         }
 
@@ -1121,6 +1209,19 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         // 少这一步，重拉失败就会把上一个账号的歌单留给新账号看。
         _sidebar.Reset();
         _ = LoadSidebarAsync();
+
+        // 侧栏那批闲置的根页缓存里存的是上一个账号的页面实例（它们的 ViewModel 也记着「我加载过了」），
+        // 不丢的话，换号后点「我喜欢的」会拿回旧实例、跳过加载，看到的还是上一个人的数据。
+        _navigation.ReleaseCachedPages();
+
+        // 当前页上的数据也可能是上一个账号的（「我喜欢的」「最近播放」「收藏的歌单/专辑/关注的歌手」）。
+        // ★ 页面自己不会收到第二次进场通知 —— 它还在屏幕上，走不到 OnNavigatedTo，
+        //   而那条路本来就只加载一次。所以这里主动叫一次；接口只给账号级页面实现，
+        //   实体页与设置页不会被牵连。
+        if (_navigation.Current is IAccountScopedView scoped)
+        {
+            _ = scoped.OnAccountSwitchedAsync();
+        }
     }
 
     private void OnSearchGotFocus(object sender, RoutedEventArgs args)

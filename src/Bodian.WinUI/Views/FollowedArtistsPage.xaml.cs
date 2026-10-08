@@ -12,7 +12,7 @@ namespace Bodian.WinUI.Views;
 /// 数据来自 <c>service/collect/7/list</c>，一次全量、没有分页，见
 /// <see cref="FollowedArtistsViewModel"/> 与 <c>docs/collect-follow.md</c>。
 /// </remarks>
-public sealed partial class FollowedArtistsPage : Page, INavigationAware
+public sealed partial class FollowedArtistsPage : Page, INavigationAware, IAccountScopedView
 {
     private readonly Func<Artist, ArtistDetailPage> _artistFactory;
     private readonly INavigationService _navigation;
@@ -55,6 +55,9 @@ public sealed partial class FollowedArtistsPage : Page, INavigationAware
 
         _ = ViewModel.EnsureLoadedAsync();
     }
+
+    /// <summary>换账号了：这一页是上一个账号关注的歌手。</summary>
+    public Task OnAccountSwitchedAsync() => ViewModel.RefreshAsync();
 
     /// <summary>不需要收尾：列表是懒加载的，没有常驻订阅要摘。</summary>
     public void OnNavigatedFrom()

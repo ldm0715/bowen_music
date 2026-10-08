@@ -12,6 +12,7 @@ public sealed partial class TrackStatisticsViewModel : ObservableObject, IDispos
 {
     private readonly IBodianApi _api;
     private readonly ILikedSongsService? _likedSongs;
+    private readonly ICurrentAccount? _account;
     private readonly ILogger<TrackStatisticsViewModel> _logger;
     private CancellationTokenSource? _request;
     private Task<Track?>? _details;
@@ -19,16 +20,60 @@ public sealed partial class TrackStatisticsViewModel : ObservableObject, IDispos
     private int _generation;
     private bool _disposed;
 
+    /// <summary>
+    /// 构造本视图模型时的线程。账号变更事件可能来自线程池，改属性要回到这个线程上做。
+    /// </summary>
+    /// <remarks>
+    /// <b>不用 <c>DispatcherQueue</c></b>：这个文件被链接进 <c>net10.0</c> 的测试工程，
+    /// 那里没有 WinUI 类型。在应用里 <c>Program.RunWinUi</c> 已经装了
+    /// <c>DispatcherQueueSynchronizationContext</c>，所以这里一定拿得到。
+    /// </remarks>
+    private readonly SynchronizationContext? _uiContext = SynchronizationContext.Current;
+
     /// <param name="likedSongs">
     /// 喜欢状态的来源。为 <c>null</c> 时按钮只展示计数、不参与喜欢往返（离线测试与无此依赖的宿主）。
     /// </param>
     public TrackStatisticsViewModel(IBodianApi api, ILogger<TrackStatisticsViewModel>? logger = null,
-        ILikedSongsService? likedSongs = null)
+        ILikedSongsService? likedSongs = null, ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         _api = api;
         _likedSongs = likedSongs;
+        _account = account;
         _logger = logger ?? NullLogger<TrackStatisticsViewModel>.Instance;
+
+        // 心形是「当前账号有没有喜欢这首」—— 换账号后必须重问一次。
+        // 不问的话，「同一首歌」的早退（见 LoadAsync）会一直沿用上一个账号的答案。
+        if (account is not null)
+        {
+            account.Changed += OnAccountChanged;
+        }
+    }
+
+    private void OnAccountChanged(object? sender, EventArgs e)
+    {
+        if (_uiContext is null || ReferenceEquals(SynchronizationContext.Current, _uiContext))
+        {
+            RefreshFavoriteForCurrentAccount();
+            return;
+        }
+
+        _uiContext.Post(_ => RefreshFavoriteForCurrentAccount(), null);
+    }
+
+    /// <summary>
+    /// 按当前账号重问一次喜欢态。
+    /// </summary>
+    /// <remarks>
+    /// 复用 <c>StartFavoriteLookup</c>：它先把 <c>IsFavorite</c> 置回 <c>false</c> 再异步取，
+    /// 所以不会在新结果回来之前短暂地显示上一个账号的「已喜欢」。
+    /// </remarks>
+    private void RefreshFavoriteForCurrentAccount()
+    {
+        if (!_disposed && _track is { Id: > 0 } track)
+        {
+            StartFavoriteLookup(track.Id);
+        }
     }
 
     public long? MusicId => _track?.Id;
@@ -254,5 +299,10 @@ public sealed partial class TrackStatisticsViewModel : ObservableObject, IDispos
         _generation++;
         _request?.Cancel();
         _request = null;
+
+        if (_account is not null)
+        {
+            _account.Changed -= OnAccountChanged;
+        }
     }
 }

@@ -17,9 +17,16 @@ public sealed class BodianLogin : IBodianLogin
     private readonly IBodianTransport _transport;
     private readonly BodianSession _session;
     private readonly ICredentialStore _credentials;
+    private readonly IRememberedAccountsStore? _remembered;
     private readonly TimeProvider _time;
     private readonly LoginOptions _options;
     private readonly ILogger<BodianLogin> _logger;
+
+    /// <summary>被服务端判死过的 uid，本次运行期间有效。见 <see cref="IsStale"/>。</summary>
+    private readonly HashSet<string> _stale = new(StringComparer.Ordinal);
+
+    /// <summary>护住 <see cref="_stale"/>：<see cref="OnSessionCleared"/> 可能来自线程池。</summary>
+    private readonly Lock _staleGate = new();
 
     public BodianLogin(
         IBodianTransport transport,
@@ -27,7 +34,8 @@ public sealed class BodianLogin : IBodianLogin
         ICredentialStore credentials,
         LoginOptions? options = null,
         TimeProvider? timeProvider = null,
-        ILogger<BodianLogin>? logger = null)
+        ILogger<BodianLogin>? logger = null,
+        IRememberedAccountsStore? rememberedAccounts = null)
     {
         ArgumentNullException.ThrowIfNull(transport);
         ArgumentNullException.ThrowIfNull(session);
@@ -36,6 +44,7 @@ public sealed class BodianLogin : IBodianLogin
         _transport = transport;
         _session = session;
         _credentials = credentials;
+        _remembered = rememberedAccounts;
         _options = options ?? LoginOptions.Default;
         _time = timeProvider ?? TimeProvider.System;
         _logger = logger ?? NullLogger<BodianLogin>.Instance;
@@ -52,6 +61,63 @@ public sealed class BodianLogin : IBodianLogin
     public string? Nickname => Account?.Nickname;
 
     public event EventHandler? AccountChanged;
+
+    /// <inheritdoc />
+    public bool LastSessionEndWasServerInitiated { get; private set; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<RememberedAccount> RememberedAccounts =>
+        _remembered?.Load() ?? [];
+
+    /// <inheritdoc />
+    public bool IsStale(string uid)
+    {
+        ArgumentNullException.ThrowIfNull(uid);
+
+        lock (_staleGate)
+        {
+            return _stale.Contains(uid);
+        }
+    }
+
+    /// <inheritdoc />
+    public bool SwitchTo(string uid)
+    {
+        ArgumentNullException.ThrowIfNull(uid);
+
+        var entry = RememberedAccounts.FirstOrDefault(item => item.Credential.Uid == uid);
+
+        if (entry is null)
+        {
+            _logger.LogWarning("要切换的账号不在记住的清单里，忽略：uid={Uid}", uid);
+            return false;
+        }
+
+        // 切到自己：空操作。不做这个短路的话会白写一次 session.dat、白推一次 AccountChanged。
+        if (uid == _session.Uid && Account is not null)
+        {
+            return true;
+        }
+
+        AdoptCredential(entry.Credential, persistCredential: true);
+
+        _logger.LogInformation("已切换到记住的账号，uid={Uid}", uid);
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public void Forget(string uid)
+    {
+        ArgumentNullException.ThrowIfNull(uid);
+
+        _remembered?.Forget(uid);
+
+        lock (_staleGate)
+        {
+            _stale.Remove(uid);
+        }
+    }
 
     public async Task<QrCodeChallenge> CreateChallengeAsync(CancellationToken cancellationToken = default)
     {
@@ -239,29 +305,62 @@ public sealed class BodianLogin : IBodianLogin
             return false;
         }
 
-        _session.Set(credential.Uid, credential.Token);
+        // 不重复落盘：这份凭据本来就是从那个文件读出来的，而 Save 会抛（IO / DPAPI），
+        // 为一次内容相同的写入把「启动时能恢复会话」这条搭进去不值。
+        AdoptCredential(credential, persistCredential: false);
 
-        // VipBadge 是后加的字段：老凭据里没有它，读出来是 None。
-        // 直接采用会让老会话一个图标都不显示，所以按「是会员但档位认不出来」处理 ——
-        // 退回大会员，与 VipStatus.ResolveBadge 的回落口径一致。
-        // 准确档位要等下一次登录才会写进凭据。
+        _logger.LogInformation("已从磁盘恢复会话，uid={Uid}", credential.Uid);
+
+        return true;
+    }
+
+    /// <summary>
+    /// 采纳一份凭据：必要时落盘 → 改内存会话 → 重建账号对象 → 记进清单 → 通知界面。
+    /// </summary>
+    /// <remarks>
+    /// <b>三个入口共用</b>：扫码、手机号、以及从清单里切换。前两者带一份新凭据（要落盘），
+    /// 后两者用的是已经落过盘的那份，所以是否落盘由调用方决定。
+    /// </remarks>
+    private void AdoptCredential(BodianCredential credential, bool persistCredential)
+    {
+        if (persistCredential)
+        {
+            // 先落盘再改内存会话：落盘失败宁可没有会话，也不要出现「内存里登录了、重启就没了」。
+            _credentials.Save(credential);
+        }
+
+        _session.Set(credential.Uid, credential.Token);
+        Account = AccountFrom(credential);
+        LastSessionEndWasServerInitiated = false;
+
+        // 顺手记住这份凭据。恢复会话那条路也走这里，于是「探针登录过、清单里却没有」
+        // 这种漂移会被自愈 —— 否则用户会遇到「明明登录着，切换列表里找不到当前账号」。
+        _remembered?.Remember(credential, _time.GetUtcNow());
+
+        RaiseAccountChanged();
+    }
+
+    /// <summary>
+    /// 用凭据里的快照重建账号对象。
+    /// </summary>
+    /// <remarks>
+    /// <b>VipBadge 是后加的字段：</b>老凭据里没有它，读出来是 <see cref="VipBadgeKind.None"/>。
+    /// 直接采用会让老会话一个图标都不显示，所以按「是会员但档位认不出来」处理 —— 退回大会员，
+    /// 与 <c>VipStatus.ResolveBadge</c> 的回落口径一致。准确档位要等下一次登录才会写进凭据。
+    /// </remarks>
+    private static BodianAccount AccountFrom(BodianCredential credential)
+    {
         var badge = credential.IsVip && credential.VipBadge == VipBadgeKind.None
             ? VipBadgeKind.Big
             : credential.VipBadge;
 
-        Account = new BodianAccount(
+        return new BodianAccount(
             credential.Uid,
             credential.Nickname,
             HttpUrl.TryParse(credential.AvatarUrl),
             credential.IsVip,
             credential.VipExpiresAt,
             badge);
-
-        RaiseAccountChanged();
-
-        _logger.LogInformation("已从磁盘恢复会话，uid={Uid}", credential.Uid);
-
-        return true;
     }
 
     public void SignOut()
@@ -307,20 +406,23 @@ public sealed class BodianLogin : IBodianLogin
             vipExpiresAt,
             vipBadge);
 
-        // 先落盘再改内存会话：落盘失败宁可没有会话，也不要出现「内存里登录了、重启就没了」。
-        // 头像与会员状态也一并存下来 —— 否则下次从磁盘恢复时界面就只剩一个昵称。
-        _credentials.Save(new BodianCredential(
-            uidText,
-            data.Token,
-            account.Nickname,
-            account.Avatar?.ToString(),
-            account.IsVip,
-            account.VipExpiresAt,
-            account.VipBadge));
+        // 头像与会员状态一并存下来 —— 否则下次从磁盘恢复（或切换回来）时界面就只剩一个昵称。
+        AdoptCredential(
+            new BodianCredential(
+                uidText,
+                data.Token,
+                account.Nickname,
+                account.Avatar?.ToString(),
+                account.IsVip,
+                account.VipExpiresAt,
+                account.VipBadge),
+            persistCredential: true);
 
-        _session.Set(uidText, data.Token);
-        Account = account;
-        RaiseAccountChanged();
+        // 这是一份刚换来的新 token：之前若把该账号标成「登录已失效」，到此为止。
+        lock (_staleGate)
+        {
+            _stale.Remove(uidText);
+        }
 
         _logger.LogInformation("登录成功，uid={Uid}，会员={IsVip}", uidText, isVip);
 
@@ -329,8 +431,23 @@ public sealed class BodianLogin : IBodianLogin
 
     private void OnSessionCleared(object? sender, BodianSessionClearedEventArgs e)
     {
+        // 先把 uid 取出来：下面立刻要把 Account 置空，而「谁被判死了」正是要记下的东西。
+        var endedUid = Account?.Uid;
+
+        // 磁盘上的当前会话凭据必须清掉 —— 否则下次启动会恢复一个已经死掉的 token，
+        // 表现为「一启动就掉登录」。
         _credentials.Clear();
         Account = null;
+        LastSessionEndWasServerInitiated = e.ServerInitiated;
+
+        if (e.ServerInitiated && endedUid is { Length: > 0 })
+        {
+            lock (_staleGate)
+            {
+                _stale.Add(endedUid);
+            }
+        }
+
         RaiseAccountChanged();
     }
 

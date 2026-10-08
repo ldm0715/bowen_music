@@ -41,6 +41,23 @@ public static class AppPaths
     /// <summary>会话凭据文件（DPAPI 加密）。<b>必须与探针共用同一个文件。</b></summary>
     public static string CredentialFile => Path.Combine(LocalAppData, "session.dat");
 
+    /// <summary>
+    /// 记住的账号清单（DPAPI 加密）：多份凭据 + 各自上次使用的时刻，供账号快捷切换用。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>与 <see cref="CredentialFile"/> 分开，且后者的格式一行不改。</b> <c>session.dat</c> 只有一份、
+    /// 与 P0 探针共用、JSON 字段名是对外契约 —— 往里塞数组会把这三条一起破坏。
+    /// 两者的关系是「当前是谁」与「记住过谁」。
+    /// </para>
+    /// <para>
+    /// <b>名字刻意不叫 <c>accounts.dat</c> 也不叫 <c>sessions.dat</c></b>：前者与
+    /// <see cref="AccountsDirectory"/> 那个目录极易混为一谈，后者与 <c>session.dat</c> 只差一个字母。
+    /// 加密用的 entropy 也与 session 那份<b>不同</b>，见 <c>DpapiRememberedAccountsStore</c>。
+    /// </para>
+    /// </remarks>
+    public static string RememberedAccountsFile => Path.Combine(LocalAppData, "remembered-accounts.dat");
+
     /// <summary>未登录时数据落的桶名。见 <see cref="AccountDirectory(string)"/>。</summary>
     public const string AnonymousScope = "anonymous";
 

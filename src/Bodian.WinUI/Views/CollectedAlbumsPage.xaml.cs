@@ -13,7 +13,7 @@ namespace Bodian.WinUI.Views;
 /// 这一点已由用户实测确认。页面保留「重新加载」按钮 ——
 /// 拿不到数据时用户至少能自己重试一次，而不是只能看着一句说明。
 /// </remarks>
-public sealed partial class CollectedAlbumsPage : Page, INavigationAware
+public sealed partial class CollectedAlbumsPage : Page, INavigationAware, IAccountScopedView
 {
     private readonly Func<Album, AlbumDetailPage> _albumDetailFactory;
     private readonly INavigationService _navigation;
@@ -37,6 +37,9 @@ public sealed partial class CollectedAlbumsPage : Page, INavigationAware
     public CollectedAlbumsViewModel ViewModel { get; }
 
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
+
+    /// <summary>换账号了：这一页是上一个账号收藏的专辑。</summary>
+    public Task OnAccountSwitchedAsync() => ViewModel.ReloadAsync();
 
     /// <summary>不需要收尾：列表是懒加载的，没有常驻订阅要摘。</summary>
     public void OnNavigatedFrom()

@@ -5,9 +5,22 @@ namespace Bodian.Core.Api;
 
 public sealed class BodianSessionClearedEventArgs : EventArgs
 {
-    public BodianSessionClearedEventArgs(string reason) => Reason = reason;
+    public BodianSessionClearedEventArgs(string reason, bool serverInitiated = false)
+    {
+        Reason = reason;
+        ServerInitiated = serverInitiated;
+    }
 
     public string Reason { get; }
+
+    /// <summary>
+    /// 是不是服务端把会话判死了（业务码 <c>11012</c>），而不是用户主动登出。
+    /// </summary>
+    /// <remarks>
+    /// <b>界面据此决定要不要说「登录已失效」。</b> 判断依据用这个布尔而不是
+    /// <see cref="Reason"/> 的文案 —— 拿中文字符串做分支，改一次措辞就断一次。
+    /// </remarks>
+    public bool ServerInitiated { get; }
 }
 
 /// <summary>
@@ -141,9 +154,9 @@ public sealed class BodianSession : ICurrentAccount
     /// <summary>
     /// 服务端说这个会话无效了（业务码 <c>11012</c>）。由传输层调用。
     /// </summary>
-    internal void NotifyUnauthorized() => ClearInternal("服务端要求重新鉴权（11012）");
+    internal void NotifyUnauthorized() => ClearInternal("服务端要求重新鉴权（11012）", serverInitiated: true);
 
-    private void ClearInternal(string reason)
+    private void ClearInternal(string reason, bool serverInitiated = false)
     {
         lock (_gate)
         {
@@ -157,7 +170,7 @@ public sealed class BodianSession : ICurrentAccount
             _revision++;
         }
 
-        Cleared?.Invoke(this, new BodianSessionClearedEventArgs(reason));
+        Cleared?.Invoke(this, new BodianSessionClearedEventArgs(reason, serverInitiated));
         Changed?.Invoke(this, EventArgs.Empty);
     }
 }

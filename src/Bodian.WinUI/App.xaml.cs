@@ -97,6 +97,11 @@ public partial class App : Application
         builder.Services.AddSingleton<IDeviceIdentity, FileDeviceIdentity>();
         builder.Services.AddSingleton<ICredentialStore, DpapiCredentialStore>();
 
+        // 「记住的账号」清单（DPAPI 加密），供账号快捷切换用。与 session.dat 分开，见 AppPaths 的说明。
+        // 与凭据一样显式写工厂：构造参数里有个可选的路径，交给容器按默认值挑容易出意外。
+        builder.Services.AddSingleton<IRememberedAccountsStore>(sp => new DpapiRememberedAccountsStore(
+            logger: sp.GetRequiredService<ILogger<DpapiRememberedAccountsStore>>()));
+
         // 播放历史是**明文 JSON**（不是凭据，内容里不含账号标识），按账号分目录。
         // 显式写工厂：构造参数里有个可选的路径，交给容器按默认值挑容易出意外。
         builder.Services.AddSingleton<IPlayHistoryStore>(sp => new JsonPlayHistoryStore(

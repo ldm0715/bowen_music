@@ -9,7 +9,7 @@ namespace Bodian.WinUI.Views;
 /// <summary>
 /// 「最近播放」页。侧栏的一个根页。
 /// </summary>
-public sealed partial class RecentPage : Page, INavigationAware
+public sealed partial class RecentPage : Page, INavigationAware, IAccountScopedView
 {
     public RecentPage(RecentViewModel viewModel)
     {
@@ -24,6 +24,11 @@ public sealed partial class RecentPage : Page, INavigationAware
 
     /// <summary>每次进入都重读，不做「只加载一次」—— 刚听完一首切回来必须能看到它。</summary>
     public void OnNavigatedTo() => _ = ViewModel.LoadAsync();
+
+    /// <summary>
+    /// 换账号了：本地播放记录也是按账号分目录的，这一页现在显示的是上一个账号听过的歌。
+    /// </summary>
+    public Task OnAccountSwitchedAsync() => ViewModel.LoadAsync();
 
     /// <summary>不需要收尾：数据是本地文件，没有常驻订阅要摘。</summary>
     public void OnNavigatedFrom()

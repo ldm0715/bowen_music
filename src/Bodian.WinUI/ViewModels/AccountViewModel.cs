@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Bodian.Core.Api;
 using Bodian.Core.Models;
 using Bodian.Core.Models.Account;
@@ -40,6 +41,7 @@ public sealed partial class AccountViewModel : ObservableObject
     private AccountPlayData? _playData;
     private AccountVipInfo? _vip;
     private bool _statsLoading;
+    private bool _switchListShown;
     private CancellationTokenSource? _statsCts;
 
     public AccountViewModel(
@@ -212,11 +214,129 @@ public sealed partial class AccountViewModel : ObservableObject
     /// 退出登录。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 这里只管清会话，跳转由宿主负责 —— 登出会让 <c>AccountChanged</c> 触发，
     /// 主窗口收到后把页面切回登录页。不在这里重复导航，避免两处同时切页。
+    /// </para>
+    /// <para>
+    /// <b>登出不再等于「把凭据从这台机器上删掉」</b>：记住的账号清单保留着，
+    /// 想切回来随时可以。要清干净得在切换列表里逐条「移除」。
+    /// </para>
     /// </remarks>
     [RelayCommand]
     private void SignOut() => _login.SignOut();
+
+    // ── 切换账号（弹层的二级列表）────────────────────────────────────────────
+
+    /// <summary>已记住的账号，供二级列表用。</summary>
+    public ObservableCollection<RememberedAccountRow> RememberedAccounts { get; } = [];
+
+    /// <summary>弹层现在显示的是二级列表（而不是账号信息）。</summary>
+    public bool IsSwitchListShown => _switchListShown;
+
+    public Visibility AccountPanelVisibility => Visible(!_switchListShown);
+
+    public Visibility SwitchListVisibility => Visible(_switchListShown);
+
+    /// <summary>列表为空时显示那句说明。</summary>
+    public Visibility EmptyListVisibility => Visible(RememberedAccounts.Count == 0);
+
+    /// <summary>
+    /// 重读「记住的账号」列表。<b>每次打开弹层时调</b> —— 别的入口（登录、切换）都会改动它。
+    /// </summary>
+    public void RefreshRememberedAccounts()
+    {
+        var currentUid = _login.Account?.Uid;
+
+        RememberedAccounts.Clear();
+
+        foreach (var entry in _login.RememberedAccounts)
+        {
+            RememberedAccounts.Add(new RememberedAccountRow(
+                entry,
+                isCurrent: entry.Credential.Uid == currentUid,
+                isStale: _login.IsStale(entry.Credential.Uid)));
+        }
+
+        OnPropertyChanged(nameof(EmptyListVisibility));
+    }
+
+    /// <summary>
+    /// 切到一个已记住的账号。
+    /// </summary>
+    /// <remarks>
+    /// 由窗口的 code-behind 调 —— 切换成功后它要把弹层收起来，那是视图的事。
+    /// 这里只管切换本身，顺带把「切不动」的情况收干净：只可能是列表刚被别处改过，
+    /// 重读一次让用户看到的与实际一致。
+    /// </remarks>
+    /// <returns>真的切过去了返回 <c>true</c>。</returns>
+    public bool SwitchAccount(RememberedAccountRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        if (_login.SwitchTo(row.Uid))
+        {
+            return true;
+        }
+
+        _logger.LogWarning("切换账号失败：{Uid} 不在记住的清单里", row.Uid);
+        RefreshRememberedAccounts();
+
+        return false;
+    }
+
+    /// <summary>从列表里移除一个账号的登录凭据，<b>不动它的本地数据</b>。</summary>
+    /// <remarks>
+    /// 确认框由宿主弹（<c>XamlRoot</c> 拿不到视图模型里），这里只负责移除与刷新。
+    /// </remarks>
+    public void ForgetAccount(RememberedAccountRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        _login.Forget(row.Uid);
+        RefreshRememberedAccounts();
+    }
+
+    /// <summary>
+    /// 进二级列表。
+    /// </summary>
+    /// <remarks>
+    /// <b>不做成命令</b>：进出这一屏要带动画（<c>AppMotion.SwapAsync</c>），而动画元素在视图里，
+    /// 所以由窗口的 code-behind 调这个方法，并且由它自己决定什么时候切。
+    /// </remarks>
+    public void ShowSwitchList()
+    {
+        // 打开二级列表时顺手刷一次：上次打开之后可能刚登录过、或刚切换过。
+        RefreshRememberedAccounts();
+        SetSwitchListShown(true);
+    }
+
+    /// <summary>回账号信息那一屏。理由同 <see cref="ShowSwitchList"/>。</summary>
+    public void HideSwitchList() => SetSwitchListShown(false);
+
+    /// <summary>
+    /// 添加账号。
+    /// </summary>
+    /// <remarks>
+    /// <b>就是「登出到登录页」</b>：登出保留清单（见 <c>IBodianLogin.SignOut</c>），
+    /// 新账号登录成功后会自动记进清单。它和「切换账号」是两件事，所以在界面上分开放。
+    /// </remarks>
+    [RelayCommand]
+    private void AddAccount() => _login.SignOut();
+
+    private void SetSwitchListShown(bool value)
+    {
+        if (_switchListShown == value)
+        {
+            return;
+        }
+
+        _switchListShown = value;
+
+        OnPropertyChanged(nameof(IsSwitchListShown));
+        OnPropertyChanged(nameof(AccountPanelVisibility));
+        OnPropertyChanged(nameof(SwitchListVisibility));
+    }
 
     private void OnAccountChanged(object? sender, EventArgs e)
     {
@@ -240,6 +360,9 @@ public sealed partial class AccountViewModel : ObservableObject
         _metadata = null;
         _playData = null;
         _vip = null;
+
+        // 弹层收回到账号信息那一屏：切换成功后不该还停在上一个账号的列表上。
+        SetSwitchListShown(false);
 
         OnPropertyChanged(nameof(AccountText));
         OnPropertyChanged(nameof(Avatar));

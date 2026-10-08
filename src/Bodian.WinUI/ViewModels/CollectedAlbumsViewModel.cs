@@ -41,4 +41,8 @@ public sealed class CollectedAlbumsViewModel
 
     public Task EnsureLoadedAsync(CancellationToken cancellationToken = default) =>
         Albums.EnsureLoadedAsync(cancellationToken);
+
+    /// <summary>按当前账号重拉第一页。换账号后由页面调，见 <c>IAccountScopedView</c>。</summary>
+    public Task ReloadAsync(CancellationToken cancellationToken = default) =>
+        Albums.ReloadAsync(cancellationToken);
 }

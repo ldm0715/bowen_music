@@ -12,7 +12,7 @@ namespace Bodian.WinUI.Views;
 /// <b>歌单 ≠ 专辑</b>：与 <see cref="CollectedAlbumsPage"/> 是两回事，只是两者都读
 /// <c>service/collect/4/list</c> 这条混合列表端点，这里取 <c>sourceType == 4</c> 的那一半。
 /// </remarks>
-public sealed partial class CollectedPlaylistsPage : Page, INavigationAware
+public sealed partial class CollectedPlaylistsPage : Page, INavigationAware, IAccountScopedView
 {
     /// <summary>收藏来的都是公开歌单；<c>sourceType</c> 缺失时按这个兜底。</summary>
     private const int DefaultPlaylistSource = 4;
@@ -39,6 +39,9 @@ public sealed partial class CollectedPlaylistsPage : Page, INavigationAware
     public CollectedPlaylistsViewModel ViewModel { get; }
 
     public void OnNavigatedTo() => _ = ViewModel.EnsureLoadedAsync();
+
+    /// <summary>换账号了：这一页是上一个账号收藏的歌单。</summary>
+    public Task OnAccountSwitchedAsync() => ViewModel.ReloadAsync();
 
     /// <summary>不需要收尾：列表是懒加载的，没有常驻订阅要摘。</summary>
     public void OnNavigatedFrom()
