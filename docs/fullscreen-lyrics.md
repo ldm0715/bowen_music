@@ -228,11 +228,12 @@ dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj --no-rest
 原生窗口按钮追加验证：移出操作区 4 秒后，可见的最小化、最大化、关闭按钮从 3 个变为 0 个；
 移回顶部后恢复为 3 个，退出歌词页后仍保持 3 个，客户端继续响应。
 
-## 仓库内运行版本
+## 本地运行版本
 
-当前 Release x64 自包含运行版本位于 `artifacts/Bodian.WinUI/Bodian.WinUI.exe`。
-`artifacts/` 已加入 Git 忽略规则，本地程序与原生库不纳入提交；修改源码后需要重新编译该目录。
-不要把默认 Debug 输出与 `artifacts/` 的更新混用，更新一个目录不会同步另一个目录。
+`artifacts/` 是**可随时清空的临时目录**：已加 Git 忽略规则、不进提交，2026-10-08 清空过一次（约 10 GB）。
+需要一份自包含的本地 Release 运行版本时，用下面这条命令发布进去即可，目录由命令自己创建。
+
+不要把默认 Debug 输出与这个目录的更新混用，更新一个目录不会同步另一个目录。
 
 ```powershell
 dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 --self-contained true -p:PublishTrimmed=false -o artifacts/Bodian.WinUI
