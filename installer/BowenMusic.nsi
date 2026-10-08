@@ -1,14 +1,22 @@
-; 波纹音乐 NSIS 安装脚本。构建方式见 docs/release.md。
+﻿; 波纹音乐 NSIS 安装脚本。构建方式见 docs/release.md。
 ;
-; 用法（两个变量都是必传，缺了直接编译失败，不会静默产出一个指向空目录的安装包）：
+; 用法（三个变量都是必传，缺了直接编译失败，不会静默产出一个指向空目录的安装包）：
 ;   makensis /DAPP_VERSION=0.1.0 /DAPP_SOURCE=<publish 输出目录> /DOUTFILE=<输出 exe> installer\BowenMusic.nsi
 ;
-; 约定：
+; ── 三条踩过的坑，改这个文件前先看 ──────────────────────────────────────────
+; ★ 本文件必须存成 **UTF-8 with BOM**。makensis 靠 BOM 判断脚本编码，没有 BOM 时
+;   按 ANSI 代码页读（日志里会显示 "(ACP)"），所有中文会变成乱码 —— 而且是静默的，
+;   编译不报错，装完才发现快捷方式名字是乱码。
+; ★ SetShellVarContext / SetRegView 这类是**运行期指令**，只能写在 Section 或 Function 里。
+;   放在全局作用域会直接编译失败（"not valid outside Section or Function"）。
+; ★ 相对路径用 !cd 锚到脚本所在目录，不要依赖调用者的当前目录。
+;
+; ── 设计约定 ────────────────────────────────────────────────────────────────
 ;   * per-user 安装，装到 %LOCALAPPDATA%\Programs\BowenMusic，**不触发 UAC**。
 ;     应用自己的数据也在 %LOCALAPPDATA% 下，与安装位置同级，语义一致。
-;   * 安装目录名用 ASCII：中文路径本身没问题，但装到非中文用户名的机器上、
-;     或用户手动指定路径时，ASCII 目录名少一类要排查的情况。
-;   * 开始菜单快捷方式**由安装器创建**（安装完立刻就能从开始菜单找到），
+;   * 安装目录名用 ASCII：中文路径本身没问题，但用户手动指定路径时，
+;     ASCII 目录名少一类要排查的情况。
+;   * 开始菜单快捷方式**由安装器创建**（装完立刻就能从开始菜单找到），
 ;     应用启动时会读它、发现缺 AUMID 就重写一遍（见 StartMenuShortcutInstaller）。
 ;     两边路径是同一个文件，不会出现两条重名项。
 ;   * 卸载**默认保留用户数据**，单独问一次要不要删。
@@ -17,10 +25,12 @@ Unicode true
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 
+; 把相对路径（LICENSE、图标）锚到本脚本所在目录，不依赖 makensis 的调用位置。
+!cd "${__FILEDIR__}"
+
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
-!include "x64.nsh"
 
 ; ── 必传变量 ────────────────────────────────────────────────────────────────
 !ifndef APP_VERSION
@@ -52,7 +62,6 @@ OutFile "${OUTFILE}"
 InstallDir "$LOCALAPPDATA\Programs\${APP_ID}"
 InstallDirRegKey HKCU "${UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel user
-SetShellVarContext current
 BrandingText "${APP_NAME} ${APP_VERSION}"
 
 VIProductVersion "${APP_VERSION4}"
@@ -75,7 +84,6 @@ VIAddVersionKey "LegalCopyright"  "GPL-3.0"
 !insertmacro MUI_PAGE_LICENSE "..\LICENSE"
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
-!define MUI_PAGE_CUSTOMFUNCTION_PRE OnInstFilesPre
 !insertmacro MUI_PAGE_INSTFILES
 
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
@@ -87,7 +95,7 @@ VIAddVersionKey "LegalCopyright"  "GPL-3.0"
 
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
-; ── 装卸载 ──────────────────────────────────────────────────────────────────
+; ── 初始化：检查与关闭正在运行的实例 ─────────────────────────────────────────
 
 !macro CloseRunningApp
   ; ★ 用 CSV 输出而不是默认表格：默认输出的「没有匹配任务」提示随系统语言变，
@@ -115,16 +123,24 @@ VIAddVersionKey "LegalCopyright"  "GPL-3.0"
   ${EndIf}
 !macroend
 
-Function OnInstFilesPre
+; 放在 .onInit 而不是某个页面的 PRE：静默安装（/S）时会跳过所有页面，
+; 但 .onInit 一定会执行；而且它跑在欢迎页之前，能更早失败。
+Function .onInit
+  SetShellVarContext current
   !insertmacro CloseRunningApp
 FunctionEnd
 
-Function un.OnUninstallConfirmPre
+Function un.onInit
+  SetShellVarContext current
   !insertmacro CloseRunningApp
 FunctionEnd
+
+; ── 安装 ────────────────────────────────────────────────────────────────────
 
 Section "${APP_NAME}（必需）" SEC_APP
   SectionIn RO
+
+  SetShellVarContext current
   SetOutPath "$INSTDIR"
 
   ; /r 会把 Assets、zh-CN、zh-TW 这些子目录一起铺开。
@@ -154,12 +170,15 @@ Section "${APP_NAME}（必需）" SEC_APP
 SectionEnd
 
 Section "创建桌面快捷方式" SEC_DESKTOP
+  SetShellVarContext current
   CreateShortCut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0 \
     SW_SHOWNORMAL "" "${APP_NAME}"
 SectionEnd
 
 Section "Uninstall"
   ; 卸载器运行时是临时目录里的副本，所以 $INSTDIR 下的 Uninstall.exe 没有被占用。
+  SetShellVarContext current
+
   Delete "$SMPROGRAMS\${APP_NAME}.lnk"
   Delete "$DESKTOP\${APP_NAME}.lnk"
 
