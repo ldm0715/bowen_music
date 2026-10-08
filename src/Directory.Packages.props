@@ -19,6 +19,24 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <!--
+      ★ 下面四个不是"引"进来的，是"挡"进去的。2.5.1 元包会连带这四个与本应用无关的
+      组件，实测白带 55.0 MB（onnxruntime.dll 21.7 MB + DirectML.dll 18.7 MB 来自 ML），
+      源码对它们零引用。用法是逐个声明 + ExcludeAssets="all"，只摘资产不收内容。
+      元包本身必须保留：H.NotifyIcon.WinUI 2.4.1 声明依赖 Microsoft.WindowsAppSDK >= 1.6，
+      摘掉元包会让 NuGet 把 1.6 元包拉回来，与 2.5.1 的 WinUI 重复导入，构建直接失败。
+      详见 docs/size-optimization.md。
+    -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK.AI" Version="2.5.5" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Search" Version="2.5.5" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Widgets" Version="2.0.5" />
+    <!--
+      onnxruntime.dll 与 DirectML.dll 不在 Microsoft.WindowsAppSDK.ML 里，而在它的依赖
+      Microsoft.Windows.AI.MachineLearning 里（39.4 MB）。挡住前者不会连带挡住后者，
+      必须单独列出来，否则 CPU 推理栈照样进输出目录。
+    -->
+    <PackageVersion Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" />
     <!-- P5 引入。逐字歌词渲染，XAML 的 TextBlock 没有逐字定位 API，做不了单字裁剪/缩放 -->
     <PackageVersion Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <!-- 下面两个 P1 只登记版本、不引用，省得 P2 再核一遍 -->

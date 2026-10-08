@@ -20,4 +20,14 @@
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
+  <!--
+    默认保留 PDB：线上出问题时靠 Serilog 日志里的行号定位，别为 1.6 MB 丢掉。
+    出包时加 -p:DistributionBuild=true 去掉，省 Bodian.WinUI.pdb 与 Bodian.Core.pdb。
+    放在这里而不是某个 csproj：一行同时覆盖 Core 与 WinUI，免得只去掉一个。
+  -->
+  <PropertyGroup Condition="'$(DistributionBuild)' == 'true'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
 </Project>

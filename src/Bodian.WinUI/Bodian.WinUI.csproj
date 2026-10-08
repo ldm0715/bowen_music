@@ -23,12 +23,27 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>true</EnableMsixTooling>
 
+    <!--
+      只保留简繁中文的附属资源。这条管的是托管附属程序集（.resources.dll）。
+      注意：它管不到 WinAppSDK 的原生 .mui，那批走下面的 _TrimWinAppSDKFrameworkLanguages。
+    -->
+    <SatelliteResourceLanguages>zh-Hans;zh-Hant</SatelliteResourceLanguages>
+
     <!-- 关掉反射序列化：DTO 必须走 JsonSerializerContext -->
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <!--
+      这四个只做 ExcludeAssets="all"，目的是挡掉元包连带进来的原生资产，不是要使用它们。
+      摘掉的理由与踩过的坑见 src/Directory.Packages.props 的注释。
+    -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
     <!-- 歌词的逐字渲染。原生 Microsoft.Graphics.Canvas.dll 会随 RID(win-x64) 拷进输出目录 -->
     <PackageReference Include="Microsoft.Graphics.Win2D" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
@@ -75,6 +90,29 @@
     <Content Include="Assets\Ripple.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\RippleLight.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!--
+    WinAppSDK 的原生语言资源放在包的 runtimes-framework 下，由 Base 的
+    SelfContained.targets 自己拷贝，不走 NuGet 的附属资源机制——所以
+    SatelliteResourceLanguages 对它们无效。实测铺 91 个语言目录，每个两份 .mui，
+    合计 3.4 MB，对中文用户是死重量，这里只留简繁中文。
+
+    ★ 走的是在 WinAppSDK 拷完之后、按 Link 元数据把 None 项摘掉的路线，不去碰它内部的
+      MicrosoftWindowsAppSDKFilesExcluded 口子。试过那个口子：它的 item spec 形如
+      ...\buildTransitive\..\，排除清单的路径只要经过一次规范化就对不上，会静默失效；
+      而用 %(Identity) 原样拼又会让 glob 不展开。踩不起，不如自己按 Link 删。
+    ★ 语言目录里只有 .mui，所以按 Link 以 .mui 结尾来判定，既精确又不会误伤
+      Microsoft.UI.Xaml\Assets 里的 .png / .html。
+    ★ 必须写在 Target 里：%(Link) 这类元数据不允许出现在求值期的 Condition 中（MSB4190）。
+  -->
+  <Target Name="_TrimWinAppSDKFrameworkLanguages"
+          AfterTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents">
+    <ItemGroup>
+      <_WinAppSDKLangMui Include="@(None)"
+          Condition="$([System.String]::Copy('%(None.Link)').EndsWith('.mui')) and !$([System.String]::Copy('%(None.Link)').StartsWith('zh-CN\')) and !$([System.String]::Copy('%(None.Link)').StartsWith('zh-TW\'))" />
+      <None Remove="@(_WinAppSDKLangMui)" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\Bodian.Core\Bodian.Core.csproj" />
