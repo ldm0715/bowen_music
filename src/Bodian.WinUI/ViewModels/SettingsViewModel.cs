@@ -41,7 +41,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         ShortcutSettingsViewModel shortcuts,
         StorageSettingsViewModel storage,
         AboutViewModel about,
-        InputMethodSettingsViewModel inputMethod)
+        InputMethodSettingsViewModel inputMethod,
+        RestoreQueueSettingsViewModel restoreQueue)
     {
         ArgumentNullException.ThrowIfNull(theme);
         ArgumentNullException.ThrowIfNull(player);
@@ -53,6 +54,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(storage);
         ArgumentNullException.ThrowIfNull(about);
         ArgumentNullException.ThrowIfNull(inputMethod);
+        ArgumentNullException.ThrowIfNull(restoreQueue);
 
         Theme = theme;
         Player = player;
@@ -64,6 +66,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Storage = storage;
         About = about;
         InputMethod = inputMethod;
+        RestoreQueue = restoreQueue;
 
         Categories =
         [
@@ -138,6 +141,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public AboutViewModel About { get; }
 
     public InputMethodSettingsViewModel InputMethod { get; }
+
+    /// <summary>「记住播放列表」开关。薄壳，真值在 <see cref="Coordinator"/> 里。</summary>
+    public RestoreQueueSettingsViewModel RestoreQueue { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAppearanceSelected))]

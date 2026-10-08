@@ -139,6 +139,13 @@ public partial class App : Application
             logger: sp.GetRequiredService<ILogger<JsonAudioQualitySettingsStore>>()));
         builder.Services.AddSingleton<IPlaybackSettingsStore>(sp => new JsonPlaybackSettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonPlaybackSettingsStore>>()));
+
+        // 播放队列快照与音量偏好，各占一个文件。构造参数里都有可选路径，同样显式写工厂。
+        // 队列那份可能几百首、每次增删切歌都要重写，所以与上面那份小偏好分开存。
+        builder.Services.AddSingleton<IPlayQueueSnapshotStore>(sp => new JsonPlayQueueSnapshotStore(
+            logger: sp.GetRequiredService<ILogger<JsonPlayQueueSnapshotStore>>()));
+        builder.Services.AddSingleton<IVolumeSettingsStore>(sp => new JsonVolumeSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonVolumeSettingsStore>>()));
         builder.Services.AddSingleton<PlaybackCoordinator>();
 
         // 系统媒体控件。构造时只订阅事件，会话在首次播放时才建 —— 所以必须在这里解析一次，
@@ -215,6 +222,8 @@ public partial class App : Application
         // 它要在主窗口的 HWND 上装子类，所以得活到进程结束。
         builder.Services.AddSingleton<SingleInstanceCoordinator>();
         builder.Services.AddSingleton<PlayQueueViewModel>();
+        // 「记住播放列表」开关的薄壳。真值在 PlaybackCoordinator 里，先后顺序由依赖保证。
+        builder.Services.AddSingleton<RestoreQueueSettingsViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
         builder.Services.AddSingleton<ISearchHistoryStore, JsonSearchHistoryStore>();
@@ -434,6 +443,10 @@ public partial class App : Application
             // 桌面歌词窗与小窗也是独立的窗口，不关掉它们进程不会退出。
             _host.Services.GetRequiredService<DesktopLyricsWindowHost>().Dispose();
             _host.Services.GetRequiredService<MiniPlayerWindowHost>().Dispose();
+
+            // 退出前把「播到哪了」同步写下去。必须排在释放引擎之前 —— 位置要从引擎读。
+            // 点 ✕ 关到托盘时窗口关闭被取消、这里根本不会跑，正是所愿：只有真退出才落最后一笔。
+            _host.Services.GetRequiredService<PlaybackCoordinator>().FlushForShutdown();
 
             // 先撤 SMTC 会话（它读引擎状态，得在引擎之前放）。
             _host.Services.GetRequiredService<SmtcManager>().Dispose();

@@ -26,9 +26,35 @@ public sealed class PlaybackCoordinator : IDisposable
     private readonly ILogger<PlaybackCoordinator> _logger;
     private readonly IAudioQualitySettingsStore? _qualitySettings;
     private readonly IPlaybackSettingsStore? _playbackSettings;
+    private readonly IPlayQueueSnapshotStore? _queueStore;
     private readonly SemaphoreSlim _loadGate = new(1, 1);
+    private readonly System.Threading.Timer? _persistTimer;
     private CancellationTokenSource? _operation;
     private bool _disposed;
+
+    /// <summary>队列落盘的防抖时长。见 <see cref="RequestPersist"/>。</summary>
+    private static readonly TimeSpan SnapshotDebounce = TimeSpan.FromSeconds(1);
+
+    /// <summary>播放中不切歌时，进度落盘的粒度。见 <see cref="OnEnginePositionChangedForPersist"/>。</summary>
+    private static readonly TimeSpan PositionCheckpoint = TimeSpan.FromSeconds(30);
+
+    /// <summary>距末尾不足这么多就不续播。见 <see cref="IsResumable"/>。</summary>
+    private static readonly TimeSpan ResumeTailGuard = TimeSpan.FromSeconds(10);
+
+    /// <summary>最新一份待写快照；计时器线程取走它去落盘。</summary>
+    private PlayQueueSnapshot? _pending;
+
+    /// <summary>「重启后恢复播放列表」开关。关掉时所有落盘路径都早退。</summary>
+    private bool _restoreEnabled = true;
+
+    /// <summary>待续播曲目的 id。<b>按 id 配对</b>，起播成功即消费掉（见 <see cref="StartAsync"/>）。</summary>
+    private long _resumeTrackId;
+
+    /// <summary>待续播曲目停在第几秒。与 <see cref="_resumeTrackId"/> 同生共死。</summary>
+    private TimeSpan _resumePosition;
+
+    /// <summary>进度检查点的基准位置。见 <see cref="OnEnginePositionChangedForPersist"/>。</summary>
+    private TimeSpan _lastCheckpoint;
 
     /// <summary>
     /// 队列是不是已经播到头了（顺序模式放完最后一首）。
@@ -52,7 +78,8 @@ public sealed class PlaybackCoordinator : IDisposable
         IPlayHistoryStore history,
         ILogger<PlaybackCoordinator>? logger = null,
         IAudioQualitySettingsStore? qualitySettings = null,
-        IPlaybackSettingsStore? playbackSettings = null)
+        IPlaybackSettingsStore? playbackSettings = null,
+        IPlayQueueSnapshotStore? queueStore = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(engine);
@@ -64,11 +91,27 @@ public sealed class PlaybackCoordinator : IDisposable
         _logger = logger ?? NullLogger<PlaybackCoordinator>.Instance;
         _qualitySettings = qualitySettings;
         _playbackSettings = playbackSettings;
+        _queueStore = queueStore;
         var preference = qualitySettings?.Load() ?? AudioQuality.Lossless;
         PreferredQuality = Enum.IsDefined(preference) ? preference : AudioQuality.Lossless;
+
+        // 模式要先于恢复设置：Replace 会按当前模式建排列，反过来的话随机模式恢复不出洗牌序。
         Queue.Mode = playbackSettings?.Load() is { } savedMode && Enum.IsDefined(savedMode)
             ? savedMode
             : PlayMode.Sequential;
+
+        // 顺序不能改：先把磁盘上的队列装回去，再挂落盘钩子。
+        // 恢复那一刻一个订阅者都没有（播放条、队列面板、系统媒体控件都依赖本类，构造都在本类之后），
+        // 所以 Replace 抛出的 Changed 引发不了任何反应 ——「刚读出来就写回去」与「往系统媒体面板
+        // 注册一条假会话」这两条在结构上不可能发生，因此不需要一个加载中的守卫标志。
+        // 谁把下面的订阅挪到 RestoreQueue 之前，就会踩这两个坑。
+        RestoreQueue(queueStore?.Load() ?? PlayQueueSnapshot.Default);
+        Queue.Changed += OnQueueChangedForPersist;
+        _engine.PositionChanged += OnEnginePositionChangedForPersist;
+        _engine.StateChanged += OnEngineStateChangedForPersist;
+        _persistTimer = queueStore is null
+            ? null
+            : new System.Threading.Timer(_ => FlushPending(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
         _engine.Ended += OnEngineEnded;
         _engine.Failed += OnEngineFailed;
@@ -90,6 +133,19 @@ public sealed class PlaybackCoordinator : IDisposable
     /// 读的人和 <see cref="Started"/> 的订阅方必须看到同一个答案，所以赋值放在事件触发之前。
     /// </remarks>
     public Track? CurrentTrack { get; private set; }
+
+    /// <summary>
+    /// 启动时从磁盘恢复出来的「上次停在这」。没有恢复时为 <c>null</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>只给播放条视图模型在构造时读一次。</b> 它存在的唯一理由见那边的应用方法：不把这一首铺到
+    /// 播放条上，播放键就是禁用的，用户没有入口把恢复出来的队列放起来。
+    /// <para>
+    /// <b>刻意保持 internal，且不要出现在 XAML 可见类型的公开属性上。</b> 类型信息生成器会为公开
+    /// 属性里的类型生成激活代码，而 <see cref="Track"/> 带 required 成员、生成器造不出实例。
+    /// </para>
+    /// </remarks>
+    internal RestoredQueueState? RestoredState { get; private set; }
 
     /// <summary>成功开始播放（含试听）。</summary>
     public event EventHandler<PlaybackStartedEventArgs>? Started;
@@ -375,6 +431,225 @@ public sealed class PlaybackCoordinator : IDisposable
     /// <summary>队列顺序能不能被用户重排。界面据此决定显不显示拖动条。</summary>
     public bool CanReorderQueue => Queue.CanReorder;
 
+    /// <summary>「重启后恢复播放列表」这个开关。</summary>
+    public bool RestoreQueueEnabled => _restoreEnabled;
+
+    /// <summary>
+    /// 改「记住播放列表」开关。
+    /// </summary>
+    /// <remarks>
+    /// <b>关掉时把盘上已存的队列一并抹掉</b>：用户说的是「别记我的播放列表」，留一份在磁盘上等下次
+    /// 打开复活，与这句话相反。抹掉之后「重新打开开关时从下一次变更开始保存」这条也就自动成立 ——
+    /// 盘上没有旧数据可复活。<b>不动内存里的队列</b>：关掉只是不落盘，正在播的那首、抽屉里的列表照旧。
+    /// </remarks>
+    /// <returns>写盘成功返回 <c>true</c>；失败时这个开关一并回滚，调用方据此回滚界面并提示。</returns>
+    public bool SetRestoreQueueEnabled(bool enabled)
+    {
+        if (_restoreEnabled == enabled) { return true; }
+
+        var previous = _restoreEnabled;
+        _restoreEnabled = enabled;
+
+        if (_queueStore is null) { return true; }
+
+        // 开与关都只写一份带开关的空快照：关是抹掉已有条目，开是留个空壳、等下一次队列变更
+        // 再把真实内容写上（用户要的就是「从下一次变更开始」）。
+        if (_queueStore.Save(new PlayQueueSnapshot { RestoreEnabled = enabled }))
+        {
+            _logger.LogInformation("恢复播放列表：{State}", enabled ? "开" : "关");
+            return true;
+        }
+
+        _restoreEnabled = previous;
+        return false;
+    }
+
+    /// <summary>
+    /// 退出前的同步落盘。
+    /// </summary>
+    /// <remarks>
+    /// <b>由应用在释放引擎之前调用</b>（位置要从引擎读）。只在真退出时走这条路 —— 点 ✕ 关到托盘
+    /// 取消了窗口关闭，这里不会被触发，正如所愿。它补上「最后一次变更的防抖还没到点就退出了」那个窗口。
+    /// </remarks>
+    public void FlushForShutdown()
+    {
+        if (!_restoreEnabled || _queueStore is null) { return; }
+
+        _persistTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _pending = null;                        // 排队中那份已经过时
+        _queueStore.Save(CaptureSnapshot());     // 同步：进程马上要没了
+    }
+
+    /// <summary>
+    /// 把磁盘上的快照装回队列。<b>必须在挂落盘钩子之前调用。</b>
+    /// </summary>
+    /// <remarks>
+    /// <b>此刻一个订阅者都没有</b>（其余各方都依赖本类、因而构造在本类之后），所以
+    /// <c>Replace</c> 抛出的 <c>Changed</c> 不会引发任何反应。
+    /// </remarks>
+    private void RestoreQueue(PlayQueueSnapshot snapshot)
+    {
+        _restoreEnabled = snapshot.RestoreEnabled;
+
+        if (!_restoreEnabled || snapshot.Items.Length == 0) { return; }
+
+        var tracks = new List<Track>(snapshot.Items.Length);
+        foreach (var item in snapshot.Items)
+        {
+            // 坏条目丢掉，别让它拖垮整条队列。
+            if (item.Id <= 0 || item.Title.Length == 0) { continue; }
+            tracks.Add(item.ToTrack());
+        }
+
+        if (tracks.Count == 0) { return; }
+
+        // 以 id 为准找回当前曲目：坏条目被过滤后下标会整体错位，所以 id 优先、下标只作兜底。
+        var index = snapshot.CurrentTrackId > 0
+            ? tracks.FindIndex(t => t.Id == snapshot.CurrentTrackId)
+            : -1;
+        if (index < 0) { index = Math.Clamp(snapshot.CurrentIndex, 0, tracks.Count - 1); }
+
+        Queue.Replace(tracks, index);
+
+        var position = double.IsFinite(snapshot.PositionSeconds) && snapshot.PositionSeconds > 0
+            ? TimeSpan.FromSeconds(snapshot.PositionSeconds)
+            : TimeSpan.Zero;
+
+        _resumeTrackId = tracks[index].Id;
+        _resumePosition = position;
+        _lastCheckpoint = position;
+        RestoredState = new RestoredQueueState(tracks[index], position);
+
+        _logger.LogInformation("已恢复播放列表：{Count} 首，当前第 {Index} 首，续播位置 {Position}",
+            tracks.Count, index, position);
+    }
+
+    /// <summary>
+    /// 这次该从第几秒起播；没有待续播时返回 <c>null</c>（从头播）。
+    /// </summary>
+    /// <remarks>
+    /// <b>按 id 配对</b>：用户换了别的歌、或队列里那首被删掉重建，id 对不上自然失效，
+    /// 不需要在切歌路径上清理。试听片段不走这里（见 <see cref="PlayCurrentAsync"/> 的试听分支）。
+    /// </remarks>
+    private TimeSpan? ResumePointFor(Track track)
+    {
+        if (track.Id <= 0 || track.Id != _resumeTrackId || _resumePosition <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        return IsResumable(track, _resumePosition) ? _resumePosition : null;
+    }
+
+    /// <summary>
+    /// 这个位置还值得续吗。
+    /// </summary>
+    /// <remarks>
+    /// <b>用绝对秒数而不是百分比</b>：上次停在 95% 的地方，恢复后点播放只会听到最后几秒然后跳到下一首 ——
+    /// 那不是「接着听」，是「播了个尾巴」。而 10 分钟的歌只剩 30 秒是值得续的、3 分钟的歌只剩 9 秒不值，
+    /// 百分比在两处都给出错误的答案。时长未知（服务端没给）时只能信这个位置本身。
+    /// </remarks>
+    private static bool IsResumable(Track track, TimeSpan position)
+    {
+        var duration = track.Duration;
+        return duration <= TimeSpan.Zero || duration - position > ResumeTailGuard;
+    }
+
+    /// <summary>
+    /// 抓一份当前状态。<b>只能在 UI 线程调</b> —— 要读 <c>Queue.Items</c>（一个 List）。
+    /// </summary>
+    private PlayQueueSnapshot CaptureSnapshot()
+    {
+        var items = Queue.Items;
+        var buffer = new QueuedTrack[items.Count];
+        for (var i = 0; i < items.Count; i++) { buffer[i] = QueuedTrack.From(items[i]); }
+
+        return new PlayQueueSnapshot
+        {
+            RestoreEnabled = true,
+            Items = buffer,
+            CurrentTrackId = Queue.Current?.Id ?? 0,
+            CurrentIndex = Queue.CurrentIndex,
+            PositionSeconds = CurrentPositionSeconds(),
+        };
+    }
+
+    /// <summary>
+    /// 当前曲目此刻停在第几秒。
+    /// </summary>
+    /// <remarks>
+    /// <b>引擎里真的装着这一首时才读引擎</b>，否则回落成「恢复出来的待续播位置」—— 恢复后引擎是闲置、
+    /// 位置为 0，用户可能连队列都没动过就退出了，不这么做会把续播位置冲成 0。
+    /// 读引擎的位置而不是播放条视图模型的进度：后者被拖动状态挡着，方向也是视图模型 ← 引擎，
+    /// 反过来会成环。
+    /// </remarks>
+    private double CurrentPositionSeconds()
+    {
+        if (Queue.Current is not { } current) { return 0; }
+
+        if (CurrentTrack is { } playing && playing.Id == current.Id
+            && _engine.State is PlaybackState.Playing or PlaybackState.Paused or PlaybackState.Loading)
+        {
+            return _engine.Position.TotalSeconds;
+        }
+
+        return current.Id == _resumeTrackId ? _resumePosition.TotalSeconds : 0;
+    }
+
+    /// <summary>
+    /// 请求落盘。<b>快照在调用线程（UI 线程）上抓</b>，计时器线程只负责序列化与写盘。
+    /// </summary>
+    /// <remarks>
+    /// <b>为什么防抖而不是立刻写</b>：队列可能几百首，随机模式下每个「下一首」都会改队列，
+    /// 快速连点会连着重建整份文件。攒 1 秒与窗口位置那套防抖是同一个数量级。
+    /// 注意这与偏好设置「改了就立刻落盘」不同 —— 那些是低频改动，队列不是。
+    /// </remarks>
+    private void RequestPersist()
+    {
+        if (!_restoreEnabled || _disposed || _queueStore is null) { return; }
+
+        _pending = CaptureSnapshot();
+        _persistTimer?.Change(SnapshotDebounce, Timeout.InfiniteTimeSpan);
+    }
+
+    private void FlushPending()
+    {
+        // 后来的快照覆盖先前的，所以只要最新那份就够了。
+        var snapshot = Interlocked.Exchange(ref _pending, null);
+        if (snapshot is null || _queueStore is not { } store) { return; }
+
+        _ = Task.Run(() =>
+        {
+            try { store.Save(snapshot); }
+            catch (Exception ex) { _logger.LogWarning(ex, "保存播放队列失败"); }
+        });
+    }
+
+    private void OnQueueChangedForPersist(object? sender, EventArgs e) => RequestPersist();
+
+    /// <summary>播到哪了的粗粒度检查点，供播放中长时间不切歌时兜底。</summary>
+    /// <remarks>
+    /// <b>按进度差而不是按墙钟</b>：暂停期间进度不动，就不会白写；拖动造成的回退也算一次变更
+    /// （不落到新基准的话，拖动后要一直等追上原位置才会再次落盘）。
+    /// </remarks>
+    private void OnEnginePositionChangedForPersist(object? sender, PlaybackPositionChangedEventArgs e)
+    {
+        var delta = e.Position - _lastCheckpoint;
+        if (delta >= TimeSpan.Zero && delta < PositionCheckpoint) { return; }
+
+        _lastCheckpoint = e.Position;
+        RequestPersist();
+    }
+
+    /// <summary>暂停、停止、回到闲置时补写一次 —— 这是用户最可能紧接着关应用的时刻。</summary>
+    private void OnEngineStateChangedForPersist(object? sender, PlaybackStateChangedEventArgs e)
+    {
+        if (e.State is PlaybackState.Paused or PlaybackState.Stopped or PlaybackState.Idle)
+        {
+            RequestPersist();
+        }
+    }
+
     /// <summary>解析并播放当前队列项。</summary>
     private async Task PlayCurrentAsync(CancellationToken cancellationToken = default)
     {
@@ -393,7 +668,10 @@ public sealed class PlaybackCoordinator : IDisposable
             switch (resolution)
             {
                 case PlaybackResolution.Playable playable:
-                    await StartAsync(track, policy, playable.Source, null, null, ct).ConfigureAwait(true);
+                    // 第四个参数是起播位置：恢复出来的那首从上次停的地方接着放，其余为 null（从头播）。
+                    // 走 start 参数而不是加载完再 Seek —— 文件还没打开时 seek 会踩到「位置属性不存在」，
+                    // 引擎把状态砸成闲置并弹一条错误条。
+                    await StartAsync(track, policy, playable.Source, ResumePointFor(track), null, ct).ConfigureAwait(true);
                     break;
                 case PlaybackResolution.AuditionOnly audition:
                     await StartAsync(track, policy, audition.Source, audition.Start, audition.End, ct)
@@ -436,6 +714,13 @@ public sealed class PlaybackCoordinator : IDisposable
             CurrentTrack = track;
             CurrentPolicy = policy;
             CurrentSource = source;
+
+            // 续播意图到这一刻就用掉了：之后进度一律以引擎为准，不能让恢复时那个旧位置在播放结束、
+            // 引擎回到闲置之后又被当成「当前进度」写进快照。
+            _resumeTrackId = 0;
+            _resumePosition = TimeSpan.Zero;
+            _lastCheckpoint = TimeSpan.Zero;
+
             Started?.Invoke(this, new PlaybackStartedEventArgs(track, policy, source));
             QualityOptionsChanged?.Invoke(this, EventArgs.Empty);
             RecordHistory(track);
@@ -565,6 +850,10 @@ public sealed class PlaybackCoordinator : IDisposable
         if (_disposed) { return; }
         _disposed = true;
         _operation?.Cancel();
+        _persistTimer?.Dispose();
+        Queue.Changed -= OnQueueChangedForPersist;
+        _engine.PositionChanged -= OnEnginePositionChangedForPersist;
+        _engine.StateChanged -= OnEngineStateChangedForPersist;
         _engine.Ended -= OnEngineEnded;
         _engine.Failed -= OnEngineFailed;
     }
@@ -657,3 +946,13 @@ public sealed class PlaybackQualityChangedEventArgs(Track track, AudioSource sou
     public AudioSource Source { get; } = source;
     public TimeSpan Position { get; } = position;
 }
+
+/// <summary>
+/// 启动时从磁盘恢复出来的「上次停在这」。
+/// </summary>
+/// <remarks>
+/// <b>刻意保持 internal。</b> 它带着 <see cref="Track"/>，而类型信息生成器会为 XAML 可见类型的公开
+/// 属性生成激活代码，带 required 成员的 <see cref="Track"/> 造不出实例、会编译失败。
+/// 只由播放条视图模型在构造时经 <c>PlaybackCoordinator.RestoredState</c> 读一次。
+/// </remarks>
+internal sealed record RestoredQueueState(Track Track, TimeSpan Position);

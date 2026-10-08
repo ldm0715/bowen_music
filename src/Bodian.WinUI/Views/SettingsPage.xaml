@@ -247,6 +247,15 @@
                                             SelectedIndex="{x:Bind ViewModel.PlayModeIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
+                                <Border Style="{StaticResource BodianSettingsRowDivider}" />
+                                <controls:SettingsRow Description="退出后下次打开接着上次的列表；不自动播放，点播放键从上次停的地方继续" Header="记住播放列表">
+                                    <controls:SettingsRow.RightContent>
+                                        <ToggleSwitch
+                                            IsOn="{x:Bind ViewModel.RestoreQueue.Enabled, Mode=TwoWay}"
+                                            MinWidth="0" OffContent="" OnContent=""
+                                            AutomationProperties.Name="记住播放列表" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
                             </StackPanel>
                         </Border>
                     </StackPanel>

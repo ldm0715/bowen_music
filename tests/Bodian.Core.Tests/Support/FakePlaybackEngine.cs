@@ -42,13 +42,30 @@ internal sealed class FakePlaybackEngine : IPlaybackService
         Ended?.Invoke(this, EventArgs.Empty);
     }
 
-    public event EventHandler<PlaybackStateChangedEventArgs>? StateChanged { add { } remove { } }
+    public event EventHandler<PlaybackStateChangedEventArgs>? StateChanged;
 
-    public event EventHandler<PlaybackPositionChangedEventArgs>? PositionChanged { add { } remove { } }
+    public event EventHandler<PlaybackPositionChangedEventArgs>? PositionChanged;
 
     public event EventHandler? Ended;
 
     public event EventHandler<PlaybackFailedEventArgs>? Failed { add { } remove { } }
+
+    /// <summary>最后一次设置过来的音量；从没设过时为 <c>null</c>。</summary>
+    public double? LastVolume { get; private set; }
+
+    /// <summary>模拟一次进度变化，验进度检查点用。</summary>
+    public void RaisePosition(TimeSpan position)
+    {
+        Position = position;
+        PositionChanged?.Invoke(this, new PlaybackPositionChangedEventArgs(position, Duration));
+    }
+
+    /// <summary>模拟一次状态变化，验「暂停时补写一次」用。</summary>
+    public void RaiseState(PlaybackState state)
+    {
+        State = state;
+        StateChanged?.Invoke(this, new PlaybackStateChangedEventArgs(state));
+    }
 
     public Task LoadAsync(PlaybackSource source, CancellationToken cancellationToken = default)
     {
@@ -95,9 +112,7 @@ internal sealed class FakePlaybackEngine : IPlaybackService
         return Task.CompletedTask;
     }
 
-    public void SetVolume(double volume)
-    {
-    }
+    public void SetVolume(double volume) => LastVolume = volume;
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

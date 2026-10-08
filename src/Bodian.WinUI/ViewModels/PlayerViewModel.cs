@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media;
 
 namespace Bodian.WinUI.ViewModels;
@@ -33,7 +34,16 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// <summary>静音标记与「改音量即解除静音」那条规则。</summary>
     private readonly VolumeState _volumeState = new();
 
+    private readonly IVolumeSettingsStore? _volumeSettings;
+    private readonly DispatcherQueueTimer? _volumeSaveTimer;
+
+    /// <summary>正在把读盘的值灌进来。<b>只挡落盘，不挡送引擎。</b></summary>
+    private bool _loadingVolume;
+
     private int _coverDecodePixels = 256;
+
+    /// <summary>音量落盘的防抖时长。见 <see cref="OnVolumeChanged"/>。</summary>
+    private static readonly TimeSpan VolumeSaveDelay = TimeSpan.FromSeconds(1);
 
     public PlayerViewModel(
         PlaybackCoordinator coordinator,
@@ -42,7 +52,8 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         NotificationViewModel notifications,
         BodianSession session,
         IClipboardService clipboard,
-        ILogger<PlayerViewModel>? logger = null)
+        ILogger<PlayerViewModel>? logger = null,
+        IVolumeSettingsStore? volumeSettings = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(engine);
@@ -58,6 +69,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         _session = session;
         _clipboard = clipboard;
         _logger = logger ?? NullLogger<PlayerViewModel>.Instance;
+        _volumeSettings = volumeSettings;
 
         _coordinator.QualityOptionsChanged += (_, _) => RefreshQualityOptions();
         _coordinator.QualityChanged += (_, e) =>
@@ -85,6 +97,22 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         _engine.StateChanged += OnEngineStateChanged;
         _engine.Failed += OnEngineFailed;
         RefreshQualityOptions();
+
+        _volumeSaveTimer = DispatcherQueue.GetForCurrentThread()?.CreateTimer();
+        if (_volumeSaveTimer is not null)
+        {
+            _volumeSaveTimer.Interval = VolumeSaveDelay;
+            _volumeSaveTimer.IsRepeating = false;
+            _volumeSaveTimer.Tick += (_, _) => PersistVolume();
+        }
+
+        RestoreVolume();
+
+        // 上次退出时停在队列里的那一首，铺到播放条上 —— 但不自动播放。
+        if (_coordinator.RestoredState is { } restored)
+        {
+            ApplyRestoredTrack(restored.Track, restored.Position.TotalSeconds);
+        }
     }
 
     public TrackStatisticsViewModel Statistics { get; }
@@ -443,7 +471,39 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         }
 
         _engine.SetVolume(_volumeState.EffectiveVolume(value));
+
+        // 启动时读回来的那一次不写回去 —— 就是项目里那个「装载中」守卫。
+        // 它只挡落盘，不挡上面的 SetVolume：引擎永远立刻响应。
+        if (_loadingVolume) { return; }
+
+        // 拖动滑条时每像素都会走到这里，攒 1 秒再写。
+        _volumeSaveTimer?.Stop();
+        _volumeSaveTimer?.Start();
     }
+
+    /// <summary>
+    /// 把上次的音量读回来灌进播放条。
+    /// </summary>
+    /// <remarks>
+    /// <b>赋 <see cref="Volume"/> 就顺带把它送进了引擎</b>（走 <see cref="OnVolumeChanged"/>），
+    /// 不需要另外调引擎 —— 引擎此刻还没初始化原生库，那里只会记住字段，首次播放时再补写进去。
+    /// 「装载中」守卫保证这次赋值不会被当成用户改动而写回磁盘。
+    /// </remarks>
+    private void RestoreVolume()
+    {
+        _loadingVolume = true;
+        try
+        {
+            var saved = _volumeSettings?.Load().Level ?? VolumeSettings.DefaultLevel;
+            Volume = double.IsFinite(saved)
+                ? Math.Clamp(saved, VolumeSettings.MinimumLevel, VolumeSettings.MaximumLevel)
+                : VolumeSettings.DefaultLevel;
+        }
+        finally { _loadingVolume = false; }
+    }
+
+    /// <summary>把当前音量写盘。由防抖计时器触发；失败只记日志，不回滚滑块。</summary>
+    private void PersistVolume() => _volumeSettings?.Save(new VolumeSettings(Volume));
 
     // ── 引擎事件 ────────────────────────────────────────────────────────────
 
@@ -533,6 +593,38 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
             },
             NoticeSeverity.Error);
 
+        UpdateQueueButtons();
+    }
+
+    /// <summary>
+    /// 把「上次退出时停在队列这一首、这个位置」铺到播放条上。
+    /// </summary>
+    /// <remarks>
+    /// <b>与播不成时那条路径是同一个状态：有曲目信息、但引擎里什么都没加载。</b>
+    /// 不铺这一下的后果不是「不好看」—— 没有曲目时播放键是禁用的，用户根本没有入口把恢复出来的
+    /// 这首放起来，也就无从「点播放从上次停的地方继续」。
+    /// <para>
+    /// <b>刻意不铺音质描述、不置「正在播放」。</b> 前者要等真取了音源才知道；后者为真是撒谎，
+    /// 引擎此刻是闲置的。
+    /// </para>
+    /// </remarks>
+    private void ApplyRestoredTrack(Track track, double positionSeconds)
+    {
+        HasTrack = true;
+        CurrentTrack = track;
+        HasMv = track.HasMv;
+        Title = track.Title;
+        ArtistText = track.ArtistText;
+        ApplyTrackDetails(track);
+        CurrentTrackId = track.Id;
+        IsAudition = false;
+        PositionSeconds = positionSeconds;
+        DurationSeconds = track.Duration.TotalSeconds;
+        IsPlaying = false;
+        RefreshQualityOptions();
+
+        // 少了这句，上一首/下一首按钮永远是灰的：两个可用性只在队列变更事件里刷新，
+        // 而恢复那一次变更发生在订阅之前。
         UpdateQueueButtons();
     }
 

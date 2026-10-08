@@ -88,6 +88,26 @@ public static class AppPaths
     public static string PlaybackSettingsFile => Path.Combine(LocalAppData, "playback.json");
 
     /// <summary>
+    /// 播放队列快照（明文 JSON）：开关 + 条目 + 当前曲目 + 续播位置。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="PlaybackSettingsFile"/> 刻意分开</b>：那份是「顺序播还是随机播」这样的小偏好，
+    /// 几行、很少写；这份几百首、每次增删切歌都要重写一次。写入频率差三个数量级的东西挤进一个文件，
+    /// 等于让每一次队列落盘都连带重写整份偏好（或者引入读-改-写）。
+    /// </remarks>
+    public static string PlayQueueFile => Path.Combine(LocalAppData, "queue.json");
+
+    /// <summary>
+    /// 播放音量偏好（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>不含静音</b>：静音是会话级标记，落盘会造出「启动后没声音、用户以为坏了」这一后果。
+    /// <b>单独一份</b>的理由与队列文件相同 —— 音量是拖动时的高频写，与播放模式、队列混在一起
+    /// 只会让读写互相牵制。
+    /// </remarks>
+    public static string VolumeFile => Path.Combine(LocalAppData, "volume.json");
+
+    /// <summary>
     /// 上次关闭时的窗口位置与大小（明文 JSON）。
     /// </summary>
     /// <remarks>
