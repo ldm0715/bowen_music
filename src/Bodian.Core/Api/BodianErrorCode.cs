@@ -24,8 +24,29 @@ public enum BodianErrorCode
     /// <summary>需要鉴权。<b>必须清除本地会话。</b></summary>
     NeedAuth = 11012,
 
-    /// <summary>扫码已扫未确认（仅登录轮询）。**继续轮询，不算失败。**</summary>
+    /// <summary>
+    /// 登录中间态：<c>ucenter/users/login</c> 上「已扫未确认」。**继续轮询，不算失败。**
+    /// </summary>
+    /// <remarks>
+    /// 实测它比字面意思更泛：<c>authType=4</c>（账号密码）失败时回的也是它，文案「账号登录失败」。
+    /// 扫码轮询那条路径的现有判读不动，只是别以为这个码专属于扫码。
+    /// </remarks>
     LoginPending = 11027,
+
+    /// <summary>
+    /// 短信发送失败（<c>ucenter/code/sendsms</c>）。
+    /// </summary>
+    /// <remarks>
+    /// <b>「号码无效」与「字段名不对」都会回它</b>，定性时不能只看这个码。
+    /// 见 <c>reverse/findings/16-phone-login.md</c> 第 5 节。
+    /// </remarks>
+    SmsSendFailed = 11003,
+
+    /// <summary>验证码错误（手机号登录换会话，<c>ucenter/users/login</c>）。</summary>
+    VerifyCodeWrong = 11004,
+
+    /// <summary>手机号校验失败（<c>ucenter/mobile/check</c>）。</summary>
+    MobileCheckFailed = 11053,
 
     /// <summary>歌曲已下线：提示用户，**不要重试**。</summary>
     TrackOffline = 20012,
@@ -55,6 +76,9 @@ public static class BodianErrorCodeExtensions
         439 => BodianErrorCode.SignInvalid,
         11012 => BodianErrorCode.NeedAuth,
         11027 => BodianErrorCode.LoginPending,
+        11003 => BodianErrorCode.SmsSendFailed,
+        11004 => BodianErrorCode.VerifyCodeWrong,
+        11053 => BodianErrorCode.MobileCheckFailed,
         20012 => BodianErrorCode.TrackOffline,
         20018 => BodianErrorCode.NotPlayable,
         23006 => BodianErrorCode.ShareUnsupported,

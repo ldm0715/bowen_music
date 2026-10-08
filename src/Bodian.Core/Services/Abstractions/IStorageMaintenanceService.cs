@@ -14,6 +14,15 @@ public interface IStorageMaintenanceService
     /// <summary>数据根目录（<c>%LOCALAPPDATA%\Bodian</c>）。给「打开数据目录」用。</summary>
     string RootDirectory { get; }
 
+    /// <summary>
+    /// 日志目录（<c>%LOCALAPPDATA%\Bodian\logs</c>）。给「打开日志文件夹」用。
+    /// </summary>
+    /// <remarks>
+    /// 由服务给出而不是让界面直接读 <c>AppPaths</c>：测试里可以换根目录，
+    /// 直接读常量就把那个口子绕过去了。
+    /// </remarks>
+    string LogDirectory { get; }
+
     /// <summary>逐项统计占用。不存在的目录按 0 计，不抛。</summary>
     Task<IReadOnlyList<StorageUsage>> MeasureAsync(CancellationToken cancellationToken = default);
 

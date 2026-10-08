@@ -20,6 +20,21 @@
 | `ime-candidate-window.md` | 微信输入法候选框兼容处理：最终最小版本已获用户确认；启动路径、资源检查及历史误判记录 |
 | `archive/` | **阶段归档**：每个阶段解决了什么、踩过哪些坑、哪些判断被推翻了。**冻结文档**，有变化写活文档再另开一份 |
 
+## 多账号下的本地数据作用域（2026-10-08，**设计稿已出、未实现**）
+
+应用改名为「波纹音乐」时顺手改了数据目录，这才发现本机数据**没有任何账号维度** ——
+登出后换个账号登入，前一个账号的播放队列、最近播放、搜索历史原样继承。
+
+**设计稿见 [`multi-account.md`](multi-account.md)。** 要点：
+
+- 逐项分了**设备级 / 个人级 / 账号级**三个作用域。真正错位的只有三项
+  （`queue.json` 最明确，`history.json` / `search-history.json` 属判断题），
+  其余 17 项共用是对的 —— 尤其是主题、快捷键、窗口位置。
+- **`devid.txt` 必须继续跨账号共用。** 按账号分会变成 N 个设备标识，
+  而"频繁变更设备标识是账号风控的异常信号"是 `AppPaths` 自己写的。
+- **不是"加个目录"**：三个 store 的路径在构造时定死（`path ?? AppPaths.X`）且注册为单例，
+  跟不上账号切换。要改成每次读写按当前账号解析，并为未登录留一个 `anonymous` 桶。
+
 ## 2026-10-05 状态补充
 
 P6 桌面歌词已完成并获用户确认，不再属于未开工项。窗口、渲染、拉伸修复及验证记录见
@@ -685,8 +700,8 @@ P1 **没做**的：`IBodianApi` 门面与 `Models/` 领域模型 —— 推迟�
 
 | 项 | 说明 |
 | --- | --- |
-| 探针会话 | **是登录态的**（小号 uid=50303440，活动 VIP）。`whoami` 查；不用了跑 `logout`。凭据用 DPAPI 加密存在 `%LOCALAPPDATA%\Bodian\session.dat` |
-| devid | `%LOCALAPPDATA%\Bodian\devid.txt`。**别重新生成** —— 频繁变设备标识是账号风控的异常信号 |
+| 探针会话 | **是登录态的**（小号 uid=50303440，活动 VIP）。`whoami` 查；不用了跑 `logout`。凭据用 DPAPI 加密存在 `%LOCALAPPDATA%\Bowen\session.dat` |
+| devid | `%LOCALAPPDATA%\Bowen\devid.txt`。**别重新生成** —— 频繁变设备标识是账号风控的异常信号 |
 | 临时解包文件 | `%TEMP%\bodian_apk\`，约 95 MB，**现在可以删了** —— 第六轮把靶子复制进了 `reverse/` |
 | **逆向工作区** | **`reverse/`**，约 1.3 GB（blutter 的 Dart 源码与编译产物占大头）。结构与复跑步骤见 `reverse/README.md`。**要回收磁盘就删 `reverse/_tools/blutter/{dartsdk,build}`**（下次换 Dart 版本要重来） |
 | Windows Terminal | 探针的二维码渲染用半块字符，终端要 UTF-8 字体 |

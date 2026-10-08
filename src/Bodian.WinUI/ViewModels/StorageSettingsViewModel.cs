@@ -123,22 +123,40 @@ public sealed partial class StorageSettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>日志目录，给「打开日志文件夹」用。</summary>
+    public string LogDirectory => _storage.LogDirectory;
+
     /// <summary>在资源管理器里打开数据目录。</summary>
+    [RelayCommand]
+    private void OpenDataDirectory() => OpenDirectory(RootDirectory);
+
+    /// <summary>
+    /// 在资源管理器里打开日志目录。
+    /// </summary>
+    /// <remarks>
+    /// 单独开一个入口而不是让用户从数据目录自己找 <c>logs</c>：排查问题时这一跳是最高频的，
+    /// 而且日志目录**不在「缓存」下面**（<c>AppPaths</c> 有意如此，「清除缓存」不该把日志一起清掉），
+    /// 所以从数据目录看过去它和一堆偏好文件混在一起，并不显眼。
+    /// </remarks>
+    [RelayCommand]
+    private void OpenLogDirectory() => OpenDirectory(LogDirectory);
+
     /// <remarks>
     /// 用 <c>Process.Start</c> 而不是 <c>Launcher.LaunchFolderAsync</c>：
     /// 后者要一个 <c>StorageFolder</c>，对未打包应用拿目录的手续更绕。
+    /// <b>先建目录</b>：日志目录在应用还没写过日志时并不存在，
+    /// 直接 <c>Process.Start</c> 会以「找不到文件」失败。
     /// </remarks>
-    [RelayCommand]
-    private void OpenDataDirectory()
+    private void OpenDirectory(string path)
     {
         try
         {
-            Directory.CreateDirectory(RootDirectory);
-            Process.Start(new ProcessStartInfo(RootDirectory) { UseShellExecute = true });
+            Directory.CreateDirectory(path);
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "打开数据目录失败：{Path}", RootDirectory);
+            _logger.LogWarning(exception, "打开目录失败：{Path}", path);
         }
     }
 }

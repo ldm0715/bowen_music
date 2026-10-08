@@ -23,6 +23,50 @@ public sealed class RedactorTests
     public void Redact_ReplacesCredentialValues(string input, string expected)
         => Assert.Equal(expected, LogRedactor.Redact(input));
 
+    // ── PII（手机号 / 验证码）────────────────────────────────────────────────
+
+    /// <remarks>
+    /// 请求体不进日志，所以今天靠的是第一道防线。这几条守的是「哪天有人加了打印 body 的日志，
+    /// 第二道防线能兜住」——手机号是 PII，验证码是限时的登录凭据，两者都不该落盘。
+    /// </remarks>
+    [Theory]
+    [InlineData("mobile=13800138000", "mobile=<redacted>")]
+    [InlineData("mobilePhone=13800138000", "mobilePhone=<redacted>")]
+    [InlineData("phone=13800138000", "phone=<redacted>")]
+    [InlineData("verifyCode=123456", "verifyCode=<redacted>")]
+    [InlineData("smsCode=123456", "smsCode=<redacted>")]
+    public void Redact_ReplacesPiiValues(string input, string expected)
+        => Assert.Equal(expected, LogRedactor.Redact(input));
+
+    [Fact]
+    public void Redact_HandlesPiiJsonShape()
+    {
+        const string body = """{"authType":1,"mobile":"13800138000","verifyCode":"123456"}""";
+
+        var redacted = LogRedactor.Redact(body);
+
+        Assert.DoesNotContain("13800138000", redacted);
+        Assert.DoesNotContain("123456", redacted);
+        Assert.Contains("\"authType\":1", redacted);   // 非敏感字段不动
+    }
+
+    /// <summary>
+    /// 信封顶层的 <c>code</c> 是**业务码**，不是验证码。把它抹掉会让每一行日志和每一条
+    /// 异常消息都变成「返回业务码 &lt;redacted&gt;」——这条守着那条界线。
+    /// </summary>
+    [Fact]
+    public void Redact_LeavesBusinessCodeAlone()
+    {
+        const string envelope = """{"code":11004,"msg":"验证码错误","data":{}}""";
+
+        Assert.Equal(envelope, LogRedactor.Redact(envelope));
+    }
+
+    /// <summary><c>headphone</c> 里含 <c>phone</c>，但不是手机号字段，不该被误伤。</summary>
+    [Fact]
+    public void Redact_DoesNotMatchPhoneAsSubstring()
+        => Assert.Equal("headphone=ok", LogRedactor.Redact("headphone=ok"));
+
     /// <summary>
     /// **空值不动。** 未登录时 <c>token=</c>、黄金用例里的 <c>sign=</c> 都必须保持原样——
     /// 否则脱敏后的 query 串就没法与代码里的常量逐字比对了。

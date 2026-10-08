@@ -52,8 +52,29 @@ internal static class Endpoints
 
     public const string LoginQrCodeStatus = "ucenter/login/qrCodeStatus";
 
-    /// <summary>扫码登录的最后一步，响应见 <c>Dto/LoginDto.cs</c>。</summary>
+    /// <summary>
+    /// 换会话。<b>扫码登录与手机号登录共用这一条</b>，靠 <c>authType</c> 区分：
+    /// 扫码是 <c>10</c>，手机号是 <c>1</c>。响应见 <c>Dto/LoginDto.cs</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b><c>authType</c> 不能取值 <c>9</c></b> —— 实测它配任意 body 都回 <c>200</c>，
+    /// 但给出的是别人的会话。见 <c>reverse/findings/16-phone-login.md</c> 第 3 节。
+    /// </remarks>
     public const string UsersLogin = "ucenter/users/login";
+
+    /// <summary>
+    /// 发送短信验证码。<b>GET + query</b>，不是 POST。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 参数：<c>type</c>（必填 Integer，登录场景取 <c>2</c>）与 <c>mobile</c>（裸 11 位数字）。
+    /// <b>全明文，没有任何加密</b> —— 安卓端的 <c>encvMobile</c> 那套在桌面端不认。
+    /// </para>
+    /// <para>
+    /// 证据：<c>reverse/findings/16-phone-login.md</c>（实网跑通，业务码 <c>200</c>）。
+    /// </para>
+    /// </remarks>
+    public const string SendSms = "ucenter/code/sendsms";
 
     // ── 曲库：静态确认，参数与信封都已解 🟡 ─────────────────────────────────
 

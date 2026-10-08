@@ -50,6 +50,9 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
     public string RootDirectory { get; }
 
+    /// <summary>取的是缓存的字段而不是 <c>RootDirectory</c> —— 后者不含 <c>logs</c> 这一段。</summary>
+    public string LogDirectory => _logDirectory;
+
     public async Task<IReadOnlyList<StorageUsage>> MeasureAsync(CancellationToken cancellationToken = default)
     {
         var usages = new List<StorageUsage>(4);

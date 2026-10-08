@@ -150,10 +150,10 @@ internal sealed class ProbeClient : IDisposable
 
         if (Verbose)
         {
-            Console.Error.WriteLine($"> {verb.Method} {url}");
+            Console.Error.WriteLine($"> {verb.Method} {Sanitizer.ForLogQuery(url)}");
             if (body is not null)
             {
-                Console.Error.WriteLine($"> body {body}");
+                Console.Error.WriteLine($"> body {Sanitizer.ForLogBody(body)}");
             }
         }
 
@@ -214,7 +214,7 @@ internal sealed class ProbeClient : IDisposable
 
         if (Verbose)
         {
-            Console.Error.WriteLine($"> {verb.Method} {url}");
+            Console.Error.WriteLine($"> {verb.Method} {Sanitizer.ForLogQuery(url)}");
             Console.Error.WriteLine($"> multipart {fieldName}={fileName}（{contentType}，{content.Length} 字节）"
                                     + $"　签 body：{(signBodyBytes ? "是" : "否")}");
         }
@@ -241,7 +241,7 @@ internal sealed class ProbeClient : IDisposable
     {
         if (Verbose)
         {
-            Console.Error.WriteLine($"> GET {url}");
+            Console.Error.WriteLine($"> GET {Sanitizer.ForLogQuery(url)}");
         }
 
         using var request = BuildRequest(HttpMethod.Get, url, null);

@@ -14,7 +14,7 @@ dotnet build tools/Bodian.ImeProbe/Bodian.ImeProbe.csproj -c Debug
 4. 回到 WinUI 窗口，打开实验开关，重新输入拼音。它通过 `BeginUIElement` 返回允许显示，并在全部 sink 回调结束后尝试对隐藏的 UI element 调用 `Show(true)`；只是待验证的实验，不是已经确认的修复。
 5. 如需仅观察 TSF 通知，关闭窗口后以 `Bodian.ImeProbe.exe --observe-tsf` 重复第 1 步。`--no-tsf` 则禁用实验开关，保证整轮不安装 observer。
 
-日志写入 `%LOCALAPPDATA%\Bodian\ime-probe\`。记录输入长度、焦点、组合事件、TSF UI element 的显示状态，以及微信输入法和探针进程的窗口类、可见性、屏幕矩形、owner 与扩展样式。
+日志写入 `%LOCALAPPDATA%\Bowen\ime-probe\`。记录输入长度、焦点、组合事件、TSF UI element 的显示状态，以及微信输入法和探针进程的窗口类、可见性、屏幕矩形、owner 与扩展样式。
 不记录输入内容、候选词或窗口标题。窗口枚举独立运行，不依赖 `CandidateWindowBoundsChanged` 事件。
 
 原生输入框在独立进程运行，避免 WinUI 初始化对当前线程的输入环境影响原生对照。WinUI 默认不安装观察器。使用 `--observe-tsf` 时观察器不调用 `Activate` / `Deactivate`，不更改 TSF 焦点，也不改写 `pbShow`。关闭实验开关会卸载观察器，恢复默认基线。

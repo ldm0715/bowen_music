@@ -155,6 +155,81 @@ public sealed class BodianLogin : IBodianLogin
         return new LoginOutcome.Failed((int)BodianErrorCode.LoginPending, "换取会话重试次数用尽");
     }
 
+    public async Task<SmsSendOutcome> SendSmsCodeAsync(
+        string mobile,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mobile);
+
+        // ★ 这条是 GET + query，不是 POST body。做错方向会拿到 HTTP 500 而不是业务码，
+        //   排查起来很费时间 —— 见 reverse/findings/16-phone-login.md 第 2 节。
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.SendSms,
+                Query =
+                [
+                    new KeyValuePair<string, string>(
+                        "type",
+                        PhoneLoginBody.LoginSmsType.ToString(CultureInfo.InvariantCulture)),
+                    new KeyValuePair<string, string>("mobile", mobile),
+                ],
+                Signed = true,
+
+                // 「短信发送失败」（号码无效一类）是正常业务结果，不是异常。
+                // 其余非 200（402 / 439 / 11012）继续抛 BodianApiException —— 那些是链路问题。
+                AcceptedCodes = [BodianErrorCode.SmsSendFailed],
+            },
+            BodianJsonContext.Default.JsonElement,
+            cancellationToken).ConfigureAwait(false);
+
+        if (envelope.Code == (int)BodianErrorCode.Success)
+        {
+            // 不记手机号。
+            _logger.LogInformation("短信验证码已投递");
+            return new SmsSendOutcome.Sent();
+        }
+
+        _logger.LogWarning("短信验证码发送失败，code={Code}", envelope.Code);
+        return new SmsSendOutcome.Failed(envelope.Code, envelope.Message);
+    }
+
+    public async Task<LoginOutcome> LoginByPhoneAsync(
+        string mobile,
+        string verifyCode,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mobile);
+        ArgumentException.ThrowIfNullOrWhiteSpace(verifyCode);
+
+        var body = JsonSerializer.Serialize(
+            new PhoneLoginBody { Mobile = mobile, VerifyCode = verifyCode },
+            BodianJsonContext.Default.PhoneLoginBody);
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.UsersLogin,
+                Verb = BodianHttpVerb.Post,
+                JsonBody = body,
+                Signed = true,
+
+                // 「验证码错误」是用户输错了，正常业务结果。
+                // 注意**不**接受 11027：那是扫码轮询专有的中间态，本路径一次定生死。
+                AcceptedCodes = [BodianErrorCode.VerifyCodeWrong],
+            },
+            BodianJsonContext.Default.LoginResultDto,
+            cancellationToken).ConfigureAwait(false);
+
+        if (envelope.Code != (int)BodianErrorCode.Success || envelope.Data is null)
+        {
+            return new LoginOutcome.Failed(envelope.Code, envelope.Message);
+        }
+
+        // 与扫码共用同一条落地路径：身份校验 → 先落盘 → 再改内存会话 → 通知界面。
+        return Adopt(envelope.Data);
+    }
+
     public bool TryRestorePersistedSession()
     {
         var credential = _credentials.Load();

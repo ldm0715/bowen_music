@@ -63,8 +63,8 @@
 
 | 文件 | 保存内容 | 实现 |
 | --- | --- | --- |
-| `%LOCALAPPDATA%\Bodian\desktop-lyrics.json` | 字号、高亮色、双行、对齐、锁定、穿透 | `JsonDesktopLyricsSettingsStore`，源生成 JSON，临时文件原子替换 |
-| `%LOCALAPPDATA%\Bodian\desktop-lyrics-window.json` | X、Y、宽度及保存时高度 | `DesktopLyricsPlacementStore` 转发到独立路径的 `JsonWindowPlacementStore` |
+| `%LOCALAPPDATA%\Bowen\desktop-lyrics.json` | 字号、高亮色、双行、对齐、锁定、穿透 | `JsonDesktopLyricsSettingsStore`，源生成 JSON，临时文件原子替换 |
+| `%LOCALAPPDATA%\Bowen\desktop-lyrics-window.json` | X、Y、宽度及保存时高度 | `DesktopLyricsPlacementStore` 转发到独立路径的 `JsonWindowPlacementStore` |
 
 位置为物理像素，宽度保存为 DIP；读取时忽略保存的高度，由当前字号和行数重新计算。无位置记录时显示在主屏底部居中。坏设置逐项规范化，文件无法读取时使用默认值并保留原文件。
 

@@ -179,7 +179,7 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 
 | 文件 | 保存内容 | 实现 |
 | --- | --- | --- |
-| `%LOCALAPPDATA%\Bodian\mini-player-window.json` | 内容条的 X、Y | `MiniPlayerPlacementStore` 转发到独立路径的 `JsonWindowPlacementStore` |
+| `%LOCALAPPDATA%\Bowen\mini-player-window.json` | 内容条的 X、Y | `MiniPlayerPlacementStore` 转发到独立路径的 `JsonWindowPlacementStore` |
 
 - **只记位置，不记贴边收起**：收起是临时让路的状态，重启后小窗应该看得见，
   而不是缩在屏幕边上让人以为丢了。载入后起始状态一律「自由」。
@@ -231,7 +231,7 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 | 封面容器没有尺寸 | 封面那一列宽度为 0，封面整块看不见 | `Border` 只画背景时没有期望尺寸，Auto 列会塌成 0。宽度必须显式给 |
 | 把宽度写在 `ColumnDefinition.Width` 上 | `the type 'Windows.Foundation.Double' cannot be assigned to the type 'Microsoft.UI.Xaml.GridLength'` | 列宽是 `GridLength`，接不了 `<x:Double>` 令牌（`SizePlayerBar`）。宽度写在**元素自己**的 `Width` 上，列保持 `Auto` |
 
-排查手法：`%LOCALAPPDATA%\Bodian\logs\` 里搜 `[ERR] 小窗创建或显示失败`，紧跟的就是异常正文与出错的行号。
+排查手法：`%LOCALAPPDATA%\Bowen\logs\` 里搜 `[ERR] 小窗创建或显示失败`，紧跟的就是异常正文与出错的行号。
 
 同一类风险的自查办法：把小窗 XAML 用到的资源键与 `PlayerBar.xaml` / `MainWindow.xaml` / `DesktopLyricsWindow.xaml`
 用过键取差集 —— 差集里只剩下「本窗口自定义的样式」与「本窗口新加的图标键」，就说明没有别的取不到的键了。

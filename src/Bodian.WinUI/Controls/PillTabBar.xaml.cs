@@ -37,6 +37,13 @@ public sealed partial class PillTabBar : UserControl
     public PillTabBar()
     {
         InitializeComponent();
+        Tabs.ContainerContentChanging += (_, args) =>
+        {
+            if (args.ItemContainer is ListViewItem container)
+            {
+                container.MinWidth = MinItemWidth;
+            }
+        };
         Loaded += (_, _) => UpdateIndicator(false);
         Unloaded += (_, _) =>
         {
@@ -67,6 +74,12 @@ public sealed partial class PillTabBar : UserControl
         typeof(PillTabBar),
         new PropertyMetadata(false, (sender, _) => ((PillTabBar)sender).ApplyLayout()));
 
+    public static readonly DependencyProperty MinItemWidthProperty = DependencyProperty.Register(
+        nameof(MinItemWidth),
+        typeof(double),
+        typeof(PillTabBar),
+        new PropertyMetadata(0d, (sender, _) => ((PillTabBar)sender).ApplyItemWidths()));
+
     /// <summary>页签名，通常是一组字符串。换掉它会重建整条页签并重设选中项。</summary>
     public object? ItemsSource
     {
@@ -86,6 +99,37 @@ public sealed partial class PillTabBar : UserControl
     {
         get => (bool)GetValue(WrapItemsProperty);
         set => SetValue(WrapItemsProperty, value);
+    }
+
+    /// <summary>
+    /// 每个页签的最小宽度。默认 <c>0</c> = 按内容自适应。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能靠外层 <c>HorizontalAlignment</c> 拉宽页签</b> —— 那个只管整条页签条本身，
+    /// 页签自己的宽度由内部 <c>ItemsStackPanel</c> 按内容测量。
+    /// 写成局部值而不是改样式里的 <c>MinWidth</c>：局部值优先于样式设置器，
+    /// 而且其他三处用默认值的页面完全不受影响。
+    /// </remarks>
+    public double MinItemWidth
+    {
+        get => (double)GetValue(MinItemWidthProperty);
+        set => SetValue(MinItemWidthProperty, value);
+    }
+
+    private void ApplyItemWidths()
+    {
+        if (Tabs.ItemsPanelRoot is not Panel panel)
+        {
+            return;
+        }
+
+        foreach (var child in panel.Children)
+        {
+            if (child is ListViewItem item)
+            {
+                item.MinWidth = MinItemWidth;
+            }
+        }
     }
 
     private void ApplyLayout()

@@ -213,7 +213,7 @@
 
 ### 3.8 音量持久化与「记住播放列表」（2026-10-07）
 
-两项都是「退出重进之后接着上次」：音量存 `%LOCALAPPDATA%\Bodian\volume.json`，
+两项都是「退出重进之后接着上次」：音量存 `%LOCALAPPDATA%\Bowen\volume.json`，
 播放队列存 `...\queue.json`。写法与其它偏好逐字一致（先写 `.tmp` 再 `File.Move` 覆盖、
 读失败退默认且保留坏文件、写失败只记 warning）。
 
@@ -245,7 +245,7 @@
 
 ### 4.1 位置与形态
 
-`%LOCALAPPDATA%\Bodian\cache\covers\`，文件名是键、内容是**CDN 返回的原样字节（编码后）**，
+`%LOCALAPPDATA%\Bowen\cache\covers\`，文件名是键、内容是**CDN 返回的原样字节（编码后）**，
 不是解码后的像素。解码后的占用取决于图片尺寸，通常高于压缩字节；界面层「先设解码尺寸再请求图片」这条约定
 （`performance.md`）正是靠原样字节保留的。
 
@@ -500,7 +500,7 @@ YOASOBI 的 256×256 缩略图，以及失败位图移除后重新请求。
 入口：**设置 → 外观 → 输入法兼容模式（实验）**。默认关闭。中文候选框无法显示时可开启，
 然后从托盘菜单完全退出再重新打开；窗口 × 只隐藏。关闭开关同样在下次进程启动恢复正常初始化。
 
-偏好保存到 `%LOCALAPPDATA%\Bodian\input-method.json`，使用源生成 JSON。
+偏好保存到 `%LOCALAPPDATA%\Bowen\input-method.json`，使用源生成 JSON。
 坏文件回退关闭、保留原文件；保存失败时开关恢复之前的状态并显示失败通知。
 
 最终处理只在 WinUI 初始化前跳过 `ImmDisableLegacyIME`，不更换输入框或样式，不接管 IMM 上下文、

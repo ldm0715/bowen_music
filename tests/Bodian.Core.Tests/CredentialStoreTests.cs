@@ -124,15 +124,23 @@ public sealed class CredentialStoreTests : IDisposable
         Assert.True(credential.IsAuthenticated, $"uid 是 {credential.Uid}，不像已登录会话");
     }
 
-    /// <summary>路径常量必须与探针一致——改了路径就等于换了设备与账号。</summary>
+    /// <summary>
+    /// 路径常量必须与探针一致 —— 改了路径就等于换了设备与账号。
+    /// </summary>
+    /// <remarks>
+    /// 这里是**逐字**断言，所以改目录名时它一定会红 —— 这正是它的用处：
+    /// 提醒你探针那份副本（<c>tools/Bodian.Probe/ProbePaths.cs</c>）要一起改。
+    /// <b>但更该做的是不改</b>：目录里的 <c>devid.txt</c> 是设备标识，换路径等于换设备，
+    /// 那是账号风控的异常信号。见 <c>AppPaths</c> 的注释。
+    /// </remarks>
     [Fact]
     public void Paths_MatchTheProbeConventions()
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-        Assert.Equal(Path.Combine(localAppData, "Bodian"), AppPaths.LocalAppData);
-        Assert.Equal(Path.Combine(localAppData, "Bodian", "devid.txt"), AppPaths.DeviceIdFile);
-        Assert.Equal(Path.Combine(localAppData, "Bodian", "session.dat"), AppPaths.CredentialFile);
+        Assert.Equal(Path.Combine(localAppData, "Bowen"), AppPaths.LocalAppData);
+        Assert.Equal(Path.Combine(localAppData, "Bowen", "devid.txt"), AppPaths.DeviceIdFile);
+        Assert.Equal(Path.Combine(localAppData, "Bowen", "session.dat"), AppPaths.CredentialFile);
     }
 }
 

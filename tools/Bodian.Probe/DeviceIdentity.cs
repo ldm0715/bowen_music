@@ -8,10 +8,8 @@ namespace Bodian.Probe;
 /// </summary>
 internal static class DeviceIdentity
 {
-    public static string StoragePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Bodian",
-        "devid.txt");
+    public static string StoragePath { get; } =
+        Path.Combine(ProbePaths.LocalAppData, "devid.txt");
 
     public static bool IsNewlyCreated { get; private set; }
 

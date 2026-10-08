@@ -4,16 +4,28 @@ namespace Bodian.Core.Services;
 /// 本机数据目录。
 /// </summary>
 /// <remarks>
-/// <b>这些路径是与 P0 探针共用的，不要改。</b> 探针已经用 <c>%LOCALAPPDATA%\Bodian\devid.txt</c>
-/// 生成过设备标识、用 <c>session.dat</c> 存过会话；改路径会让客户端换一个新设备标识，
-/// 那是账号风控的异常信号。
+/// <para>
+/// <b>这些路径是与 P0 探针共用的</b>（<c>tools/Bodian.Probe</c> 有自己的同名副本
+/// <c>ProbePaths</c>）。探针已经用 <c>devid.txt</c> 生成过设备标识、用 <c>session.dat</c>
+/// 存过会话；两边不同步会让它们各写各的，共用设备标识那个前提就没了。
+/// </para>
+/// <para>
+/// <b>不要改目录名。</b> 目录里那个 <c>devid.txt</c> 是设备标识，换路径就等于换一台设备，
+/// 服务端看到的是「同一个账号突然从不认识的机器登录」—— 那是账号风控的异常信号，
+/// 而且会话、队列、历史、偏好会一起丢。
+/// </para>
+/// <para>
+/// 2026-10-08 曾从 <c>Bodian</c> 改名为 <c>Bowen</c>，当时带过一次性的目录迁移；
+/// 迁移执行完即已删除（见 <c>docs/roadmap.md</c> 的命名更正一节）。
+/// **从改名前的版本升级上来的用户会拿到一个新的设备标识。**
+/// </para>
 /// </remarks>
 public static class AppPaths
 {
-    /// <summary><c>%LOCALAPPDATA%\Bodian</c></summary>
+    /// <summary><c>%LOCALAPPDATA%\Bowen</c></summary>
     public static string LocalAppData { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Bodian");
+        "Bowen");
 
     /// <summary>设备标识文件。<b>必须与探针共用同一个文件。</b></summary>
     public static string DeviceIdFile => Path.Combine(LocalAppData, "devid.txt");

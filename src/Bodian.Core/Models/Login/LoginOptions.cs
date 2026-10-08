@@ -1,7 +1,7 @@
 namespace Bodian.Core.Models.Login;
 
 /// <summary>
-/// 扫码登录的节奏参数。
+/// 登录的节奏参数（扫码轮询与短信重发）。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,4 +22,13 @@ public sealed record LoginOptions
 
     /// <summary>11027 两次尝试之间的等待。</summary>
     public TimeSpan ExchangeRetryInterval { get; init; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// 短信验证码的重发冷却。安卓客户端是 60 秒。
+    /// </summary>
+    /// <remarks>
+    /// 客户端自己压住重发，是因为服务端对同一号码有频率限制，
+    /// 连着点只会把号码推进更长的冷却里。服务端要是先拒绝了，界面照它的意思办。
+    /// </remarks>
+    public TimeSpan SmsResendInterval { get; init; } = TimeSpan.FromSeconds(60);
 }

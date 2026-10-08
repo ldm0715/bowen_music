@@ -829,7 +829,7 @@ public partial class App : Application
 
 第二道防线：**transport 根本不构造可泄露的字符串**——只 log `SafeUrl`（scheme + host + path，query 一律丢弃）、`reqId`、方法、耗时、业务码；query 与 body 从头到尾不进入任何格式化字符串。
 
-`MainWindow` 用模板内容 + 标题里放一行 devid。作用：**零网络地证明 DI 链真的通了**——标题上那串来自 `FileDeviceIdentity` 读的 `%LOCALAPPDATA%\Bodian\devid.txt`，必须与 `tools/Bodian.Probe` 用的是**同一个值**。
+`MainWindow` 用模板内容 + 标题里放一行 devid。作用：**零网络地证明 DI 链真的通了**——标题上那串来自 `FileDeviceIdentity` 读的 `%LOCALAPPDATA%\Bowen\devid.txt`，必须与 `tools/Bodian.Probe` 用的是**同一个值**。
 
 P1 明确不做：导航服务、页面、ViewModel、`CommunityToolkit.Mvvm`、WinUIEx、AUMID 开始菜单快捷方式（P3）。
 
@@ -931,4 +931,4 @@ P1 已实现并全部验证通过。以下是**与本文初稿不同**的地方�
 
 **已实现清单**（全部有单测）：解决方案骨架与三个项目 · DTO 层与源生成上下文 · `BodianSigner` · `FileDeviceIdentity` · `DpapiCredentialStore` / `InMemoryCredentialStore` · `BodianHttpTransport` / `BodianSession` / `BodianErrorCode` / 异常族 · `SafeUrl` / `LogRedactor` / `RedactingLoggerFactory` · `PagingConvention` / `PagedCursor` / `PagedList` · `BodianLyricPayload` / `KuwoFactorCodec` · `Endpoints` · WinUI 组合根。
 
-**验收实测（2026-09-30）**：解决方案 0 警告 0 错误；探针仍能独立构建 0/0；**152 个测试全绿、0 跳过**；WinUI 退出码 124；日志里凭据全被替换；启动日志里的 devid 与 `%LOCALAPPDATA%\Bodian\devid.txt` 逐字相同；探针 `whoami` 仍能读到会话（凭据格式兼容）。
+**验收实测（2026-09-30）**：解决方案 0 警告 0 错误；探针仍能独立构建 0/0；**152 个测试全绿、0 跳过**；WinUI 退出码 124；日志里凭据全被替换；启动日志里的 devid 与 `%LOCALAPPDATA%\Bodian\devid.txt` 逐字相同（那是当时的目录名，2026-10-08 起为 `Bowen`）；探针 `whoami` 仍能读到会话（凭据格式兼容）。

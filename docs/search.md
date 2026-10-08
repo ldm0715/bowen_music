@@ -13,7 +13,7 @@
 面板上方为搜索热榜，下方为搜索历史。热榜读取 `search/topic/word/list` 的 `hotWord`，
 按 `sort` 排序，显示 `key`；不将运营位或外部跳转内容混入热榜。加载失败可点击标题重试。
 历史仅记录已提交的关键词，按最近使用排序，忽略大小写去重，上限 20 条。
-它以明文 JSON 保存在 `%LOCALAPPDATA%\Bodian\search-history.json`，重启可恢复，支持清空。
+它以明文 JSON 保存在 `%LOCALAPPDATA%\Bowen\search-history.json`，重启可恢复，支持清空。
 保存先写临时文件再替换，读写失败记录日志；坏文件读取按空历史处理，不删除原文件。
 
 面板是根 `ShellRoot` 中最后一层的 `Border`，不是标题栏内部的模态 `Popup`。
@@ -111,7 +111,7 @@
 透给 XAML（`ViewModel.ViewMode.UseGrid`）—— 存多份就要同步，而搜索页的 ViewModel 恰恰是单例、活得更久，
 漏一处就是「在收藏页切了卡片、回搜索页还是列表」。
 
-选择落在 `%LOCALAPPDATA%\Bodian\view-mode.json`（`ViewModeSettings`，路径见 `AppPaths.ViewModeFile`），
+选择落在 `%LOCALAPPDATA%\Bowen\view-mode.json`（`ViewModeSettings`，路径见 `AppPaths.ViewModeFile`），
 与关键词历史分开存（一个是内容、一个是界面偏好）。`ViewModeService` 构造时**同步**读一次 ——
 晚一帧就会先铺一遍行列表再翻成卡片；用户改一次写一次，构造时读进来的那一次不回写。
 写失败只记日志：本次会话的选择已经生效，不该为此报错。

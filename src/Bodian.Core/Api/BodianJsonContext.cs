@@ -74,6 +74,7 @@ namespace Bodian.Core.Api;
 // 请求体也要在这里登记：签名覆盖的是「即将发出的精确字节」，所以由调用方序列化，
 // 而序列化同样要拿 JsonTypeInfo<T>。
 [JsonSerializable(typeof(LoginBody))]
+[JsonSerializable(typeof(PhoneLoginBody))]
 [JsonSerializable(typeof(CheckRightBody))]
 [JsonSerializable(typeof(AudioUrlBody))]
 [JsonSerializable(typeof(PlaylistMusicBody))]

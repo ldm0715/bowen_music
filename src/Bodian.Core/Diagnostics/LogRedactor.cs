@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Bodian.Core.Diagnostics;
 
 /// <summary>
-/// 字符串级脱敏：把凭据字段的值换成 <c>&lt;redacted&gt;</c>。
+/// 字符串级脱敏：把凭据与 PII 字段的值换成 <c>&lt;redacted&gt;</c>。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,6 +14,17 @@ namespace Bodian.Core.Diagnostics;
 /// <para>
 /// 覆盖两种形态，因为两者都会进日志：query 串（请求 URL 走的是这个）与
 /// JSON（签名覆盖的 body 是 JSON）。
+/// </para>
+/// <para>
+/// <b>除了凭据，手机号与验证码也在表里。</b> 请求体本身不进日志（第一道防线），
+/// 所以它们今天不会漏;但只要有人加一行打印 body 的日志，或者某个网关卡回显了请求，
+/// 那就是明文落到磁盘上。手机号是 PII、验证码是限时的登录凭据，两者都不该留下。
+/// </para>
+/// <para>
+/// <b><c>code</c> 绝不能加进来。</b> 信封顶层的 <c>code</c> 是业务码，
+/// 每一行日志和每一条异常消息里都有它；抹掉等于把所有报错变成
+/// <c>返回业务码 &lt;redacted&gt;</c>，日志就没用了。短信那边叫 <c>verifyCode</c> / <c>smsCode</c>，
+/// 名字不会撞上。
 /// </para>
 /// <para>
 /// 这是**第二道防线**。第一道是 <c>BodianHttpTransport</c> 根本不构造含 query 的字符串。
@@ -43,13 +54,13 @@ public static partial class LogRedactor
     /// 值的字符类里不含 <c>&amp;</c>，所以**空值不匹配**，从而实现「空值不动」。
     /// </remarks>
     [GeneratedRegex(
-        @"\b(?:token|ekey|freeSign|devid|qimei36|sign|nickname|headImg|uid)=([^&\s""'<>]+)",
+        @"\b(?:token|ekey|freeSign|devid|qimei36|sign|nickname|headImg|uid|mobile|mobilePhone|phone|verifyCode|smsCode)=([^&\s""'<>]+)",
         RegexOptions.IgnoreCase)]
     private static partial Regex QueryForm();
 
     /// <summary>JSON 形态：<c>"key":"value"</c>。空字符串同样不匹配。</summary>
     [GeneratedRegex(
-        @"(""(?:token|ekey|freeSign|devid|qimei36|sign|nickname|headImg|uid)""\s*:\s*"")([^""]+)""",
+        @"(""(?:token|ekey|freeSign|devid|qimei36|sign|nickname|headImg|uid|mobile|mobilePhone|phone|verifyCode|smsCode)""\s*:\s*"")([^""]+)""",
         RegexOptions.IgnoreCase)]
     private static partial Regex JsonForm();
 

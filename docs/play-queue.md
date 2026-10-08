@@ -114,7 +114,7 @@ _mode     : PlayMode
 
 ## 4. 模式落盘
 
-`IPlaybackSettingsStore` + `JsonPlaybackSettingsStore`，落到 `%LOCALAPPDATA%\Bodian\playback.json`。
+`IPlaybackSettingsStore` + `JsonPlaybackSettingsStore`，落到 `%LOCALAPPDATA%\Bowen\playback.json`。
 写法与音质偏好那套逐字一致（先写 `.tmp` 再 `File.Move` 覆盖、枚举合法性校验、失败只记 warning）。
 
 **刻意与 `audio-quality.json` 分开**：两个互不相干的小偏好共用一个文件只会让读写互相牵制。
@@ -514,7 +514,7 @@ Changed
 退出后重进，队列还是上次那批歌、上次听的那首仍高亮，点播放**从上次停的那一秒**继续
 （不自动播放，不会突然出声）。设置页「播放」分类多一个「记住播放列表」开关，**默认开**。
 
-落到 `%LOCALAPPDATA%\Bodian\queue.json`，与 `playback.json`（播放模式）分开 ——
+落到 `%LOCALAPPDATA%\Bowen\queue.json`，与 `playback.json`（播放模式）分开 ——
 那份几行、很少写；这份几百首、每次增删切歌都要重写。
 
 ### 13.2 存的是快照，不是曲目

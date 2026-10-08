@@ -10,9 +10,20 @@ internal static class Sanitizer
 {
     public const string Placeholder = "<redacted>";
 
-    /// <summary>query 形态的凭据参数。<c>sign</c> 也收进来——非空值的 sign 同样是凭据。</summary>
+    /// <summary>
+    /// query 形态的敏感参数。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>sign</c> 也收进来——非空值的 sign 同样是凭据。
+    /// </para>
+    /// <para>
+    /// <b>手机号与验证码也在里面。</b> 发码那条把手机号放在 query 上
+    /// （<c>?type=2&amp;mobile=…</c>），是这条表今天唯一真正会用上的项。
+    /// </para>
+    /// </remarks>
     private static readonly Regex QueryCredentialPattern = new(
-        @"\b(token|uid|freeSign|devid|devId|qimei36|sign)=([^&\s""]*)",
+        @"\b(token|uid|freeSign|devid|devId|qimei36|sign|mobile|mobilePhone|phone|verifyCode|smsCode|encvMobile|encvVerifyCode)=([^&\s""]*)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>响应里的中文默认会被转义成 \uXXXX，读起来太费劲，这里放开。</summary>
@@ -28,11 +39,13 @@ internal static class Sanitizer
         "token", "freeSign",
     };
 
-    /// <summary>落盘用：额外抹掉设备与账号标识。</summary>
+    /// <summary>落盘用：额外抹掉设备、账号标识与 PII。</summary>
     private static readonly HashSet<string> FixtureKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "token", "freeSign", "uid", "userId", "fromUid", "devid", "devId", "qimei36",
         "nickname", "headImg",
+        // PII：手机号与验证码绝不能进 fixture 文件。
+        "mobile", "mobilePhone", "phone", "verifyCode", "smsCode", "encvMobile", "encvVerifyCode",
     };
 
     /// <summary>这些键的值是带签名参数的 CDN 地址，只保留 scheme + host + path。</summary>
@@ -56,6 +69,35 @@ internal static class Sanitizer
     };
 
     public static string ForDisplay(string json) => Mask(json, DisplayKeys);
+
+    /// <summary>
+    /// 打印用：URL 或任何嵌着 query 的字符串。
+    /// </summary>
+    /// <remarks>
+    /// <b>发码那条 URL 上就带着手机号</b>（<c>?type=2&amp;mobile=…</c>），
+    /// 所以 <c>--verbose</c> 必须过这一层 —— 否则一打日志，手机号就进了终端与滚动历史。
+    /// </remarks>
+    public static string ForLogQuery(string text) => RedactQueryCredentials(text);
+
+    /// <summary>
+    /// 打印用：请求体（JSON）。手机号与验证码都是明文传的，必须抹。
+    /// </summary>
+    /// <remarks>
+    /// <b>按原文替换，不重新格式化。</b> 不能用 <see cref="Mask"/> —— 它会把 JSON 美化一遍，
+    /// 而签名覆盖的是**精确字节**，美化后的 body 对不上签名，<c>--signed</c> 的调试就没参照了。
+    /// </remarks>
+    public static string ForLogBody(string json) => JsonSecretPattern.Replace(json, m =>
+        m.Groups[2].Value.Length == 0 ? m.Value : $"{m.Groups[1].Value}{Placeholder}\"");
+
+    /// <summary>
+    /// JSON 形态的敏感字段，按<b>原文</b>替换。值部分不含引号，所以空值不匹配（与 query 那条一致）。
+    /// </summary>
+    /// <remarks>
+    /// <c>code</c> 不在此列：信封顶层的 <c>code</c> 是业务码，抹掉会让所有报错失去意义。
+    /// </remarks>
+    private static readonly Regex JsonSecretPattern = new(
+        @"(""(?:token|uid|freeSign|devid|devId|qimei36|sign|nickname|headImg|mobile|mobilePhone|phone|verifyCode|smsCode|encvMobile|encvVerifyCode)""\s*:\s*"")([^""]*)""",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static string ForFixture(string json, params string[] extraMaskedKeys)
     {

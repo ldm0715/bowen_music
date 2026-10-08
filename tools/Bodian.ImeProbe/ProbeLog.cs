@@ -10,8 +10,10 @@ internal sealed class ProbeLog : IDisposable
 
     public ProbeLog()
     {
+        // 与应用的数据目录同名（AppPaths 里的 "Bowen"）。这里不做改名迁移 ——
+        // 这些是一次性排查日志，重建没有任何损失，而留在旧目录反而更乱。
         var directory = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bodian", "ime-probe");
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bowen", "ime-probe");
         Directory.CreateDirectory(directory);
         Path = System.IO.Path.Combine(directory, $"winui-{DateTime.Now:yyyyMMdd-HHmmss}-{Environment.ProcessId}.log");
         _writer = new StreamWriter(Path, false, new UTF8Encoding(false)) { AutoFlush = true };

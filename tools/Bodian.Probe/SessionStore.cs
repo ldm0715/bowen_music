@@ -24,10 +24,8 @@ internal static class SessionStore
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static string StoragePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Bodian",
-        "session.dat");
+    public static string StoragePath { get; } =
+        Path.Combine(ProbePaths.LocalAppData, "session.dat");
 
     public static BodianSession? Load()
     {

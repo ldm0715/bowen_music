@@ -30,7 +30,7 @@ F:\My_Project\bodain_winui\src\Bodian.WinUI\bin\Debug\net10.0-windows10.0.26100.
 - 开启兼容模式时，`LegacyImeCompatibility` 查找本进程 `Microsoft.ui.xaml.dll` 的 delay-import，跳过
   `IMM32.dll!ImmDisableLegacyIME`，保留旧输入法回退路径。未找到预期导入时记录失败并正常启动。
 - 修改仅发生在本进程内存导入表，退出时恢复；不修改系统 DLL、磁盘运行库或输入法系统设置。
-- 默认关闭的偏好保存到 `%LOCALAPPDATA%\Bodian\input-method.json`，使用源生成 JSON。
+- 默认关闭的偏好保存到 `%LOCALAPPDATA%\Bowen\input-method.json`，使用源生成 JSON。
   坏配置回退关闭、保留原文件；保存失败时开关恢复之前的状态。
 - 入口为「设置 → 外观 → 输入法兼容模式（实验）」。开启或关闭都需要完全退出后重新启动。
 - 托盘 Hide/Show、非文本焦点和候选窗口定位均交给既有 WinUI 实现；最终应用没有接入额外 IMM 上下文保护、
