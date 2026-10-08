@@ -28,8 +28,8 @@ public sealed partial class FavoritesPage : Page, INavigationAware, IAccountScop
     /// 换账号了：这份「我喜欢的」是上一个账号的，必须重拉。
     /// </summary>
     /// <remarks>
-    /// 走 <c>ReloadAsync</c> 而不是 <c>EnsureLoadedAsync</c> —— 后者的「加载过就不再拉」守卫
-    /// 正是这里要绕开的东西（页面没换、只是账号换了）。与工具栏上那个刷新按钮同一条路。
+    /// 与工具栏上那个刷新按钮同一条路。<c>EnsureLoadedAsync</c> 现在也认账号、本该也能用，
+    /// 但它判的是「要不要拉」，这里说的一直是「拉一次」—— 用 <c>ReloadAsync</c> 意图更直。
     /// </remarks>
     public Task OnAccountSwitchedAsync() => ViewModel.ReloadAsync();
 

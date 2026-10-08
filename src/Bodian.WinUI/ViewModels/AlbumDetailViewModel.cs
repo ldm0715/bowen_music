@@ -67,7 +67,8 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
             "这张专辑暂时取不到曲目。",
             // 1 基，理由同 ArtistDetailViewModel：pn=0 会被服务端当成第 1 页，
             // 于是首屏正常、下一页重复。
-            Bodian.Core.Api.Paging.PagingConvention.OneBased);
+            Bodian.Core.Api.Paging.PagingConvention.OneBased,
+            account: session);
 
         // 工具栏左侧那段文案读的是列表状态，列表一变就转发一次通知。
         Tracks.PropertyChanged += (_, _) => OnPropertyChanged(nameof(CountText));

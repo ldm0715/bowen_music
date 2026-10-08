@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using Bodian.Core.Api.Paging;
+using Bodian.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -32,9 +33,13 @@ public sealed class PagedList<T> : ObservableObject
     private readonly string _what;
     private readonly PagingConvention _convention;
     private readonly string? _countUnit;
+    private readonly ICurrentAccount? _account;
 
     private PagedCursor? _cursor;
     private bool _started;
+
+    /// <summary>这份列表是为哪个账号加载的。见 <see cref="EnsureLoadedAsync"/>。</summary>
+    private string? _loadedScope;
     private bool _hasMore;
     private bool _isBusy;
     private bool _loadFailed;
@@ -47,13 +52,18 @@ public sealed class PagedList<T> : ObservableObject
     /// <see cref="StatusText"/> 里数量的单位，例如「首」。<b>不传则保持「N 项」</b> ——
     /// 这个类是泛型，也服务专辑、歌单这些非曲目列表，改默认值会连带换掉它们的文案。
     /// </param>
+    /// <param name="account">
+    /// 当前账号。列表内容多数是服务端按账号给的，加载过一次的判据里要带上它。
+    /// 为 <c>null</c> 时退化成「加载过就不再拉」（离线测试与无账号概念的宿主）。
+    /// </param>
     public PagedList(
         Func<PagedCursor, CancellationToken, Task<PagedResult<T>>> fetch,
         ILogger logger,
         string what,
         string emptyText,
         PagingConvention? pagingConvention = null,
-        string? countUnit = null)
+        string? countUnit = null,
+        ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(fetch);
         ArgumentNullException.ThrowIfNull(logger);
@@ -63,6 +73,7 @@ public sealed class PagedList<T> : ObservableObject
         _what = what;
         _convention = pagingConvention ?? PagingConvention.OneBased;
         _countUnit = countUnit;
+        _account = account;
         EmptyText = emptyText;
 
         // 手写命令而不是 [RelayCommand]：源生成器在泛型类上要额外折腾，这里两个命令不值得。
@@ -113,8 +124,16 @@ public sealed class PagedList<T> : ObservableObject
     }
 
     /// <summary>首次进入时调。<b>已经加载过就什么都不做。</b></summary>
+    /// <summary>
+    /// 首次进入时调。<b>已经为当前账号加载过就不做。</b>
+    /// </summary>
+    /// <remarks>
+    /// <b>判据里必须带上账号。</b> 换账号后，页面实例与它的视图模型都还在（导航栈与闲置页面缓存
+    /// 持有它们），只看「加载过没有」会让新账号看到上一个账号的列表 —— 表现是切号后点侧栏
+    /// 「收藏的歌单」，看到的还是上一个人的。
+    /// </remarks>
     public Task EnsureLoadedAsync(CancellationToken cancellationToken = default) =>
-        _started ? Task.CompletedTask : ReloadAsync(cancellationToken);
+        _started && _account?.Scope == _loadedScope ? Task.CompletedTask : ReloadAsync(cancellationToken);
 
     /// <summary>重新从第一页开始。</summary>
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
@@ -125,6 +144,7 @@ public sealed class PagedList<T> : ObservableObject
         }
 
         _started = true;
+        _loadedScope = _account?.Scope;
         IsBusy = true;
         HasMore = false;
         LoadFailed = false;

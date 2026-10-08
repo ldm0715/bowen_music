@@ -327,7 +327,8 @@ public partial class App : Application
                 new LibraryCategoryViewModel(
                     sp.GetRequiredService<IBodianApi>(),
                     group,
-                    sp.GetRequiredService<ILogger<LibraryCategoryViewModel>>()),
+                    sp.GetRequiredService<ILogger<LibraryCategoryViewModel>>(),
+                    sp.GetRequiredService<ICurrentAccount>()),
                 model => new LibraryCategoryPage(model, sp.GetRequiredService<INavigationService>(),
                 sp.GetRequiredService<Func<Album, AlbumDetailPage>>())));
 
@@ -364,7 +365,8 @@ public partial class App : Application
                 sp.GetRequiredService<IBodianApi>(),
                 sp.GetRequiredService<PlaybackCoordinator>(),
                 bang,
-                sp.GetRequiredService<ILogger<BangDetailViewModel>>())));
+                sp.GetRequiredService<ILogger<BangDetailViewModel>>(),
+                sp.GetRequiredService<ICurrentAccount>())));
 
         // 歌单详情要带「哪个歌单 + 哪个 source」构造，DI 解析不出来 —— 用工厂交给调用方，
         // 侧栏（自建歌单，source=5）与发现页（公开歌单，source=4）各传各的。

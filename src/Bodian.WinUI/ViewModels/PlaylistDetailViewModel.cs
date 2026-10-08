@@ -47,6 +47,9 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
 
     private bool _infoLoaded;
 
+    /// <summary>详情是为哪个账号取的。见 <see cref="LoadInfoAsync"/>。</summary>
+    private string? _infoScope;
+
     /// <summary>详情响应。收藏/取消后靠它就地重算副标题，**不为一个计数再打一次请求**。</summary>
     private Playlist? _info;
 
@@ -60,7 +63,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
         INoticeSink notice,
         IPlaylistLibrarySink library,
         ILogger<PlaylistDetailViewModel>? logger = null)
-        : base(api, coordinator, logger ?? NullLogger<PlaylistDetailViewModel>.Instance)
+        : base(api, coordinator, logger ?? NullLogger<PlaylistDetailViewModel>.Instance, session)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(clipboard);
@@ -543,12 +546,14 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
     /// </remarks>
     private async Task LoadInfoAsync(CancellationToken cancellationToken)
     {
-        if (_infoLoaded)
+        // 归属与收藏态都跟账号有关：切号后重进这一页要重新问一次（基类的曲目守卫同理）。
+        if (_infoLoaded && _session.Scope == _infoScope)
         {
             return;
         }
 
         _infoLoaded = true;
+        _infoScope = _session.Scope;
 
         try
         {

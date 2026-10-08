@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,7 +27,8 @@ public sealed partial class LibraryCategoryViewModel : ObservableObject
 {
     private readonly IBodianApi _api;
 
-    public LibraryCategoryViewModel(IBodianApi api, MusicCategoryGroup group, ILogger? logger = null)
+    public LibraryCategoryViewModel(IBodianApi api, MusicCategoryGroup group, ILogger? logger = null,
+        ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(group);
@@ -45,7 +47,8 @@ public sealed partial class LibraryCategoryViewModel : ObservableObject
             FetchAsync,
             logger ?? NullLogger<LibraryCategoryViewModel>.Instance,
             $"乐库「{group.Name}」",
-            "这个子类下暂时没有专辑。");
+            "这个子类下暂时没有专辑。",
+            account: account);
 
         // 默认选中第一个子类 —— 进页面就该有内容，不该是一片空。
         SelectedChild = Children.FirstOrDefault();

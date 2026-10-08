@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -21,7 +22,7 @@ namespace Bodian.WinUI.ViewModels;
 public sealed class CollectedPlaylistsViewModel
 {
     public CollectedPlaylistsViewModel(IBodianApi api, ViewModeService viewMode,
-        ILogger<CollectedPlaylistsViewModel>? logger = null)
+        ILogger<CollectedPlaylistsViewModel>? logger = null, ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(viewMode);
@@ -33,7 +34,8 @@ public sealed class CollectedPlaylistsViewModel
             "收藏的歌单",
             "还没有收藏的歌单。",
             // 「个歌单」当单位用：模板是「共 {n} {单位}」，得到的是「共 30 个歌单」。
-            countUnit: "个歌单");
+            countUnit: "个歌单",
+            account: account);
     }
 
     public PagedList<Playlist> Playlists { get; }

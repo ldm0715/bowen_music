@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Playback;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,8 +22,9 @@ public sealed partial class FavoritesViewModel : PlaylistTracksViewModel
     public FavoritesViewModel(
         IBodianApi api,
         PlaybackCoordinator coordinator,
-        ILogger<FavoritesViewModel>? logger = null)
-        : base(api, coordinator, logger ?? NullLogger<FavoritesViewModel>.Instance)
+        ILogger<FavoritesViewModel>? logger = null,
+        ICurrentAccount? account = null)
+        : base(api, coordinator, logger ?? NullLogger<FavoritesViewModel>.Instance, account)
     {
         ArgumentNullException.ThrowIfNull(api);
 

@@ -1,6 +1,7 @@
 using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -24,7 +25,7 @@ public sealed class FollowedArtistsViewModel
     private readonly IBodianApi _api;
 
     public FollowedArtistsViewModel(IBodianApi api, ViewModeService viewMode,
-        ILogger<FollowedArtistsViewModel>? logger = null)
+        ILogger<FollowedArtistsViewModel>? logger = null, ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(viewMode);
@@ -38,7 +39,8 @@ public sealed class FollowedArtistsViewModel
             "关注的歌手",
             "还没有关注的歌手。",
             // 「位歌手」当单位用：模板是「共 {n} {单位}」，得到的是「共 12 位歌手」。
-            countUnit: "位歌手");
+            countUnit: "位歌手",
+            account: account);
     }
 
     public PagedList<Artist> Artists { get; }

@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -17,7 +18,7 @@ namespace Bodian.WinUI.ViewModels;
 public sealed class CollectedAlbumsViewModel
 {
     public CollectedAlbumsViewModel(IBodianApi api, ViewModeService viewMode,
-        ILogger<CollectedAlbumsViewModel>? logger = null)
+        ILogger<CollectedAlbumsViewModel>? logger = null, ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(viewMode);
@@ -29,7 +30,8 @@ public sealed class CollectedAlbumsViewModel
             "收藏的专辑",
             "还没有收藏的专辑。",
             // 单位与 Formats.AlbumTotal 一致：「共 N 张」，不再是泛指的「N 项」。
-            countUnit: "张");
+            countUnit: "张",
+            account: account);
     }
 
     public PagedList<Album> Albums { get; }

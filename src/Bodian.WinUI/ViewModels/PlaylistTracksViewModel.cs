@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -26,6 +27,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
 {
     private readonly IBodianApi _api;
     private readonly ILogger _logger;
+    private readonly ICurrentAccount? _account;
 
     /// <summary>播放入口。子类要自己排队时用它（「播放全部」）。</summary>
     protected readonly PlaybackCoordinator Coordinator;
@@ -34,10 +36,18 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     private long? _playlistId;
     private bool _loaded;
 
+    /// <summary>这份曲目是为哪个账号加载的。见 <see cref="EnsureLoadedAsync"/>。</summary>
+    private string? _loadedScope;
+
+    /// <param name="account">
+    /// 当前账号。为 <c>null</c> 时退化成「加载过就不再拉」。子类自己的「只加载一次」守卫也应带上它，
+    /// 见 <see cref="Account"/>。
+    /// </param>
     protected PlaylistTracksViewModel(
         IBodianApi api,
         PlaybackCoordinator coordinator,
-        ILogger logger)
+        ILogger logger,
+        ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(coordinator);
@@ -46,7 +56,11 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         _api = api;
         Coordinator = coordinator;
         _logger = logger;
+        _account = account;
     }
+
+    /// <summary>当前账号。子类判「为谁加载过」时用它，与基类的守卫保持同一把尺子。</summary>
+    protected ICurrentAccount? Account => _account;
 
     public ObservableCollection<Track> Tracks { get; } = [];
 
@@ -120,15 +134,22 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     /// <summary>歌单存在但没有可播曲目时的说明文案。</summary>
     protected abstract string EmptyText { get; }
 
-    /// <summary>首次进入时调。<b>已经加载过就什么都不做。</b></summary>
+    /// <summary>
+    /// 首次进入时调。<b>已经为当前账号加载过就什么都不做。</b>
+    /// </summary>
+    /// <remarks>
+    /// <b>判据里必须带上账号。</b> 换账号后页面实例与视图模型都还在（导航栈与闲置页面缓存持有它们），
+    /// 只看「加载过没有」会让新账号看到上一个账号的曲目。
+    /// </remarks>
     public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
     {
-        if (_loaded)
+        if (_loaded && _account?.Scope == _loadedScope)
         {
             return;
         }
 
         _loaded = true;
+        _loadedScope = _account?.Scope;
         await ReloadAsync(cancellationToken).ConfigureAwait(true);
     }
 

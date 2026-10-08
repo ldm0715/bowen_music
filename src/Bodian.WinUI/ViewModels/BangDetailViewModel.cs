@@ -1,6 +1,7 @@
 using Bodian.Core.Api;
 using Bodian.Core.Api.Paging;
 using Bodian.Core.Models;
+using Bodian.Core.Services.Abstractions;
 using Bodian.WinUI.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,8 @@ public sealed partial class BangDetailViewModel : ObservableObject
         IBodianApi api,
         PlaybackCoordinator coordinator,
         Bang bang,
-        ILogger<BangDetailViewModel>? logger = null)
+        ILogger<BangDetailViewModel>? logger = null,
+        ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(coordinator);
@@ -50,7 +52,8 @@ public sealed partial class BangDetailViewModel : ObservableObject
             logger ?? NullLogger<BangDetailViewModel>.Instance,
             $"榜「{bang.Name}」",
             "这个榜暂时取不到曲目。",
-            countUnit: "首");
+            countUnit: "首",
+            account: account);
     }
 
     public Bang Bang { get; }
