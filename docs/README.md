@@ -21,7 +21,6 @@
 | `fixtures/` | 已脱敏的真实响应样本，单测的输入 |
 | `apk/` | 逆向用的原始安装包，**不入版本控制**（283 MB 第三方二进制，需自行放置） |
 | `artifacts/` | 本机可再生的中间产物，**不入版本控制** |
-| `reverse/` | 逆向工作区：只提交 findings 结论与脚本，二进制与工具链产物不入库 |
 
 ## 按主题
 
@@ -39,11 +38,10 @@
 
 ### 接口与协议
 
+> 接口主文档、逆向勘查记录与音质复核这三份**已不再公开**，见下面[不公开的部分](#不公开的部分)。
+
 | 文档 | 用途 |
 | --- | --- |
-| [`bodian-api-reference.md`](bodian-api-reference.md) | 接口主文档：传输层 / 签名 / 已验证接口 / 数据模型 / 音质档位 |
-| [`audio-quality-audit.md`](audio-quality-audit.md) | 音质接口复核与解密交接：文档误读、APK 调用链、真实样本及未解决项 |
-| [`bodian-api-inventory.md`](bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`collect-follow.md`](collect-follow.md) | 收藏歌单与关注歌手：接口、判定机制、两态按钮与取消确认、验收清单 |
 | [`comments-ui.md`](comments-ui.md) | 评论入口与角标、列表与回复、发布和点赞、主题与图片查看、接口约束及验证 |
 | [`mv.md`](mv.md) | MV 播放：三处入口、沉浸 MV 页、画面比例、音视频互斥与验收 |

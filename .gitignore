@@ -15,16 +15,14 @@ packages/
 # 不入库；需要复现逆向结论时自行放置。
 apk/
 
-# 逆向分析工作区（reverse/）：只提交 findings 结论、README 与 tools 脚本，其余是二进制/工具链产物
-# 目录结构与用途见 reverse/README.md
-reverse/.venv/
-reverse/.uv-cache/
-reverse/_tools/
-reverse/**/blutter/
-reverse/**/*.so
-reverse/**/*.log
-# 反汇编转储：与 blutter 产物同类，结论落到 findings 后即可再生，正文文本几千行不留在仓库里
-reverse/**/ekey/
+# 开发参考用的内部笔记（协议勘查记录等），不随仓库发布。文件在本机保留。
+# 这些路径的内容已从全部提交历史中剔除；往这里加东西前先想一遍它会不会被发布。
+/reverse/
+/docs/bodian-api-reference.md
+/docs/bodian-api-inventory.md
+/docs/audio-quality-audit.md
+
+# Python 运行时产物
 __pycache__/
 
 # 第三方参考源码（ref/）：P5 的歌词渲染观感与参数对齐自 BetterLyrics（GPL-3.0）。
