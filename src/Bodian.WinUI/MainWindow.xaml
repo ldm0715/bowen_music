@@ -376,13 +376,26 @@
                         Padding="0"
                         Background="Transparent"
                         BorderThickness="0"
-                        ToolTipService.ToolTip="{x:Bind Account.AccountText, Mode=OneWay}">
+                        ToolTipService.ToolTip="{x:Bind Account.EntryToolTip, Mode=OneWay}">
                         <Border
                             Width="24"
                             Height="24"
                             Background="{ThemeResource ControlFillColorDefaultBrush}"
                             CornerRadius="12">
-                            <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
+                            <!--
+                                未登录时这里原来是一个空灰圆 —— 看不出那是个入口。
+                                换成人形图标：位置不变，但一眼知道「点头像能去登录」。
+                            -->
+                            <Grid>
+                                <Image
+                                    Source="{x:Bind Account.Avatar, Mode=OneWay}"
+                                    Stretch="UniformToFill"
+                                    Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}" />
+                                <controls:Icon
+                                    Size="14"
+                                    Data="{StaticResource IconPerson}"
+                                    Visibility="{x:Bind Account.SignedOutVisibility, Mode=OneWay}" />
+                            </Grid>
                         </Border>
 
                         <Button.Flyout>
@@ -417,8 +430,15 @@
                                     「点一下就切」这种动作太重。
                                 -->
                                 <Grid x:Name="AccountFlyoutRoot" MinWidth="200">
+                                    <!--
+                                        这一屏只在**已登录**时出现（判据见 AccountPanelVisibility）：
+                                        未登录时没有账号卡片可看，弹层直接是账号列表那一屏。
+                                    -->
                                     <StackPanel Spacing="12" Visibility="{x:Bind Account.AccountPanelVisibility, Mode=OneWay}">
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <StackPanel
+                                            Orientation="Horizontal"
+                                            Spacing="10"
+                                            Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}">
                                             <Border
                                                 Width="32"
                                                 Height="32"
@@ -558,7 +578,7 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <Grid ColumnSpacing="8">
+                                        <Grid ColumnSpacing="8" Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
@@ -580,7 +600,12 @@
                                         </Grid>
                                     </StackPanel>
 
-                                    <!-- 二级：切换账号。点一下即切，不重新认证。 -->
+                                    <!--
+                                        账号列表。点一下即切，不重新认证。
+                                        **未登录时这一屏就是全部内容**（没有账号卡片可看，而刚登出的人
+                                        最想做的就是换个账号回来）。所以标题、下面那颗按钮的名字、
+                                        空态文案都随登录态变。
+                                    -->
                                     <StackPanel Spacing="8" Visibility="{x:Bind Account.SwitchListVisibility, Mode=OneWay}">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <Button
@@ -592,17 +617,21 @@
                                                 Background="Transparent"
                                                 BorderThickness="0"
                                                 Click="OnHideSwitchListClick"
-                                                ToolTipService.ToolTip="返回">
+                                                ToolTipService.ToolTip="返回"
+                                                Visibility="{x:Bind Account.BackVisibility, Mode=OneWay}">
                                                 <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconBack}" />
                                             </Button>
 
-                                            <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="切换账号" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontWeight="SemiBold"
+                                                Text="{x:Bind Account.ListTitle, Mode=OneWay}" />
                                         </StackPanel>
 
                                         <TextBlock
                                             FontSize="11"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            Text="还没有记住别的账号。用下面的「添加账号」登录一个，之后就能一键切回来。"
+                                            Text="{x:Bind Account.EmptyListHint, Mode=OneWay}"
                                             TextWrapping="Wrap"
                                             Visibility="{x:Bind Account.EmptyListVisibility, Mode=OneWay}" />
 
@@ -694,13 +723,18 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
 
+                                        <!--
+                                            打开登录框。已登录时叫「添加账号」，未登录时叫「登录」——
+                                            同一件事（`OnSignInClick`），只是这个人此刻缺的是什么不一样。
+                                            不再先登出：那样一旦反悔就无路可回（旧行为只能退出应用）。
+                                        -->
                                         <Button
                                             HorizontalAlignment="Stretch"
-                                            Command="{x:Bind Account.AddAccountCommand}"
+                                            Click="OnSignInClick"
                                             ToolTipService.ToolTip="登录一个新账号并记进列表">
                                             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                                 <controls:Icon VerticalAlignment="Center" Size="12" Data="{StaticResource IconAdd}" />
-                                                <TextBlock Text="添加账号" />
+                                                <TextBlock Text="{x:Bind Account.ListFooterText, Mode=OneWay}" />
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>
@@ -941,7 +975,11 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItemHeader Content="我的音乐" />
+            <!--
+                分组头要跟着下面那几项一起显隐：未登录时它们全收起来，
+                只留这个标题会变成一句吊在半空的孤儿话。
+            -->
+            <NavigationViewItemHeader x:Name="MyMusicHeader" Content="我的音乐" />
 
             <NavigationViewItem
                 x:Name="FavoritesItem"

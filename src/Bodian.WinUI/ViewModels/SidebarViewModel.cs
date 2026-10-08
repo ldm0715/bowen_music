@@ -88,14 +88,21 @@ public sealed partial class SidebarViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            // 会话没了也会走到这里（UidPair 抛 InvalidOperationException）。
-            // 那不是异常情况：登出时外壳本来就会把页面切回登录页。
-            _logger.LogWarning(ex, "拉取自建歌单失败");
-
             // ★ 这里**不清空列表**。失败路径原来是 Clear() + 写 ErrorText，
             //   对启动时的自动拉取无害（本来就没东西），对用户主动点的刷新则是倒退 ——
             //   手上有数据，一次网络抖动就让列表变空。跨账号的清理交给 Reset()。
-            ErrorText = ex.Message;
+            //
+            // 「没登录」不算失败：自建歌单本来就要会话，未登录时这一段整个是隐藏的，
+            // 写一条 ErrorText 只会让那个重试行有机会在别处冒出来。
+            if (ex is BodianNotSignedInException)
+            {
+                ErrorText = null;
+            }
+            else
+            {
+                _logger.LogWarning(ex, "拉取自建歌单失败");
+                ErrorText = ex.Message;
+            }
         }
         finally
         {

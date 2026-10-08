@@ -62,8 +62,29 @@ public sealed partial class AccountViewModel : ObservableObject
         _login.AccountChanged += OnAccountChanged;
     }
 
-    /// <summary>账号显示名。没有昵称就退回 uid。</summary>
-    public string AccountText => _login.Nickname ?? _login.Account?.Uid ?? "已登录";
+    /// <summary>
+    /// 账号显示名。没有昵称就退回 uid；<b>没有会话时是「未登录」</b>。
+    /// </summary>
+    /// <remarks>
+    /// 兜底曾经是「已登录」—— 那在未登录时是一句假话，而这个串同时是账号按钮的 ToolTip
+    /// 与弹层标题，用户第一眼就会看到它。
+    /// </remarks>
+    public string AccountText => _login.Nickname ?? _login.Account?.Uid ?? "未登录";
+
+    /// <summary>
+    /// 账号入口那颗按钮的 ToolTip。
+    /// </summary>
+    /// <remarks>
+    /// 未登录时不能只说「未登录」—— 那是个状态，不是能做的事。要说清点下去会发生什么。
+    /// </remarks>
+    public string EntryToolTip => IsSignedIn ? AccountText : "未登录，点击登录";
+
+    /// <summary>当前有没有会话。账号弹层据此在「账号卡片」与「登录入口」之间切。</summary>
+    public bool IsSignedIn => _login.IsAuthenticated;
+
+    public Visibility SignedInVisibility => Visible(IsSignedIn);
+
+    public Visibility SignedOutVisibility => Visible(!IsSignedIn);
 
     /// <summary>账号头像。没有（或老凭据文件里没存）时为 <c>null</c>，界面显示占位。</summary>
     public ImageSource? Avatar
@@ -231,12 +252,32 @@ public sealed partial class AccountViewModel : ObservableObject
     /// <summary>已记住的账号，供二级列表用。</summary>
     public ObservableCollection<RememberedAccountRow> RememberedAccounts { get; } = [];
 
-    /// <summary>弹层现在显示的是二级列表（而不是账号信息）。</summary>
-    public bool IsSwitchListShown => _switchListShown;
+    /// <summary>
+    /// 弹层现在显示的是账号列表（而不是账号卡片）。
+    /// </summary>
+    /// <remarks>
+    /// <b>未登录时永远是列表。</b> 那时没有账号卡片可看，而「换个账号回来」恰恰是刚登出的人
+    /// 最可能想做的事 —— 登出保留清单却没给入口，等于白留。
+    /// </remarks>
+    public bool IsSwitchListShown => _switchListShown || !IsSignedIn;
 
-    public Visibility AccountPanelVisibility => Visible(!_switchListShown);
+    public Visibility AccountPanelVisibility => Visible(IsSignedIn && !_switchListShown);
 
-    public Visibility SwitchListVisibility => Visible(_switchListShown);
+    public Visibility SwitchListVisibility => Visible(IsSwitchListShown);
+
+    /// <summary>「返回账号卡片」那一颗。未登录时没有上一屏可回。</summary>
+    public Visibility BackVisibility => Visible(IsSignedIn && _switchListShown);
+
+    /// <summary>列表那一屏的标题。</summary>
+    public string ListTitle => IsSignedIn ? "切换账号" : "未登录";
+
+    /// <summary>列表底部那颗按钮：两种状态下都是「打开登录框」，只是叫法不同。</summary>
+    public string ListFooterText => IsSignedIn ? "添加账号" : "登录";
+
+    /// <summary>列表为空时的说明。</summary>
+    public string EmptyListHint => IsSignedIn
+        ? "还没有记住别的账号。用下面的「添加账号」登录一个，之后就能一键切回来。"
+        : "还没有记住的账号。用下面的「登录」登一个，之后就能一键切回来。";
 
     /// <summary>列表为空时显示那句说明。</summary>
     public Visibility EmptyListVisibility => Visible(RememberedAccounts.Count == 0);
@@ -311,18 +352,17 @@ public sealed partial class AccountViewModel : ObservableObject
         SetSwitchListShown(true);
     }
 
-    /// <summary>回账号信息那一屏。理由同 <see cref="ShowSwitchList"/>。</summary>
-    public void HideSwitchList() => SetSwitchListShown(false);
+    /// <summary>回账号卡片那一屏。理由同 <see cref="ShowSwitchList"/>。</summary>
+    /// <remarks>未登录时没有账号卡片可回，<b>本来也回不去</b> —— 那时这一屏就是全部内容。</remarks>
+    public void HideSwitchList()
+    {
+        if (!IsSignedIn)
+        {
+            return;
+        }
 
-    /// <summary>
-    /// 添加账号。
-    /// </summary>
-    /// <remarks>
-    /// <b>就是「登出到登录页」</b>：登出保留清单（见 <c>IBodianLogin.SignOut</c>），
-    /// 新账号登录成功后会自动记进清单。它和「切换账号」是两件事，所以在界面上分开放。
-    /// </remarks>
-    [RelayCommand]
-    private void AddAccount() => _login.SignOut();
+        SetSwitchListShown(false);
+    }
 
     private void SetSwitchListShown(bool value)
     {
@@ -332,10 +372,15 @@ public sealed partial class AccountViewModel : ObservableObject
         }
 
         _switchListShown = value;
+        RaisePanelChanged();
+    }
 
+    private void RaisePanelChanged()
+    {
         OnPropertyChanged(nameof(IsSwitchListShown));
         OnPropertyChanged(nameof(AccountPanelVisibility));
         OnPropertyChanged(nameof(SwitchListVisibility));
+        OnPropertyChanged(nameof(BackVisibility));
     }
 
     private void OnAccountChanged(object? sender, EventArgs e)
@@ -361,10 +406,28 @@ public sealed partial class AccountViewModel : ObservableObject
         _playData = null;
         _vip = null;
 
-        // 弹层收回到账号信息那一屏：切换成功后不该还停在上一个账号的列表上。
+        // 弹层收回到账号卡片那一屏：切换成功后不该还停在上一个账号的列表上。
+        // （未登录时会由 IsSwitchListShown 自己回到列表 —— 那时列表就是全部内容。）
         SetSwitchListShown(false);
 
         OnPropertyChanged(nameof(AccountText));
+        OnPropertyChanged(nameof(EntryToolTip));
+        OnPropertyChanged(nameof(IsSignedIn));
+        OnPropertyChanged(nameof(SignedInVisibility));
+        OnPropertyChanged(nameof(SignedOutVisibility));
+
+        // 未登录 / 登录切换会连带换掉列表那一屏的标题、按钮名与空态文案。
+        RaisePanelChanged();
+        OnPropertyChanged(nameof(ListTitle));
+        OnPropertyChanged(nameof(ListFooterText));
+        OnPropertyChanged(nameof(EmptyListHint));
+        OnPropertyChanged(nameof(EmptyListVisibility));
+
+        // ★ 列表也要重建：行是「打开弹层时」建的一次快照，里面的「谁是当前账号」
+        //   不会自己跟着会话变。不重算的话，登出之后那一行还亮着底色、还点不动 ——
+        //   而登出之后**没有任何账号**该是选中的（`Account` 已经是 null）。
+        RefreshRememberedAccounts();
+
         OnPropertyChanged(nameof(Avatar));
         OnPropertyChanged(nameof(IsVip));
         OnPropertyChanged(nameof(VipKindLabel));

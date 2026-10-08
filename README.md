@@ -97,6 +97,7 @@
 | [`settings.md`](docs/settings.md) | 设置页：入口与页内布局、「实时状态 / 默认值 / 当前值」三种值的分野、应用内快捷键、封面磁盘缓存与存储清理、版本与检查更新 |
 | [`multi-account.md`](docs/multi-account.md) | 多账号下的本地数据作用域：设备级 / 个人级 / 账号级三分、按账号分目录的三份数据、旧布局迁移、存储页清理的账号维度 |
 | [`account-switch.md`](docs/account-switch.md) | 账号快捷切换：记住的账号清单（DPAPI）、切号不重新认证、登出语义的变化、失效账号的表现 |
+| [`anonymous-browse.md`](docs/anonymous-browse.md) | 匿名浏览：未登录也能进外壳、登录框可关闭、哪些能力匿名可用（含实测表）、曲库守卫为何放宽 |
 | [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
 | [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |
 

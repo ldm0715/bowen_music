@@ -88,6 +88,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private readonly INavigationService _navigation;
     private readonly IBodianLogin _login;
+
+    /// <summary>
+    /// 登录对话框的视图模型。
+    /// </summary>
+    /// <remarks>
+    /// <b>一个实例反复用</b>：它是可重入的（<c>StartAsync</c> 一进来先掐掉上一轮轮询），
+    /// 而每次打开都新建对话框本身就是为了保证「屏幕上那个」是新的。
+    /// </remarks>
+    private readonly LoginViewModel _loginViewModel;
+
     private readonly SidebarViewModel _sidebar;
     private readonly IWindowPlacementStore _placement;
     private readonly WindowRenderActivity _renderActivity;
@@ -158,6 +168,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     public MainWindow(
         INavigationService navigation,
         IBodianLogin login,
+        LoginViewModel loginViewModel,
         PlayerViewModel playerViewModel,
         LyricsViewModel lyricsViewModel,
         DesktopLyricsViewModel desktopLyrics,
@@ -177,6 +188,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     {
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(login);
+        ArgumentNullException.ThrowIfNull(loginViewModel);
         ArgumentNullException.ThrowIfNull(playerViewModel);
         ArgumentNullException.ThrowIfNull(lyricsViewModel);
         ArgumentNullException.ThrowIfNull(desktopLyrics);
@@ -194,6 +206,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         _navigation = navigation;
         _login = login;
+        _loginViewModel = loginViewModel;
         _sidebar = sidebar;
         _placement = placement;
         _shortcuts = shortcuts;
@@ -683,6 +696,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Account.RefreshRememberedAccounts();
     }
 
+    /// <summary>账号入口里的「登录」（未登录态下那一颗，或已登录时想换个号）。</summary>
+    private void OnSignInClick(object sender, RoutedEventArgs e) => ShowLoginDialog();
+
     /// <summary>
     /// 进「切换账号」二级列表。
     /// </summary>
@@ -1137,11 +1153,17 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (_login.TryRestorePersistedSession())
         {
             _navigation.NavigateRoot<FavoritesPage>();
+            return;
         }
-        else
-        {
-            ShowLogin();
-        }
+
+        // 没有会话：进匿名外壳（发现页），并弹一次登录框。
+        // ★ 关掉之后本次运行不再自动弹 —— 未登录也能搜索与浏览，登录只影响播放与账号数据。
+        //   这也是「登录框能关掉」的前提：关掉之后有一块能用的界面，而不是一个死胡同。
+        // ★ 必须显式进外壳：恢复会话那条路是靠 OnAccountChanged 把外壳立起来的，
+        //   而匿名**不会触发那个事件**，不叫这一次的话搜索框与账号入口还停在 XAML 的初始态。
+        EnterAnonymousShell();
+        _navigation.NavigateRoot<DiscoverPage>();
+        ShowLoginDialog();
     }
 
     /// <summary>
@@ -1190,7 +1212,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         if (!_login.IsAuthenticated)
         {
-            ShowLogin();
+            // 登出、以及被服务端判死，都回到「未登录的外壳」—— 同一件「不再有会话」的事，
+            // 不该有两条各写一遍的路径。界面照常用，只是登录才有的几项收起来。
+            EnterAnonymousShell();
 
             // 主动登出是用户自己的动作，不必解释；被服务端判死（11012）要说一句 ——
             // 否则用户只看到自己莫名其妙被踢了出来。切到一个失效账号时走的也是这条路。
@@ -1547,26 +1571,68 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 登录宿主显示居中弹窗；侧栏留在旁边会露出上一个账号的歌单名 —— 那既是错的信息，
     /// 也是不该在未登录状态出现的信息。搜索框同理：未登录时搜出来也播不了。
     /// </remarks>
-    private void ShowLogin()
+    /// <summary>
+    /// 未登录状态下的外壳：侧栏、搜索、账号入口都在，只有登录才有意义的几项收起来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>未登录是一个稳态，不是「要把界面拆掉」的事件。</b> 服务端只在播放与账号数据上要会话
+    /// （见 <c>docs/anonymous-browse.md</c> 的实测表），发现 / 榜单 / 乐库 / 搜索 / 评论 / 歌词
+    /// 匿名都能用，所以外壳照常显示。
+    /// </para>
+    /// <para>
+    /// <b>当前页若是「登录才有」的那一类，要挪走。</b> 登出或掉线时人就停在那儿的话，
+    /// 它会去请求一个需要会话的接口，然后显示一行「登录后可查看」—— 不如直接回发现页。
+    /// </para>
+    /// </remarks>
+    private void EnterAnonymousShell()
     {
-        Nav.IsPaneVisible = false;
-        HidePlaylistsPane();
+        ShowShell();
 
-        // 登出后这段本来就看不见，但列表还留着上一个账号的歌单名 —— 清掉。
+        // 上一个账号的自建歌单名还留在列表里，而这一段现在要收起来 —— 收之前先清掉。
         _sidebar.Reset();
-        SearchPanel.Visibility = Visibility.Collapsed;
-        Search.ClearSuggestions();
-        SearchBarHost.Visibility = Visibility.Collapsed;
-        AccountButton.Visibility = Visibility.Collapsed;
-        _navigation.Reset<LoginPage>();
+
+        if (IsAccountOnlyPage(_navigation.Current))
+        {
+            _navigation.NavigateRoot<DiscoverPage>();
+        }
+
+        UpdateSidebarPaneMode();
     }
 
-    /// <summary>登录之后显示侧栏、标题栏搜索框与账号入口。</summary>
+    /// <summary>这一页是不是「没登录就没意义」的那几页。</summary>
+    private static bool IsAccountOnlyPage(Page? page) =>
+        page is FavoritesPage or CollectedAlbumsPage or CollectedPlaylistsPage or FollowedArtistsPage;
+
+    /// <summary>
+    /// 打开登录框：<b>浮在当前页面之上</b>，既不是宿主页也不进导航栈。
+    /// </summary>
+    /// <remarks>
+    /// 打开与关闭都不改变用户所在的页面，所以「添加账号」反悔时不会掉进
+    /// 「只能退出应用」那种死胡同，也不会留下任何等着被退掉的状态。
+    /// </remarks>
+    private void ShowLoginDialog()
+    {
+        HidePlaylistsPane();
+
+        // 挂在外壳的 XamlRoot 上、每次新建一个 —— 见 LoginDialog 里关于
+        // 「弹层可能已不在屏幕上而 IsOpen 仍为真」的那段说明。
+        _ = LoginDialog.ShowAsync(ShellRoot.XamlRoot, Theme.RequestedTheme, _loginViewModel);
+    }
+
+    /// <summary>显示侧栏、标题栏搜索框与账号入口。</summary>
+    /// <remarks>
+    /// 未登录时也走这里 —— 那时账号入口显示成「登录」，登录才有的侧栏项由
+    /// <see cref="UpdateSidebarPaneMode"/> 收起来。
+    /// </remarks>
     private void ShowShell()
     {
         Nav.IsPaneVisible = true;
         SearchBarHost.Visibility = Visibility.Visible;
         AccountButton.Visibility = Visibility.Visible;
+
+        // 顺手同步一次侧栏项的显隐：登录后不该等侧栏拉完才看见「我喜欢的」。
+        UpdateSidebarPaneMode();
     }
 
     private async Task LoadSidebarAsync()
@@ -1623,10 +1689,20 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         //   这一段现在带着「新建歌单」入口，零歌单时恰恰最需要它 ——
         //   原来的 hasPlaylists 门控会让新账号把两处入口一起藏掉，等于没有入口可用。
         //   失败那两行重试入口仍由 ErrorText 单独驱动，与这里正交。
-        var showPane = _login.IsAuthenticated;
+        var signedIn = _login.IsAuthenticated;
 
-        PlaylistSection.Visibility = showPane && !compact ? Visibility.Visible : Visibility.Collapsed;
-        CompactPlaylistsItem.Visibility = showPane && compact ? Visibility.Visible : Visibility.Collapsed;
+        PlaylistSection.Visibility = signedIn && !compact ? Visibility.Visible : Visibility.Collapsed;
+        CompactPlaylistsItem.Visibility = signedIn && compact ? Visibility.Visible : Visibility.Collapsed;
+
+        // 登录才有意义的那几项：未登录时整个藏掉。
+        // 它们点进去只会是空的，或者显示「登录后可查看」—— 那不如不给入口。
+        // 「最近播放」不在此列：它读的是本地数据，匿名下照样有内容。
+        var accountItems = signedIn ? Visibility.Visible : Visibility.Collapsed;
+        MyMusicHeader.Visibility = accountItems;
+        FavoritesItem.Visibility = accountItems;
+        CollectedAlbumsItem.Visibility = accountItems;
+        CollectedPlaylistsItem.Visibility = accountItems;
+        FollowedArtistsItem.Visibility = accountItems;
 
         // 标题栏左侧那块 Logo 占位要和栏宽对齐，否则收起后搜索框与返回键还停在 200px 处，
         // 中间空出一段被压住的侧栏。宽度直接问 Nav 要，不另抄一份常量 ——

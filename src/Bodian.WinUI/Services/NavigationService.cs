@@ -162,6 +162,10 @@ public sealed class NavigationService : INavigationService
         // 返回栈立即前进，视觉离场只跑一次；连点返回或直接选页时提交最后的目标。
         if (_departing)
         {
+            // ★ 这次导航被挂起，等离场动画结束再提交。
+            //   离场若**永远不结束**，导航就永远不来（表现为「点什么都没反应」），
+            //   而那时静默是查不出来的 —— 这条日志就是唯一线索。
+            _logger.LogWarning("离场未结束，导航到 {Page} 先挂起", next.GetType().Name);
             _pendingCover = null;
             return;
         }
@@ -195,6 +199,7 @@ public sealed class NavigationService : INavigationService
         // 窗口已经关闭时，不再挂载页面或重新开启播放。
         if (_host is not { IsLoaded: true })
         {
+            _logger.LogWarning("离场结束但宿主未就绪，丢弃挂起的导航 {Page}", _pendingPage?.GetType().Name);
             _pendingPage = null;
             return;
         }

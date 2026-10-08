@@ -129,7 +129,7 @@ public sealed class PlaylistCreateApiTests : IDisposable
     {
         _session.Clear();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => _api.CreatePlaylistAsync("通勤", isPrivate: false, Ct));
 
         Assert.Empty(_handler.Requests);

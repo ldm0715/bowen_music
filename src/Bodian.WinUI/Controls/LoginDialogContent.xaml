@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bodian.WinUI.Controls.LoginDialogContent"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bodian.WinUI.Controls"
+    xmlns:local="using:Bodian.WinUI"
+    KeyDown="OnKeyDown">
+
+    <!--
+        登录对话框的内容体（宿主见 Controls/LoginDialog.cs）。
+
+        ★ 它**不是一页**：以前它是 LoginPage，被压进导航栈当宿主，
+          结果弹层一旦因窗口隐藏而丢失，「页面还在栈顶」就把后续的打开全挡成了静默 no-op。
+          现在它是内容、由外壳直接弹，没有栈可卡。
+    -->
+    <Grid RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--
+            ★ 关闭按钮在右上角，与页签同一行：不另开一行，弹窗高度不会因为它变高。
+            页签是居中的，两者不会撞上。
+
+            **不用 ContentDialog 自带的 CloseButtonText** —— 那颗固定在底部，位置压不住。
+            代价是 Esc 不再由框架处理，改由本控件的 KeyDown 自己接。
+        -->
+        <Button
+            Grid.Row="0"
+            Width="28"
+            Height="28"
+            MinWidth="0"
+            MinHeight="0"
+            Padding="0"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Background="Transparent"
+            BorderThickness="0"
+            Click="OnCloseClick"
+            ToolTipService.ToolTip="关闭">
+            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconDismiss}" />
+        </Button>
+
+        <!--
+            MinItemWidth 让两个页签等宽（默认是按内容自适应，那样很窄）。
+            HorizontalAlignment=Center 居中整条 —— 它管不了单个页签的宽度，
+            所以两者要一起用。
+        -->
+        <controls:PillTabBar
+            Grid.Row="0"
+            HorizontalAlignment="Center"
+            ItemsSource="{x:Bind ViewModel.LoginMethods}"
+            MinItemWidth="128"
+            SelectedIndex="{x:Bind ViewModel.SelectedMethod, Mode=TwoWay}" />
+
+        <!--
+            两个面板占同一行、只切可见性：隐藏的那个不参与测量，
+            行高自然跟着可见的那个走，不会留下空白。
+        -->
+
+        <!-- ── 扫码 ─────────────────────────────────────────────── -->
+        <Grid
+            Grid.Row="1"
+            RowSpacing="16"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsQrMethod), Mode=OneWay}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="用波点 App 扫描下方二维码。项目为非官方第三方客户端，建议用小号。"
+                TextWrapping="Wrap" />
+
+            <Border
+                Grid.Row="1"
+                Padding="12"
+                HorizontalAlignment="Center"
+                Background="White"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource RadiusMd}">
+                <Grid Width="220" Height="220">
+                    <!-- 保持二维码等比显示，白底与足够的四周留白用于正常识别。 -->
+                    <Image
+                        Source="{x:Bind ViewModel.QrImage, Mode=OneWay}"
+                        Stretch="Uniform" />
+                    <ProgressRing
+                        Width="32"
+                        Height="32"
+                        IsActive="{x:Bind ViewModel.IsWaiting, Mode=OneWay}" />
+                </Grid>
+            </Border>
+
+            <!-- 状态行留在本面板内：两条路径各有一条，不共用。 -->
+            <TextBlock
+                Grid.Row="2"
+                HorizontalAlignment="Stretch"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.QrStatusText, Mode=OneWay}"
+                TextAlignment="Center"
+                TextWrapping="Wrap" />
+
+            <Button
+                Grid.Row="3"
+                HorizontalAlignment="Center"
+                Command="{x:Bind ViewModel.RefreshCommand}"
+                Content="刷新二维码"
+                IsEnabled="{x:Bind ViewModel.CanRefresh, Mode=OneWay}" />
+        </Grid>
+
+        <!-- ── 手机号 ───────────────────────────────────────────── -->
+        <Grid
+            Grid.Row="1"
+            RowSpacing="12"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.IsPhoneMethod), Mode=OneWay}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="用手机号接收短信验证码登录。项目为非官方第三方客户端，建议用小号。"
+                TextWrapping="Wrap" />
+
+            <!--
+                刻意**不设** MaxLength：从通讯录粘进来的号码常带 +86 或分隔符
+                （「+86 138 0013 8000」是 16 个字符），限 11 位会把粘贴内容截成无效串，
+                而 MobileNumber 本来就负责剥掉这些。校验交给 ViewModel。
+            -->
+            <TextBox
+                Grid.Row="1"
+                Header="手机号"
+                InputScope="TelephoneNumber"
+                Text="{x:Bind ViewModel.Phone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+            <Grid Grid.Row="2" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox
+                    Header="验证码"
+                    InputScope="Number"
+                    MaxLength="6"
+                    Text="{x:Bind ViewModel.VerifyCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <Button
+                    Grid.Column="1"
+                    MinWidth="112"
+                    VerticalAlignment="Bottom"
+                    Command="{x:Bind ViewModel.RequestCodeCommand}"
+                    Content="{x:Bind ViewModel.CodeButtonText, Mode=OneWay}"
+                    IsEnabled="{x:Bind ViewModel.CanRequestCode, Mode=OneWay}" />
+            </Grid>
+
+            <TextBlock
+                Grid.Row="3"
+                HorizontalAlignment="Stretch"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.PhoneStatusText, Mode=OneWay}"
+                TextAlignment="Center"
+                TextWrapping="Wrap" />
+
+            <Button
+                Grid.Row="4"
+                HorizontalAlignment="Stretch"
+                Command="{x:Bind ViewModel.LoginByPhoneCommand}"
+                Content="登录"
+                IsEnabled="{x:Bind ViewModel.CanSubmitPhone, Mode=OneWay}"
+                Style="{StaticResource AccentButtonStyle}" />
+        </Grid>
+
+        <!--
+            「关闭」是个中性词，所以这里要把「关掉之后还能用」说清楚 ——
+            否则用户会以为关了就没事可做了，而那正是这枚按钮存在的理由。
+        -->
+        <TextBlock
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            FontSize="11"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="不登录也能搜索、浏览；登录后才能播放与同步歌单。"
+            TextAlignment="Center"
+            TextWrapping="Wrap" />
+    </Grid>
+</UserControl>

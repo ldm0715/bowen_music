@@ -16,7 +16,7 @@
             x:Name="LoginDialog"
             Background="{ThemeResource ThemeFlyoutBackground}"
             CornerRadius="{StaticResource RadiusMd}"
-            Closing="OnDialogClosing">
+            KeyDown="OnDialogKeyDown">
             <ContentDialog.Resources>
                 <x:Double x:Key="ContentDialogMinWidth">340</x:Double>
                 <x:Double x:Key="ContentDialogMaxWidth">420</x:Double>
@@ -26,6 +26,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!--
@@ -33,6 +34,29 @@
                     HorizontalAlignment=Center 居中整条 —— 它管不了单个页签的宽度，
                     所以两者要一起用。
                 -->
+                <!--
+                    ★ 关闭按钮在右上角，与页签同一行：不另开一行，弹窗高度不会因为它变高。
+                    页签是居中的，两者不会撞上。
+
+                    **不用 ContentDialog 自带的 CloseButtonText** —— 那颗固定在底部，位置压不住。
+                    代价是 Esc 不再由框架处理，改由 OnDialogKeyDown 自己接。
+                -->
+                <Button
+                    Grid.Row="0"
+                    Width="28"
+                    Height="28"
+                    MinWidth="0"
+                    MinHeight="0"
+                    Padding="0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="OnCloseClick"
+                    ToolTipService.ToolTip="关闭">
+                    <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconDismiss}" />
+                </Button>
+
                 <controls:PillTabBar
                     Grid.Row="0"
                     HorizontalAlignment="Center"
@@ -165,6 +189,19 @@
                         IsEnabled="{x:Bind ViewModel.CanSubmitPhone, Mode=OneWay}"
                         Style="{StaticResource AccentButtonStyle}" />
                 </Grid>
+
+                <!--
+                    「关闭」是个中性词，所以这里要把「关掉之后还能用」说清楚 ——
+                    否则用户会以为关了就没事可做了，而那正是这枚按钮存在的理由。
+                -->
+                <TextBlock
+                    Grid.Row="2"
+                    HorizontalAlignment="Center"
+                    FontSize="11"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="不登录也能搜索、浏览；登录后才能播放与同步歌单。"
+                    TextAlignment="Center"
+                    TextWrapping="Wrap" />
             </Grid>
         </ContentDialog>
     </Grid>

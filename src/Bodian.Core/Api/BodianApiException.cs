@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Bodian.Core.Diagnostics;
 
@@ -98,4 +99,32 @@ public sealed class BodianPayloadTooLargeException : Exception
     public string Path { get; }
 
     public long LimitBytes { get; }
+}
+
+/// <summary>
+/// 本地就判定这个接口需要登录 —— <b>请求根本没发出去</b>。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 与 <see cref="BodianApiException"/> 的分工是「谁做的判断」：那个是服务端回的失败码，
+/// 这个是客户端自己拦下的。分开是为了让界面给出不同的话 —— 前者是「加载失败」，
+/// 后者是「登录后可查看」，而且后者<b>不该给重试按钮</b>（重试还是同一个结果）。
+/// </para>
+/// <para>
+/// <b>它不表示「权限被绕过」。</b> 真正的权限一律由服务端裁决；这里拦的只有
+/// 「本地压根没有可用会话」这一种情况。
+/// </para>
+/// <para>
+/// 继承 <see cref="InvalidOperationException"/>：语义就是「这个对象在这个状态下不接受这个调用」，
+/// 而这一族守卫原来抛的就是它 —— 派生之后既有的断言与上游的兜底 catch 都不受影响。
+/// </para>
+/// </remarks>
+public sealed class BodianNotSignedInException : InvalidOperationException
+{
+    /// <param name="caller">发起调用的方法名。由编译器补，日志里据此定位是哪一处拦下的。</param>
+    public BodianNotSignedInException([CallerMemberName] string? caller = null)
+        : base($"这个接口需要登录后才能调用（{caller}）")
+        => Caller = caller;
+
+    public string? Caller { get; }
 }

@@ -99,7 +99,7 @@ public sealed class LikedSongsApiTests : IDisposable
     [Fact]
     public async Task Write_RequiresLogin()
     {
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => _api.AddPlaylistMusicAsync(PlaylistId, [MusicId], Ct));
     }
 

@@ -85,7 +85,7 @@ public sealed class PlaylistDeleteApiTests : IDisposable
     {
         _session.Clear();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.DeletePlaylistAsync(PlaylistId, Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.DeletePlaylistAsync(PlaylistId, Ct));
 
         Assert.Empty(_handler.Requests);
     }

@@ -143,8 +143,8 @@ public sealed class SongCommentApiTests : IDisposable
     [Fact]
     public async Task Writes_RequireLoginBeforeSendingAnything()
     {
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.PublishSongCommentAsync(118990, "draft", cancellationToken: Ct));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.SetSongCommentLikeAsync(118990, 867666, true, cancellationToken: Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.PublishSongCommentAsync(118990, "draft", cancellationToken: Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.SetSongCommentLikeAsync(118990, 867666, true, cancellationToken: Ct));
         Assert.Empty(_handler.Requests);
     }
 

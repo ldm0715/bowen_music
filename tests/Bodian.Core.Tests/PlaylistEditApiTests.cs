@@ -121,7 +121,7 @@ public sealed class PlaylistEditApiTests : IDisposable
     {
         _session.Clear();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => _api.UpdatePlaylistAsync(PlaylistId, "名字", "", "", [], Ct));
 
         Assert.Empty(_handler.Requests);

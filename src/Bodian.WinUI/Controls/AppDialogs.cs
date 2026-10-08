@@ -34,7 +34,11 @@ internal static class AppDialogs
     /// <summary>默认宽度上限。</summary>
     public const double DefaultMaxWidth = 360;
 
-    public static ContentDialog Create(string title, XamlRoot xamlRoot, ElementTheme theme, double maxWidth = DefaultMaxWidth)
+    /// <param name="title">
+    /// 标题。为 <c>null</c> 时不设标题 —— 内容自带标题的对话框（例如登录：页签本身就是标题）
+    /// 再加一行是重复的，而且会把顶部留白撑开。
+    /// </param>
+    public static ContentDialog Create(string? title, XamlRoot xamlRoot, ElementTheme theme, double maxWidth = DefaultMaxWidth)
     {
         ArgumentNullException.ThrowIfNull(xamlRoot);
 
@@ -42,8 +46,12 @@ internal static class AppDialogs
         {
             XamlRoot = xamlRoot,
             RequestedTheme = theme,
-            Title = title,
         };
+
+        if (!string.IsNullOrEmpty(title))
+        {
+            dialog.Title = title;
+        }
 
         dialog.Resources["ContentDialogPadding"] = new Thickness(24, 12, 24, 12);
         dialog.Resources["ContentDialogMinHeight"] = 0d;

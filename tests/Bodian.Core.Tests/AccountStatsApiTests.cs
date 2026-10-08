@@ -213,8 +213,8 @@ public sealed class AccountStatsApiTests : IDisposable
     [Fact]
     public async Task Anonymous_Throws()
     {
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.GetAccountMetadataAsync(Ct));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.GetAccountPlayDataAsync(Ct));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.GetAccountVipInfoAsync(Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.GetAccountMetadataAsync(Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.GetAccountPlayDataAsync(Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.GetAccountVipInfoAsync(Ct));
     }
 }

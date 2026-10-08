@@ -286,11 +286,11 @@ public sealed class AlbumApiTests : IDisposable
     {
         _session.Clear();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => _api.GetPurchasedSinglesAsync(NewCursor(), Ct));
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => _api.GetPurchasedAlbumsAsync(NewCursor(), Ct));
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => _api.GetCollectedAlbumsAsync(NewCursor(), Ct));
     }
 

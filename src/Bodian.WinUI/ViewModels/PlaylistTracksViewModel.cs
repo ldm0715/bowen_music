@@ -131,6 +131,15 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     /// <summary>歌单不存在时的说明文案。</summary>
     protected abstract string MissingText { get; }
 
+    /// <summary>
+    /// 需要登录时列表里那行字。
+    /// </summary>
+    /// <remarks>
+    /// <b>与「加载失败」分开</b>：那是服务端回的失败，重试有意义；这一种重试还是同一个结果，
+    /// 所以要给一句能解释清楚的话，并且不给重试入口（<c>LoadFailed</c> 保持 <c>false</c>）。
+    /// </remarks>
+    protected virtual string RequiresSignInText => "登录后可查看这个歌单。";
+
     /// <summary>歌单存在但没有可播曲目时的说明文案。</summary>
     protected abstract string EmptyText { get; }
 
@@ -187,7 +196,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
 
             await AppendNextPageAsync(cancellationToken).ConfigureAwait(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!TryReportNotSignedIn(ex))
         {
             _logger.LogWarning(ex, "加载歌单曲目失败");
             StatusText = $"加载失败：{ex.Message}";
@@ -197,6 +206,24 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// 「本地就判定要登录」不是加载失败：换一句能解释清楚的话，并且不给重试入口。
+    /// </summary>
+    /// <returns>确实是这一种情况时返回 <c>true</c>，调用方据此跳过通用的失败处理。</returns>
+    private bool TryReportNotSignedIn(Exception ex)
+    {
+        if (ex is not BodianNotSignedInException)
+        {
+            return false;
+        }
+
+        StatusText = RequiresSignInText;
+        LoadFailed = false;
+        HasMore = false;
+
+        return true;
     }
 
     [RelayCommand]
@@ -214,7 +241,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
         {
             await AppendNextPageAsync(cancellationToken).ConfigureAwait(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!TryReportNotSignedIn(ex))
         {
             _logger.LogWarning(ex, "加载下一页失败");
             StatusText = $"加载失败：{ex.Message}";

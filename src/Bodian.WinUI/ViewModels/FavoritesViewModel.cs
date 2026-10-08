@@ -41,6 +41,9 @@ public sealed partial class FavoritesViewModel : PlaylistTracksViewModel
     /// </remarks>
     protected override string MissingText => "这个账号还没有「我喜欢的」歌单。";
 
+    /// <summary>匿名时这个页面取不到东西（`playlist/fond` 要会话），要说清是「没登录」而不是「空的」。</summary>
+    protected override string RequiresSignInText => "登录后可查看「我喜欢的」。";
+
     protected override string EmptyText => "「我喜欢的」里还没有歌。";
 
     protected override Task<Playlist?> ResolvePlaylistAsync(CancellationToken cancellationToken) =>

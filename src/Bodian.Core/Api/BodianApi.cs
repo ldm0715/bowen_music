@@ -731,7 +731,13 @@ public sealed class BodianApi : IBodianApi
     {
         ArgumentNullException.ThrowIfNull(cursor);
         EnsurePlaylistId(playlistId);
-        RequireAuthenticated();
+
+        // 只有账号歌单真的需要会话；公开集合（4）与发现页歌单（13）匿名就能取。
+        // 判据与实测见 RequireAuthenticated 的 remarks。
+        if (source == AccountPlaylistSource)
+        {
+            RequireAuthenticated();
+        }
 
         var sourceText = source.ToString(CultureInfo.InvariantCulture);
 
@@ -2061,18 +2067,26 @@ public sealed class BodianApi : IBodianApi
     }
 
     /// <summary>
-    /// 曲库接口的前置条件。
+    /// 「这个接口需要会话」的前置条件。<b>只给真的需要它的端点用。</b>
     /// </summary>
     /// <remarks>
-    /// <b>取曲目<b>不发</b> <c>userId</c> 参数</b>（那个端点的参数只有 <c>source/pn/rn</c>，
-    /// 多加一个未经验证的键有风险），但登录校验一样要做：<c>source=5</c> 是账号歌单，
-    /// 匿名会话下服务端只会回空，界面看起来像「这个歌单是空的」。
+    /// <para>
+    /// 多数曲库接口要发 <c>userId</c>（<see cref="UidPair"/>），匿名时那个值是 <c>-1</c>，
+    /// 服务端会回空 —— 那样界面看起来像「你没有歌单」，而不是「你没登录」。
+    /// </para>
+    /// <para>
+    /// <b>别拿它当「曲库族」的通用开关。</b> 2026-10-08 实测：
+    /// <c>service/playlist/{id}/musicList</c> 对 <c>source=4</c>（公开集合）与 <c>source=13</c>
+    /// （发现页歌单）在匿名会话下照常返回曲目，只有 <c>source=5</c>（账号歌单）取不到。
+    /// 早先对所有 <c>source</c> 一律拦下，后果是发现页里点进任何歌单都显示「加载失败」——
+    /// 挡掉的是服务端本来就允许的东西。见 <c>reverse/findings/06-library-api.md</c>。
+    /// </para>
     /// </remarks>
     private void RequireAuthenticated()
     {
         if (!_session.IsAuthenticated)
         {
-            throw new InvalidOperationException("曲库接口需要登录后才能调用。");
+            throw new BodianNotSignedInException();
         }
     }
 

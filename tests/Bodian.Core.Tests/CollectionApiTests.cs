@@ -136,7 +136,7 @@ public sealed class CollectionApiTests : IDisposable
             _handler, new BodianTransportOptions(), anonymous, new FakeDeviceIdentity(), FixedTimeProvider.Golden);
         var api = new BodianApi(transport, anonymous, new FakeDeviceIdentity());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => api.SetPlaylistCollectedAsync(PlaylistId, 4, collected: true, Ct));
     }
 

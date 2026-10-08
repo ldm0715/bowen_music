@@ -16,7 +16,8 @@ namespace Bodian.Core.Tests;
 /// 它们**不是**一次捕获的完整响应 —— 这是本轮唯一的证据缺口。
 /// </para>
 /// <para>
-/// 曲库接口全部要求登录，所以这里的会话是**登录态**的（基类默认是匿名）。
+/// <b>账号曲库</b>那几个接口要求登录，所以这里的会话默认是**登录态**的（基类默认是匿名）；
+/// 公开歌单的曲目匿名也能取，那两条用例自己把会话清掉来验，见 <c>AnonymousSession_*</c>。
 /// </para>
 /// </remarks>
 public sealed class PlaylistApiTests : IDisposable
@@ -216,19 +217,56 @@ public sealed class PlaylistApiTests : IDisposable
     // ── 前置条件 ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 未登录时三个接口都抛，**不返回空列表**。
+    /// 未登录时这三个接口都抛，**不返回空列表**。
     /// </summary>
     /// <remarks>
     /// 返回空会让「侧栏一片空白」看起来像服务端没数据，而真正的原因是没有会话。
+    /// 第三个用的是 <c>source=5</c>（账号歌单）—— 公开歌单不在此列，见下面那条用例。
     /// </remarks>
     [Fact]
     public async Task AnonymousSession_Throws()
     {
         _session.Clear();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.GetCreatedPlaylistsAsync(Ct));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _api.GetLikedPlaylistAsync(Ct));
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.GetCreatedPlaylistsAsync(Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(() => _api.GetLikedPlaylistAsync(Ct));
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
+            () => _api.GetPlaylistTracksAsync(1, AccountSource, new PagedCursor(PagingConvention.OneBased), Ct));
+    }
+
+    /// <summary>
+    /// <b>公开歌单的曲目匿名就能取</b> —— 这是匿名浏览的前提之一。
+    /// </summary>
+    /// <remarks>
+    /// 2026-10-08 探针实测（本机无会话，即 <c>uid=-1</c>）：
+    /// <c>source=4</c> 返回 134 首、<c>source=13</c> 返回 27 首，都能取；
+    /// 只有 <c>source=5</c>（账号歌单）拿不到。见 <c>reverse/findings/06-library-api.md</c>。
+    /// <para>
+    /// 早先这里对所有 <c>source</c> 一律拦下，后果是发现页里点进任何歌单都显示「加载失败」——
+    /// 挡掉的是服务端本来就允许的东西。
+    /// </para>
+    /// </remarks>
+    [Theory]
+    [InlineData(4)]
+    [InlineData(13)]
+    public async Task AnonymousSession_CanStillFetchPublicPlaylistTracks(int source)
+    {
+        _session.Clear();
+        RespondWith("playlist-tracks.json");
+
+        var page = await _api.GetPlaylistTracksAsync(
+            99980832, source, new PagedCursor(PagingConvention.OneBased, 30), Ct);
+
+        Assert.NotEmpty(page.Items);
+    }
+
+    /// <summary>账号歌单（<c>source=5</c>）匿名取不到，仍然要拦 —— 拦下来是为了不让界面显示成「这个歌单是空的」。</summary>
+    [Fact]
+    public async Task AnonymousSession_StillRefusesAccountPlaylistTracks()
+    {
+        _session.Clear();
+
+        await Assert.ThrowsAsync<BodianNotSignedInException>(
             () => _api.GetPlaylistTracksAsync(1, AccountSource, new PagedCursor(PagingConvention.OneBased), Ct));
     }
 
