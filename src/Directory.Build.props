@@ -21,6 +21,19 @@
   </PropertyGroup>
 
   <!--
+    程序集元数据里的署名。会出现在 exe 的「属性 → 详细信息」与任务管理器的进程信息里，
+    也是 GPL-3.0 要求「程序应当带有版权声明」最直接的落点
+    （LICENSE 本身是与官方逐行一致的原文，不许改动）。
+    同样只写这一处：Core 与 WinUI 两个程序集共用。
+  -->
+  <PropertyGroup>
+    <Product>波纹音乐</Product>
+    <Company>gcnanmu</Company>
+    <Authors>gcnanmu</Authors>
+    <Copyright>Copyright © 2026 gcnanmu · GPL-3.0</Copyright>
+  </PropertyGroup>
+
+  <!--
     默认保留 PDB：线上出问题时靠 Serilog 日志里的行号定位，别为 1.6 MB 丢掉。
     出包时加 -p:DistributionBuild=true 去掉，省 Bodian.WinUI.pdb 与 Bodian.Core.pdb。
     放在这里而不是某个 csproj：一行同时覆盖 Core 与 WinUI，免得只去掉一个。

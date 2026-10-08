@@ -10,8 +10,9 @@ namespace Bodian.Core.Services.Implementations;
 /// <inheritdoc cref="IAppUpdateService" />
 /// <remarks>
 /// <para>
-/// <b>未配置时立刻返回，不建连接、不发任何请求。</b> 现在就是这种状态：
-/// 仓库还没建，<see cref="AppUpdateOptions"/> 里三项都是空的。
+/// <b>未配置时立刻返回，不建连接、不发任何请求。</b>
+/// <see cref="AppUpdateOptions.Default"/> 已指向公开仓库，所以正常构建下走的是配置好的那条路；
+/// 未配置那条留着是为了让 <c>AppUpdateOptions</c> 能被替换成空的（测试与本地私有构建）。
 /// </para>
 /// <para>
 /// <b>不打包自动更新</b>：本项目是 unpackaged，没有 MSIX 身份，装不了
@@ -50,7 +51,7 @@ public sealed class GitHubReleaseUpdateService : IAppUpdateService, IDisposable
         if (Options.ReleaseApiUri is not { } api)
         {
             return AppUpdateCheckResult.NotConfigured(
-                "尚未配置更新源。本项目为本地构建的非官方客户端，仓库公开后此处会自动接通。");
+                "尚未配置更新源。这是本地私有构建，不检查更新。");
         }
 
         try

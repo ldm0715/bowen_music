@@ -25,8 +25,13 @@ public sealed record AppUpdateOptions
     /// <summary>「项目主页」按钮的目标。空 = 未配置（按钮禁用）。</summary>
     public string ProjectUrl { get; init; } = "";
 
-    /// <summary>当前设置。</summary>
-    public static AppUpdateOptions Default { get; } = new();
+    /// <summary>当前设置。指向公开仓库，检查更新与「关于」页的两个链接都靠它。</summary>
+    public static AppUpdateOptions Default { get; } = new()
+    {
+        Owner = "ldm0715",
+        Repository = "bowen_music",
+        ProjectUrl = "https://github.com/ldm0715/bowen_music",
+    };
 
     public bool IsConfigured => Owner.Length > 0 && Repository.Length > 0;
 

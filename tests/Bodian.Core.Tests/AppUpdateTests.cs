@@ -28,12 +28,27 @@ public sealed class AppUpdateTests
     // ── 配置 ───────────────────────────────────────────────────────────────
 
     [Fact]
-    public void DefaultOptions_AreNotConfigured()
+    public void DefaultOptions_PointAtThePublicRepository()
     {
-        // 现在就是这个状态：仓库还没建。
-        Assert.False(AppUpdateOptions.Default.IsConfigured);
-        Assert.Null(AppUpdateOptions.Default.ReleaseApiUri);
-        Assert.Null(AppUpdateOptions.Default.ProjectUri);
+        // 应用实际使用的就是这份配置，「关于」页两个按钮的可用性由它决定。
+        // 改了仓库地址这里会红 —— 这条就是防止配置点和测试各说各话。
+        Assert.True(AppUpdateOptions.Default.IsConfigured);
+        Assert.Equal(
+            "https://api.github.com/repos/ldm0715/bowen_music/releases/latest",
+            AppUpdateOptions.Default.ReleaseApiUri!.AbsoluteUri);
+        Assert.Equal(
+            "https://github.com/ldm0715/bowen_music",
+            AppUpdateOptions.Default.ProjectUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public void BlankOptions_AreNotConfigured()
+    {
+        // 空配置这条路必须留着：测试与本地私有构建会把它换进去。
+        var blank = new AppUpdateOptions();
+        Assert.False(blank.IsConfigured);
+        Assert.Null(blank.ReleaseApiUri);
+        Assert.Null(blank.ProjectUri);
     }
 
     [Fact]
@@ -49,7 +64,9 @@ public sealed class AppUpdateTests
     public async Task Check_WhenNotConfigured_ReturnsNotConfiguredWithoutAnyRequest()
     {
         var handler = StubHandler.Responding(OK(LatestRelease));
-        using var service = new GitHubReleaseUpdateService(handler);
+        // 显式传空配置：不能靠「Default 恰好是空的」来摆出未配置状态，
+        // Default 指向公开仓库，那样这条用例会变成在测已配置的分支。
+        using var service = new GitHubReleaseUpdateService(handler, new AppUpdateOptions());
 
         var result = await service.CheckAsync(Current, Ct);
 
