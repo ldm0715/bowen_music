@@ -269,7 +269,7 @@ Window
 
 | 项 | 决定 |
 | --- | --- |
-| 存储 | `%LOCALAPPDATA%\Bowen\history.json`，**不用 SQLite** —— 数据量小、无查询需求，JSON 够 |
+| 存储 | `%LOCALAPPDATA%\Bowen\accounts\<uid>\history.json`（2026-10-08 起按账号分目录，见 `multi-account.md`），**不用 SQLite** —— 数据量小、无查询需求，JSON 够 |
 | 记什么 | `musicId` + `playedAt` + **曲目快照**（标题/歌手/专辑/封面/时长/**可播档位**）。存档位是为了能再次点播 —— 取音源要按档位算 `br` |
 | 上限 | 500 条，超出丢最旧的 |
 | 写入时机 | 订阅 `PlaybackCoordinator.Started`。**被拒绝的曲目没播过、不进历史；试听确实播了、该进** —— 那个事件的语义正好是这个分界 |

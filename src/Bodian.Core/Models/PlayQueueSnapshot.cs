@@ -1,7 +1,7 @@
 namespace Bodian.Core.Models;
 
 /// <summary>
-/// 重启后要恢复的播放列表状态。
+/// 重启后要恢复的播放列表状态。<b>一个作用域一个文件</b>（<c>accounts\&lt;scope&gt;\queue.json</c>）。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -9,19 +9,15 @@ namespace Bodian.Core.Models;
 /// 不可再生的记录 —— 所以读取失败一律退回默认，绝不抛。
 /// </para>
 /// <para>
-/// <b>开关与条目存在同一个文件里</b>：开关的语义就是「这份文件算不算数」，两者必须一起原子写。
-/// 拆成两份的话，「关掉开关」会出现「开关关了但条目还在」的中间态，而那个中间态在重新打开时会把
-/// 旧队列复活 —— 正是关开关的人明确不要的行为。
+/// <b>文件里不再有「开关」。</b> 「记住播放列表」是「这个人怎么用这个软件」，跨账号共用，
+/// 所以它待在 <c>playback.json</c> 里；关掉时会把各作用域的这份文件一并删掉，见
+/// <see cref="Abstractions.IPlayQueueSnapshotStore.DeleteAllScopes"/>。以前把开关塞在这里，
+/// 是为了「关掉开关」能连条目一起原子抹掉 —— 那个理由随多账号一起失效：一次要抹好几个账号的文件，
+/// 本来就做不到单文件原子。
 /// </para>
 /// </remarks>
 public sealed record PlayQueueSnapshot
 {
-    /// <summary>
-    /// 「重启后恢复播放列表」这个开关。<b>默认开</b>——默认关的话，用户放了一堆歌重启后什么都不见了，
-    /// 会当成 bug 而不是「有个开关我没打开」。
-    /// </summary>
-    public bool RestoreEnabled { get; init; } = true;
-
     /// <summary>队列本体，顺序即面板显示顺序。</summary>
     public QueuedTrack[] Items { get; init; } = [];
 

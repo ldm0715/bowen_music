@@ -1,7 +1,9 @@
+using Bodian.Core.Services.Abstractions;
+
 namespace Bodian.Core.Services;
 
 /// <summary>
-/// 本机数据目录。
+/// 本机数据目录。路径按「什么级别的数据」分三类，见 <see cref="AccountDirectory"/>。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -13,6 +15,12 @@ namespace Bodian.Core.Services;
 /// <b>不要改目录名。</b> 目录里那个 <c>devid.txt</c> 是设备标识，换路径就等于换一台设备，
 /// 服务端看到的是「同一个账号突然从不认识的机器登录」—— 那是账号风控的异常信号，
 /// 而且会话、队列、历史、偏好会一起丢。
+/// </para>
+/// <para>
+/// <b>三类作用域</b>，别一刀切：<i>设备级</i>（<c>devid.txt</c>、<c>logs\</c>、<c>cache\covers\</c>）
+/// 跨账号共用是<b>要求</b>；<i>个人级</i>（窗口几何、主题、快捷键、音质、播放模式、音量…）
+/// 共用<b>合理</b>，「这个人怎么用这个软件」不该换号就重设；<i>账号级</i>
+/// （见 <see cref="AccountsDirectory"/>）才是该按账号分的。设计依据见 <c>docs/multi-account.md</c>。
 /// </para>
 /// <para>
 /// 2026-10-08 曾从 <c>Bodian</c> 改名为 <c>Bowen</c>，当时带过一次性的目录迁移；
@@ -33,17 +41,79 @@ public static class AppPaths
     /// <summary>会话凭据文件（DPAPI 加密）。<b>必须与探针共用同一个文件。</b></summary>
     public static string CredentialFile => Path.Combine(LocalAppData, "session.dat");
 
+    /// <summary>未登录时数据落的桶名。见 <see cref="AccountDirectory(string)"/>。</summary>
+    public const string AnonymousScope = "anonymous";
+
+    /// <summary><c>accounts</c> 这一层的目录名。需要一个名字而不是完整路径的地方（测试注入根目录）用它。</summary>
+    public const string AccountsDirectoryName = "accounts";
+
     /// <summary>
-    /// 「最近播放」的本地记录（明文 JSON）。
+    /// 账号级数据的根目录：<c>%LOCALAPPDATA%\Bowen\accounts</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>只有「换账号就该跟着换」的三项进这里</b>：播放队列、最近播放、搜索历史。
+    /// 设备级的（<c>devid.txt</c>、<c>logs\</c>、<c>cache\covers\</c>）与个人级的
+    /// （窗口几何、主题、快捷键、音质、播放模式…）都留在 <see cref="LocalAppData"/> 根下 ——
+    /// 尤其 <c>devid.txt</c> 绝不能按账号分，那会变成 N 个设备标识，是账号风控的异常信号。
+    /// </remarks>
+    public static string AccountsDirectory => Path.Combine(LocalAppData, AccountsDirectoryName);
+
+    /// <summary>播放队列快照的文件名。见 <see cref="AccountFilePath"/>。</summary>
+    public const string PlayQueueFileName = "queue.json";
+
+    /// <summary>
+    /// 「最近播放」的文件名。
     /// </summary>
     /// <remarks>
     /// <b>与官方客户端的历史不互通</b>：官方存在自己的 SQLite（<c>songDB.db</c>）里，
     /// 本项目不读别人的库。所以这份历史从本客户端第一次播放开始积累。
     /// </remarks>
-    public static string PlayHistoryFile => Path.Combine(LocalAppData, "history.json");
+    public const string PlayHistoryFileName = "history.json";
 
-    /// <summary>搜索关键词历史（明文 JSON）。</summary>
-    public static string SearchHistoryFile => Path.Combine(LocalAppData, "search-history.json");
+    /// <summary>搜索关键词历史的文件名。</summary>
+    public const string SearchHistoryFileName = "search-history.json";
+
+    /// <summary>
+    /// 某个作用域的数据目录：<c>accounts\&lt;scope&gt;</c>。
+    /// </summary>
+    /// <param name="scope">
+    /// <see cref="AnonymousScope"/>，或某个账号的 uid。见 <see cref="ICurrentAccount.Scope"/>。
+    /// </param>
+    /// <remarks>
+    /// <b>scope 会先校验再拼路径。</b> uid 来自服务端，正常是纯数字，但把外部字符串直接拼进路径
+    /// 等于把目录逃逸的口子开着（<c>..</c>、分隔符、非法字符）。校验不过的一律回落到
+    /// <see cref="AnonymousScope"/>：失败方向是「写进了匿名桶」，比「写到数据目录外面」安全得多。
+    /// 这里不记日志 —— 本类是纯路径助手，没有日志设施；异常 uid 属于理论上才有的情况。
+    /// </remarks>
+    public static string AccountDirectory(string scope) => AccountDirectory(scope, LocalAppData);
+
+    /// <summary>
+    /// 同上，但根目录可指定。<b>测试指向临时目录</b>，免得「清理播放记录」这类用例动到本机真实数据。
+    /// </summary>
+    public static string AccountDirectory(string scope, string rootDirectory) =>
+        Path.Combine(rootDirectory, AccountsDirectoryName, IsSafeScope(scope) ? scope : AnonymousScope);
+
+    /// <summary>某个作用域下的某个文件，例如 <c>accounts\&lt;uid&gt;\queue.json</c>。</summary>
+    public static string AccountFilePath(string scope, string fileName) =>
+        Path.Combine(AccountDirectory(scope), fileName);
+
+    /// <inheritdoc cref="AccountFilePath(string, string)" />
+    public static string AccountFilePath(string scope, string fileName, string rootDirectory) =>
+        Path.Combine(AccountDirectory(scope, rootDirectory), fileName);
+
+    private static bool IsSafeScope(string? scope)
+    {
+        if (string.IsNullOrEmpty(scope) || scope is "." or "..")
+        {
+            return false;
+        }
+
+        // 只认「不含路径分隔符与非法字符」的单一名字。用 GetInvalidFileNameChars 而不是
+        // 自己列字符集：不同平台（探针可能在别处跑）的集合不一样，交给运行时判断。
+        return scope.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
+            && scope.IndexOf(Path.DirectorySeparatorChar) < 0
+            && scope.IndexOf(Path.AltDirectorySeparatorChar) < 0;
+    }
 
     /// <summary>
     /// 显示方式偏好（明文 JSON，目前只有「用封面卡片还是行列表」一项）。
@@ -51,7 +121,7 @@ public static class AppPaths
     /// <remarks>
     /// <b>全局一份</b>：搜索结果的歌单 / 专辑 / 歌手三个页签与「收藏的专辑」「收藏的歌单」共用它，
     /// 所以文件名不带 search —— 它管的是「这个人习惯怎么看封面」，不是某一页的设置。
-    /// <b>与 <see cref="SearchHistoryFile"/> 刻意分开</b>：那份是「搜过什么」，这份是「东西怎么排」，
+    /// <b>与 <see cref="SearchHistoryFileName"/> 刻意分开</b>：那份是「搜过什么」，这份是「东西怎么排」，
     /// 一个是内容、一个是界面偏好，合在一起以后想同步偏好就得先摘出去。
     /// 也与 <see cref="SettingsFile"/> 分开 —— 那是外观（主题）。
     /// </remarks>
@@ -98,16 +168,6 @@ public static class AppPaths
     /// 音质已经单独落在 <c>audio-quality.json</c>，两个独立的小偏好挤进一个文件只会让读写互相牵制。
     /// </remarks>
     public static string PlaybackSettingsFile => Path.Combine(LocalAppData, "playback.json");
-
-    /// <summary>
-    /// 播放队列快照（明文 JSON）：开关 + 条目 + 当前曲目 + 续播位置。
-    /// </summary>
-    /// <remarks>
-    /// <b>与 <see cref="PlaybackSettingsFile"/> 刻意分开</b>：那份是「顺序播还是随机播」这样的小偏好，
-    /// 几行、很少写；这份几百首、每次增删切歌都要重写一次。写入频率差三个数量级的东西挤进一个文件，
-    /// 等于让每一次队列落盘都连带重写整份偏好（或者引入读-改-写）。
-    /// </remarks>
-    public static string PlayQueueFile => Path.Combine(LocalAppData, "queue.json");
 
     /// <summary>
     /// 播放音量偏好（明文 JSON）。

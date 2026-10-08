@@ -1,5 +1,6 @@
 using Bodian.Core.Api;
 using Bodian.Core.Models;
+using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,10 +28,31 @@ public sealed class PlaybackCoordinator : IDisposable
     private readonly IAudioQualitySettingsStore? _qualitySettings;
     private readonly IPlaybackSettingsStore? _playbackSettings;
     private readonly IPlayQueueSnapshotStore? _queueStore;
+    private readonly ICurrentAccount? _account;
     private readonly SemaphoreSlim _loadGate = new(1, 1);
     private readonly System.Threading.Timer? _persistTimer;
     private CancellationTokenSource? _operation;
     private bool _disposed;
+
+    /// <summary>
+    /// 内存里这份队列属于哪个作用域。落盘一律用它，<b>不问「当前是谁」</b> ——
+    /// 切号那一刻「当前是谁」已经是新账号了，拿它去写会把上一个账号的队列写进新账号的目录。
+    /// </summary>
+    private string _scope;
+
+    /// <summary>
+    /// 构造本类时的线程。账号变更事件可能来自线程池，切号要回到这个线程上做。
+    /// </summary>
+    /// <remarks>
+    /// 在应用里这个值一定不是 <c>null</c>：<c>Program.RunWinUi</c> 在 <c>new App()</c> 之前就显式装了
+    /// <c>DispatcherQueueSynchronizationContext</c>，而本类是在 <c>OnLaunched</c> 里解析主窗口时构造的。
+    /// <b>不直接用 <c>DispatcherQueue</c></b>：这个文件被链接进 <c>net10.0</c> 的测试工程，
+    /// 那里没有 WinUI 类型；测试里它就是 <c>null</c>，切号同步做完。
+    /// </remarks>
+    private readonly SynchronizationContext? _uiContext = SynchronizationContext.Current;
+
+    /// <summary>正在装/清队列。<b>期间不落盘</b>：那会把「刚读出来的东西」立刻写回同一个文件。</summary>
+    private bool _switchingScope;
 
     /// <summary>队列落盘的防抖时长。见 <see cref="RequestPersist"/>。</summary>
     private static readonly TimeSpan SnapshotDebounce = TimeSpan.FromSeconds(1);
@@ -41,8 +63,18 @@ public sealed class PlaybackCoordinator : IDisposable
     /// <summary>距末尾不足这么多就不续播。见 <see cref="IsResumable"/>。</summary>
     private static readonly TimeSpan ResumeTailGuard = TimeSpan.FromSeconds(10);
 
-    /// <summary>最新一份待写快照；计时器线程取走它去落盘。</summary>
-    private PlayQueueSnapshot? _pending;
+    /// <summary>
+    /// 最新一份待写快照 + <b>它属于哪个作用域</b>；计时器线程取走它去落盘。
+    /// </summary>
+    /// <remarks>
+    /// <b>作用域必须在抓快照的同一刻定下来</b>，不能等落盘时再读 <see cref="_scope"/>：
+    /// 中间隔着最多一秒的防抖，而切号就发生在这段时间里 ——
+    /// 落盘时读到的会是新账号，于是上一份队列被写进新账号的目录，正是这次要修的东西。
+    /// </remarks>
+    private PendingSnapshot? _pending;
+
+    /// <summary>一份待写快照与它的归属。用类而不是元组是为了能 <c>Interlocked.Exchange</c>。</summary>
+    private sealed record PendingSnapshot(string Scope, PlayQueueSnapshot Snapshot);
 
     /// <summary>「重启后恢复播放列表」开关。关掉时所有落盘路径都早退。</summary>
     private bool _restoreEnabled = true;
@@ -72,6 +104,15 @@ public sealed class PlaybackCoordinator : IDisposable
     public event EventHandler<PlaybackQualityChangedEventArgs>? QualityChanged;
     public event EventHandler<PlaybackFailedEventArgs>? QualityChangeFailed;
 
+    /// <summary>
+    /// 换了账号、队列跟着换了一份之后触发。
+    /// </summary>
+    /// <remarks>
+    /// <b>由本类抛、由外壳弹提示</b>：本类不能注入 <c>INoticeSink</c> —— 那指向
+    /// <c>TrackActionsService</c>，而后者依赖本类，会成环。
+    /// </remarks>
+    public event EventHandler<QueueScopeSwitchedEventArgs>? ScopeSwitched;
+
     public PlaybackCoordinator(
         IBodianApi api,
         IPlaybackService engine,
@@ -79,7 +120,8 @@ public sealed class PlaybackCoordinator : IDisposable
         ILogger<PlaybackCoordinator>? logger = null,
         IAudioQualitySettingsStore? qualitySettings = null,
         IPlaybackSettingsStore? playbackSettings = null,
-        IPlayQueueSnapshotStore? queueStore = null)
+        IPlayQueueSnapshotStore? queueStore = null,
+        ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(engine);
@@ -92,20 +134,32 @@ public sealed class PlaybackCoordinator : IDisposable
         _qualitySettings = qualitySettings;
         _playbackSettings = playbackSettings;
         _queueStore = queueStore;
+        _account = account;
+        _scope = account?.Scope ?? AppPaths.AnonymousScope;
+
         var preference = qualitySettings?.Load() ?? AudioQuality.Lossless;
         PreferredQuality = Enum.IsDefined(preference) ? preference : AudioQuality.Lossless;
 
+        var settings = playbackSettings?.Load() ?? PlaybackSettings.Default;
+
         // 模式要先于恢复设置：Replace 会按当前模式建排列，反过来的话随机模式恢复不出洗牌序。
-        Queue.Mode = playbackSettings?.Load() is { } savedMode && Enum.IsDefined(savedMode)
-            ? savedMode
-            : PlayMode.Sequential;
+        Queue.Mode = Enum.IsDefined(settings.Mode) ? settings.Mode : PlayMode.Sequential;
+
+        // 「记住播放列表」是个人级偏好（在 playback.json 里），不再跟着快照走。见 PlayQueueSnapshot 的说明。
+        _restoreEnabled = settings.RestoreQueue;
 
         // 顺序不能改：先把磁盘上的队列装回去，再挂落盘钩子。
         // 恢复那一刻一个订阅者都没有（播放条、队列面板、系统媒体控件都依赖本类，构造都在本类之后），
         // 所以 Replace 抛出的 Changed 引发不了任何反应 ——「刚读出来就写回去」与「往系统媒体面板
         // 注册一条假会话」这两条在结构上不可能发生，因此不需要一个加载中的守卫标志。
         // 谁把下面的订阅挪到 RestoreQueue 之前，就会踩这两个坑。
-        RestoreQueue(queueStore?.Load() ?? PlayQueueSnapshot.Default);
+        // （切号时订阅已经在了，那里另有一个 _switchingScope 守卫。）
+        // 开关关掉时不装：磁盘上那份本来就已经被删掉了，这里再读一次只会把「关掉」变成「这次先例外」。
+        if (_restoreEnabled)
+        {
+            RestoreQueue(queueStore?.Load(_scope) ?? PlayQueueSnapshot.Default);
+        }
+
         Queue.Changed += OnQueueChangedForPersist;
         _engine.PositionChanged += OnEnginePositionChangedForPersist;
         _engine.StateChanged += OnEngineStateChangedForPersist;
@@ -115,6 +169,11 @@ public sealed class PlaybackCoordinator : IDisposable
 
         _engine.Ended += OnEngineEnded;
         _engine.Failed += OnEngineFailed;
+
+        if (account is not null)
+        {
+            account.Changed += OnAccountChanged;
+        }
     }
 
     /// <summary>当前队列。</summary>
@@ -309,7 +368,7 @@ public sealed class PlaybackCoordinator : IDisposable
         }
 
         Queue.Mode = mode;
-        _playbackSettings?.Save(mode);
+        _playbackSettings?.Save(new PlaybackSettings(mode, _restoreEnabled));
         _logger.LogDebug("播放模式切到 {Mode}", mode.DisplayName());
     }
 
@@ -435,12 +494,13 @@ public sealed class PlaybackCoordinator : IDisposable
     public bool RestoreQueueEnabled => _restoreEnabled;
 
     /// <summary>
-    /// 改「记住播放列表」开关。
+    /// 改「记住播放列表」开关。它是<b>个人级偏好</b>（跨账号共用），存在 <c>playback.json</c> 里。
     /// </summary>
     /// <remarks>
-    /// <b>关掉时把盘上已存的队列一并抹掉</b>：用户说的是「别记我的播放列表」，留一份在磁盘上等下次
-    /// 打开复活，与这句话相反。抹掉之后「重新打开开关时从下一次变更开始保存」这条也就自动成立 ——
-    /// 盘上没有旧数据可复活。<b>不动内存里的队列</b>：关掉只是不落盘，正在播的那首、抽屉里的列表照旧。
+    /// <b>关掉时把盘上所有账号的队列一并抹掉</b>：用户说的是「别记我的播放列表」，留一份等下次
+    /// 打开复活，与这句话相反。只清当前账号那份不够 —— 换号之后别人的队列会冒出来。
+    /// 抹掉之后「重新打开开关时从下一次变更开始保存」这条也就自动成立。
+    /// <b>不动内存里的队列</b>：关掉只是不落盘，正在播的那首、抽屉里的列表照旧。
     /// </remarks>
     /// <returns>写盘成功返回 <c>true</c>；失败时这个开关一并回滚，调用方据此回滚界面并提示。</returns>
     public bool SetRestoreQueueEnabled(bool enabled)
@@ -450,17 +510,23 @@ public sealed class PlaybackCoordinator : IDisposable
         var previous = _restoreEnabled;
         _restoreEnabled = enabled;
 
-        if (_queueStore is null) { return true; }
+        _playbackSettings?.Save(new PlaybackSettings(Queue.Mode, enabled));
 
-        // 开与关都只写一份带开关的空快照：关是抹掉已有条目，开是留个空壳、等下一次队列变更
-        // 再把真实内容写上（用户要的就是「从下一次变更开始」）。
-        if (_queueStore.Save(new PlayQueueSnapshot { RestoreEnabled = enabled }))
+        if (_queueStore is null || enabled)
         {
             _logger.LogInformation("恢复播放列表：{State}", enabled ? "开" : "关");
             return true;
         }
 
+        if (_queueStore.DeleteAllScopes())
+        {
+            _logger.LogInformation("恢复播放列表：关（并已抹掉盘上各账号的队列）");
+            return true;
+        }
+
+        // 删不掉就把开关退回去，别让界面显示「已关闭」而磁盘上还留着。
         _restoreEnabled = previous;
+        _playbackSettings?.Save(new PlaybackSettings(Queue.Mode, previous));
         return false;
     }
 
@@ -476,22 +542,105 @@ public sealed class PlaybackCoordinator : IDisposable
         if (!_restoreEnabled || _queueStore is null) { return; }
 
         _persistTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _pending = null;                        // 排队中那份已经过时
-        _queueStore.Save(CaptureSnapshot());     // 同步：进程马上要没了
+        _pending = null;                            // 排队中那份已经过时
+        _queueStore.Save(_scope, CaptureSnapshot());  // 同步：进程马上要没了
     }
 
     /// <summary>
-    /// 把磁盘上的快照装回队列。<b>必须在挂落盘钩子之前调用。</b>
+    /// 账号变了（登录 / 登出 / 被服务端清）。
     /// </summary>
     /// <remarks>
-    /// <b>此刻一个订阅者都没有</b>（其余各方都依赖本类、因而构造在本类之后），所以
-    /// <c>Replace</c> 抛出的 <c>Changed</c> 不会引发任何反应。
+    /// <b>同步触发时可能是任意线程</b>（11012 走的是解析响应那条路），而切号要读 <c>Queue.Items</c>
+    /// 那个 <c>List</c>、还要动界面绑定的东西，所以先回到构造本类时的线程上。
+    /// </remarks>
+    private void OnAccountChanged(object? sender, EventArgs e)
+    {
+        if (_uiContext is null || ReferenceEquals(SynchronizationContext.Current, _uiContext))
+        {
+            SwitchScope();
+            return;
+        }
+
+        _uiContext.Post(_ => SwitchScope(), null);
+    }
+
+    /// <summary>
+    /// 把内存里的队列换成另一个作用域的。<b>顺序不能改。</b>
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>先把内存这份写回它原来那个作用域</b>：<see cref="_scope"/> 此刻还是旧值，
+    /// 而防抖还没到点的那份快照属于旧账号 —— 晚一步就会写进新账号的目录。
+    /// </para>
+    /// <para>
+    /// <b>停播</b>：正在播的那首属于上一个账号，用新账号的权限接着播可能被拒或降级。
+    /// </para>
+    /// <para>
+    /// <b>清队列与装新队列期间不落盘</b>（<see cref="_switchingScope"/>）：否则这次清空本身
+    /// 会被当成一次「队列变更」写回去 —— 而它写的还是刚换成的新作用域。
+    /// </para>
+    /// </remarks>
+    private void SwitchScope()
+    {
+        var next = _account?.Scope ?? AppPaths.AnonymousScope;
+
+        if (next == _scope || _disposed) { return; }
+
+        var hadSomething = Queue.Count > 0 || CurrentTrack is not null;
+
+        // 整段都不落盘：停播会从引擎收到状态变化，清队列与装新队列会让 Queue 抛 Changed ——
+        // 那两件事都会被当成「队列变更」，而它们记的是切换过程本身，不是用户的编辑。
+        _switchingScope = true;
+        try
+        {
+            _persistTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            FlushPending();     // 此刻 _scope 还是旧值，这份快照归它
+            _pending = null;
+
+            StopForScopeSwitch();
+
+            _scope = next;
+
+            Queue.Clear();
+            if (_restoreEnabled)
+            {
+                RestoreQueue(_queueStore?.Load(_scope) ?? PlayQueueSnapshot.Default);
+            }
+        }
+        finally
+        {
+            _switchingScope = false;
+        }
+
+        _logger.LogInformation("播放队列已切换到作用域 {Scope}", _scope);
+
+        ScopeSwitched?.Invoke(this, new QueueScopeSwitchedEventArgs(hadSomething));
+    }
+
+    /// <summary>切号时把正在播的停掉，并清掉与「哪首歌」相关的状态。</summary>
+    private void StopForScopeSwitch()
+    {
+        _operation?.Cancel();
+        _ = _engine.StopAsync();
+        CurrentTrack = null;
+        CurrentPolicy = null;
+        RestoredState = null;
+        _resumeTrackId = 0;
+        _resumePosition = TimeSpan.Zero;
+        _lastCheckpoint = TimeSpan.Zero;
+        _queueExhausted = false;
+    }
+
+    /// <summary>
+    /// 把某个作用域的快照装回队列。<b>构造时必须在挂落盘钩子之前调用。</b>
+    /// </summary>
+    /// <remarks>
+    /// <b>不碰「记住播放列表」开关</b>：那个开关现在是个人级偏好，住在 <c>playback.json</c> 里，
+    /// 不由快照决定（见 <c>PlayQueueSnapshot</c>）。
     /// </remarks>
     private void RestoreQueue(PlayQueueSnapshot snapshot)
     {
-        _restoreEnabled = snapshot.RestoreEnabled;
-
-        if (!_restoreEnabled || snapshot.Items.Length == 0) { return; }
+        if (snapshot.Items.Length == 0) { return; }
 
         var tracks = new List<Track>(snapshot.Items.Length);
         foreach (var item in snapshot.Items)
@@ -566,7 +715,6 @@ public sealed class PlaybackCoordinator : IDisposable
 
         return new PlayQueueSnapshot
         {
-            RestoreEnabled = true,
             Items = buffer,
             CurrentTrackId = Queue.Current?.Id ?? 0,
             CurrentIndex = Queue.CurrentIndex,
@@ -606,21 +754,21 @@ public sealed class PlaybackCoordinator : IDisposable
     /// </remarks>
     private void RequestPersist()
     {
-        if (!_restoreEnabled || _disposed || _queueStore is null) { return; }
+        if (!_restoreEnabled || _disposed || _queueStore is null || _switchingScope) { return; }
 
-        _pending = CaptureSnapshot();
+        _pending = new PendingSnapshot(_scope, CaptureSnapshot());
         _persistTimer?.Change(SnapshotDebounce, Timeout.InfiniteTimeSpan);
     }
 
     private void FlushPending()
     {
         // 后来的快照覆盖先前的，所以只要最新那份就够了。
-        var snapshot = Interlocked.Exchange(ref _pending, null);
-        if (snapshot is null || _queueStore is not { } store) { return; }
+        var pending = Interlocked.Exchange(ref _pending, null);
+        if (pending is null || _queueStore is not { } store) { return; }
 
         _ = Task.Run(() =>
         {
-            try { store.Save(snapshot); }
+            try { store.Save(pending.Scope, pending.Snapshot); }
             catch (Exception ex) { _logger.LogWarning(ex, "保存播放队列失败"); }
         });
     }
@@ -856,6 +1004,11 @@ public sealed class PlaybackCoordinator : IDisposable
         _engine.StateChanged -= OnEngineStateChangedForPersist;
         _engine.Ended -= OnEngineEnded;
         _engine.Failed -= OnEngineFailed;
+
+        if (_account is not null)
+        {
+            _account.Changed -= OnAccountChanged;
+        }
     }
 
     /// <summary>
@@ -916,6 +1069,19 @@ public sealed class PlaybackCoordinator : IDisposable
     {
         _logger.LogWarning("播放引擎出错：{Message}", e.Message);
     }
+}
+
+/// <summary>换了账号、队列跟着换了一份。</summary>
+public sealed class QueueScopeSwitchedEventArgs(bool hadSomething) : EventArgs
+{
+    /// <summary>
+    /// 换出时队列里有东西、或有歌正在播。
+    /// </summary>
+    /// <remarks>
+    /// <b>外壳据此决定要不要弹提示</b>：启动时恢复会话也会走到「切号」这条路，而那一次的
+    /// 旧作用域是空的 —— 每次都弹一条「播放队列已切换」会把正常的启动变成骚扰。
+    /// </remarks>
+    public bool HadSomething { get; } = hadSomething;
 }
 
 /// <summary>成功开始播放。</summary>

@@ -1,7 +1,17 @@
 # 多账号下的本地数据作用域
 
-> **状态：设计稿，未实现。** 2026-10-08 提出。
+> **状态：已实现。** 2026-10-08 提出，同日落地。
 > 起因是应用改名为「波纹音乐」时顺手改数据目录，发现本机数据**没有任何账号维度**。
+>
+> 实现与本文有三处差异，都是铺到代码里才看清的：
+> 1. **`ICurrentAccount` 多暴露了 `Scope` 与 `Changed`**（原设计只有 `Uid`）。
+>    `Scope` 免去每个调用点各写一次 `-1` 的特判；`Changed` 是「内存里那份也要跟着换」的唯一通知源。
+> 2. **队列没有走「每次问当前账号」这条路**，改成由 `PlaybackCoordinator` 显式传作用域。
+>    原因见第五节末尾：队列的内存副本由协调器长期持有且有防抖落盘，切号时必须先写回**旧**作用域，
+>    而那一刻"当前是谁"已经是新账号了。
+> 3. **「记住播放列表」开关从 `queue.json` 挪进了 `playback.json`。** 队列按账号分之后它也会被带走，
+>    于是"为隐私关掉、换个号又自己打开"。它本质是个人级偏好，归位即可。
+>    `playback.json` 的格式随之从裸枚举变成对象，读取保留了老格式的回落。
 
 ## 问题
 
@@ -37,7 +47,7 @@
 | 项 | 为什么 |
 | --- | --- |
 | `window.json`、`mini-player-window.json`、`desktop-lyrics-window.json` | 窗口几何是「这台机器」的事（`AppPaths` 的原话） |
-| `settings.json`（主题）、`shortcuts.json`、`audio-quality.json`、`playback.json`（播放模式）、`volume.json`、`view-mode.json`、`lyrics.json`、`desktop-lyrics.json`、`input-method.json` | 「这个人怎么用这个软件」。换个账号就得重设主题和快捷键会很烦 |
+| `settings.json`（主题）、`shortcuts.json`、`audio-quality.json`、`playback.json`（播放模式 + 记住播放列表）、`volume.json`、`view-mode.json`、`lyrics.json`、`desktop-lyrics.json`、`input-method.json` | 「这个人怎么用这个软件」。换个账号就得重设主题和快捷键会很烦 |
 
 ### 账号级 —— **现在错位的就是这三项**
 
@@ -93,6 +103,13 @@ private readonly string _path = path ?? AppPaths.PlayQueueFile;
 
 推荐 A。`ICurrentAccount` 只有 `string Uid { get; }`（未登录时返回 `-1`，与 `BodianSession.AnonymousUid` 一致）。
 
+**实际落地时队列走了另一条路。** 历史与搜索历史确实是"每次操作问一次当前账号"，但队列不行：
+它的内存副本由 `PlaybackCoordinator` 长期持有，而且落盘是 1 秒防抖的。
+切号那一刻协调器手上那份快照属于**上一个**账号，而"当前是谁"已经是新账号了 ——
+让 store 自己去问，就会把上一个账号的队列写进新账号的目录。
+所以 `IPlayQueueSnapshotStore` 改成显式传作用域（`Load(scope)` / `Save(scope, snapshot)`），
+协调器记住"内存里这份属于哪个作用域"，切号时先写回旧的那个。见第五节末尾。
+
 ## 四、未登录时写哪儿
 
 历史与搜索词**在未登录时也会被写**（播放历史由 `PlaybackCoordinator` 记，不分登录状态），
@@ -120,7 +137,13 @@ private readonly string _path = path ?? AppPaths.PlayQueueFile;
 | 带迁移代码，且**保留到确定没有旧数据为止** | 稳妥。代价是几十行 + 一个"什么时候能删"的判断 |
 | 不带，本机手工搬一次 | 只有本机一个用户时最省事，但一旦有别人用就丢了数据 |
 
-**倾向第一种**，而且这次**不当天删** —— 删之前先确认没有别的机器／别的副本还在跑旧布局。
+**已选第一种**，而且这次**不当天删** —— 删之前先确认没有别的机器／别的副本还在跑旧布局。
+
+实现上是 `AccountDataMigration.Run`：**直接读 `session.dat` 定归属**，而不是等会话恢复完成。
+会话恢复发生在主窗口首次布局之后，比它晚，而队列在那之前就已经被读进内存了；
+直接读凭据可以在"谁都没开始读数据"之前跑完。调用点因此必须在解析 `MainWindow` 之前
+（见 `App.OnLaunched`）。目标文件已存在时不覆盖、也不删旧文件，只记一条日志。
+
 
 ## 六、存储页（清理）要跟着改
 
@@ -136,7 +159,7 @@ private readonly string _path = path ?? AppPaths.PlayQueueFile;
 | --- | --- | --- |
 | 1 | 历史到底算账号还是算机器？它记的本意是"这台机器听过什么" | 算账号。换账号还看到别人的最近播放，比"这台机器听过"更让人觉得错 |
 | 2 | 队列算账号还是算"这个人的播放会话"？ | 算账号。队列里的歌会以当前账号的权限播放 |
-| 3 | 切账号时要不要提示「播放队列已切换」？ | 要。队列在界面上是持续可见的，静默换掉会让人以为丢了 |
+| 3 | 切账号时要不要提示「播放队列已切换」？ | 要（已实现）。队列在界面上是持续可见的，静默换掉会让人以为丢了。正在播的曲目一并停掉 —— 它属于上一个账号，用新账号的权限接着播可能被拒或降级。**启动时恢复会话不弹**：那一次换出的是空队列 |
 | 4 | `accounts/<uid>` 用明文 uid 会不会有隐私顾虑？ | 不会。uid 不是凭据，`session.dat` 里本来就有 |
 | 5 | 要不要顺便支持"同一个账号在两台机器上"？ | 不在本次范围。`devid.txt` 是设备级的，换机器本来就是新设备 |
 

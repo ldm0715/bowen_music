@@ -13,7 +13,8 @@
 面板上方为搜索热榜，下方为搜索历史。热榜读取 `search/topic/word/list` 的 `hotWord`，
 按 `sort` 排序，显示 `key`；不将运营位或外部跳转内容混入热榜。加载失败可点击标题重试。
 历史仅记录已提交的关键词，按最近使用排序，忽略大小写去重，上限 20 条。
-它以明文 JSON 保存在 `%LOCALAPPDATA%\Bowen\search-history.json`，重启可恢复，支持清空。
+它以明文 JSON 保存在 `%LOCALAPPDATA%\Bowen\accounts\<uid>\search-history.json`
+（2026-10-08 起按账号分目录，见 `multi-account.md`），重启可恢复，支持清空。
 保存先写临时文件再替换，读写失败记录日志；坏文件读取按空历史处理，不删除原文件。
 
 面板是根 `ShellRoot` 中最后一层的 `Border`，不是标题栏内部的模态 `Popup`。

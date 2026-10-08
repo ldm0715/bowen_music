@@ -1,3 +1,6 @@
+using Bodian.Core.Services;
+using Bodian.Core.Services.Abstractions;
+
 namespace Bodian.Core.Api;
 
 public sealed class BodianSessionClearedEventArgs : EventArgs
@@ -8,7 +11,7 @@ public sealed class BodianSessionClearedEventArgs : EventArgs
 }
 
 /// <summary>
-/// 当前会话。uid / token 的持有者，以及「会话被清」这件事的唯一来源。
+/// 当前会话。uid / token 的持有者，以及「会话变了」这件事的唯一来源。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,8 +22,13 @@ public sealed class BodianSessionClearedEventArgs : EventArgs
 /// 不自己判断该不该登出。这样「11012 → 会话被清」与「11012 → 抛出正确错误码」
 /// 两件事可以分别单测。
 /// </para>
+/// <para>
+/// 同时实现 <see cref="ICurrentAccount"/>：账号级数据（队列、历史、搜索历史）靠它决定读写哪个目录。
+/// <see cref="Changed"/> 与 <see cref="Cleared"/> 的分工是「会话变了」与「会话被清（带原因）」，
+/// 后者是前者的子集。
+/// </para>
 /// </remarks>
-public sealed class BodianSession
+public sealed class BodianSession : ICurrentAccount
 {
     /// <summary>未登录时的 uid。传输层据此决定要不要带身份请求头。</summary>
     public const string AnonymousUid = "-1";
@@ -94,6 +102,22 @@ public sealed class BodianSession
     /// <summary>会话被清时触发。<b>不要在回调里做阻塞 IO。</b></summary>
     public event EventHandler<BodianSessionClearedEventArgs>? Cleared;
 
+    /// <summary>会话变更（登录 / 登出 / 被清）后触发。见 <see cref="ICurrentAccount.Changed"/>。</summary>
+    public event EventHandler? Changed;
+
+    /// <inheritdoc />
+    /// <remarks>数据目录名：登录后就是 uid，未登录是 <see cref="AppPaths.AnonymousScope"/>。</remarks>
+    public string Scope
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _uid != AnonymousUid && _uid.Length > 0 ? _uid : AppPaths.AnonymousScope;
+            }
+        }
+    }
+
     public void Set(string uid, string token)
     {
         ArgumentNullException.ThrowIfNull(uid);
@@ -105,6 +129,10 @@ public sealed class BodianSession
             _token = token;
             _revision++;
         }
+
+        // 锁外触发：订阅方（队列协调器、搜索页）会各自 marshal 回 UI 线程再干活，
+        // 持着锁等它们等于把会话锁暴露给界面代码。
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>登出。已经是匿名状态时是空操作（不会无谓地推高 <see cref="Revision"/>）。</summary>
@@ -130,5 +158,6 @@ public sealed class BodianSession
         }
 
         Cleared?.Invoke(this, new BodianSessionClearedEventArgs(reason));
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -40,11 +40,11 @@ public sealed partial class StorageSettingsViewModel : ObservableObject
             new StorageRowViewModel(
                 StorageItemKind.PlayHistory,
                 "播放记录",
-                "「最近播放」列表"),
+                "「最近播放」列表（只算当前账号）"),
             new StorageRowViewModel(
                 StorageItemKind.SearchHistory,
                 "搜索历史",
-                "搜索框的建议列表"),
+                "搜索框的建议列表（只算当前账号）"),
             new StorageRowViewModel(
                 StorageItemKind.Logs,
                 "日志",

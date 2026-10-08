@@ -1,6 +1,8 @@
 using Bodian.Core.Models;
+using Bodian.Core.Services;
 using Bodian.Core.Services.Abstractions;
 using Bodian.Core.Services.Implementations;
+using Bodian.Core.Tests.Support;
 using Xunit;
 
 namespace Bodian.Core.Tests;
@@ -16,8 +18,15 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private string PlayHistoryFile => Path.Combine(_root, "history.json");
-    private string SearchHistoryFile => Path.Combine(_root, "search-history.json");
+    /// <summary>
+    /// 未给账号时服务按匿名桶算，所以测试的数据也摆在那儿。
+    /// 目录名同样从 <see cref="AppPaths"/> 取，不在这里写第二遍。
+    /// </summary>
+    private string AccountDirectory => Path.Combine(
+        _root, Path.GetFileName(AppPaths.AccountsDirectory), AppPaths.AnonymousScope);
+
+    private string PlayHistoryFile => Path.Combine(AccountDirectory, AppPaths.PlayHistoryFileName);
+    private string SearchHistoryFile => Path.Combine(AccountDirectory, AppPaths.SearchHistoryFileName);
     private string LogDirectory => Path.Combine(_root, "logs");
 
     public void Dispose()
@@ -31,8 +40,9 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     private StorageMaintenanceService NewService(
         IPlayHistoryStore? playHistory = null,
         ISearchHistorySink? searchHistory = null,
-        ICoverDiskCache? coverCache = null) =>
-        new(playHistory, searchHistory, coverCache, TimeProvider.System, rootDirectory: _root);
+        ICoverDiskCache? coverCache = null,
+        ICurrentAccount? account = null) =>
+        new(playHistory, searchHistory, coverCache, TimeProvider.System, rootDirectory: _root, account: account);
 
     private void WriteLog(string name, string content, DateTime lastWrite)
     {
@@ -56,7 +66,7 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task Measure_AddsUpFilesAndLogs()
     {
-        Directory.CreateDirectory(_root);
+        Directory.CreateDirectory(AccountDirectory);
         await File.WriteAllTextAsync(PlayHistoryFile, new string('x', 500), Ct);
         await File.WriteAllTextAsync(SearchHistoryFile, new string('y', 300), Ct);
         WriteLog("bodian-20260101.log", "old", DateTime.Now.AddDays(-3));
@@ -74,7 +84,7 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task ClearPlayHistory_GoesThroughTheStore()
     {
-        Directory.CreateDirectory(_root);
+        Directory.CreateDirectory(AccountDirectory);
         await File.WriteAllTextAsync(PlayHistoryFile, new string('x', 500), Ct);
         var store = new StubPlayHistoryStore();
 
@@ -90,7 +100,7 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task ClearSearchHistory_GoesThroughTheSinkNotTheFile()
     {
-        Directory.CreateDirectory(_root);
+        Directory.CreateDirectory(AccountDirectory);
         await File.WriteAllTextAsync(SearchHistoryFile, new string('y', 300), Ct);
         var sink = new StubSearchHistorySink();
 
@@ -140,7 +150,7 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task ClearAll_VisitsEveryKind()
     {
-        Directory.CreateDirectory(_root);
+        Directory.CreateDirectory(AccountDirectory);
         await File.WriteAllTextAsync(PlayHistoryFile, "x", Ct);
         var store = new StubPlayHistoryStore();
         var sink = new StubSearchHistorySink();
@@ -161,6 +171,31 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
         Assert.Equal(4, outcomes.Count);
         Assert.False(outcomes.Single(o => o.Item == StorageItemKind.PlayHistory).Succeeded);
         Assert.False(outcomes.Single(o => o.Item == StorageItemKind.SearchHistory).Succeeded);
+    }
+
+    [Fact]
+    public async Task AnotherAccountsHistory_IsNeitherMeasuredNorCleared()
+    {
+        // 跨账号清别人的数据，比「清不干净」严重得多。
+        var account = new FakeCurrentAccount();
+        account.SignIn("111");
+
+        var mine = AppPaths.AccountFilePath("111", AppPaths.PlayHistoryFileName, _root);
+        var theirs = AppPaths.AccountFilePath("222", AppPaths.PlayHistoryFileName, _root);
+        Directory.CreateDirectory(Path.GetDirectoryName(mine)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(theirs)!);
+        await File.WriteAllTextAsync(mine, new string('x', 500), Ct);
+        await File.WriteAllTextAsync(theirs, new string('y', 300), Ct);
+
+        var service = NewService(playHistory: new StubPlayHistoryStore(), account: account);
+        var usages = await service.MeasureAsync(Ct);
+
+        Assert.Equal(500, usages.Single(u => u.Item == StorageItemKind.PlayHistory).Bytes);
+
+        await service.ClearAsync(StorageItemKind.PlayHistory, Ct);
+
+        Assert.True(File.Exists(theirs));
+        Assert.Equal(300, new FileInfo(theirs).Length);
     }
 
     private sealed class StubPlayHistoryStore : IPlayHistoryStore

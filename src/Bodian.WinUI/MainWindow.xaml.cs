@@ -324,6 +324,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ElementCompositionPreview.SetIsTranslationEnabled(QueuePane, true);
 
         _login.AccountChanged += OnAccountChanged;
+        playback.ScopeSwitched += OnQueueScopeSwitched;
         PageHost.Loaded += OnHostLoaded;
 
         // 收起 / 展开侧栏时，「创建的歌单」在「面板里的列表」与「轨上一颗图标」之间切换。
@@ -1075,6 +1076,30 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// 跨线程访问会抛 0x8001010E。不记日志：本类没有日志设施（同 <see cref="DisposeTray"/> 的取舍）。
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// 切号把播放队列换掉了，说一声。
+    /// </summary>
+    /// <remarks>
+    /// <b>由外壳弹，不由协调器弹</b>：协调器不能注入通知通道 —— 那指向 <c>TrackActionsService</c>，
+    /// 而它依赖协调器，会成环。协调器只抛事件，见 <c>PlaybackCoordinator.ScopeSwitched</c>。
+    /// <para>
+    /// <b>启动时恢复会话也会走到这条路</b>，那一次旧作用域是空的；每次都弹会把正常启动变成骚扰，
+    /// 所以只在换出时队列里确实有东西、或有歌在播时才说。
+    /// </para>
+    /// </remarks>
+    private void OnQueueScopeSwitched(object? sender, Playback.QueueScopeSwitchedEventArgs e)
+    {
+        if (!e.HadSomething) { return; }
+
+        if (!DispatcherQueue.HasThreadAccess)
+        {
+            DispatcherQueue.TryEnqueue(() => OnQueueScopeSwitched(sender, e));
+            return;
+        }
+
+        Notifications.Show("播放队列已切换");
+    }
+
     private void OnAccountChanged(object? sender, EventArgs e)
     {
         if (!DispatcherQueue.HasThreadAccess)

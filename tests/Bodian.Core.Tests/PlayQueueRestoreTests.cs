@@ -120,10 +120,10 @@ public sealed class PlayQueueRestoreTests
     {
         var engine = new FakePlaybackEngine();
         var store = SavedQueue([Track(1), Track(2)], 1, 42);
-        store.Stored = store.Stored with { RestoreEnabled = false };
+        var settings = new FakePlaybackSettingsStore { RestoreQueue = false };
 
         using var coordinator = new PlaybackCoordinator(
-            Api(), engine, new FakePlayHistoryStore(), queueStore: store);
+            Api(), engine, new FakePlayHistoryStore(), playbackSettings: settings, queueStore: store);
 
         Assert.Equal(0, coordinator.Queue.Count);
         Assert.False(coordinator.RestoreQueueEnabled);
@@ -131,26 +131,29 @@ public sealed class PlayQueueRestoreTests
     }
 
     [Fact]
-    public void TurningTheSwitchOff_WritesAnEmptyQueue()
+    public void TurningTheSwitchOff_RemembersItAndWipesEveryAccountsQueue()
     {
         var engine = new FakePlaybackEngine();
         var store = SavedQueue([Track(1), Track(2)], 1, 42);
+        var settings = new FakePlaybackSettingsStore();
 
         using var coordinator = new PlaybackCoordinator(
-            Api(), engine, new FakePlayHistoryStore(), queueStore: store);
+            Api(), engine, new FakePlayHistoryStore(), playbackSettings: settings, queueStore: store);
 
         Assert.True(coordinator.SetRestoreQueueEnabled(false));
 
-        var written = store.Saves[^1];
-        Assert.False(written.RestoreEnabled);
-        Assert.Empty(written.Items);
+        // 开关是个人级偏好，落在 playback.json 里。
+        Assert.False(settings.RestoreQueue);
+
+        // 盘上各账号那份都要抹掉，否则重新打开开关时别的账号的队列会复活。
+        Assert.Equal(1, store.DeleteAllCount);
 
         // 内存里的队列不受影响 —— 关掉的只是「记不记」。
         Assert.Equal(2, coordinator.Queue.Count);
     }
 
     [Fact]
-    public void WhenSavingTheSwitchFails_ItRollsBack()
+    public void WhenWipingTheQueueFails_TheSwitchRollsBack()
     {
         var engine = new FakePlaybackEngine();
         var store = SavedQueue([Track(1)], 1, 0);
@@ -175,7 +178,7 @@ public sealed class PlayQueueRestoreTests
         await coordinator.PlayFromAsync([Track(1), Track(2)], 1, Ct);
         coordinator.FlushForShutdown();
 
-        var written = store.Saves[^1];
+        var written = store.Saves[^1].Snapshot;
         Assert.Equal(2, written.Items.Length);
         Assert.Equal(2, written.CurrentTrackId);
         Assert.Equal(1, written.CurrentIndex);

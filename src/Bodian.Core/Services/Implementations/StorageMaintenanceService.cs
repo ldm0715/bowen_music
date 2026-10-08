@@ -7,20 +7,25 @@ namespace Bodian.Core.Services.Implementations;
 
 /// <inheritdoc cref="IStorageMaintenanceService" />
 /// <remarks>
+/// <para>
 /// <b>清理语义逐项不同</b>，因为清完之后对正在运行的界面影响不同：
 /// 播放记录清完「最近播放」页自然就空了（那一页每次进入重读）；
 /// 搜索历史必须走 <see cref="ISearchHistorySink"/>，否则内存里那份还在；
 /// 日志当天那一份删不掉，因为 Serilog 正持有它的文件句柄。
+/// </para>
+/// <para>
+/// <b>播放记录与搜索历史只算、只清当前账号那一份。</b> 封面缓存与日志是设备级的，跨账号共用。
+/// 跨账号清别人的数据比「清不干净」严重得多。
+/// </para>
 /// </remarks>
 public sealed class StorageMaintenanceService : IStorageMaintenanceService
 {
     private readonly IPlayHistoryStore? _playHistory;
     private readonly ISearchHistorySink? _searchHistory;
     private readonly ICoverDiskCache? _coverCache;
+    private readonly ICurrentAccount? _account;
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
-    private readonly string _playHistoryFile;
-    private readonly string _searchHistoryFile;
     private readonly string _logDirectory;
 
     /// <param name="rootDirectory">
@@ -28,23 +33,26 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     /// 否则「清理播放记录」这类用例会把跑测试这台机器上的真实历史删掉。
     /// 文件名仍从 <see cref="AppPaths"/> 里取，避免同一个名字在两处各写一遍。
     /// </param>
+    /// <param name="account">
+    /// 当前账号，决定播放记录与搜索历史算哪一份。为 <c>null</c> 时按匿名桶算。
+    /// </param>
     public StorageMaintenanceService(
         IPlayHistoryStore? playHistory = null,
         ISearchHistorySink? searchHistory = null,
         ICoverDiskCache? coverCache = null,
         TimeProvider? timeProvider = null,
         ILogger<StorageMaintenanceService>? logger = null,
-        string? rootDirectory = null)
+        string? rootDirectory = null,
+        ICurrentAccount? account = null)
     {
         _playHistory = playHistory;
         _searchHistory = searchHistory;
         _coverCache = coverCache;
+        _account = account;
         _time = timeProvider ?? TimeProvider.System;
         _logger = logger ?? NullLogger<StorageMaintenanceService>.Instance;
 
         RootDirectory = rootDirectory ?? AppPaths.LocalAppData;
-        _playHistoryFile = Path.Combine(RootDirectory, Path.GetFileName(AppPaths.PlayHistoryFile));
-        _searchHistoryFile = Path.Combine(RootDirectory, Path.GetFileName(AppPaths.SearchHistoryFile));
         _logDirectory = Path.Combine(RootDirectory, Path.GetFileName(AppPaths.LogDirectory));
     }
 
@@ -52,6 +60,15 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
     /// <summary>取的是缓存的字段而不是 <c>RootDirectory</c> —— 后者不含 <c>logs</c> 这一段。</summary>
     public string LogDirectory => _logDirectory;
+
+    /// <summary>当前账号的播放记录文件。<b>每次读它都按当前账号解析</b>，免得缓存住切换前的那个。</summary>
+    private string PlayHistoryFile => ScopedFile(AppPaths.PlayHistoryFileName);
+
+    /// <summary>当前账号的搜索历史文件。</summary>
+    private string SearchHistoryFile => ScopedFile(AppPaths.SearchHistoryFileName);
+
+    private string ScopedFile(string fileName) =>
+        AppPaths.AccountFilePath(_account?.Scope ?? AppPaths.AnonymousScope, fileName, RootDirectory);
 
     public async Task<IReadOnlyList<StorageUsage>> MeasureAsync(CancellationToken cancellationToken = default)
     {
@@ -62,8 +79,8 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             : await _coverCache.MeasureAsync(cancellationToken).ConfigureAwait(true);
         usages.Add(new StorageUsage(StorageItemKind.CoverCache, cover.Bytes, cover.FileCount));
 
-        usages.Add(MeasureFile(StorageItemKind.PlayHistory, _playHistoryFile));
-        usages.Add(MeasureFile(StorageItemKind.SearchHistory, _searchHistoryFile));
+        usages.Add(MeasureFile(StorageItemKind.PlayHistory, PlayHistoryFile));
+        usages.Add(MeasureFile(StorageItemKind.SearchHistory, SearchHistoryFile));
 
         var (logBytes, logCount) = MeasureDirectory(_logDirectory, "*.log");
         usages.Add(new StorageUsage(StorageItemKind.Logs, logBytes, logCount));
@@ -80,7 +97,7 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
                 return await ClearCoverCacheAsync(cancellationToken).ConfigureAwait(true);
 
             case StorageItemKind.PlayHistory:
-                return await ClearFileAsync(StorageItemKind.PlayHistory, _playHistoryFile)
+                return await ClearFileAsync(StorageItemKind.PlayHistory, PlayHistoryFile)
                     .ConfigureAwait(true);
 
             case StorageItemKind.SearchHistory:

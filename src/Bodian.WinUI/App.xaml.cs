@@ -97,11 +97,12 @@ public partial class App : Application
         builder.Services.AddSingleton<IDeviceIdentity, FileDeviceIdentity>();
         builder.Services.AddSingleton<ICredentialStore, DpapiCredentialStore>();
 
-        // 播放历史是**明文 JSON**（不是凭据，不含账号标识）。
+        // 播放历史是**明文 JSON**（不是凭据，内容里不含账号标识），按账号分目录。
         // 显式写工厂：构造参数里有个可选的路径，交给容器按默认值挑容易出意外。
         builder.Services.AddSingleton<IPlayHistoryStore>(sp => new JsonPlayHistoryStore(
             clock: sp.GetRequiredService<TimeProvider>(),
-            logger: sp.GetRequiredService<ILogger<JsonPlayHistoryStore>>()));
+            logger: sp.GetRequiredService<ILogger<JsonPlayHistoryStore>>(),
+            account: sp.GetRequiredService<ICurrentAccount>()));
 
         // 外观设置同样是明文 JSON。构造参数里有个可选的路径，同样用显式工厂。
         // 它在主窗口构造时被同步读一次 —— 主题必须在第一帧之前定下来，否则会闪一下系统主题。
@@ -117,6 +118,10 @@ public partial class App : Application
         builder.Services.AddSingleton<IWindowPlacementStore>(sp => new JsonWindowPlacementStore(
             logger: sp.GetRequiredService<ILogger<JsonWindowPlacementStore>>()));
         builder.Services.AddSingleton<BodianSession>();
+
+        // 「当前是谁」的抽象：账号级数据（队列 / 历史 / 搜索历史）靠它决定读写哪个目录。
+        // 直接用同一个实例，省掉一层包装 —— 它本来就只需要 uid 与「变了」的通知。
+        builder.Services.AddSingleton<ICurrentAccount>(sp => sp.GetRequiredService<BodianSession>());
         // ★ 必须显式声明成 HttpMessageHandler。
         //   CreateHandler 返回的是 SocketsHttpHandler 这个**具体类型**，不写泛型参数就会按它注册，
         //   而 BodianHttpTransport 的构造参数类型是 HttpMessageHandler —— 按接口/基类解析不到，
@@ -226,7 +231,9 @@ public partial class App : Application
         builder.Services.AddSingleton<RestoreQueueSettingsViewModel>();
         builder.Services.AddSingleton<AccountViewModel>();
         builder.Services.AddSingleton<SidebarViewModel>();
-        builder.Services.AddSingleton<ISearchHistoryStore, JsonSearchHistoryStore>();
+        builder.Services.AddSingleton<ISearchHistoryStore>(sp => new JsonSearchHistoryStore(
+            logger: sp.GetRequiredService<ILogger<JsonSearchHistoryStore>>(),
+            account: sp.GetRequiredService<ICurrentAccount>()));
 
         // 行列表 / 封面卡片这一个偏好（view-mode.json）。与关键词历史分开存 ——
         // 一个是内容、一个是界面偏好。服务本身是单例：搜索结果的三个页签与收藏的两页
@@ -253,7 +260,8 @@ public partial class App : Application
             sp.GetRequiredService<ISearchHistorySink>(),
             sp.GetRequiredService<ICoverDiskCache>(),
             sp.GetRequiredService<TimeProvider>(),
-            sp.GetRequiredService<ILogger<StorageMaintenanceService>>()));
+            sp.GetRequiredService<ILogger<StorageMaintenanceService>>(),
+            account: sp.GetRequiredService<ICurrentAccount>()));
 
         builder.Services.AddSingleton<SearchViewModel>();
         builder.Services.AddTransient<Func<Artist, ArtistDetailPage>>(sp => artist =>
@@ -420,6 +428,13 @@ public partial class App : Application
         // 这是它们唯一能拿到 logger 的通道。目前用它的有氛围背景层。
         // 曲目列表用的是同一个通道拿 PlayerViewModel，见 MainWindow 里的说明。
         Resources["BodianLoggerFactory"] = _host.Services.GetRequiredService<ILoggerFactory>();
+
+        // ★ 必须排在解析 MainWindow 之前：主窗口一构造，播放队列就已经从盘上读进内存了，
+        //   而旧布局的数据这时候还平铺在根目录下 —— 晚一步就什么都读不到（看着像「数据丢了」）。
+        //   它自己读 session.dat 定归属，所以不需要等会话恢复（那一步在主窗口首次布局之后）。
+        AccountDataMigration.Run(
+            _host.Services.GetRequiredService<ICredentialStore>(),
+            _host.Services.GetRequiredService<ILogger<App>>());
 
         try
         {

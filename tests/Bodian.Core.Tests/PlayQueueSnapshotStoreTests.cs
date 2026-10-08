@@ -15,9 +15,8 @@ public sealed class PlayQueueSnapshotStoreTests
     public void MissingFile_IsAnEmptyQueue_WithoutCreatingAFile()
     {
         var path = NewPath();
-        var loaded = new JsonPlayQueueSnapshotStore(path).Load();
+        var loaded = new JsonPlayQueueSnapshotStore(path).Load("anonymous");
         Assert.Empty(loaded.Items);
-        Assert.True(loaded.RestoreEnabled);
         Assert.False(File.Exists(path));
     }
 
@@ -26,7 +25,7 @@ public sealed class PlayQueueSnapshotStoreTests
     {
         var path = NewPath();
         var store = new JsonPlayQueueSnapshotStore(path);
-        Assert.True(store.Save(new PlayQueueSnapshot
+        Assert.True(store.Save("anonymous", new PlayQueueSnapshot
         {
             Items = [Item(1, "第一首"), Item(2, "第二首")],
             CurrentTrackId = 2,
@@ -34,22 +33,12 @@ public sealed class PlayQueueSnapshotStoreTests
             PositionSeconds = 42.5,
         }));
 
-        var loaded = store.Load();
+        var loaded = store.Load("anonymous");
         Assert.Equal(2, loaded.Items.Length);
         Assert.Equal("第二首", loaded.Items[1].Title);
         Assert.Equal(2, loaded.CurrentTrackId);
         Assert.Equal(1, loaded.CurrentIndex);
         Assert.Equal(42.5, loaded.PositionSeconds);
-        Assert.True(loaded.RestoreEnabled);
-    }
-
-    [Fact]
-    public void DisabledSwitch_RoundTrips()
-    {
-        var path = NewPath();
-        var store = new JsonPlayQueueSnapshotStore(path);
-        Assert.True(store.Save(new PlayQueueSnapshot { RestoreEnabled = false }));
-        Assert.False(store.Load().RestoreEnabled);
     }
 
     [Theory]
@@ -61,21 +50,20 @@ public sealed class PlayQueueSnapshotStoreTests
         var path = NewPath();
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, json);
-        Assert.Empty(new JsonPlayQueueSnapshotStore(path).Load().Items);
+        Assert.Empty(new JsonPlayQueueSnapshotStore(path).Load("anonymous").Items);
         Assert.Equal(json, File.ReadAllText(path));
     }
 
     [Fact]
-    public void EmptyObject_IsAnEmptyQueueWithTheSwitchOn()
+    public void EmptyObject_IsAnEmptyQueue()
     {
         // 手工编辑或损坏到只剩 {}：源生成反序列化不会保留属性上的初始化器，
         // 条目数组会读成 null，必须由 Load 补回来，否则协调器构造时取长度就崩。
         var path = NewPath();
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "{}");
-        var loaded = new JsonPlayQueueSnapshotStore(path).Load();
+        var loaded = new JsonPlayQueueSnapshotStore(path).Load("anonymous");
         Assert.Empty(loaded.Items);
-        Assert.True(loaded.RestoreEnabled);
     }
 
     [Fact]
@@ -86,7 +74,7 @@ public sealed class PlayQueueSnapshotStoreTests
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "{\"Items\":[{\"Id\":7,\"Title\":\"第七首\"}]}");
 
-        var item = Assert.Single(new JsonPlayQueueSnapshotStore(path).Load().Items);
+        var item = Assert.Single(new JsonPlayQueueSnapshotStore(path).Load("anonymous").Items);
         Assert.Empty(item.AvailableQualities);
         Assert.Empty(item.AudioVariants);
     }
@@ -96,6 +84,6 @@ public sealed class PlayQueueSnapshotStoreTests
     {
         var path = NewPath();
         Directory.CreateDirectory(path);
-        Assert.False(new JsonPlayQueueSnapshotStore(path).Save(PlayQueueSnapshot.Default));
+        Assert.False(new JsonPlayQueueSnapshotStore(path).Save("anonymous", PlayQueueSnapshot.Default));
     }
 }

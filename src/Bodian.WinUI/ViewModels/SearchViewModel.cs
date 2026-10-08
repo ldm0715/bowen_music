@@ -19,6 +19,11 @@ public sealed partial class SearchViewModel : ObservableObject, ISearchHistorySi
     private readonly PlaybackCoordinator _coordinator;
     private readonly ILogger<SearchViewModel> _logger;
     private readonly ISearchHistoryStore _historyStore;
+    private readonly ICurrentAccount? _account;
+
+    /// <summary>构造本视图模型的线程。账号变更事件可能来自线程池，改集合要回到这个线程上做。</summary>
+    private readonly SynchronizationContext? _uiContext = SynchronizationContext.Current;
+
     private bool _resettingCategory;
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _suggestionCancellation;
@@ -28,19 +33,25 @@ public sealed partial class SearchViewModel : ObservableObject, ISearchHistorySi
 
     public SearchViewModel(IBodianApi api, PlaybackCoordinator coordinator,
         ISearchHistoryStore historyStore, ViewModeService viewMode,
-        ILogger<SearchViewModel>? logger = null)
+        ILogger<SearchViewModel>? logger = null, ICurrentAccount? account = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(historyStore);
         ArgumentNullException.ThrowIfNull(viewMode);
         _historyStore = historyStore;
+        _account = account;
         ViewMode = viewMode;
-        foreach (var keyword in historyStore.Load()) SearchHistory.Add(keyword);
-        HistoryIsEmpty = SearchHistory.Count == 0;
+        ReloadHistory();
         _api = api;
         _coordinator = coordinator;
         _logger = logger ?? NullLogger<SearchViewModel>.Instance;
+
+        // 换账号后历史是另一份：内存里这份必须跟着换，否则搜过的词会跨账号串。
+        if (account is not null)
+        {
+            account.Changed += OnAccountChanged;
+        }
 
         Results.CollectionChanged += (_, _) => OnPropertyChanged(nameof(TrackCountText));
 
@@ -52,6 +63,43 @@ public sealed partial class SearchViewModel : ObservableObject, ISearchHistorySi
         Playlists.CollectionChanged += RecountResultToolbar;
         Albums.CollectionChanged += RecountResultToolbar;
         Artists.CollectionChanged += RecountResultToolbar;
+    }
+
+    /// <summary>
+    /// 把内存里的搜索历史换成当前账号那一份。
+    /// </summary>
+    private void ReloadHistory()
+    {
+        SearchHistory.Clear();
+
+        foreach (var keyword in _historyStore.Load())
+        {
+            SearchHistory.Add(keyword);
+        }
+
+        HistoryIsEmpty = SearchHistory.Count == 0;
+    }
+
+    /// <summary>
+    /// 账号变了：搜索历史是另一份，重新读一遍。
+    /// </summary>
+    /// <remarks>
+    /// <b>不走 <see cref="ClearSearchHistory"/>。</b> 那条路会往磁盘写空数组 ——
+    /// 切号时那样做等于把刚登进来的账号的历史一并抹掉。这里只丢弃内存里那份。
+    /// <para>
+    /// <b>事件可能在任意线程触发</b>（服务端 <c>11012</c> 走的是解析响应那条路），
+    /// 而 <c>SearchHistory</c> 是绑定到界面的集合。
+    /// </para>
+    /// </remarks>
+    private void OnAccountChanged(object? sender, EventArgs e)
+    {
+        if (_uiContext is null || ReferenceEquals(SynchronizationContext.Current, _uiContext))
+        {
+            ReloadHistory();
+            return;
+        }
+
+        _uiContext.Post(_ => ReloadHistory(), null);
     }
 
     /// <summary>

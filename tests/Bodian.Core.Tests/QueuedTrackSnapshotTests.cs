@@ -39,12 +39,12 @@ public sealed class QueuedTrackSnapshotTests
     private static QueuedTrack RoundTrip(QueuedTrack item, string path)
     {
         var store = new JsonPlayQueueSnapshotStore(path);
-        Assert.True(store.Save(new PlayQueueSnapshot
+        Assert.True(store.Save("anonymous", new PlayQueueSnapshot
         {
             Items = [item], CurrentTrackId = item.Id, CurrentIndex = 0, PositionSeconds = 42,
         }));
 
-        var loaded = store.Load();
+        var loaded = store.Load("anonymous");
         Assert.Single(loaded.Items);
         Assert.Equal(42, loaded.PositionSeconds);
         Assert.Equal(item.Id, loaded.CurrentTrackId);

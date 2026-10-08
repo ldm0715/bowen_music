@@ -7,7 +7,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Bodian.Core.Services.Implementations;
 
 /// <summary>
-/// 播放队列快照存成明文 JSON。写法与 <see cref="JsonInputMethodSettingsStore"/> 一致：
+/// 播放队列快照存成明文 JSON，按作用域分文件（<c>accounts\&lt;scope&gt;\queue.json</c>）。
+/// 写法与 <see cref="JsonInputMethodSettingsStore"/> 一致：
 /// 先写临时文件再 <c>Move</c> 覆盖，中途断电不会留下半个文件。
 /// </summary>
 /// <remarks>
@@ -16,23 +17,33 @@ namespace Bodian.Core.Services.Implementations;
 /// </remarks>
 public sealed class JsonPlayQueueSnapshotStore(
     string? path = null,
-    ILogger<JsonPlayQueueSnapshotStore>? logger = null) : IPlayQueueSnapshotStore
+    ILogger<JsonPlayQueueSnapshotStore>? logger = null,
+    string? rootDirectory = null) : IPlayQueueSnapshotStore
 {
-    private readonly string _path = path ?? AppPaths.PlayQueueFile;
+    /// <summary>显式路径。<b>只在测试里给</b>：给了之后所有作用域都读它，见 <see cref="ResolvePath"/>。</summary>
+    private readonly string? _explicitPath = path;
+
+    private readonly string _rootDirectory = rootDirectory ?? AppPaths.LocalAppData;
+
     private readonly ILogger<JsonPlayQueueSnapshotStore> _logger = logger ?? NullLogger<JsonPlayQueueSnapshotStore>.Instance;
 
-    public PlayQueueSnapshot Load()
+    private string ResolvePath(string scope) =>
+        _explicitPath ?? AppPaths.AccountFilePath(scope, AppPaths.PlayQueueFileName, _rootDirectory);
+
+    public PlayQueueSnapshot Load(string scope)
     {
-        if (!File.Exists(_path)) return PlayQueueSnapshot.Default;
+        var resolved = ResolvePath(scope);
+
+        if (!File.Exists(resolved)) return PlayQueueSnapshot.Default;
         try
         {
-            var loaded = JsonSerializer.Deserialize(File.ReadAllBytes(_path),
+            var loaded = JsonSerializer.Deserialize(File.ReadAllBytes(resolved),
                 PlayQueueSnapshotJsonContext.Default.PlayQueueSnapshot);
             return loaded is null ? PlayQueueSnapshot.Default : Normalize(loaded);
         }
         catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(exception, "播放队列快照读取失败，按空队列继续：{Path}", _path);
+            _logger.LogWarning(exception, "播放队列快照读取失败，按空队列继续：{Path}", resolved);
             return PlayQueueSnapshot.Default;
         }
     }
@@ -70,22 +81,65 @@ public sealed class JsonPlayQueueSnapshotStore(
         return loaded with { Items = buffer };
     }
 
-    public bool Save(PlayQueueSnapshot snapshot)
+    public bool Save(string scope, PlayQueueSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+
+        var resolved = ResolvePath(scope);
+
         try
         {
-            var directory = Path.GetDirectoryName(_path);
+            var directory = Path.GetDirectoryName(resolved);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(snapshot, PlayQueueSnapshotJsonContext.Default.PlayQueueSnapshot);
-            var temporary = _path + ".tmp";
+            var temporary = resolved + ".tmp";
             File.WriteAllBytes(temporary, bytes);
-            File.Move(temporary, _path, overwrite: true);
+            File.Move(temporary, resolved, overwrite: true);
             return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(exception, "播放队列快照写入失败：{Path}", _path);
+            _logger.LogWarning(exception, "播放队列快照写入失败：{Path}", resolved);
+            return false;
+        }
+    }
+
+    public bool DeleteAllScopes()
+    {
+        // 测试注入了显式路径时只认那一个文件，不去扫真实目录 —— 否则跑测试会删掉本机数据。
+        if (_explicitPath is not null)
+        {
+            return TryDelete(_explicitPath);
+        }
+
+        var accountsDirectory = Path.Combine(_rootDirectory, AppPaths.AccountsDirectoryName);
+
+        if (!Directory.Exists(accountsDirectory))
+        {
+            return true;
+        }
+
+        var ok = true;
+
+        foreach (var directory in Directory.EnumerateDirectories(accountsDirectory))
+        {
+            ok &= TryDelete(Path.Combine(directory, AppPaths.PlayQueueFileName));
+        }
+
+        return ok;
+    }
+
+    private bool TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path)) { File.Delete(path); }
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(exception, "删除播放队列快照失败：{Path}", path);
             return false;
         }
     }

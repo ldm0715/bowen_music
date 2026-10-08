@@ -482,7 +482,7 @@ public sealed class PlayQueueCommandTests
     public async Task CyclePlayMode_WalksTheThreeModesInOrder()
     {
         var engine = new FakePlaybackEngine();
-        var settings = new Settings();
+        var settings = new FakePlaybackSettingsStore();
         using var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore(), playbackSettings: settings);
 
         Assert.Equal(PlayMode.Sequential, coordinator.Mode);
@@ -502,7 +502,7 @@ public sealed class PlayQueueCommandTests
     [Fact]
     public async Task SavedMode_IsRestoredOnTheNextStartup()
     {
-        var settings = new Settings { Mode = PlayMode.ListLoop };
+        var settings = new FakePlaybackSettingsStore { Mode = PlayMode.ListLoop };
         var engine = new FakePlaybackEngine();
         using (var coordinator = new PlaybackCoordinator(Api(), engine, new FakePlayHistoryStore(), playbackSettings: settings))
         {
@@ -514,12 +514,4 @@ public sealed class PlayQueueCommandTests
         Assert.Equal(PlayMode.ListLoop, restarted.Mode);
     }
 
-    private sealed class Settings : IPlaybackSettingsStore
-    {
-        public PlayMode Mode { get; set; } = PlayMode.Sequential;
-
-        public PlayMode Load() => Mode;
-
-        public void Save(PlayMode mode) => Mode = mode;
-    }
 }
