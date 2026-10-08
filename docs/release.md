@@ -110,14 +110,19 @@ Pop-Location
 
 # 4. 安装包
 choco install nsis -y
+$root = (Resolve-Path '.').Path
 & 'C:\Program Files (x86)\NSIS\makensis.exe' `
   '/DAPP_VERSION=0.1.0' '/DAPP_VERSION4=0.1.0.0' `
   "/DAPP_SOURCE=$((Resolve-Path artifacts/release/publish).Path)" `
   "/DOUTFILE=$((Resolve-Path artifacts/release).Path)\BowenMusic_0.1.0_x64_setup.exe" `
+  "/DAPP_LICENSE=$root\LICENSE" `
+  "/DAPP_ICON=$root\src\Bodian.WinUI\Assets\Ripple.ico" `
   installer/BowenMusic.nsi
 ```
 
-`makensis` 的三个变量都是**必传**，缺了直接编译失败 —— 不会静默产出一个指向空目录的安装包。
+`makensis` 的前三个变量**必传**，缺了直接编译失败 —— 不会静默产出一个指向空目录的安装包。
+后两个（`APP_LICENSE` / `APP_ICON`）不传时会退回相对脚本目录的写法，本地一般够用；
+CI 传绝对路径，不依赖 makensis 的调用目录。
 
 ## 安装器的设计取舍
 

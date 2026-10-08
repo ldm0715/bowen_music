@@ -156,15 +156,20 @@ jobs:
           if (-not (Test-Path "$nsis/makensis.exe")) { throw "NSIS 没装上：$nsis\makensis.exe 不存在" }
           $env:PATH = "$env:PATH;$nsis"
 
+          $root   = (Resolve-Path '.').Path
           $source = (Resolve-Path "$env:OUT/publish").Path
           $out    = (Resolve-Path "$env:OUT").Path
           $target = "$out/BowenMusic_${env:VERSION}_x64_setup.exe"
 
+          # LICENSE 与图标传绝对路径：脚本里那两处默认值是相对脚本目录写的，
+          # 能不能解析取决于 makensis 的调用位置，这里不留给它去猜。
           makensis `
             "/DAPP_VERSION=$env:VERSION" `
             "/DAPP_VERSION4=$env:VERSION4" `
             "/DAPP_SOURCE=$source" `
             "/DOUTFILE=$target" `
+            "/DAPP_LICENSE=$root\LICENSE" `
+            "/DAPP_ICON=$root\src\Bodian.WinUI\Assets\Ripple.ico" `
             installer/BowenMusic.nsi
 
           if ($LASTEXITCODE -ne 0) { throw "makensis 退出码 $LASTEXITCODE" }
