@@ -5,16 +5,20 @@
 ; 可选（工作流会传绝对路径，本地不传时退回相对本脚本目录的写法）：
 ;   /DAPP_LICENSE=<LICENSE 绝对路径>  /DAPP_ICON=<图标绝对路径>
 ;
-; ── 三条踩过的坑，改这个文件前先看 ──────────────────────────────────────────
+; ── 四条踩过的坑，改这个文件前先看（都是实测，不是推测） ────────────────────
 ; ★ 本文件必须存成 **UTF-8 with BOM**。makensis 靠 BOM 判断脚本编码，没有 BOM 时
-;   按 ANSI 代码页读（日志里显示 "(ACP)"），所有中文会变成乱码 —— 而且是静默的，
-;   编译不报错，装完才发现快捷方式名字是乱码。
+;   按 ANSI 代码页读（编译日志里显示 "(ACP)"），所有中文会变成乱码 —— 而且是静默的，
+;   编译不报错，装完才发现快捷方式名字是乱码。编对了的日志是 "(UTF8)"。
 ; ★ SetShellVarContext / SetRegView 这类是**运行期指令**，只能写在 Section 或 Function 里。
 ;   放在全局作用域会直接编译失败（"not valid outside Section or Function"）。
 ; ★ **不要用 !cd 去"锚定"相对路径。** NSIS 本来就按脚本所在目录解析相对路径；
 ;   而 ${__FILEDIR__} 取到的是**调用时给出的那个相对路径**（makensis 在仓库根用
 ;   installer\BowenMusic.nsi 调用时它就是 "installer"），拿它去 !cd 会拼成
-;   installer\installer 然后报错 —— 实测踩过。要绝对路径就让调用方传进来。
+;   installer\installer 然后报错。要绝对路径就让调用方传进来（/DAPP_*）。
+; ★ **别凭记忆写 NSIS 宏。** ${StrLoc} 这种看着像内置的东西在 NSIS 3.10 里并不存在，
+;   任何 include 里都找不到 —— 编译期只报一句 "Invalid command"。用之前先
+;   grep 一下 Include/ 目录确认（${GetSize} 在 FileFunc.nsh:583，是真的）。
+;   本脚本判断进程在不在用的是 find 的退出码，不需要任何字符串函数。
 
 Unicode true
 SetCompressor /SOLID lzma
@@ -98,21 +102,25 @@ VIAddVersionKey "LegalCopyright"  "GPL-3.0"
 ; ── 初始化：检查与关闭正在运行的实例 ─────────────────────────────────────────
 
 !macro CloseRunningApp
-  ; ★ 用 CSV 输出而不是默认表格：默认输出的「没有匹配任务」提示随系统语言变，
-  ;   按它判断会在中文 Windows 上失效。CSV 有匹配时首列就是进程名，与语言无关。
-  nsExec::ExecToStack 'cmd /c tasklist /FI "IMAGENAME eq ${APP_EXE}" /FO CSV /NH'
+  ; ★ 判断依据是 **find 的退出码**，不是 tasklist 的输出文本。
+  ;   两个坑都在这里：
+  ;   1. tasklist 没有匹配时会把「没有匹配任务」那行提示打进 stdout，而那句话随系统
+  ;      语言变，按它判断在中文 Windows 上会失效。
+  ;   2. 用起来像内置宏的 ${StrLoc} / ${StrRep} 之类在 NSIS 3.10 里**并不存在**
+  ;      （StrFunc.nsh 只是个需要 ${Using:...} 声明的第三方头文件），别照着记忆写。
+  ;   find 匹配到返回 0、没匹配到返回 1，与语言无关，也不需要任何字符串函数。
+  nsExec::ExecToStack 'cmd /c tasklist /FI "IMAGENAME eq ${APP_EXE}" /FO CSV /NH | find /i "${APP_EXE}"'
   Pop $0
   Pop $1
 
-  ${StrLoc} $R0 "$1" "${APP_EXE}" ">"
-
-  ${If} $R0 != ""
+  ${If} $0 == 0
     MessageBox MB_YESNO|MB_ICONQUESTION \
       "${APP_NAME}正在运行，安装前需要先关闭它。现在关闭吗？" \
       IDYES close IDNO abort
 
     close:
       nsExec::Exec 'cmd /c taskkill /IM ${APP_EXE} /F'
+      Pop $0
       Sleep 1000
       Goto done
 
