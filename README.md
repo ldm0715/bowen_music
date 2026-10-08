@@ -1,54 +1,178 @@
-# 波纹音乐 WinUI 3 客户端
+<div align="center">
 
-非官方第三方桌面客户端（对接波点音乐服务），目标平台 Windows 10 / 11。
+<img src="src/Bodian.WinUI/Assets/Ripple.png" alt="波纹音乐" width="128" />
 
-> **当前状态（2026-10-07）：P0–P5、P7、P8、设置页与应用动画完成，1417 个离线测试通过。**
-> 设置页（外观／播放／歌词／快捷键／存储／关于）与「实时状态 / 默认值 / 当前值」三种值的分野见
-> [`docs/settings.md`](docs/settings.md)；应用更名为「波纹音乐」并落位深浅两版图标，见
-> [`docs/ui-refresh.md`](docs/ui-refresh.md) §30。
-> 页面、Tab、横向卡片和共享封面动画已接入；首播封面下坠、歌词封面放大/回位、MV 直接退出及主题过渡见
-> [`docs/animations.md`](docs/animations.md)。
-> 已支持登录、综合与分类搜索、热榜与本地搜索历史、播放、SMTC、曲库与歌单、评论与回复；
-> 搜索默认分段显示综合结果，“更多”进入分类 tab，入口面板与主题浮窗使用相同的半透明背景。
-> 搜索框左侧统一提供返回按钮（间距 8 DIP），支持逐级返回；歌词页保留原来的 ↓ 收起按钮。
-> 音质支持标准 / HQ / SQ 三档；160 DIP 菜单保留真实大小、以背景表示选中，播放器只显示档位名。
-> 歌词页入口紧邻评论按钮，切换保留进度与暂停状态并记住偏好。
-> 播放器按「封面 → 歌曲信息 → 收藏／分享」紧凑排列；两个入口显示全站数量角标，暂不执行点击动作。
-> 歌词页左下角显示相同入口，VIP／付费标识移到顶部标题旁。
-> 高级三档依赖官方手机客户端，本客户端不提供；范围说明见 [`docs/audio-quality-audit.md`](docs/audio-quality-audit.md)。
-> 搜索说明见 [`docs/search.md`](docs/search.md)。歌词界面已替换为参考 LyciaMusic 的全窗口沉浸设计，
-> 包含透明封面背景、逐字渐变、弹簧滚动、长音效果、滚动浏览和点击歌词跳转，
-> 并加入通栏进度条、真实音频频谱、水面封面倒影，以及普通窗口和全屏统一的操作栏自动收起。
-> 窗口、动态绘制、导航和图片加载已按 120 fps 目标优化，验证范围与实际限制见
-> [`docs/performance.md`](docs/performance.md)；歌词交互说明见 [`docs/fullscreen-lyrics.md`](docs/fullscreen-lyrics.md)。
-> 评论界面支持主题、数量角标、面板内图片缩放／拖动、文字发布和点赞，见 [`docs/comments-ui.md`](docs/comments-ui.md)。
-> 分页列表改为滚到末尾自动续加载，取完后列表末尾提示「没有更多了哦~」，
-> 机制与各页挂载点见 [`docs/list-paging.md`](docs/list-paging.md)。
-> 侧栏新增「收藏的歌单」（与「收藏的专辑」是两个概念）；歌单详情的收藏、专辑详情页的收藏、
-> 歌手页的关注三处都改成两态，取消操作先弹确认框；协议结论见 [`docs/collect-follow.md`](docs/collect-follow.md)。
-> 歌单详情页补成与专辑页同构的头部（封面、播放量、创建者、简介、播放全部 / 收藏 / 分享），
-> **收藏按钮只对别人的歌单出现**；实现与验收清单见 [`docs/playlist-detail.md`](docs/playlist-detail.md)。
-> 播放栏传输组扩为五键（播放模式 · 上一首 · 播放/暂停 · 下一首 · 播放列表），
-> 播放模式支持顺序播放 / 列表循环 / 列表随机三种并记住选择；「播放列表」按钮打开的是
-> 内存播放队列的右侧抽屉，可切歌、删单曲、清空，曲目行的「更多」菜单另有
-> 「下一首播放」与「加入播放队列」两条入口。队列结构、模式语义与图标来源见
-> [`docs/play-queue.md`](docs/play-queue.md)。
-> **八个歌曲列表页右上角新增列表工具栏**（全部加入播放列表 / 多选 / 刷新），多选后可批量
-> 加入播放列表、加入喜欢、加入歌单，自建歌单与「我喜欢的」还能批量移出；页脚那颗「重新加载」
-> 已删、刷新挪到工具栏。**列表里点一首歌不再把整个列表拉进队列**，而是把这一首追加到队尾
-> 并立即播放，队列里原有的歌都留着。见 [`docs/track-list-toolbar.md`](docs/track-list-toolbar.md)。
-> **新增 MV 播放**：曲目行角标、「更多」菜单、播放条三处入口，打开一个与歌词页并列的
-> 全窗沉浸 MV 页，带进度、音量、全屏与四种画面比例，并在看 MV 时自动暂停音频、退出恢复。
-> 协议与验收见 [`docs/mv.md`](docs/mv.md)。
-> 进度见 [`docs/roadmap.md`](docs/roadmap.md)，待办见 [`docs/backlog.md`](docs/backlog.md)。
-> **桌面歌词已完成并于 2026-10-05 验收**：悬停背景与图标控制、固定字形逐字高亮、双行对齐、
-> 鼠标穿透、锁定、拉伸和屏幕吸附。实现与验证见 [`docs/desktop-lyrics.md`](docs/desktop-lyrics.md)。
+# 波纹音乐
+
+**非官方波点音乐桌面客户端：WinUI 3 + libmpv，把官方 PC 端没做的评论、收藏歌单补上，并把播放状态交给系统。**
+
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/ldm0715/bowen_music)](https://github.com/ldm0715/bowen_music/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4.svg)](#-下载安装)
+
+基于 WinUI 3（Windows App SDK）+ .NET 10 + libmpv 构建
+
+</div>
+
+<!--
+  ★ 待补截图。图片放进 docs/images/，文件名与下面一致，README 不需要再改。
+      main.png        主界面：侧栏 + 曲库 + 底部播放器（建议 1440×900）
+      lyrics.png      全屏沉浸歌词：逐字高亮与封面倒影
+      desktop-lyrics.png  桌面歌词条：悬浮在桌面上的样子（可只截歌词条本身）
+      mv.png          MV 沉浸页
+      mini-player.png 小窗（迷你播放器）
+      search.png      搜索结果与综合分段
+-->
+
+<p align="center">
+  <img src="docs/images/main.png" alt="波纹音乐主界面" width="760" />
+  <br/>
+  <sub><b>主界面</b> —— 侧栏曲库、歌曲列表工具栏与底部播放器</sub>
+</p>
+<p align="center">
+  <img src="docs/images/lyrics.png" alt="全屏沉浸歌词" width="760" />
+  <br/>
+  <sub><b>全屏歌词</b> —— 逐字渐变高亮、真实音频频谱与封面倒影</sub>
+</p>
 
 ## 为什么做这个
 
-官方桌面端缺下载、评论、收藏歌单几块功能，且播放状态不对系统暴露，Lyricify 这类歌词工具读不到。
+官方 PC 端缺评论、缺收藏歌单，播放状态也不对系统暴露 —— Lyricify 这类歌词工具因此读不到在放什么。
 
-本项目用 WinUI 3 + libmpv 自己做一个，并把播放状态通过 SMTC 暴露出去。
+这个项目用 WinUI 3 + libmpv 自己做一个：补齐评论与收藏，并把播放状态通过 SMTC 交给系统媒体面板。
+
+## ✨ 特性
+
+- **系统媒体控制（SMTC）** —— 播放状态、进度、封面与歌词交给系统媒体面板，第三方歌词工具能正常读到；开始菜单快捷方式带独立 AUMID，不与官方客户端互相顶掉
+- **登录与多账号** —— 手机号与扫码两种登录；记住多个账号、侧栏一键切换，切号不重新认证（凭据用 DPAPI 加密落盘）
+- **未登录也能用** —— 不登录即可进外壳浏览、搜索、试听；登录框可随手关掉，等碰到评论、收藏、自建歌单这类需要身份的功能再引导登录
+- **全屏沉浸歌词** —— 透明封面背景、逐字渐变高亮、弹簧滚动、长音效果、真实音频频谱与封面倒影；支持点歌词跳转、滚轮浏览，播放时操作栏自动收起
+- **桌面歌词** —— 独立的悬浮歌词条：悬停浮出控制、固定字形逐字高亮、双行对齐、鼠标穿透、锁定、拉伸与屏幕边缘吸附
+- **MV 播放** —— 曲目行角标、「更多」菜单、播放条三处入口；全窗沉浸播放，四种画面比例，看 MV 时自动暂停音频、退出后恢复
+- **评论与回复** —— 看、发、赞、回复；楼层主题标识、数量角标、面板内图片缩放与拖动
+- **四处收藏／关注** —— 歌曲、歌单、专辑、歌手都是两态按钮，取消操作先弹确认；侧栏里「收藏的歌单」与「收藏的专辑」分作两项
+- **播放队列** —— 顺序播放 / 列表循环 / 列表随机三种模式并记住选择；右侧抽屉可切歌、删单曲、清空，另有「下一首播放」与「加入播放队列」两条入口
+- **列表工具栏与多选** —— 歌曲列表页右上角统一提供「全部加入播放列表 / 多选 / 刷新」，多选后可批量加入喜欢、加入歌单
+- **三档音质** —— 标准 / HQ / SQ 随手切换，播放器上只显示档位名；更高档位依赖官方手机客户端，本客户端不提供
+- **小窗与托盘** —— 透明圆角迷你播放器、贴边自动收起；关闭到托盘、单实例运行，重复启动会唤出已有窗口
+- **轻量音频栈** —— 自建精简 libmpv，音频库从 115.22 MiB 裁到 **7.97 MiB**（−93.1%），只保留解码与输出必需的部分；无需额外安装播放器或编解码包
+
+## 📦 下载安装
+
+前往 [**Releases**](https://github.com/ldm0715/bowen_music/releases/latest) 页面下载最新版本：
+
+| 文件 | 说明 |
+| --- | --- |
+| `BowenMusic_x.y.z_x64_setup.exe` | 安装版：NSIS 安装向导，自动创建开始菜单与桌面快捷方式（推荐） |
+| `BowenMusic_x.y.z_x64_portable.zip` | 便携版：解压即用，适合免安装场景 |
+
+**系统要求**：Windows 10 2004（内部版本 19041）或更高 / Windows 11，**x64**。暂不支持 ARM64。
+
+| 产物 | 压缩包 | 解压后 | 需要先装 .NET？ |
+| --- | --- | --- | --- |
+| 安装版 `..._x64_setup.exe` | 约 48 MB | 189.8 MiB | 不需要 |
+| 自包含便携版 `..._x64_portable.zip` | 69.6 MiB | 189.8 MiB | 不需要 |
+| 无运行时便携版 `..._x64_noruntime_portable.zip` | **37.0 MiB** | 113.3 MiB | **需要 .NET 10 运行时（x64）** |
+
+**怎么选**：不确定就下**安装版** —— 它自带运行时，装完直接能用。已经装过 .NET 10 运行时、或者只想下个小包带走，就用**无运行时便携版**，体积少一半；缺运行时时双击会弹出提示并给出下载链接。
+
+每个安装包的 SHA-256 校验和列在 Release 说明末尾的表格里，可用以下命令核对：
+
+```powershell
+certutil -hashfile BowenMusic_x.y.z_x64_setup.exe SHA256
+```
+
+## 🚀 快速上手
+
+1. **登录** —— 右上角头像进登录页，手机号或扫码任选；不想登录就直接浏览，功能会按可用状态置灰并说明原因
+2. **找歌** —— 顶部搜索框回车出综合结果，「更多」进分类页签；搜索框里还能翻热榜与本地搜索历史
+3. **听歌** —— 列表里点一首歌即追加到队尾并开始播放，队列里原有的歌都留着；底部播放栏五键（播放模式 · 上一首 · 播放 / 暂停 · 下一首 · 播放列表）
+4. **看歌词** —— 点播放栏封面进全屏歌词页；桌面歌词在**设置 → 歌词**里打开，是一个独立的悬浮条
+5. **整理** —— 歌曲列表右上角「多选」后可批量加入播放列表、加入喜欢、加入歌单；「我喜欢的」与自建歌单里还能批量移出
+
+### 应用内快捷键
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Space` | 播放 / 暂停 |
+| `Ctrl+←` / `Ctrl+→` | 上一首 / 下一首 |
+| `Ctrl+↑` / `Ctrl+↓` | 音量 + / 音量 − |
+| `Ctrl+M` | 静音开关 |
+| `Ctrl+L` | 收藏当前歌曲 |
+
+**只做应用内，不注册全局热键** —— 应用失去焦点时不会响应，也就不会跟别的软件抢组合键。键位可在 **设置 → 快捷键** 中修改；录制时会校验冲突与非法键，撞车会被拒绝并说明原因。
+
+## 🗂 数据与隐私
+
+- 数据只在本机：`%LOCALAPPDATA%\Bowen`（会话、设备标识、设置、缓存、日志）。卸载不影响你的音乐库
+- 会话凭据与记住的账号用 **Windows DPAPI 加密**，只能由当前 Windows 用户解密
+- **无遥测、无日志上报**：日志只写本地文件，不会外发
+- 仅有的联网行为：
+  - 访问本客户端对接的音乐服务（播放、搜索、评论、收藏）
+  - 检查更新：向 GitHub Releases API 查最新版本号（**设置 → 关于** 可手动触发；查到新版本只会打开浏览器，不静默下载安装）
+  - 拉取封面图片
+
+## ⚠ 已知限制
+
+- **下载功能尚未实现**（计划中）。官方 PC 端有下载，这个客户端暂时没有，别期待
+- 更高音质档位依赖官方手机客户端，本客户端只提供标准 / HQ / SQ 三档
+- 仅 x64。ARM64 需要另做原生库与构建配置
+- 不打包、不分发官方客户端的任何二进制；音源授权完全由服务端接口裁决，客户端不绕过任何权限
+
+## 🛠 从源码构建
+
+**环境要求**：Windows 10 2004+ · [.NET 10 SDK](https://dotnet.microsoft.com/download)（`10.0.400` 或更高的 Feature Band）· Windows SDK `10.0.26100` · Visual Studio 2022 的 MSVC C++ 生成工具
+
+```powershell
+git clone https://github.com/ldm0715/bowen_music.git
+cd bowen_music
+
+# 构建与单测（客户端工程 + 全部离线测试，零真实网络请求）
+dotnet build Bodian.sln -c Debug
+dotnet test  --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
+
+# 启动。unpackaged 运行：Windows App SDK 随包，.NET 用系统运行时
+./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe
+```
+
+`libmpv-2.dll` 已随仓库提供（`libmpv/`），克隆后直接可以播放。它是自建的精简版，重建与回退方式见 [`docs/libmpv-audio-build.md`](docs/libmpv-audio-build.md)。
+
+### 打发布包
+
+两个变体只差一个开关（`-p:DistributionBuild=true` 去掉 PDB）：
+
+```powershell
+# 自包含：189.8 MiB / 340 个文件，不需要目标机器装 .NET
+dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 `
+  --self-contained true  -p:DistributionBuild=true -o artifacts/release/publish
+
+# 框架依赖：113.3 MiB / 153 个文件，目标机器需要 .NET 10 运行时
+dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 `
+  --self-contained false -p:DistributionBuild=true -o artifacts/release/publish-noruntime
+```
+
+打 tag 后 GitHub Actions 会自动跑完整流程（测试 → 两个变体 → 便携 zip → NSIS 安装包 → 建 Release 并附校验和），也可以手动触发。详见 [`docs/release.md`](docs/release.md)。
+
+## 📄 许可证与依赖
+
+波纹音乐以 [GPL-3.0](LICENSE) 协议开源，© 2026 gcnanmu。
+
+本项目基于以下开源项目构建，感谢这些社区：
+
+| 项目 | 说明 | 许可 |
+| --- | --- | --- |
+| [mpv / libmpv](https://github.com/mpv-player/mpv) | 音频引擎。使用自建的精简音频构建，源码版本与构建脚本随仓库提供 | GPL-2.0+ |
+| [Windows App SDK](https://github.com/microsoft/WindowsAppSDK) | WinUI 3 运行时与控件 | MIT |
+| [.NET](https://github.com/dotnet/runtime) | 运行时与基础库 | MIT |
+| [Win2D](https://github.com/microsoft/Win2D) | 歌词的逐字渲染（XAML 的 `TextBlock` 没有逐字定位 API） | MIT |
+| [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) | MVVM 源生成器 | MIT |
+| [H.NotifyIcon](https://github.com/HavenDV/H.NotifyIcon) | 系统托盘（unpackaged 应用只能走 Win32 Shell_NotifyIcon） | MIT |
+| [QRCoder](https://github.com/codebude/QRCoder) | 扫码登录的二维码本地渲染 | MIT |
+| [NAudio](https://github.com/naudio/NAudio) | WASAPI 输出设备监听 | MIT |
+| [Serilog](https://github.com/serilog/serilog) | 本地文件日志 | Apache-2.0 |
+| [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) | 界面图标 | MIT |
+
+完整依赖清单见 [`src/Directory.Packages.props`](src/Directory.Packages.props)。
 
 ## 非官方声明
 
@@ -59,79 +183,6 @@
 - 音源授权完全由服务端接口裁决，客户端不绕过任何权限
 - 请通过官方渠道支持正版
 
-## 目录
+---
 
-| 路径 | 说明 |
-| --- | --- |
-| `src/Bodian.Core/` | `net10.0`，零 UI 依赖：传输层 / 门面 / DTO / 领域模型 / 分页 / 歌词解码 / 凭据。**可独立单测** |
-| `src/Bodian.WinUI/` | `net10.0-windows10.0.26100.0`，WinUI 3。页面 / ViewModel / libmpv 播放引擎 / 导航 |
-| `tests/Bodian.Core.Tests/` | xunit.v3，用 `fixtures/` 的真实响应做断言，**零真实网络请求** |
-| `docs/` | 逆向勘查记录与设计方案。**开工前先读 [`docs/roadmap.md`](docs/roadmap.md)** |
-| `tools/Bodian.Probe/` | P0 协议探针，一次性控制台工具。**不参与 `Bodian.sln`**，但必须保持可独立构建 |
-| `libmpv/` | 音频精简版原生库（7.97 MiB，**不入版本控制**）。构建、验证与回退见 [`libmpv-audio-build.md`](docs/libmpv-audio-build.md) |
-| `fixtures/` | 已脱敏的真实响应样本，单测的输入 |
-| `apk/` | 逆向用的原始安装包，**不入版本控制**（283 MB 第三方二进制，需自行放置） |
-
-## 文档
-
-| 文档 | 用途 |
-| --- | --- |
-| [`roadmap.md`](docs/roadmap.md) | **分阶段执行计划**，先读这份 |
-| [`transport.md`](docs/transport.md) | **工程骨架与传输层的落地设计稿**：csproj 全文 / 类清单 / DTO 映射 / 测试清单 / 验收命令 |
-| [`bodian-api-reference.md`](docs/bodian-api-reference.md) | 接口主文档：传输层 / 签名 / 已验证接口 / 数据模型 / 音质档位 |
-| [`audio-quality-audit.md`](docs/audio-quality-audit.md) | 音质接口复核与解密交接：文档误读、APK 调用链、真实样本及未解决项 |
-| [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
-| [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
-| [`libmpv-audio-build.md`](docs/libmpv-audio-build.md) | **libmpv 精简构建维护主文档**：115.22 → 7.97 MiB、裁剪范围、文件位置、构建、验证、替换、回退与排障 |
-| [`size-optimization.md`](docs/size-optimization.md) | **编译产物体积优化主文档**：174.6 → 115.2 MiB、AI/ML 组件剔除、语言资源裁剪、PDB 开关、两个踩过的坑、评估过但没做的方向 |
-| [`animations.md`](docs/animations.md) | 页面 / Tab / 卡片切换、共享封面、歌词展开回位、MV 直接退出、主题资源保护与验证 |
-| [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
-| [`search.md`](docs/search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
-| [`comments-ui.md`](docs/comments-ui.md) | 评论入口与角标、列表与回复、发布和点赞、主题与图片查看、接口约束及验证 |
-| [`list-paging.md`](docs/list-paging.md) | 列表滚到末尾自动续加载：触发机制、补屏行为、失败重试、挂载点与验收 |
-| [`collect-follow.md`](docs/collect-follow.md) | 收藏歌单与关注歌手：接口、判定机制、两态按钮与取消确认、验收清单 |
-| [`play-queue.md`](docs/play-queue.md) | 播放队列与播放模式：队列的「排列 + 游标」结构、三种模式语义、加入队列入口、右侧抽屉、图标来源与验证 |
-| [`fullscreen-lyrics.md`](docs/fullscreen-lyrics.md) | 当前全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
-| [`mv.md`](docs/mv.md) | MV 播放：三处入口、沉浸 MV 页、画面比例、音视频互斥与验收 |
-| [`mini-player.md`](docs/mini-player.md) | 小窗（迷你播放器）：透明圆角浮窗、悬停抽屉与传输区、按空间择向的队列面板、贴边收起与验收 |
-| [`tray.md`](docs/tray.md) | 系统托盘、关闭到托盘与单实例：紧凑布局、长标题省略、菜单内连续操作、库行为与验收记录 |
-| [`settings.md`](docs/settings.md) | 设置页：入口与页内布局、「实时状态 / 默认值 / 当前值」三种值的分野、应用内快捷键、封面磁盘缓存与存储清理、版本与检查更新 |
-| [`multi-account.md`](docs/multi-account.md) | 多账号下的本地数据作用域：设备级 / 个人级 / 账号级三分、按账号分目录的三份数据、旧布局迁移、存储页清理的账号维度 |
-| [`account-switch.md`](docs/account-switch.md) | 账号快捷切换：记住的账号清单（DPAPI）、切号不重新认证、登出语义的变化、失效账号的表现 |
-| [`anonymous-browse.md`](docs/anonymous-browse.md) | 匿名浏览：未登录也能进外壳、登录框可关闭、哪些能力匿名可用（含实测表）、曲库守卫为何放宽 |
-| [`dev-environment.md`](docs/dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
-| [`backlog.md`](docs/backlog.md) | 未完成事项交接单 |
-
-## 构建与运行
-
-环境要求见 [`docs/dev-environment.md`](docs/dev-environment.md)（.NET 10 SDK + Windows SDK 10.0.26100）。
-
-```bash
-# 客户端工程
-dotnet build Bodian.sln -c Debug
-dotnet test  --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
-
-# 启动（unpackaged；Windows App SDK 随包，.NET 使用系统运行时）
-timeout 8 ./src/Bodian.WinUI/bin/Debug/net10.0-windows10.0.26100.0/win-x64/Bodian.WinUI.exe
-# 退出码 124 只表示进程持续运行；还需确认主窗口、实际 .NET 加载和本次启动日志
-
-# P0 探针（故意不在 sln 里，避免每次构建都被它拖住）
-dotnet build tools/Bodian.Probe
-dotnet run --project tools/Bodian.Probe -- --help
-```
-
-当前默认构建需要已安装的 **x64 .NET 10 运行时**。`WindowsAppSDKSelfContained=true` 只表示 Windows App SDK 随包，不表示 .NET 也自包含。切换运行时布局或回退构建时，先备份旧输出和 `obj`，再完整重新编译，避免混入旧运行时加载器或 XAML 文件；说明见 [`dev-environment.md`](docs/dev-environment.md) §4.2。
-
-出包时加 `-p:DistributionBuild=true` 去掉 PDB。Release x64 输出 **115.2 MiB / 217 个文件**，zip 压缩后约 40 MB；体积构成、已做的三项裁剪、以及评估过但不值得做的方向见 [`docs/size-optimization.md`](docs/size-optimization.md)。
-
-**测试项目依赖 `global.json`**：`dotnet test` 走 Microsoft.Testing.Platform 靠它选择加入，
-所以命令要带 `--project`（MTP 模式下不接受位置参数）。详见 [`docs/transport.md`](docs/transport.md) 第 1.4 节。
-
-## 许可
-
-[GPL-3.0](LICENSE)。
-
-系统托盘用 [`H.NotifyIcon.WinUI`](https://github.com/HavenDV/H.NotifyIcon)（MIT）；图标取自 Fluent System Icons（MIT，见 [`docs/icons.md`](docs/icons.md)）。
-
-移植第三方代码时注意许可边界：**GPL-3.0 的代码可直接移植，AGPL-3.0 的不行**（两者单向兼容）。
-完整清单见 [`docs/lyrics-ui.md`](docs/lyrics-ui.md) 的许可边界一节。
+更多设计文档与逆向勘查记录见 [`docs/`](docs/)，开发环境说明见 [`docs/dev-environment.md`](docs/dev-environment.md)。
