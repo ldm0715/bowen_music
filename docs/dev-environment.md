@@ -154,7 +154,9 @@ dotnet build
 
 ### 4.2 启动
 
-构建产物在 `bin\Debug\net10.0-windows10.0.26100.0\win-x64\`。早期探针实测包含 246 个文件；文件数量会随依赖变化，不能用它判定 .NET 是否自包含。
+构建产物在 `bin\Debug\net10.0-windows10.0.26100.0\win-x64\`。**文件数量会随依赖变化，不能用它判定 .NET 是否自包含**：早期探针是 246 个文件，2026-10-08 体积优化后 Release 为 217 个文件 / 115.2 MiB。
+
+**改过 csproj 或包版本后必须全量重新构建。** MSBuild 只做增量拷贝，**不会删除**已不在项目里的文件：优化前那批 AI DLL 会原样留在旧输出目录里，不清掉就会以为没生效。清 `bin/`（已 gitignore）或换 `-p:BaseOutputPath=` 建到新目录；细节见 [`size-optimization.md`](size-optimization.md)。
 
 **Windows App SDK 与 .NET 的自包含是两回事。** 项目设置了 `WindowsAppSDKSelfContained=true`，但没有设置 .NET 的 `SelfContained=true`。当前 `Bodian.WinUI.runtimeconfig.json` 使用 `framework: Microsoft.NETCore.App 10.0.0`，启动时需要系统的 x64 .NET 10 运行时；2026-10-06 已验证实际加载 `C:\Program Files\dotnet\shared\Microsoft.NETCore.App\10.0.12\coreclr.dll`。
 

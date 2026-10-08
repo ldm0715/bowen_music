@@ -103,7 +103,7 @@ NU1008: Projects that use central package version management should not define
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
-  <!-- 版本以 tech-stack.md 第 2 节为准，不自行升级 -->
+  <!-- 版本以 docs/tech-stack.md 第 2 节为准，不自行升级 -->
   <ItemGroup>
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
@@ -111,20 +111,42 @@ NU1008: Projects that use central package version management should not define
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+
+    <!-- ★ 下面五个不是"引"进来的，是"挡"进去的，见 size-optimization.md -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK.AI" Version="2.5.5" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Search" Version="2.5.5" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Widgets" Version="2.0.5" />
+    <PackageVersion Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" />
+
+    <!-- P5 引入。逐字歌词渲染 -->
+    <PackageVersion Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
+    <!-- 下面两个 P1 只登记版本、不引用，省得 P2 再核一遍 -->
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="WinUIEx" Version="2.9.3" />
+    <!-- P2 引入 -->
+    <PackageVersion Include="HanumanInstitute.LibMpv" Version="0.10.1" />
+    <PackageVersion Include="QRCoder" Version="1.8.0" />
+    <PackageVersion Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+    <!-- 托盘。依赖 Microsoft.WindowsAppSDK >= 1.6，见下面 1.8 的注 -->
+    <PackageVersion Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <!-- 仅在测试项目里以 ExcludeAssets=all 引用，把 xunit.v3 传递引入的遥测扩展挤出 deps.json -->
+    <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.4.0" />
   </ItemGroup>
 </Project>
 ```
 
 `CommunityToolkit.Mvvm` 与 `WinUIEx` **P1 只登记版本、不引用**——避免 P2 时再核一遍版本号。其余包 P1 都用得上。
 
-上表 11 个包的版本号已对 nuget.org 逐个 `HEAD` 确认存在（全部 200）。
+**本清单是 2026-10-08 的实际状态**（P2 引入的 LibMpv / QRCoder / NAudio、P5 的 Win2D、
+托盘的 H.NotifyIcon，以及体积优化新增的五个「挡资产」包此前未同步进本节）。
+包名的版本号已对 nuget.org 逐个 `HEAD` 确认存在。**实际文件为权威**：本节是设计期快照，
+持续新增的包请以 `src/Directory.Packages.props` 为准。
 
 ### 1.7 `src/Bodian.Core/Bodian.Core.csproj`
 
@@ -178,19 +200,57 @@ NU1008: Projects that use central package version management should not define
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <!--
+      ★ 下面五个只做 ExcludeAssets="all"，目的是挡掉元包连带进来的原生资产，
+      不是要使用它们。源包白带 55.0 MB，详见 size-optimization.md。
+      元包本身不能摘：H.NotifyIcon.WinUI 声明依赖 Microsoft.WindowsAppSDK >= 1.6，
+      摘了会拖回 1.6 元包，与 2.5.1 的 WinUI 重复导入，构建失败。
+    -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Graphics.Win2D" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="HanumanInstitute.LibMpv" />
+    <PackageReference Include="QRCoder" />
+    <PackageReference Include="NAudio.Wasapi" />
+    <PackageReference Include="H.NotifyIcon.WinUI" />
   </ItemGroup>
+
+  <!--
+    WinAppSDK 的原生语言资源走自己的 runtimes-framework 拷贝目标，
+    SatelliteResourceLanguages 管不到，用它压到简繁中文两个目录，省 3.4 MB。
+    自行拼路径 / 用 Exclude 属性都会静默失效，踩坑记录见 size-optimization.md。
+  -->
+  <Target Name="_TrimWinAppSDKFrameworkLanguages"
+          AfterTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents">
+    <ItemGroup>
+      <_WinAppSDKLangMui Include="@(None)"
+          Condition="$([System.String]::Copy('%(None.Link)').EndsWith('.mui')) and !$([System.String]::Copy('%(None.Link)').StartsWith('zh-CN\')) and !$([System.String]::Copy('%(None.Link)').StartsWith('zh-TW\'))" />
+      <None Remove="@(_WinAppSDKLangMui)" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\Bodian.Core\Bodian.Core.csproj" />
   </ItemGroup>
 </Project>
 ```
+
+> **本节片段是 2026-10-08 的实际状态**（此前漏掉了 Win2D / LibMpv / QRCoder / NAudio /
+> H.NotifyIcon 等 P2、P5 期间引入的引用，以及体积优化新增的五个「挡资产」包与语言裁剪
+> Target；长注释按本文档习惯做了压缩，语义与文件一致）。**实际文件为权威。**
+>
+> 配套的 `src/Directory.Build.props` 里还有一个 `DistributionBuild` 开关（默认保留 PDB，
+> 加 `-p:DistributionBuild=true` 去掉），同样见 [`size-optimization.md`](size-optimization.md)。
 
 > **`UseWinUI=true` 在 `tech-stack.md` 第 2 节的片段里漏写了**（那个片段只有 .NET/OutputType/TFM/自包含几项），但 `dev-environment.md` 第 4.1 节的实测路线里有它——XAML 编译靠它，不能省。本节是权威版本。
 

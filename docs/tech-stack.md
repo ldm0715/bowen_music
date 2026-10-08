@@ -50,6 +50,8 @@
 | 用途 | 包 | 版本 |
 | --- | --- | --- |
 | UI 框架 | `Microsoft.WindowsAppSDK` | **2.5.1** |
+| 体积：**挡资产**，见下方注 | `Microsoft.WindowsAppSDK.AI` / `.ML` / `.Search` / `.Widgets` | **2.5.5** / **2.1.94** / **2.5.5** / **2.0.5** |
+| 体积：**挡资产**，见下方注 | `Microsoft.Windows.AI.MachineLearning` | **2.1.74** |
 | MVVM | `CommunityToolkit.Mvvm` | **8.4.2** |
 | 控件补充 | `CommunityToolkit.WinUI.Controls.SettingsControls` / `.Segmented` / `.Sizers` | **8.2.251219** |
 | 行为 / 动画 / 媒体 | `CommunityToolkit.WinUI.Behaviors` / `.Animations` / `.Media` | **8.2.251219** |
@@ -64,6 +66,17 @@
 | 输出音频频谱（2026-10-02 引入） | `NAudio.Wasapi` | **2.2.1**（MIT） |
 | 音频（路线 A，推荐） | `HanumanInstitute.LibMpv` | **0.10.1** |
 | 音频（路线 B，备选） | `FlyleafLib` / `FlyleafLib.Controls.WinUI` | **3.11.11** / **1.4.11** |
+
+> **上面五个「挡资产」的包不是拿来用的，是拿来挡的（2026-10-08）。**
+> `Microsoft.WindowsAppSDK` 2.5.1 是元包，依赖里挂着 10 个组件，其中 AI / ML / Search / Widgets
+> 四个与本应用无关，恢复时会把原生资产原样拷进输出目录，实测 **白带 55.0 MB**
+> （`onnxruntime.dll` 21.7 MB + `DirectML.dll` 18.7 MB 来自 `Microsoft.Windows.AI.MachineLearning`，
+> 它不在 `Microsoft.WindowsAppSDK.ML` 里而是后者的依赖，必须单独列）。
+> 处理方式是在 `Bodian.WinUI.csproj` 里逐个引用并加 `ExcludeAssets="all"`。
+> **元包本身不能摘**：`H.NotifyIcon.WinUI` 声明依赖 `Microsoft.WindowsAppSDK >= 1.6`，
+> 摘掉元包会让 NuGet 把 1.6 元包整个拉回来，与 2.5.1 的 WinUI 重复导入，构建直接失败。
+> 升级 WinAppSDK 时这几个版本号要跟着元包的依赖表走；完整实测与踩坑记录见
+> [`size-optimization.md`](size-optimization.md)。
 
 ### 三个坑
 

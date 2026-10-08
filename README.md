@@ -83,6 +83,7 @@
 | [`bodian-api-inventory.md`](docs/bodian-api-inventory.md) | 逆向勘查记录，查「这个路径从哪来」时看 |
 | [`tech-stack.md`](docs/tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`libmpv-audio-build.md`](docs/libmpv-audio-build.md) | **libmpv 精简构建维护主文档**：115.22 → 7.97 MiB、裁剪范围、文件位置、构建、验证、替换、回退与排障 |
+| [`size-optimization.md`](docs/size-optimization.md) | **编译产物体积优化主文档**：174.6 → 115.2 MiB、AI/ML 组件剔除、语言资源裁剪、PDB 开关、两个踩过的坑、评估过但没做的方向 |
 | [`animations.md`](docs/animations.md) | 页面 / Tab / 卡片切换、共享封面、歌词展开回位、MV 直接退出、主题资源保护与验证 |
 | [`lyrics-ui.md`](docs/lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`search.md`](docs/search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
@@ -120,6 +121,8 @@ dotnet run --project tools/Bodian.Probe -- --help
 ```
 
 当前默认构建需要已安装的 **x64 .NET 10 运行时**。`WindowsAppSDKSelfContained=true` 只表示 Windows App SDK 随包，不表示 .NET 也自包含。切换运行时布局或回退构建时，先备份旧输出和 `obj`，再完整重新编译，避免混入旧运行时加载器或 XAML 文件；说明见 [`dev-environment.md`](docs/dev-environment.md) §4.2。
+
+出包时加 `-p:DistributionBuild=true` 去掉 PDB。Release x64 输出 **115.2 MiB / 217 个文件**，zip 压缩后约 40 MB；体积构成、已做的三项裁剪、以及评估过但不值得做的方向见 [`docs/size-optimization.md`](docs/size-optimization.md)。
 
 **测试项目依赖 `global.json`**：`dotnet test` 走 Microsoft.Testing.Platform 靠它选择加入，
 所以命令要带 `--project`（MTP 模式下不接受位置参数）。详见 [`docs/transport.md`](docs/transport.md) 第 1.4 节。
