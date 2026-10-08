@@ -1,0 +1,225 @@
+name: Release
+
+# 打 tag（v0.1.0）即发布；也可以在 Actions 页面手动指定一个已存在的 tag 重跑。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag，例如 v0.1.0（必须已经存在）'
+        required: true
+
+# 建 Release 与传资产都要写权限
+permissions:
+  contents: write
+
+# 同一个 tag 只跑一个，避免并发上传互相覆盖
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  OUT: artifacts/release
+
+jobs:
+  release:
+    # Windows 10/11 目标 + WinUI 3 的 XAML 编译都要 Windows 代理。
+    # 代理镜像需带 Windows SDK 10.0.26100（windows-2025 自带）。
+    runs-on: windows-latest
+
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+          cache-dependency-path: src/Directory.Packages.props
+
+      - name: 环境自检
+        shell: pwsh
+        run: |
+          dotnet --version
+          "--- Windows SDK ---"
+          Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\Include' -Name |
+            Where-Object { $_ -like '10.0.*' }
+
+      # 版本号只有一个来源（src/Directory.Build.props），tag 必须与它一致。
+      # 不对账的话会出现「关于页写 0.1.0、Release 标 v0.2.0」这种只能靠人肉发现的偏差。
+      - name: 版本号对账
+        shell: pwsh
+        run: |
+          $version = $env:TAG -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "tag「$env:TAG」不是 v<主>.<次>.<修订> 的形式，无法用作版本号"
+          }
+
+          $raw = Get-Content src/Directory.Build.props -Raw
+          if ($raw -notmatch '<Version>([^<]+)</Version>') {
+            throw "src/Directory.Build.props 里找不到 <Version>"
+          }
+
+          $declared = $Matches[1].Trim()
+          if ($declared -ne $version) {
+            throw "tag 是 $version，src/Directory.Build.props 里是 $declared —— 两者必须一致"
+          }
+
+          "VERSION=$version"        >> $env:GITHUB_ENV
+          "VERSION4=$version.0"     >> $env:GITHUB_ENV
+          "TAG_NAME=$env:TAG"       >> $env:GITHUB_ENV
+
+      # changes.md 是发布说明的唯一来源。缺段落就早点失败，
+      # 别等到最后建 Release 才发现正文是空的。
+      - name: 检查改动记录
+        shell: pwsh
+        run: |
+          $notes = Get-Content changes.md -Raw
+          $pattern = "(?ms)^##\s+$([regex]::Escape($env:VERSION))\b.*?(?=^##\s|\z)"
+          if ($notes -notmatch $pattern) {
+            throw "changes.md 里找不到 $env:VERSION 的段落。发布前先补上 ## $env:VERSION — <日期>"
+          }
+
+      - name: 离线测试
+        run: dotnet test --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj -c Release
+
+      # 两个变体共用同一条命令行，只差 --self-contained。
+      # 自包含 = 开箱即用（189.8 MiB / 340 文件）；框架依赖 = 体积小、需要 .NET 10 桌面运行时。
+      - name: 发布（自包含）
+        run: >
+          dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:DistributionBuild=true -o ${{ env.OUT }}/publish
+
+      - name: 发布（不含 .NET 运行时）
+        run: >
+          dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj
+          -c Release -r win-x64 --self-contained false
+          -p:DistributionBuild=true -o ${{ env.OUT }}/publish-noruntime
+
+      # ★ libmpv-2.dll 必须真的进了包。csproj 是条件拷贝：文件不在就静默跳过，
+      #   构建照样成功，只会得到一个没声音的包。这里显式验一次。
+      - name: 校验产物完整性
+        shell: pwsh
+        run: |
+          foreach ($dir in @("$env:OUT/publish", "$env:OUT/publish-noruntime")) {
+            foreach ($f in @('libmpv-2.dll', 'Bodian.WinUI.exe', 'Bodian.WinUI.dll',
+                             'Microsoft.ui.xaml.dll', 'Microsoft.WindowsAppRuntime.dll',
+                             'Assets/Ripple.ico')) {
+              if (-not (Test-Path "$dir/$f")) { throw "$dir 缺少 $f" }
+            }
+
+            if (Test-Path "$dir/onnxruntime.dll") { throw "$dir 里混进了 onnxruntime.dll（AI 组件没挡住）" }
+            if (Get-ChildItem "$dir/*.pdb" -ErrorAction SilentlyContinue) { throw "$dir 里还有 pdb，DistributionBuild 没生效" }
+          }
+          "两个变体的关键文件齐全"
+
+      - name: 打便携版 zip
+        shell: pwsh
+        run: |
+          # 产物里没有中文文件名，所以 Compress-Archive 可以当降级方案（PS 5.1 的那个坑不涉及）。
+          $has7z = [bool](Get-Command 7z -ErrorAction SilentlyContinue)
+
+          function New-PortableZip($dir, $zip) {
+            if ($has7z) {
+              # 通配符交给 7z 自己展开，条目就落在压缩包根目录（不会多一层 publish\）。
+              7z a -tzip -mx=9 $zip "$dir\*" | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw "7z 打包失败：$zip" }
+            } else {
+              Write-Warning "代理上没有 7z，降级用 Compress-Archive（压缩率略差）"
+              Compress-Archive -Path "$dir\*" -DestinationPath $zip -CompressionLevel Optimal
+            }
+
+            if (-not (Test-Path $zip)) { throw "没生成 $zip" }
+          }
+
+          New-PortableZip "$env:OUT/publish"            "$env:OUT/BowenMusic_${env:VERSION}_x64_portable.zip"
+          New-PortableZip "$env:OUT/publish-noruntime"  "$env:OUT/BowenMusic_${env:VERSION}_x64_noruntime_portable.zip"
+
+      - name: 安装 NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: 打安装包
+        shell: pwsh
+        run: |
+          $nsis = 'C:\Program Files (x86)\NSIS'
+          if (-not (Test-Path "$nsis/makensis.exe")) { throw "NSIS 没装上：$nsis\makensis.exe 不存在" }
+          $env:PATH = "$env:PATH;$nsis"
+
+          $source = (Resolve-Path "$env:OUT/publish").Path
+          $out    = (Resolve-Path "$env:OUT").Path
+          $target = "$out/BowenMusic_${env:VERSION}_x64_setup.exe"
+
+          makensis `
+            "/DAPP_VERSION=$env:VERSION" `
+            "/DAPP_VERSION4=$env:VERSION4" `
+            "/DAPP_SOURCE=$source" `
+            "/DOUTFILE=$target" `
+            installer/BowenMusic.nsi
+
+          if ($LASTEXITCODE -ne 0) { throw "makensis 退出码 $LASTEXITCODE" }
+          if (-not (Test-Path $target)) { throw "没生成 $target" }
+
+      - name: 组装发布说明
+        shell: pwsh
+        run: |
+          $files = @(
+            "$env:OUT/BowenMusic_${env:VERSION}_x64_setup.exe"
+            "$env:OUT/BowenMusic_${env:VERSION}_x64_portable.zip"
+            "$env:OUT/BowenMusic_${env:VERSION}_x64_noruntime_portable.zip"
+          )
+
+          $rows = foreach ($f in $files) {
+            if (-not (Test-Path $f)) { throw "缺资产：$f" }
+            $hash = (Get-FileHash $f -Algorithm SHA256).Hash.ToLowerInvariant()
+            '| `{0}` | `{1}` |' -f (Split-Path $f -Leaf), $hash
+          }
+
+          $checksums = ((@('| 文件 | SHA-256 |', '| --- | --- |') + $rows) -join "`n")
+
+          $notes = Get-Content changes.md -Raw
+          $pattern = "(?ms)^##\s+$([regex]::Escape($env:VERSION))\b.*?(?=^##\s|\z)"
+          $section = ([regex]::Match($notes, $pattern)).Value.TrimEnd()
+
+          # changes.md 里那个 <!--CHECKSUMS--> 占位标记就是在这里被换掉。
+          $body = if ($section -match '<!--CHECKSUMS-->') {
+            $section.Replace('<!--CHECKSUMS-->', $checksums)
+          } else {
+            $section + "`n`n### 校验`n`n" + $checksums
+          }
+
+          $body | Set-Content release-notes.md -Encoding utf8
+
+      - name: 发布到 GitHub Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $files = @(
+            "$env:OUT/BowenMusic_${env:VERSION}_x64_setup.exe"
+            "$env:OUT/BowenMusic_${env:VERSION}_x64_portable.zip"
+            "$env:OUT/BowenMusic_${env:VERSION}_x64_noruntime_portable.zip"
+          )
+
+          # 手动重跑时 Release 可能已经在了，那就换资产、改正文，而不是报错退出。
+          gh release view $env:TAG_NAME --json tagName *> $null
+
+          if ($LASTEXITCODE -eq 0) {
+            "Release $env:TAG_NAME 已存在，更新正文与资产"
+            gh release edit   $env:TAG_NAME --title "波纹音乐 $env:VERSION" --notes-file release-notes.md
+            gh release upload $env:TAG_NAME @files --clobber
+          } else {
+            gh release create $env:TAG_NAME @files --title "波纹音乐 $env:VERSION" --notes-file release-notes.md
+          }
+
+          if ($LASTEXITCODE -ne 0) { throw "发布失败，退出码 $LASTEXITCODE" }

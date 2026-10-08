@@ -57,7 +57,13 @@ logs/
 *.token
 session.json
 
-# libmpv 原生库：二进制不入库。
-# 完整维护说明见 docs/libmpv-audio-build.md，构建与验证脚本见 tools/mpv/。
-libmpv/*.dll
+# libmpv 原生库。**libmpv-2.dll 现在入库**（8.36 MB）：它是运行时的必需文件，
+# 不入库的话 CI 打出来的包会缺库，而且 csproj 是条件拷贝、缺文件静默跳过，
+# 构建不会报错 —— 只会得到一个没声音的包。完整维护说明见 docs/libmpv-audio-build.md。
 libmpv/*.7z
+
+# 写 README 与更新记录时对照的参考样例。不是项目产物，别让 git add . 带进仓库。
+# 格式已落到 README.md 与 changes.md，留着只为以后改写法时对照。
+/README_EXAMPLE.md
+/README_EXAMPLE.assets/
+/CHANGELOG_EXAMPLE.md
