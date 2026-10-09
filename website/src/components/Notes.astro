@@ -1,0 +1,16 @@
+---
+import { limits } from '../data/site';
+---
+
+<section class="section wrap" id="limits">
+  <div class="head">
+    <h2 class="head__title">{limits.title}</h2>
+  </div>
+
+  <ul class="lines lines--warn">
+    {limits.items.map((item) => <li>{item}</li>)}
+  </ul>
+
+  <p class="aside">{limits.privacy}</p>
+  <p class="aside aside--faint">{limits.disclaimer}</p>
+</section>

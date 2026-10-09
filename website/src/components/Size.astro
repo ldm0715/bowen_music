@@ -1,0 +1,36 @@
+---
+import { size } from '../data/site';
+---
+
+<section class="section wrap" id="size">
+  <div class="head">
+    <h2 class="head__title">{size.title}</h2>
+    <p class="head__lead">{size.lead}</p>
+  </div>
+
+  <div class="size">
+    <p class="size__figure">{size.drop}</p>
+
+    <div class="bars">
+      <div class="bar">
+        <div class="bar__top">
+          <span class="bar__label">{size.before.label}</span>
+          <span class="bar__value">{size.before.value}</span>
+        </div>
+        <div class="bar__track">
+          <div class="bar__fill bar__fill--before"></div>
+        </div>
+      </div>
+
+      <div class="bar">
+        <div class="bar__top">
+          <span class="bar__label">{size.after.label}</span>
+          <span class="bar__value">{size.after.value}</span>
+        </div>
+        <div class="bar__track">
+          <div class="bar__fill bar__fill--after"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

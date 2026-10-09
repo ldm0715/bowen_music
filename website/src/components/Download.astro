@@ -1,0 +1,63 @@
+---
+import Icon from './Icon.astro';
+import { download, site } from '../data/site';
+
+const version = site.version;
+
+/** 把 **加粗** 包成 strong，其余转义。 */
+const rich = (text: string) =>
+  text
+    .replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+---
+
+<section class="section wrap" id="download">
+  <div class="head">
+    <h2 class="head__title">{download.title}</h2>
+    <p class="head__lead">{download.lead}</p>
+  </div>
+
+  <div class="plans">
+    {
+      download.plans.map((plan) => (
+        <article class={plan.pick ? 'plan plan--pick' : 'plan'}>
+          <div class="plan__top">
+            <h3 class="plan__name">{plan.name}</h3>
+            {plan.pick && <span class="plan__flag">推荐</span>}
+          </div>
+          <p class="plan__file">{plan.file.replace('{v}', version)}</p>
+
+          <dl class="plan__nums">
+            <div class="plan__num">
+              <dt>下载</dt>
+              <dd>{plan.archive}</dd>
+            </div>
+            <div class="plan__num plan__num--muted">
+              <dt>解压后</dt>
+              <dd>{plan.unpacked}</dd>
+            </div>
+          </dl>
+
+          <p class="plan__note">{plan.note}</p>
+
+          <a class="btn btn--accent" href={site.latestRelease} rel="noopener">
+            <Icon name="download" />
+            下载 {plan.name}
+          </a>
+        </article>
+      ))
+    }
+  </div>
+
+  <p class="aside" set:html={rich(download.variant)} />
+
+  <p class="aside aside--mono">
+    校验：<code>{download.checksum.replace('{v}', version)}</code>
+    <span>SHA-256 也列在 Release 说明末尾，可直接复制比对。</span>
+  </p>
+
+  <p class="aside aside--links">
+    <a href={site.releases} rel="noopener">前往 Releases 页面</a>
+    <a href={site.issues} rel="noopener">去 Issue 提意见</a>
+  </p>
+</section>

@@ -1,0 +1,34 @@
+---
+import Icon from './Icon.astro';
+import AppWindow from './AppWindow.astro';
+import { lyrics, screenshots } from '../data/site';
+---
+
+<section class="section wrap" id="lyrics">
+  <div class="head">
+    <h2 class="head__title">{lyrics.title}</h2>
+    <p class="head__lead">{lyrics.lead}</p>
+  </div>
+
+  <ul class="lines lines--icon">
+    {
+      lyrics.items.map((item) => (
+        <li>
+          <span class="lines__icon">
+            <Icon name={item.icon} />
+          </span>
+          <b>{item.title}</b>
+          {item.line}
+        </li>
+      ))
+    }
+  </ul>
+
+  <div class="shots__row shots__row--2 shots__gap">
+    {
+      screenshots.lyrics.map((shot) => (
+        <AppWindow file={shot.file} title={shot.title} caption={shot.caption} />
+      ))
+    }
+  </div>
+</section>

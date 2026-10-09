@@ -1,0 +1,117 @@
+---
+/**
+ * 图标集：Fluent System Icons（微软官方，MIT）。
+ * 包：@fluentui/svg-icons，构建期依赖，产物里只内联真正用到的那几个。
+ *
+ * 用 ?raw 逐个静态导入，不用 import.meta.glob —— 包里有两万个图标文件，
+ * glob 会把它们全拖进构建。
+ *
+ * Fluent 图标是填充式字形（fill 而不是 stroke），且文件里常常不写 fill
+ * （默认黑色），所以：根节点给 fill="currentColor"，文件里写死的十六进制
+ * 色也换成 currentColor，颜色一律交给 CSS 管。
+ *
+ * GitHub 是品牌标志，微软不收品牌 logo，所以单独手写一条。
+ */
+import chatIcon from '@fluentui/svg-icons/icons/chat_24_regular.svg?raw';
+import heartIcon from '@fluentui/svg-icons/icons/heart_24_regular.svg?raw';
+import libraryIcon from '@fluentui/svg-icons/icons/library_24_regular.svg?raw';
+import multiselectIcon from '@fluentui/svg-icons/icons/multiselect_ltr_24_regular.svg?raw';
+import subtitlesIcon from '@fluentui/svg-icons/icons/subtitles_24_regular.svg?raw';
+import pipIcon from '@fluentui/svg-icons/icons/picture_in_picture_24_regular.svg?raw';
+import moviesIcon from '@fluentui/svg-icons/icons/movies_and_tv_24_regular.svg?raw';
+import queueIcon from '@fluentui/svg-icons/icons/apps_list_24_regular.svg?raw';
+import waveIcon from '@fluentui/svg-icons/icons/sound_wave_circle_24_regular.svg?raw';
+import slidersIcon from '@fluentui/svg-icons/icons/options_24_regular.svg?raw';
+import desktopIcon from '@fluentui/svg-icons/icons/desktop_24_regular.svg?raw';
+import windowIcon from '@fluentui/svg-icons/icons/window_24_regular.svg?raw';
+import keyboardIcon from '@fluentui/svg-icons/icons/keyboard_24_regular.svg?raw';
+import personIcon from '@fluentui/svg-icons/icons/person_24_regular.svg?raw';
+import imageIcon from '@fluentui/svg-icons/icons/image_24_regular.svg?raw';
+import shieldIcon from '@fluentui/svg-icons/icons/shield_24_regular.svg?raw';
+import warningIcon from '@fluentui/svg-icons/icons/warning_24_regular.svg?raw';
+import checkmarkIcon from '@fluentui/svg-icons/icons/checkmark_24_regular.svg?raw';
+import downloadIcon from '@fluentui/svg-icons/icons/arrow_download_24_regular.svg?raw';
+import backIcon from '@fluentui/svg-icons/icons/arrow_left_24_regular.svg?raw';
+import chevronIcon from '@fluentui/svg-icons/icons/chevron_right_24_regular.svg?raw';
+import subtractIcon from '@fluentui/svg-icons/icons/subtract_24_regular.svg?raw';
+import squareIcon from '@fluentui/svg-icons/icons/square_24_regular.svg?raw';
+import dismissIcon from '@fluentui/svg-icons/icons/dismiss_24_regular.svg?raw';
+import sunnyIcon from '@fluentui/svg-icons/icons/weather_sunny_24_regular.svg?raw';
+import moonIcon from '@fluentui/svg-icons/icons/weather_moon_24_regular.svg?raw';
+import appsIcon from '@fluentui/svg-icons/icons/apps_24_regular.svg?raw';
+import panelLeftIcon from '@fluentui/svg-icons/icons/panel_left_24_regular.svg?raw';
+import codeIcon from '@fluentui/svg-icons/icons/code_24_regular.svg?raw';
+import infoIcon from '@fluentui/svg-icons/icons/info_24_regular.svg?raw';
+import gridIcon from '@fluentui/svg-icons/icons/grid_24_regular.svg?raw';
+import scaleIcon from '@fluentui/svg-icons/icons/scale_fit_24_regular.svg?raw';
+
+interface Props {
+  name: string;
+  class?: string;
+}
+
+const fluent: Record<string, string> = {
+  comment: chatIcon,
+  heart: heartIcon,
+  library: libraryIcon,
+  checklist: multiselectIcon,
+  lyrics: subtitlesIcon,
+  pip: pipIcon,
+  film: moviesIcon,
+  queue: queueIcon,
+  wave: waveIcon,
+  sliders: slidersIcon,
+  monitor: desktopIcon,
+  mini: windowIcon,
+  keyboard: keyboardIcon,
+  user: personIcon,
+  image: imageIcon,
+  shield: shieldIcon,
+  alert: warningIcon,
+  check: checkmarkIcon,
+  download: downloadIcon,
+  back: backIcon,
+  chevron: chevronIcon,
+  minimize: subtractIcon,
+  maximize: squareIcon,
+  close: dismissIcon,
+  sun: sunnyIcon,
+  moon: moonIcon,
+  windows: appsIcon,
+  blocks: panelLeftIcon,
+  code: codeIcon,
+  info: infoIcon,
+  grid: gridIcon,
+  scale: scaleIcon,
+};
+
+const github =
+  '<path d="M12 2.2a9.8 9.8 0 0 0-3.1 19.1c.49.09.67-.21.67-.47v-1.66c-2.73.59-3.3-1.31-3.3-1.31-.45-1.14-1.09-1.44-1.09-1.44-.89-.61.07-.6.07-.6.98.07 1.5 1.01 1.5 1.01.88 1.5 2.3 1.07 2.86.82.09-.64.34-1.07.62-1.32-2.18-.25-4.47-1.09-4.47-4.85 0-1.07.38-1.94 1.01-2.63-.1-.25-.44-1.25.1-2.6 0 0 .83-.27 2.7 1a9.3 9.3 0 0 1 4.92 0c1.87-1.27 2.7-1 2.7-1 .54 1.35.2 2.35.1 2.6.63.69 1.01 1.56 1.01 2.63 0 3.77-2.29 4.6-4.48 4.84.35.31.67.91.67 1.83v2.7c0 .26.18.57.68.47A9.8 9.8 0 0 0 12 2.2z"/>';
+
+const { name, class: className } = Astro.props;
+const raw = fluent[name];
+
+if (!raw && name !== 'github') {
+  throw new Error(`Icon.astro 里没有名为「${name}」的图标`);
+}
+
+// 取 viewBox，剥掉外层 <svg>，把写死的填充色换成 currentColor
+const viewBox = raw?.match(/viewBox="([^"]+)"/)?.[1] ?? '0 0 24 24';
+const body = raw
+  ? raw
+      .replace(/^[\s\S]*?<svg[^>]*>/, '')
+      .replace(/<\/svg>[\s\S]*$/, '')
+      .replace(/fill="(?!none)[^"]*"/g, 'fill="currentColor"')
+      .trim()
+  : github;
+---
+
+<svg
+  class={className}
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox={viewBox}
+  fill="currentColor"
+  aria-hidden="true"
+  focusable="false"
+  set:html={body}
+/>

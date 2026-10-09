@@ -1,0 +1,25 @@
+---
+import Icon from './Icon.astro';
+import { features } from '../data/site';
+---
+
+<section class="section wrap" id="features">
+  <div class="head">
+    <h2 class="head__title">{features.title}</h2>
+    {features.lead && <p class="head__lead">{features.lead}</p>}
+  </div>
+
+  <ul class="lines lines--icon lines--two">
+    {
+      features.items.map((item) => (
+        <li>
+          <span class="lines__icon">
+            <Icon name={item.icon} />
+          </span>
+          <b>{item.title}</b>
+          {item.line}
+        </li>
+      ))
+    }
+  </ul>
+</section>

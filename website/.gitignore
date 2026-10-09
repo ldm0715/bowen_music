@@ -1,0 +1,15 @@
+# 依赖与构建产物，都不进仓库
+node_modules/
+dist/
+.astro/
+
+# 本地环境文件与编辑器状态
+.env
+.env.production
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 草稿截图，与仓库根的 /snippet/ 保持一致
+/snippet/

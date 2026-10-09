@@ -1,0 +1,28 @@
+---
+import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
+import Pains from '../components/Pains.astro';
+import Lyrics from '../components/Lyrics.astro';
+import Features from '../components/Features.astro';
+import Size from '../components/Size.astro';
+import Shots from '../components/Shots.astro';
+import GetStarted from '../components/GetStarted.astro';
+import Download from '../components/Download.astro';
+import Notes from '../components/Notes.astro';
+import { site } from '../data/site';
+---
+
+<Base
+  title={`${site.name} —— ${site.tagline}`}
+  description="非官方波点音乐桌面客户端。WinUI 3 + libmpv 实现，补齐官方 PC 端缺失的评论与收藏，并把播放状态通过 SMTC 交给系统媒体面板。GPL-3.0 开源，Windows 10 / 11。"
+>
+  <Hero />
+  <Pains />
+  <Lyrics />
+  <Features />
+  <Size />
+  <Shots />
+  <GetStarted />
+  <Download />
+  <Notes />
+</Base>

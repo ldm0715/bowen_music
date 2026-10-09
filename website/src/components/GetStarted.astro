@@ -1,0 +1,23 @@
+---
+import { start } from '../data/site';
+---
+
+<section class="section wrap" id="start">
+  <div class="head">
+    <h2 class="head__title">{start.title}</h2>
+    {start.lead && <p class="head__lead">{start.lead}</p>}
+  </div>
+
+  <ol class="steps">
+    {
+      start.steps.map((step) => (
+        <li>
+          <b>{step.name}</b>
+          <p>{step.line}</p>
+        </li>
+      ))
+    }
+  </ol>
+
+  <p class="aside aside--mono">{start.keys}</p>
+</section>

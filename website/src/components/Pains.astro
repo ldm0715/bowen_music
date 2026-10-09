@@ -1,0 +1,21 @@
+---
+import { pains } from '../data/site';
+---
+
+<section class="section wrap" id="why">
+  <div class="head">
+    <h2 class="head__title">{pains.title}</h2>
+    <p class="head__lead">{pains.lead}</p>
+  </div>
+
+  <ul class="lines">
+    {
+      pains.items.map((item) => (
+        <li>
+          <b>{item.title}</b>
+          {item.line}
+        </li>
+      ))
+    }
+  </ul>
+</section>

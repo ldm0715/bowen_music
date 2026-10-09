@@ -1,0 +1,95 @@
+---
+import TitleBar from '../components/TitleBar.astro';
+import Footer from '../components/Footer.astro';
+import { asset } from '../data/site';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href={asset('favicon.ico')} sizes="any" />
+    <link rel="apple-touch-icon" href={asset('logo.png')} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={asset('logo.png')} />
+
+    <!--
+      主题在解析样式前定好，避免深色用户看到一帧白屏。
+      必须是内联脚本：外链脚本会等到样式之后才执行，闪烁躲不掉。
+    -->
+    <script is:inline>
+      (() => {
+        try {
+          const saved = localStorage.getItem('theme');
+          const theme =
+            saved ??
+            (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          document.documentElement.dataset.theme = theme;
+        } catch {
+          document.documentElement.dataset.theme = 'dark';
+        }
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute(
+            'content',
+            document.documentElement.dataset.theme === 'dark' ? '#1b1a19' : '#f7fbff'
+          );
+      })();
+    </script>
+    <meta name="theme-color" content="#f7fbff" />
+  </head>
+
+  <body>
+    <a class="skip" href="#main">跳到正文</a>
+
+    <!--
+      页面底：很淡的品牌色调 + 两团缓慢漂移的光源 + 噪点。
+      亚克力表面要有东西可模糊才成立，所以这层不能是纯色平面。
+    -->
+    <div class="canvas" aria-hidden="true"><span></span><span></span></div>
+
+    <TitleBar />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+
+    <script>
+      // 只做一件事：写 localStorage 并切 html[data-theme]
+      const button = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+      button?.addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        try {
+          localStorage.setItem('theme', next);
+        } catch {
+          // 隐私模式下写不进去，不影响切换本身
+        }
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', next === 'dark' ? '#1b1a19' : '#f7fbff');
+      });
+
+      // 标记加载失败的截图，交给 CSS 隐藏，露出占位
+      document.querySelectorAll<HTMLImageElement>('[data-shot]').forEach((img) => {
+        const missing = () => img.setAttribute('data-missing', '');
+        if (img.complete && img.naturalWidth === 0) missing();
+        img.addEventListener('error', missing, { once: true });
+      });
+    </script>
+  </body>
+</html>

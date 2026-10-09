@@ -1,0 +1,19 @@
+---
+import AppWindow from './AppWindow.astro';
+import { gallery } from '../data/site';
+---
+
+<section class="section wrap" id="shots">
+  <div class="head">
+    <h2 class="head__title">{gallery.title}</h2>
+    <p class="head__lead">{gallery.lead}</p>
+  </div>
+
+  <div class="shots__row shots__row--3">
+    {
+      gallery.items.map((shot) => (
+        <AppWindow file={shot.file} title={shot.title} caption={shot.caption} />
+      ))
+    }
+  </div>
+</section>

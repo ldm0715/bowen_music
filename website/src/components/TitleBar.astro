@@ -1,0 +1,39 @@
+---
+import Icon from './Icon.astro';
+import { asset, nav, site } from '../data/site';
+---
+
+<header class="titlebar">
+  <div class="wrap titlebar__row">
+    <a class="titlebar__brand" href={asset('')}>
+      <img src={asset('logo.png')} alt="" width="20" height="20" />
+      <span>{site.name}</span>
+    </a>
+
+    <nav class="nav" aria-label="主导航">
+      {
+        nav.map((item) => (
+          <a href={item.href}>
+            <Icon name={item.icon} />
+            {item.label}
+          </a>
+        ))
+      }
+      <a href={site.repo} rel="noopener">
+        <Icon name="github" />
+        GitHub
+      </a>
+    </nav>
+
+    <button
+      class="iconbtn"
+      type="button"
+      aria-label="切换深浅色主题"
+      title="切换深浅色主题"
+      data-theme-toggle
+    >
+      <Icon name="moon" class="i-moon" />
+      <Icon name="sun" class="i-sun" />
+    </button>
+  </div>
+</header>

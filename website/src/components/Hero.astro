@@ -1,0 +1,42 @@
+---
+import Icon from './Icon.astro';
+import AppWindow from './AppWindow.astro';
+import { asset, heroBadges, screenshots, site } from '../data/site';
+---
+
+<section class="hero wrap">
+  <div class="hero__grid">
+    <div class="hero__copy">
+      <img class="hero__icon" src={asset('logo.png')} alt="波纹音乐图标" width="88" height="88" />
+
+      <h1 class="hero__title">{site.name}</h1>
+      <p class="hero__sub">{site.tagline}</p>
+
+      <div class="hero__cta">
+        <a class="btn btn--accent" href={site.latestRelease} rel="noopener">
+          <Icon name="download" />
+          下载 v{site.version}
+        </a>
+        <a class="btn" href={site.repo} rel="noopener">
+          <Icon name="github" />
+          查看源码
+        </a>
+      </div>
+
+      <ul class="chips">
+        {
+          heroBadges.map((badge) => (
+            <li class={badge.accent ? 'chip chip--accent' : 'chip'}>
+              <Icon name={badge.icon} />
+              {badge.label}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <div class="hero__stage">
+      <AppWindow file={screenshots.hero.file} title={screenshots.hero.title} />
+    </div>
+  </div>
+</section>

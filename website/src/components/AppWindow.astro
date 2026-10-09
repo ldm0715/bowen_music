@@ -1,0 +1,55 @@
+---
+import Icon from './Icon.astro';
+import { asset, site } from '../data/site';
+
+/**
+ * 应用窗口外框：标题栏按 WinUI 3 画（左图标 + 应用名，右窗口按钮）。
+ * 窗口内部固定深色 —— 那是应用自己的界面，不跟着站点主题走。
+ * 画面固定 16/10，与应用截图 1440×900 的比例一致，不会被裁。
+ * 图不存在时窗口里显示占位，不影响构建。
+ */
+interface Props {
+  file: string;
+  title: string;
+  caption?: string;
+}
+
+const { file, title, caption } = Astro.props;
+---
+
+<figure class="shot">
+  <div class="win">
+    <div class="win__bar">
+      <img src={asset('logo.png')} alt="" width="15" height="15" />
+      <b>{site.name}</b>
+      <div class="win__caps">
+        <i><Icon name="minimize" /></i>
+        <i><Icon name="maximize" /></i>
+        <i><Icon name="close" /></i>
+      </div>
+    </div>
+
+    <div class="win__view">
+      <div class="win__stub">
+        <Icon name="image" />
+        <code>{file}</code>
+      </div>
+      <img
+        src={asset(`screenshots/${file}`)}
+        alt={`${title}${caption ? ` —— ${caption}` : ''}`}
+        loading="lazy"
+        decoding="async"
+        data-shot
+      />
+    </div>
+  </div>
+
+  {
+    caption && (
+      <figcaption>
+        <b>{title}</b>
+        {caption}
+      </figcaption>
+    )
+  }
+</figure>

@@ -1,0 +1,25 @@
+---
+import { asset, site } from '../data/site';
+---
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__brand">
+      <img src={asset('logo.png')} alt="" width="20" height="20" />
+      {site.name} · v{site.version}
+    </div>
+
+    <ul class="foot__links">
+      <li><a href={site.repo} rel="noopener">GitHub 仓库</a></li>
+      <li><a href={site.releases} rel="noopener">Releases</a></li>
+      <li><a href={site.issues} rel="noopener">问题反馈</a></li>
+      <li><a href={`${site.repo}/blob/main/changes.md`} rel="noopener">更新记录</a></li>
+      <li><a href={`${site.repo}/blob/main/LICENSE`} rel="noopener">{site.license}</a></li>
+      <li><a href={site.packages} rel="noopener">第三方依赖清单</a></li>
+    </ul>
+
+    <p class="foot__note">
+      {site.copyright} · 以 {site.license} 协议开源 · {site.platform}
+    </p>
+  </div>
+</footer>
