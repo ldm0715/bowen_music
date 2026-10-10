@@ -14,16 +14,6 @@
 
 </div>
 
-<!--
-  ★ 待补截图。图片放进 docs/images/，文件名与下面一致，README 不需要再改。
-      main.png        主界面：侧栏 + 曲库 + 底部播放器（建议 1440×900）
-      lyrics.png      全屏沉浸歌词：逐字高亮与封面倒影
-      desktop-lyrics.png  桌面歌词条：悬浮在桌面上的样子（可只截歌词条本身）
-      mv.png          MV 沉浸页
-      mini-player.png 小窗（迷你播放器）
-      search.png      搜索结果与综合分段
--->
-
 <p align="center">
   <img src="docs/images/main.png" alt="波纹音乐主界面" width="760" />
   <br/>
@@ -74,7 +64,11 @@
 | 自包含便携版 `..._x64_portable.zip` | 69.7 MiB | 189.8 MiB | 不需要 |
 | 无运行时便携版 `..._x64_noruntime_portable.zip` | **37.0 MiB** | 113.3 MiB | **需要 .NET 10 运行时（x64）** |
 
-**怎么选**：不确定就下**安装版** —— 它自带运行时，装完直接能用。已经装过 .NET 10 运行时、或者只想下个小包带走，就用**无运行时便携版**，体积少一半；缺运行时时双击会弹出提示并给出下载链接。
+**怎么选**：
+
+- 不确定就下**安装版** —— 它自带运行时，装完直接能用。
+- 已经装过 .NET 10 运行时、或者只想下个小包带走，就用**无运行时便携版**，体积少一半
+- 缺运行时时双击会弹出提示并给出下载链接。
 
 每个安装包的 SHA-256 校验和列在 Release 说明末尾的表格里，可用以下命令核对：
 
@@ -99,8 +93,6 @@ certutil -hashfile BowenMusic_x.y.z_x64_setup.exe SHA256
 | `Ctrl+↑` / `Ctrl+↓` | 音量 + / 音量 − |
 | `Ctrl+M` | 静音开关 |
 | `Ctrl+L` | 收藏当前歌曲 |
-
-**只做应用内，不注册全局热键** —— 应用失去焦点时不会响应，也就不会跟别的软件抢组合键。键位可在 **设置 → 快捷键** 中修改；录制时会校验冲突与非法键，撞车会被拒绝并说明原因。
 
 ## 🗂 数据与隐私
 
@@ -137,22 +129,6 @@ dotnet test  --project tests/Bodian.Core.Tests/Bodian.Core.Tests.csproj
 
 `libmpv-2.dll` 已随仓库提供（`libmpv/`），克隆后直接可以播放。它是自建的精简版，重建与回退方式见 [`docs/libmpv-audio-build.md`](docs/libmpv-audio-build.md)。
 
-### 打发布包
-
-两个变体只差一个开关（`-p:DistributionBuild=true` 去掉 PDB）：
-
-```powershell
-# 自包含：189.8 MiB / 340 个文件，不需要目标机器装 .NET
-dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 `
-  --self-contained true  -p:DistributionBuild=true -o artifacts/release/publish
-
-# 框架依赖：113.3 MiB / 153 个文件，目标机器需要 .NET 10 运行时
-dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 `
-  --self-contained false -p:DistributionBuild=true -o artifacts/release/publish-noruntime
-```
-
-打 tag 后 GitHub Actions 会自动跑完整流程（测试 → 两个变体 → 便携 zip → NSIS 安装包 → 建 Release 并附校验和），也可以手动触发。详见 [`docs/release.md`](docs/release.md)。
-
 ## 📄 许可证与依赖
 
 波纹音乐以 [GPL-3.0](LICENSE) 协议开源，© 2026 gcnanmu。
@@ -186,3 +162,7 @@ dotnet publish src/Bodian.WinUI/Bodian.WinUI.csproj -c Release -r win-x64 `
 ---
 
 更多设计文档与逆向勘查记录见 [`docs/`](docs/)，开发环境说明见 [`docs/dev-environment.md`](docs/dev-environment.md)。
+
+## 致谢
+
+感谢 [Linux.do](https://linux.do/) 社区的所有成员，是你们的真诚、友善、团结、专业让这个社区充满活力。
