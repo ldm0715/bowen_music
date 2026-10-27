@@ -110,10 +110,11 @@ public sealed class LyricsBackdrop : UserControl
     private void EnsureCanvas()
     {
         if (_canvas is not null) return;
-        // 页面离开后能释放完整设备；默认共享设备会在首次进入歌词后留在进程里。
+        // 用 Win2D 的进程共享设备。独占设备每次进出歌词页都要新建、销毁一台，
+        // 驱动侧会残留句柄和原生内存，长时间使用持续累积；常驻一台反而占用固定。
         _canvas = new CanvasControl
         {
-            Width = SurfaceSize, Height = SurfaceSize, UseSharedDevice = false,
+            Width = SurfaceSize, Height = SurfaceSize,
             ClearColor = Windows.UI.Color.FromArgb(0, 0, 0, 0),
         };
         _canvas.CreateResources += OnCreateResources;

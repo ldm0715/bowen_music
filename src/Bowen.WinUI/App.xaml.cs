@@ -286,7 +286,10 @@ public partial class App : Application
         builder.Services.AddTransient<LoginPage>();
         builder.Services.AddTransient<SearchPage>();
         builder.Services.AddTransient<SongCommentsViewModel>();
-        builder.Services.AddTransient<LyricsPage>();
+        // 歌词页只建一个，每次进出复用。每次新建时旧页面会被 XAML 原生侧的事件引用留住，
+        // 连同歌词画布、频谱和 Win2D 资源一起回收不掉，进出一次多占约 5 MB。
+        // 进出时的订阅与绘图资源由 OnNavigatedTo / OnNavigatedFrom 和各控件的 Unloaded 管理。
+        builder.Services.AddSingleton<LyricsPage>();
 
         // 页面拥有播放器的生命周期；从根容器解析 IDisposable transient 会被保留到退出。
         // MV 页要带「哪首歌」构造，DI 解析不出来 —— 用工厂。
