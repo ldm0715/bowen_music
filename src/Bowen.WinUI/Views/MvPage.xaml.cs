@@ -98,6 +98,23 @@ public sealed partial class MvPage : Page, INavigationAware, IShutdownAware
 
         _window.ExitImmersive();
         _viewModel.Dispose();
+
+        ReleaseTitleBarContent();
+    }
+
+    /// <summary>
+    /// 离场后清空标题栏的左右两栏与中间内容。
+    /// </summary>
+    /// <remarks>
+    /// 实测不清空时，每进出一次 MV 就留下一整个页面回收不掉：标题栏里的按钮挂着本页的
+    /// 事件处理器，而 WinUI 原生侧在离场后仍持有这几块内容。清空后旧页面能正常回收。
+    /// MV 页每次进入都新建，离场后不会再显示，所以这里清空没有副作用。
+    /// </remarks>
+    private void ReleaseTitleBarContent()
+    {
+        MvTitleBar.LeftHeader = null;
+        MvTitleBar.RightHeader = null;
+        MvTitleBar.Content = null;
     }
 
     /// <summary>
