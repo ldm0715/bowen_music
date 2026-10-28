@@ -43,8 +43,14 @@
         <controls:TrackListView
             x:Name="RecentTracksList"
             Grid.Row="2"
+            HasMore="{x:Bind ViewModel.HasMore, Mode=OneWay}"
             ItemsSource="{x:Bind ViewModel.Tracks}"
-            TrackInvoked="OnTrackInvoked" />
+            LoadMoreCommand="{x:Bind ViewModel.LoadMoreCommand}"
+            TrackInvoked="OnTrackInvoked">
+            <controls:TrackListView.Footer>
+                <controls:PagingEndNote ShowEnd="{x:Bind ViewModel.ShowEnd, Mode=OneWay}" />
+            </controls:TrackListView.Footer>
+        </controls:TrackListView>
 
         <ProgressRing
             Grid.Row="3"
