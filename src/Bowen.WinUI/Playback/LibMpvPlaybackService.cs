@@ -353,9 +353,10 @@ public sealed class LibMpvPlaybackService : IPlaybackService
             {
                 var elapsed = Stopwatch.GetElapsedTime(Interlocked.Read(ref _seekStartedAt)).TotalMilliseconds;
                 _logger.LogInformation(
-                    "跳转完成：目标 {Target:0.0} s，等待 {Elapsed:0} ms",
+                    "跳转完成：目标 {Target:0.0} s，等待 {Elapsed:0} ms，托管堆 {Heap:0.0} MB",
                     target / (double)TimeSpan.TicksPerSecond,
-                    elapsed);
+                    elapsed,
+                    GC.GetTotalMemory(forceFullCollection: false) / 1048576.0);
             }
         }
 

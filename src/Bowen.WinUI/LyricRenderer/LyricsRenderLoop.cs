@@ -36,6 +36,9 @@ internal sealed class LyricsRenderLoop
     private int _stopped;
     private int _dirty = 1;
     private bool _browsing;
+
+    /// <summary>上一帧的文档。换歌时要让常驻设备归还旧文档留下的缓存。</summary>
+    private object? _document;
     private double _width, _height, _scale, _fontSize = 40;
     private long _statsStarted, _previousDraw;
     private int _statsFrames;
@@ -200,10 +203,17 @@ internal sealed class LyricsRenderLoop
         }
         _fontSize = input.FontSize;
         _renderer.SetFontSize(_fontSize);
+        var documentChanged = !ReferenceEquals(_document, input.Document);
+        _document = input.Document;
         _renderer.SetDocument(input.Document);
         var commanded = false;
         while (_commands.TryDequeue(out var command)) { command(_renderer); commanded = true; }
         var changed = _renderer.Update(_clock.Position, _animationClock.Elapsed, _clock.JumpCount);
+
+        // 换歌：EnsureLayout 已经把旧文档的排版与逐行位图释放掉，再让常驻设备
+        // 把这些不再使用的缓存还给驱动。不这么做的话，切一首涨一首，页面开着就一直往上走。
+        if (documentChanged) BackgroundCanvasDeviceLease.TrimShared();
+
         if (!resized && !commanded && !changed) return;
         using (var session = CanvasComposition.CreateDrawingSession(_surface,
             new Rect(0, 0, Math.Ceiling(_width * _scale), Math.Ceiling(_height * _scale)), (float)(_scale * 96)))

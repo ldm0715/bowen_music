@@ -119,6 +119,9 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         if (_subscribedRoot is not null) _subscribedRoot.Changed -= OnXamlRootChanged;
         _subscribedRoot = null;
         ReleaseSurface();
+
+        // 与全屏歌词同一台常驻设备：窗口收起后把它这一轮用过的缓存还回去。
+        BackgroundCanvasDeviceLease.TrimShared();
     }
 
     private void CreateSurface()

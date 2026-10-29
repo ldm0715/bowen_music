@@ -215,6 +215,9 @@ public sealed partial class LyricsCanvasView : UserControl
         if (_subscribedRoot is not null) _subscribedRoot.Changed -= OnXamlRootChanged;
         _subscribedRoot = null;
         ReleaseSurface();
+
+        // 页面离开后把常驻设备这一轮用过的缓存还回去。
+        BackgroundCanvasDeviceLease.TrimShared();
     }
 
     private void UpdateRenderingSubscription()
@@ -489,6 +492,10 @@ public sealed partial class LyricsCanvasView : UserControl
             }
 
             _waitingForSeekAdvance = false;
+
+            // 跳转落定：这次跨行新建又丢弃的整行位图交给设备缓存，
+            // 常驻设备不会自己还，主动归还一次，避免拖几次就停在峰值。
+            BackgroundCanvasDeviceLease.TrimShared();
         }
         else
         {

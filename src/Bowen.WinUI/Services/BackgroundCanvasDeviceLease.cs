@@ -47,6 +47,26 @@ internal sealed class BackgroundCanvasDeviceLease : IDisposable
         }
     }
 
+    /// <summary>
+    /// 让常驻设备归还驱动侧的缓存。
+    /// </summary>
+    /// <remarks>
+    /// <b>设备常驻意味着这些缓存不会随页面离开自动消失。</b> 歌词页每次大跳都会为新的当前行
+    /// 重建整行位图与模糊输出，驱动把释放掉的显存留在自己的堆里；页面上来回拖几次，
+    /// 私有内存就会停在「唱过的最宽那几行」的峰值。离开页面、以及跳转落定后各调用一次，
+    /// 把当前没在用的缓存还回去。正在使用的资源不会被回收，所以可以随时调用。
+    /// </remarks>
+    public static void TrimShared()
+    {
+        lock (Gate)
+        {
+            if (_current is not { } shared) return;
+
+            try { shared.Device.Trim(); }
+            catch (System.Runtime.InteropServices.COMException) { }
+        }
+    }
+
     public void Dispose()
     {
         lock (Gate)
