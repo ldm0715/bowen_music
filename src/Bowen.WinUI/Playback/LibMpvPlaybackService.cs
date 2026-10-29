@@ -89,6 +89,8 @@ public sealed class LibMpvPlaybackService : IPlaybackService
 
     public event EventHandler<PlaybackPositionChangedEventArgs>? PositionChanged;
 
+    public event EventHandler? SeekPending;
+
     public event EventHandler? Ended;
 
     public event EventHandler<PlaybackFailedEventArgs>? Failed;
@@ -175,6 +177,10 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         {
             mpv.SetPropertyDouble("time-pos", seconds);
             _lastReported = null;
+
+            // 告诉界面「位置已经报到目标了，但声音还没接上」。歌词时钟据此先停住，
+            // 否则它会从目标位置按墙钟外推，出现「歌词先滚、没声音」。
+            Raise(() => SeekPending?.Invoke(this, EventArgs.Empty));
         }
         catch (Exception ex)
         {
@@ -386,7 +392,17 @@ public sealed class LibMpvPlaybackService : IPlaybackService
                 mpv.SetPropertyString("ytdl", "no");
             }
             mpv.SetPropertyString("gapless-audio", "yes");
+
+            // ★ 打开 lavf 的 fastseek：FLAC 的解复用器只有在「有 SEEKTABLE + fastseek」时
+            //   才会按索引一步定位，否则每次 seek 都走二分字节搜索 —— 实测一次拖动会发 10 个
+            //   Range 请求（每个都是新连接），要 1 秒以上；命中索引后只要 1 个。
+            //   酷我的无损 FLAC 带完整 SEEKTABLE（实测 27 个定位点覆盖全曲），没有索引的
+            //   文件会自动退回原来的搜索方式，不会更差。精确位置仍由 mpv 自己的 hr-seek 解码补齐。
+            mpv.SetPropertyString("demuxer-lavf-o", "fflags=+fastseek");
+
             // 音乐不需要视频播放器的百兆预读；保留网络缓冲和向后 seek。
+            // 2026-10-29 试过把它调大来消除拖动进度条的延迟，实测无用：慢在 seek 方式，
+            // 不在缓存大小（见上面的 fastseek）。这里维持原来的内存/流量预算。
             mpv.SetPropertyString("demuxer-max-bytes", "16MiB");
             mpv.SetPropertyString("demuxer-max-back-bytes", "4MiB");
             mpv.SetPropertyString("cache-secs", "60");

@@ -351,6 +351,59 @@ public sealed class PlayQueueTests
     }
 
     [Fact]
+    public void PeekNext_MatchesMoveNextWithoutMovingTheCursor()
+    {
+        var queue = Queue(1, 2, 3);
+
+        Assert.Equal(2, queue.PeekNext()!.Id);
+        Assert.Equal(1, queue.Current!.Id);
+        Assert.Equal(2, queue.PeekNext()!.Id);
+
+        Assert.True(queue.MoveNext());
+        Assert.Equal(3, queue.PeekNext()!.Id);
+
+        Assert.True(queue.MoveNext());
+        Assert.Null(queue.PeekNext());
+        Assert.Equal(3, queue.Current!.Id);
+    }
+
+    [Fact]
+    public void PeekNext_InListLoop_WrapsToTheFirstTrack()
+    {
+        var queue = Queue(1, 2, 3);
+        queue.Mode = PlayMode.ListLoop;
+
+        Assert.True(queue.MoveNext());
+        Assert.True(queue.MoveNext());
+
+        Assert.Equal(1, queue.PeekNext()!.Id);
+        Assert.Equal(3, queue.Current!.Id);
+    }
+
+    [Fact]
+    public void PeekNext_InShuffle_ReturnsNullAtTheEndOfARound()
+    {
+        var queue = Queue(new Random(11), 1, 2, 3);
+        queue.Mode = PlayMode.Shuffle;
+
+        Assert.NotNull(queue.PeekNext());
+        Assert.True(queue.MoveNext());
+        Assert.NotNull(queue.PeekNext());
+        Assert.True(queue.MoveNext());
+
+        // 再下一首要重新洗牌，结果是随机的，提前算不出来。
+        Assert.Null(queue.PeekNext());
+    }
+
+    [Fact]
+    public void PeekNext_OnAnEmptyQueue_ReturnsNull()
+    {
+        var queue = new PlayQueue();
+
+        Assert.Null(queue.PeekNext());
+    }
+
+    [Fact]
     public void Shuffle_PlaysEveryTrackOncePerRound()
     {
         var queue = Queue(new Random(7), 1, 2, 3, 4, 5);

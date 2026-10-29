@@ -707,3 +707,54 @@ Changed
 **顺带修好的两件事**：行内那三态（序号 / 拖动条 / 起伏条）本来就靠 `IsCurrent` 的通知刷新，
 所以不用重建也跟得上；拖拽途中自动续播不再把用户手里的拖动打断（原来靠集合变更来收尾，
 现在条目没动，`_dragFrom` 依然有效）。
+
+## 15. 2026-10-29：切歌与拖动进度条的延迟
+
+### 15.1 两个慢点分别在哪
+
+- **切歌约 1 秒**：`PlayCurrentAsync` 每次都要串行走 `checkRight → audioUrl` 两跳 API，
+  拿到地址后 mpv 还要新建 CDN 连接并读第一批数据。前两跳与「放哪一首」无关，完全可以提前做。
+- **拖动进度条约 1 秒**：瓶颈不在缓存大小。FLAC 的解复用器默认走 ffmpeg 的二分字节搜索，
+  本地限速 HTTP 源上实测**一次 seek 发约 10 个 Range 请求**（每个都是新连接，HTTPS 还要重新握手）。
+  把 `demuxer-max-bytes` / `cache-secs` 调大后请求数不变，延迟也一样 —— 所以那条路是死胡同。
+
+### 15.2 seek：用文件自带的 SEEKTABLE
+
+真实酷我无损 FLAC 的头部带完整 SEEKTABLE（实测一首 269 秒、27 个定位点，覆盖全曲）。
+ffmpeg 的 `flac_seek` 只有在 `AVFMT_FLAG_FAST_SEEK` 打开时才会用这张表直接定位，
+否则无视它、退回二分搜索。mpv 通过 `--demuxer-lavf-o=fflags=+fastseek` 打开：
+
+```
+mpv.SetPropertyString("demuxer-lavf-o", "fflags=+fastseek");
+```
+
+同一份样本、同样的限速：**10 个请求 / 1.1 秒 → 1 个请求 / 0.16 秒**。
+没有 SEEKTABLE 的文件会自动退回原来的搜索方式，不会更差；精确落点仍由 mpv 的 hr-seek 解码补齐。
+缓存预算（16 MiB / 4 MiB / 60 秒）维持不变。
+
+### 15.3 「歌词先滚、没声音」
+
+mpv 在 seek 完成前就会把 `time-pos` 报成目标位置。界面按时钟外推，于是歌词先走到新位置，
+而声音还在重新拉流。引擎新增 `IPlaybackService.SeekPending`：跳转请求发出后触发一次，
+歌词页与桌面歌词据此把时钟停住，等 `PositionChanged` 真的报出前进后再恢复；
+歌词仍会先跳到目标句，只是不再继续往外滚。
+
+### 15.4 预解析下一首
+
+- `PlayQueue.PeekNext()` 按当前模式看一眼下一首，**不动游标、不抛 `Changed`**。
+  随机模式走到本轮最后一位时返回 `null` —— 再下一首要重新洗牌，提前算不出来。
+- `StartAsync` 成功后调 `PlaybackCoordinator.PrefetchNextTrack()`：后台解析下一首，
+  结果按 `(曲目, 档位)` 存进 `_resolutions`，最多 8 条、单条 10 分钟内有效。
+- 切歌时 `ResolveForPlayAsync` 命中就直接用；预解析还在跑就等它，不再发第二遍请求。
+  快速连点下一首时，为旧目标跑的预解析会被取消并删除条目。
+- **预解析失败不能变成「这首歌不能播」**：任务失败或取消都回落到现取。
+- **预取的直链可能过期**：带预取结果的加载失败时，丢掉这份重新解析并重试一次；
+  第二次仍失败才走原来的 `Blocked` 提示。
+- 切号（`StopForScopeSwitch`）、换档位、切播放模式、释放时清空缓存并取消在跑的预解析。
+
+### 15.5 验证
+
+Core 新增 `PlaybackPrefetchTests`（预取命中、预取失败回退、末首不预取、预取失败不影响当前播放）
+与 `PlayQueueTests.PeekNext_*` 四例；队列、切歌、换档位、切号相关用例全部通过。
+seek 的请求数与耗时来自本地限速 HTTP 源 + 正式 mpv 参数，真实文件是否带 SEEKTABLE
+由只读审计工具对一首无损曲目取头部核对（27 个定位点）。

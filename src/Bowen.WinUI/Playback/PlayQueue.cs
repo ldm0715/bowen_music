@@ -441,6 +441,30 @@ public sealed class PlayQueue
         return true;
     }
 
+    /// <summary>
+    /// 按当前模式看一眼下一首会是谁，<b>不动游标、不抛 <see cref="Changed"/></b>。
+    /// </summary>
+    /// <remarks>
+    /// 只给预解析用：提前取一次音源地址，切歌时省掉两跳 API 请求。
+    /// <para>
+    /// <b>随机模式走到本轮最后一位时返回 <c>null</c>。</b> 那时的「下一首」要重新洗牌，
+    /// 结果由随机数决定，提前算不出来 —— 返回一个猜的会让预解析解析到永远不播的那首。
+    /// </para>
+    /// </remarks>
+    public Track? PeekNext()
+    {
+        if (_cursor < 0 || _cursor >= _order.Count)
+        {
+            return null;
+        }
+
+        var next = _mode == PlayMode.ListLoop
+            ? (_cursor + 1) % _order.Count
+            : _cursor + 1;
+
+        return next < _order.Count ? _items[_order[next]] : null;
+    }
+
     /// <summary>移到上一首。列表循环会从第一首绕到最后一首，随机模式往回走到头就停。</summary>
     public bool MovePrevious()
     {

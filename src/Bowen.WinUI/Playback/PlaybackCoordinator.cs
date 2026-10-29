@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Bowen.Core.Api;
 using Bowen.Core.Models;
 using Bowen.Core.Services;
@@ -75,6 +76,36 @@ public sealed class PlaybackCoordinator : IDisposable
 
     /// <summary>一份待写快照与它的归属。用类而不是元组是为了能 <c>Interlocked.Exchange</c>。</summary>
     private sealed record PendingSnapshot(string Scope, PlayQueueSnapshot Snapshot);
+
+    /// <summary>
+    /// 预解析出来的音源能留多久。CDN 直链带签名、有时效（见 docs/play-queue.md §10.2），
+    /// 超过这个时长就不再用它，宁可现取一次。
+    /// </summary>
+    /// <remarks>
+    /// <b>取 10 分钟是为了覆盖「当前这首还没放完」的常见情况。</b> 定得更短的话，
+    /// 长曲目（现场版、古典乐）放到一半，预取好的下一首就过期了，等于白取；
+    /// 万一 10 分钟内真的过期，<see cref="PlayCurrentAsync"/> 还有一条「加载失败后重取一次」的兜底。
+    /// </remarks>
+    private static readonly TimeSpan ResolvedSourceTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>最多同时记住几首的解析结果。队列再长也只预取下一首，这里只是留些余量。</summary>
+    private const int ResolvedSourceCapacity = 8;
+
+    /// <summary>
+    /// 提前解析好的音源，按「曲目 + 档位」索引。<b>只在协调器线程上读写。</b>
+    /// </summary>
+    /// <remarks>
+    /// 存的是 <see cref="Task{TResult}"/> 而不是结果：用户手速快过预解析时，
+    /// 点击可以直接等这一条已经在跑的请求，而不是再发一遍。
+    /// </remarks>
+    private readonly Dictionary<(long TrackId, AudioQuality Quality), CachedResolution> _resolutions = [];
+
+    /// <summary>正在跑的那条预解析。切歌 / 切号 / 换档位时取消它，免得为已经不会播的歌白做请求。</summary>
+    private PendingPrefetch? _prefetch;
+
+    private sealed record CachedResolution(Task<PlaybackResolution> Resolution, long Timestamp);
+
+    private sealed record PendingPrefetch(long TrackId, AudioQuality Quality, CancellationTokenSource Cancellation);
 
     /// <summary>「重启后恢复播放列表」开关。关掉时所有落盘路径都早退。</summary>
     private bool _restoreEnabled = true;
@@ -375,6 +406,10 @@ public sealed class PlaybackCoordinator : IDisposable
         Queue.Mode = mode;
         _playbackSettings?.Save(new PlaybackSettings(mode, _restoreEnabled));
         _logger.LogDebug("播放模式切到 {Mode}", mode.DisplayName());
+
+        // 排列变了，「下一首」可能已经不是刚才预取的那一首。
+        CancelPrefetch();
+        PrefetchNextTrack();
     }
 
     /// <summary>按「顺序播放 → 列表循环 → 列表随机 → 顺序播放」切到下一个。</summary>
@@ -626,6 +661,8 @@ public sealed class PlaybackCoordinator : IDisposable
     private void StopForScopeSwitch()
     {
         _operation?.Cancel();
+        CancelPrefetch();
+        ForgetAllResolved();
         _ = _engine.StopAsync();
         CurrentTrack = null;
         CurrentPolicy = null;
@@ -815,25 +852,37 @@ public sealed class PlaybackCoordinator : IDisposable
         var ct = operation.Token;
         try
         {
-            var resolution = await _api.ResolvePlaybackAsync(track, PreferredQuality, ct).ConfigureAwait(true);
+            var started = Stopwatch.GetTimestamp();
+            var (resolution, fromCache) = await ResolveForPlayAsync(track, ct).ConfigureAwait(true);
+            var resolvedAt = Stopwatch.GetTimestamp();
             ct.ThrowIfCancellationRequested();
-            var policy = PlaybackPolicy.For(resolution);
-            switch (resolution)
+
+            bool playing;
+            try
             {
-                case PlaybackResolution.Playable playable:
-                    // 第四个参数是起播位置：恢复出来的那首从上次停的地方接着放，其余为 null（从头播）。
-                    // 走 start 参数而不是加载完再 Seek —— 文件还没打开时 seek 会踩到「位置属性不存在」，
-                    // 引擎把状态砸成闲置并弹一条错误条。
-                    await StartAsync(track, policy, playable.Source, ResumePointFor(track), null, ct).ConfigureAwait(true);
-                    break;
-                case PlaybackResolution.AuditionOnly audition:
-                    await StartAsync(track, policy, audition.Source, audition.Start, audition.End, ct)
-                        .ConfigureAwait(true);
-                    break;
-                case PlaybackResolution.Denied denied:
-                    _logger.LogInformation("不能播放：{Title}（{Reason}）", track.Title, denied.Reason);
-                    Blocked?.Invoke(this, new PlaybackBlockedEventArgs(track, denied.Reason, null));
-                    break;
+                playing = await ApplyResolutionAsync(track, resolution, ct).ConfigureAwait(true);
+            }
+            catch (Exception ex) when (fromCache && ex is not OperationCanceledException)
+            {
+                // 预取时拿到的直链可能已经过期（长曲目放到一半）：丢掉这份，重新解析一次再放。
+                _logger.LogDebug(ex, "预取的音源加载失败，重新解析：{Title}", track.Title);
+                ForgetResolved(track.Id, PreferredQuality);
+                fromCache = false;
+                ct.ThrowIfCancellationRequested();
+                resolution = await _api.ResolvePlaybackAsync(track, PreferredQuality, ct).ConfigureAwait(true);
+                resolvedAt = Stopwatch.GetTimestamp();
+                ct.ThrowIfCancellationRequested();
+                playing = await ApplyResolutionAsync(track, resolution, ct).ConfigureAwait(true);
+            }
+
+            if (playing)
+            {
+                _logger.LogInformation(
+                    "起播 {Title}：解析 {ResolveMs:0} ms（{Origin}），加载 {LoadMs:0} ms",
+                    track.Title,
+                    Stopwatch.GetElapsedTime(started, resolvedAt).TotalMilliseconds,
+                    fromCache ? "预取" : "现取",
+                    Stopwatch.GetElapsedTime(resolvedAt).TotalMilliseconds);
             }
         }
         catch (OperationCanceledException) when (!ReferenceEquals(_operation, operation)) { }
@@ -846,6 +895,196 @@ public sealed class PlaybackCoordinator : IDisposable
             }
         }
         finally { CompleteOperation(operation); }
+    }
+
+    /// <summary>按解析结果决定做什么。</summary>
+    /// <returns>真的开始播放了返回 <c>true</c>；被拒绝返回 <c>false</c>。</returns>
+    private async Task<bool> ApplyResolutionAsync(Track track, PlaybackResolution resolution, CancellationToken cancellationToken)
+    {
+        var policy = PlaybackPolicy.For(resolution);
+        switch (resolution)
+        {
+            case PlaybackResolution.Playable playable:
+                // 第四个参数是起播位置：恢复出来的那首从上次停的地方接着放，其余为 null（从头播）。
+                // 走 start 参数而不是加载完再 Seek —— 文件还没打开时 seek 会踩到「位置属性不存在」，
+                // 引擎把状态砸成闲置并弹一条错误条。
+                await StartAsync(track, policy, playable.Source, ResumePointFor(track), null, cancellationToken)
+                    .ConfigureAwait(true);
+                return true;
+            case PlaybackResolution.AuditionOnly audition:
+                await StartAsync(track, policy, audition.Source, audition.Start, audition.End, cancellationToken)
+                    .ConfigureAwait(true);
+                return true;
+            case PlaybackResolution.Denied denied:
+                _logger.LogInformation("不能播放：{Title}（{Reason}）", track.Title, denied.Reason);
+                Blocked?.Invoke(this, new PlaybackBlockedEventArgs(track, denied.Reason, null));
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// 取这次播放要用的音源：优先用预解析好的那一份。
+    /// </summary>
+    /// <remarks>
+    /// <b>预解析的失败不能当成「这首歌不能播」。</b> 它可能是被后续操作取消的（快速连点下一首），
+    /// 也可能是请求本身偶发失败；两种情况都应该回到现取这条路。
+    /// </remarks>
+    private async Task<(PlaybackResolution Resolution, bool FromCache)> ResolveForPlayAsync(
+        Track track, CancellationToken cancellationToken)
+    {
+        var quality = PreferredQuality;
+        CancelStalePrefetch(track.Id, quality);
+
+        if (TryGetResolved(track.Id, quality) is { } cached)
+        {
+            // 正在预解析的正好就是这一首：别取消它，等它跑完，省掉重复的两跳请求。
+            if (_prefetch is { } pending && pending.TrackId == track.Id && pending.Quality == quality)
+            {
+                _prefetch = null;
+            }
+
+            try
+            {
+                return (await cached.Resolution.WaitAsync(cancellationToken).ConfigureAwait(true), true);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "预解析结果不可用，改为现取：{Title}", track.Title);
+                ForgetResolved(track.Id, quality);
+            }
+        }
+
+        var fresh = await _api.ResolvePlaybackAsync(track, quality, cancellationToken).ConfigureAwait(true);
+        return (fresh, false);
+    }
+
+    /// <summary>
+    /// 起播成功后，提前把「下一首」的音源解析出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>这是切歌延迟的大头</b>：正常路径要串行走 <c>checkRight → audioUrl</c> 两跳 API，
+    /// 再由 mpv 新建 CDN 连接。两跳 API 可以提前做，按下「下一首」时直接 loadfile。
+    /// </para>
+    /// <para>
+    /// <b>只预取一首。</b> 按队列批量取既存不住（直链有时效），也会白白放大账号请求量。
+    /// 结果最多留 <see cref="ResolvedSourceTtl"/>，过期后按未命中处理。
+    /// </para>
+    /// </remarks>
+    private void PrefetchNextTrack()
+    {
+        if (_disposed || CurrentTrack is null) { return; }
+
+        if (Queue.PeekNext() is not { } next || next.Id <= 0)
+        {
+            CancelPrefetch();
+            return;
+        }
+
+        var quality = PreferredQuality;
+
+        if (TryGetResolved(next.Id, quality) is not null) { return; }
+
+        var cancellation = new CancellationTokenSource();
+        var resolution = ResolveForPrefetchAsync(next, quality, cancellation.Token);
+
+        StoreResolved(next.Id, quality, resolution);
+
+        var previous = _prefetch;
+        _prefetch = new PendingPrefetch(next.Id, quality, cancellation);
+        CancelAndDispose(previous);
+
+        // 没人 await 它：不挂这条观察，失败时会在 GC 时变成一张未观察异常。
+        _ = resolution.ContinueWith(
+            task => _ = task.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private async Task<PlaybackResolution> ResolveForPrefetchAsync(
+        Track track, AudioQuality quality, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _api.ResolvePlaybackAsync(track, quality, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "预解析下一首失败：{Title}", track.Title);
+            throw;
+        }
+    }
+
+    /// <summary>取一份还没过期的预解析结果；没有或过期返回 <c>null</c>。</summary>
+    private CachedResolution? TryGetResolved(long trackId, AudioQuality quality)
+    {
+        if (!_resolutions.TryGetValue((trackId, quality), out var cached)) { return null; }
+
+        if (Stopwatch.GetElapsedTime(cached.Timestamp) <= ResolvedSourceTtl) { return cached; }
+
+        _resolutions.Remove((trackId, quality));
+        return null;
+    }
+
+    private void StoreResolved(long trackId, AudioQuality quality, Task<PlaybackResolution> resolution)
+    {
+        if (_resolutions.Count >= ResolvedSourceCapacity)
+        {
+            // 容量很小，线性找最旧的一条就够。
+            var oldest = _resolutions.MinBy(pair => pair.Value.Timestamp);
+            _resolutions.Remove(oldest.Key);
+        }
+
+        _resolutions[(trackId, quality)] = new CachedResolution(resolution, Stopwatch.GetTimestamp());
+    }
+
+    private void ForgetResolved(long trackId, AudioQuality quality) => _resolutions.Remove((trackId, quality));
+
+    private void ForgetAllResolved() => _resolutions.Clear();
+
+    private void CancelPrefetch()
+    {
+        var pending = _prefetch;
+        _prefetch = null;
+        CancelAndDispose(pending);
+    }
+
+    /// <summary>
+    /// 这次要播的不是正在预解析的那一首：停掉它，并把它的缓存条目一起丢掉。
+    /// </summary>
+    /// <remarks>
+    /// 条目必须跟着取消一起删：任务被取消后会以 <see cref="OperationCanceledException"/> 结束，
+    /// 留着它，下次真轮到这一首时只会直接抛出来再被当成「未命中」，白走一遍异常路径。
+    /// </remarks>
+    private void CancelStalePrefetch(long trackId, AudioQuality quality)
+    {
+        if (_prefetch is not { } pending || (pending.TrackId == trackId && pending.Quality == quality))
+        {
+            return;
+        }
+
+        _prefetch = null;
+        CancelAndDispose(pending);
+        ForgetResolved(pending.TrackId, pending.Quality);
+    }
+
+    private static void CancelAndDispose(PendingPrefetch? pending)
+    {
+        if (pending is null) { return; }
+
+        pending.Cancellation.Cancel();
+        pending.Cancellation.Dispose();
     }
 
     private async Task StartAsync(
@@ -880,6 +1119,9 @@ public sealed class PlaybackCoordinator : IDisposable
             Started?.Invoke(this, new PlaybackStartedEventArgs(track, policy, source));
             QualityOptionsChanged?.Invoke(this, EventArgs.Empty);
             RecordHistory(track);
+
+            // 已经开始放了，顺手把下一首的音源备好 —— 用户按「下一首」时省掉两跳 API。
+            PrefetchNextTrack();
         }
         finally { _loadGate.Release(); }
     }
@@ -985,6 +1227,10 @@ public sealed class PlaybackCoordinator : IDisposable
         PreferredQuality = quality;
         _qualitySettings?.Save(quality);
         QualityOptionsChanged?.Invoke(this, EventArgs.Empty);
+
+        // 档位变了，预取的那首要按新档位重取；旧档位的条目不再命中，交给 TTL 自然过期。
+        CancelPrefetch();
+        PrefetchNextTrack();
     }
 
     private static void RequirePlayableSource(AudioSource source)
@@ -1006,6 +1252,8 @@ public sealed class PlaybackCoordinator : IDisposable
         if (_disposed) { return; }
         _disposed = true;
         _operation?.Cancel();
+        CancelPrefetch();
+        ForgetAllResolved();
         _persistTimer?.Dispose();
         Queue.Changed -= OnQueueChangedForPersist;
         _engine.PositionChanged -= OnEnginePositionChangedForPersist;

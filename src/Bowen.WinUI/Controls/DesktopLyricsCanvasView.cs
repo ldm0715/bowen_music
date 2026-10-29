@@ -38,6 +38,12 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
     private bool _loaded, _paused, _broken, _disposed;
     private bool _resourcesSuspended = true;
 
+    /// <summary>跳转后等声音接上：目标位置已到、但音频还没开始。</summary>
+    private bool _waitingForSeekAdvance;
+
+    /// <summary>跳转后的第一个位置（mpv 会先报目标值）。</summary>
+    private TimeSpan? _seekTarget;
+
     public DesktopLyricsCanvasView(DesktopLyricsViewModel settings, LyricsViewModel lyrics,
         IPlaybackService engine, ILoggerFactory loggerFactory)
     {
@@ -87,6 +93,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         _clock.SetPlaying(_engine.State == PlaybackState.Playing);
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
+        _engine.SeekPending += OnSeekPending;
         _settings.PropertyChanged += OnSettingsChanged;
         _lyrics.PropertyChanged += OnLyricsChanged;
         _subscribedRoot = XamlRoot;
@@ -103,6 +110,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         _resizeTimer?.Stop();
         _engine.PositionChanged -= OnPositionChanged;
         _engine.StateChanged -= OnStateChanged;
+        _engine.SeekPending -= OnSeekPending;
         _settings.PropertyChanged -= OnSettingsChanged;
         _lyrics.PropertyChanged -= OnLyricsChanged;
         if (_subscribedRoot is not null) _subscribedRoot.Changed -= OnXamlRootChanged;
@@ -195,12 +203,45 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
     {
         var previous = _clock.Position;
         _clock.SetDuration(args.Duration);
+
+        // 跳转后 mpv 会先把位置报成目标值，声音还没接上。第一帧只把歌词移到目标句并停住，
+        // 等位置真的继续前进再恢复外推，否则歌词会比声音先跑。
+        if (_waitingForSeekAdvance)
+        {
+            if (_seekTarget is null || args.Position == _seekTarget)
+            {
+                _seekTarget = args.Position;
+            }
+            else
+            {
+                _waitingForSeekAdvance = false;
+                _seekTarget = null;
+                _clock.Sync(args.Position);
+                _clock.SetPlaying(_engine.State == PlaybackState.Playing);
+            }
+        }
+
         _clock.Sync(args.Position);
         if (_engine.State == PlaybackState.Playing || _clock.Position != previous) _loop?.NotifyPositionChanged();
     }
 
+    private void OnSeekPending(object? sender, EventArgs args)
+    {
+        if (!_loaded || _engine.State != PlaybackState.Playing) return;
+
+        _waitingForSeekAdvance = true;
+        _seekTarget = null;
+        _clock.SetPlaying(false);
+    }
+
     private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)
     {
+        if (args.State != PlaybackState.Playing)
+        {
+            _waitingForSeekAdvance = false;
+            _seekTarget = null;
+        }
+
         _clock.SetPlaying(args.State == PlaybackState.Playing);
         UpdateInput();
     }

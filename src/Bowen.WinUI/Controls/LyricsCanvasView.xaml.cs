@@ -185,6 +185,7 @@ public sealed partial class LyricsCanvasView : UserControl
         if (_waitingForPlaybackToAdvance) StartPlaybackProbe();
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
+        _engine.SeekPending += OnSeekPending;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _subscribedRoot = XamlRoot;
         if (_subscribedRoot is not null) _subscribedRoot.Changed += OnXamlRootChanged;
@@ -199,6 +200,7 @@ public sealed partial class LyricsCanvasView : UserControl
         StopPlaybackProbe();
         _engine.PositionChanged -= OnPositionChanged;
         _engine.StateChanged -= OnStateChanged;
+        _engine.SeekPending -= OnSeekPending;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ResetPointerGesture();
         if (_subscribedRoot is not null) _subscribedRoot.Changed -= OnXamlRootChanged;
@@ -401,6 +403,26 @@ public sealed partial class LyricsCanvasView : UserControl
         _lastEnginePosition = args.Position;
         _renderLoop?.Invalidate();
     }
+    /// <summary>
+    /// 跳转已发出、声音还没接上。
+    /// </summary>
+    /// <remarks>
+    /// mpv 在 seek 完成前就把位置报成目标值，若照常外推，歌词会先滚到后面、声音才到。
+    /// 这里把时钟停住并清掉「上次位置」，等进度真的前进后再由
+    /// <see cref="TryStartPlaybackClock"/> 接上；拖动后的第一帧仍会 Sync 到目标句，
+    /// 所以歌词是「跳到目标句、停住、有声音后继续」，不是从头继续外推。
+    /// </remarks>
+    private void OnSeekPending(object? sender, EventArgs args)
+    {
+        if (_lastEngineState is not (PlaybackState.Playing or PlaybackState.Paused)) return;
+
+        _lastEnginePosition = null;
+        _waitingForPlaybackToAdvance = true;
+        _clock.SetPlaying(false);
+        StartPlaybackProbe();
+        _renderLoop?.Invalidate();
+    }
+
     private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)
     {
         var previous = _lastEngineState;

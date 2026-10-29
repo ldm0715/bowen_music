@@ -35,6 +35,16 @@ public interface IPlaybackService : IAsyncDisposable
     /// <summary>进度变化。**在 UI 线程上触发。**</summary>
     event EventHandler<PlaybackPositionChangedEventArgs>? PositionChanged;
 
+    /// <summary>
+    /// 跳转请求已发出、音频还没接上。
+    /// </summary>
+    /// <remarks>
+    /// <b>mpv 在 seek 完成前就会把 <c>time-pos</c> 报成目标位置</b>，只看进度事件的话，
+    /// 歌词会立刻从新位置按时钟外推，而声音还要等重新拉流 —— 表现是「歌词先滚、没声音」。
+    /// 订阅方收到这个事件后应当先停住时钟，等 <see cref="PositionChanged"/> 真的报出前进再恢复。
+    /// </remarks>
+    event EventHandler? SeekPending;
+
     /// <summary>整段播完（到文件结尾，或到了 <see cref="PlaybackSource.End"/>）。</summary>
     event EventHandler? Ended;
 
