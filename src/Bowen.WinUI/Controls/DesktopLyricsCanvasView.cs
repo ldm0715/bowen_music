@@ -41,8 +41,11 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
     /// <summary>跳转后等声音接上：目标位置已到、但音频还没开始。</summary>
     private bool _waitingForSeekAdvance;
 
-    /// <summary>跳转后的第一个位置（mpv 会先报目标值）。</summary>
-    private TimeSpan? _seekTarget;
+    /// <summary>跳转目标。mpv 在 seek 完成前就会把位置报成这个值。</summary>
+    private TimeSpan _seekTarget;
+
+    /// <summary>超过目标这么多才算声音真的接上。</summary>
+    private static readonly TimeSpan SeekSettledThreshold = TimeSpan.FromMilliseconds(50);
 
     public DesktopLyricsCanvasView(DesktopLyricsViewModel settings, LyricsViewModel lyrics,
         IPlaybackService engine, ILoggerFactory loggerFactory)
@@ -204,33 +207,32 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         var previous = _clock.Position;
         _clock.SetDuration(args.Duration);
 
-        // 跳转后 mpv 会先把位置报成目标值，声音还没接上。第一帧只把歌词移到目标句并停住，
-        // 等位置真的继续前进再恢复外推，否则歌词会比声音先跑。
+        // 跳转后 mpv 会先把位置报成目标值，声音还没接上。目标值附近只把歌词移过去并停住，
+        // 越过目标才说明声音真的开始了，这时再恢复外推。
         if (_waitingForSeekAdvance)
         {
-            if (_seekTarget is null || args.Position == _seekTarget)
-            {
-                _seekTarget = args.Position;
-            }
-            else
+            _clock.Sync(args.Position);
+
+            if (args.Position >= _seekTarget + SeekSettledThreshold)
             {
                 _waitingForSeekAdvance = false;
-                _seekTarget = null;
-                _clock.Sync(args.Position);
                 _clock.SetPlaying(_engine.State == PlaybackState.Playing);
             }
         }
+        else
+        {
+            _clock.Sync(args.Position);
+        }
 
-        _clock.Sync(args.Position);
         if (_engine.State == PlaybackState.Playing || _clock.Position != previous) _loop?.NotifyPositionChanged();
     }
 
-    private void OnSeekPending(object? sender, EventArgs args)
+    private void OnSeekPending(object? sender, SeekPendingEventArgs args)
     {
         if (!_loaded || _engine.State != PlaybackState.Playing) return;
 
         _waitingForSeekAdvance = true;
-        _seekTarget = null;
+        _seekTarget = args.Target;
         _clock.SetPlaying(false);
     }
 
@@ -239,7 +241,6 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         if (args.State != PlaybackState.Playing)
         {
             _waitingForSeekAdvance = false;
-            _seekTarget = null;
         }
 
         _clock.SetPlaying(args.State == PlaybackState.Playing);

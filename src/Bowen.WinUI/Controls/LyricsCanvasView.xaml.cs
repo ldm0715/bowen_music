@@ -50,6 +50,15 @@ public sealed partial class LyricsCanvasView : UserControl
     private PlaybackState _lastEngineState = PlaybackState.Idle;
     private TimeSpan? _lastEnginePosition;
     private bool _waitingForPlaybackToAdvance;
+
+    /// <summary>这次等待是跳转造成的（而不是新歌加载）。跳转要等位置越过目标。</summary>
+    private bool _waitingForSeekAdvance;
+
+    /// <summary>跳转目标。mpv 在 seek 完成前就会把位置报成这个值。</summary>
+    private TimeSpan _seekTarget;
+
+    /// <summary>超过目标这么多才算声音真的接上。</summary>
+    private static readonly TimeSpan SeekSettledThreshold = TimeSpan.FromMilliseconds(50);
     private DispatcherQueueTimer? _playbackProbeTimer;
     private CanvasDevice? _canvasDevice;
     private CompositionSurfaceBrush? _surfaceBrush;
@@ -412,10 +421,12 @@ public sealed partial class LyricsCanvasView : UserControl
     /// <see cref="TryStartPlaybackClock"/> 接上；拖动后的第一帧仍会 Sync 到目标句，
     /// 所以歌词是「跳到目标句、停住、有声音后继续」，不是从头继续外推。
     /// </remarks>
-    private void OnSeekPending(object? sender, EventArgs args)
+    private void OnSeekPending(object? sender, SeekPendingEventArgs args)
     {
         if (_lastEngineState is not (PlaybackState.Playing or PlaybackState.Paused)) return;
 
+        _waitingForSeekAdvance = true;
+        _seekTarget = args.Target;
         _lastEnginePosition = null;
         _waitingForPlaybackToAdvance = true;
         _clock.SetPlaying(false);
@@ -433,12 +444,14 @@ public sealed partial class LyricsCanvasView : UserControl
             // 新歌开始加载：上一首的位置不能再拿来判断“是否已经前进”。
             _lastEnginePosition = null;
             _waitingForPlaybackToAdvance = false;
+            _waitingForSeekAdvance = false;
             _clock.SetPlaying(false);
         }
         else if (args.State == PlaybackState.Playing)
         {
             // 暂停后恢复：音频已经就绪，直接续上；新加载则等位置前进。
-            var resume = previous == PlaybackState.Paused
+            // 跳转还没等到声音的，也要继续等位置越过目标，不能当成普通恢复。
+            var resume = previous == PlaybackState.Paused && !_waitingForSeekAdvance
                 && _lastEnginePosition is { } position && position > TimeSpan.Zero;
             _waitingForPlaybackToAdvance = !resume;
             _clock.SetPlaying(resume);
@@ -464,12 +477,28 @@ public sealed partial class LyricsCanvasView : UserControl
     private bool TryStartPlaybackClock(TimeSpan position)
     {
         if (!_waitingForPlaybackToAdvance) return false;
-        if (_lastEnginePosition is not { } last)
+
+        if (_waitingForSeekAdvance)
         {
-            _lastEnginePosition = position;
-            return false;
+            // mpv 在 seek 完成前会把位置报成目标值，之后才继续前进。
+            // 只认「越过目标」，否则刚拖完就会把时钟重新启动，出现歌词先滚。
+            if (position < _seekTarget + SeekSettledThreshold)
+            {
+                _lastEnginePosition = position;
+                return false;
+            }
+
+            _waitingForSeekAdvance = false;
         }
-        if (position == last) return false;
+        else
+        {
+            if (_lastEnginePosition is not { } last)
+            {
+                _lastEnginePosition = position;
+                return false;
+            }
+            if (position == last) return false;
+        }
 
         _waitingForPlaybackToAdvance = false;
         StopPlaybackProbe();

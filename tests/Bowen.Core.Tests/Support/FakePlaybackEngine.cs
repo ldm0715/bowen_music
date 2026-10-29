@@ -46,7 +46,7 @@ internal sealed class FakePlaybackEngine : IPlaybackService
 
     public event EventHandler<PlaybackPositionChangedEventArgs>? PositionChanged;
 
-    event EventHandler? IPlaybackService.SeekPending { add { } remove { } }
+    event EventHandler<SeekPendingEventArgs>? IPlaybackService.SeekPending { add { } remove { } }
 
     public event EventHandler? Ended;
 

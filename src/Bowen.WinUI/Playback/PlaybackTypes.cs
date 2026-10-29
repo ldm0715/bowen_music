@@ -49,3 +49,15 @@ public sealed class PlaybackFailedEventArgs(string message) : EventArgs
 {
     public string Message { get; } = message;
 }
+
+/// <summary>
+/// 跳转请求已发出、音频还没接上。
+/// </summary>
+/// <remarks>
+/// 带上 <see cref="Target"/> 是因为 mpv 在 seek 完成前就会把 <c>time-pos</c> 报成目标值：
+/// 订阅方只有知道目标，才能区分「位置跳到了目标」和「声音真的开始前进了」。
+/// </remarks>
+public sealed class SeekPendingEventArgs(TimeSpan target) : EventArgs
+{
+    public TimeSpan Target { get; } = target;
+}

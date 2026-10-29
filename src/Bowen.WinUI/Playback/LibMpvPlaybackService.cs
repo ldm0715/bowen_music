@@ -63,6 +63,18 @@ public sealed class LibMpvPlaybackService : IPlaybackService
     private bool _disposed;
     private TaskCompletionSource? _pendingLoad;
 
+    /// <summary>有跳转在等声音接上（1）或没有（0）。<b>OnTick 在 mpv 线程读，必须用 Interlocked。</b></summary>
+    private int _seekPending;
+
+    /// <summary>等待中的跳转目标。</summary>
+    private long _seekTargetTicks;
+
+    /// <summary>发出跳转时的 <see cref="Stopwatch"/> 时间戳，用于测「到声音接上」花了多久。</summary>
+    private long _seekStartedAt;
+
+    /// <summary>越过目标这么多才算声音接上：mpv 会先把位置报成目标值，原地不动。</summary>
+    private static readonly long SeekSettledTicks = TimeSpan.TicksPerMillisecond * 50;
+
     public LibMpvPlaybackService(ILogger<LibMpvPlaybackService>? logger = null)
     {
         _logger = logger ?? NullLogger<LibMpvPlaybackService>.Instance;
@@ -89,7 +101,7 @@ public sealed class LibMpvPlaybackService : IPlaybackService
 
     public event EventHandler<PlaybackPositionChangedEventArgs>? PositionChanged;
 
-    public event EventHandler? SeekPending;
+    public event EventHandler<SeekPendingEventArgs>? SeekPending;
 
     public event EventHandler? Ended;
 
@@ -135,6 +147,9 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         _lastReported = null;
         _position = TimeSpan.Zero;
         _duration = TimeSpan.Zero;
+
+        // 新文件从头开始，上一首没等到位的跳转标记不能再留着。
+        Volatile.Write(ref _seekPending, 0);
         SetState(PlaybackState.Loading);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -172,15 +187,21 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         }
 
         var seconds = Math.Max(0, position.TotalSeconds);
+        var target = TimeSpan.FromSeconds(seconds);
 
         try
         {
             mpv.SetPropertyDouble("time-pos", seconds);
             _lastReported = null;
 
+            // 记下目标与时刻：OnTick 里越过目标才算声音接上，顺便量出这次跳转等了多久。
+            Interlocked.Exchange(ref _seekTargetTicks, target.Ticks);
+            Interlocked.Exchange(ref _seekStartedAt, Stopwatch.GetTimestamp());
+            Volatile.Write(ref _seekPending, 1);
+
             // 告诉界面「位置已经报到目标了，但声音还没接上」。歌词时钟据此先停住，
             // 否则它会从目标位置按墙钟外推，出现「歌词先滚、没声音」。
-            Raise(() => SeekPending?.Invoke(this, EventArgs.Empty));
+            Raise(() => SeekPending?.Invoke(this, new SeekPendingEventArgs(target)));
         }
         catch (Exception ex)
         {
@@ -322,6 +343,22 @@ public sealed class LibMpvPlaybackService : IPlaybackService
 
         var position = TimeSpan.FromSeconds(seconds);
 
+        // 跳转后位置会先停在目标值；越过它才说明声音真的接上了。这里顺手把等待时长记下来。
+        if (Volatile.Read(ref _seekPending) == 1)
+        {
+            var target = Interlocked.Read(ref _seekTargetTicks);
+
+            if (position.Ticks >= target + SeekSettledTicks
+                && Interlocked.CompareExchange(ref _seekPending, 0, 1) == 1)
+            {
+                var elapsed = Stopwatch.GetElapsedTime(Interlocked.Read(ref _seekStartedAt)).TotalMilliseconds;
+                _logger.LogInformation(
+                    "跳转完成：目标 {Target:0.0} s，等待 {Elapsed:0} ms",
+                    target / (double)TimeSpan.TicksPerSecond,
+                    elapsed);
+            }
+        }
+
         if (ReadDouble(mpv, "duration") is { } durationSeconds and > 0)
         {
             _duration = TimeSpan.FromSeconds(durationSeconds);
@@ -406,6 +443,10 @@ public sealed class LibMpvPlaybackService : IPlaybackService
             mpv.SetPropertyString("demuxer-max-bytes", "16MiB");
             mpv.SetPropertyString("demuxer-max-back-bytes", "4MiB");
             mpv.SetPropertyString("cache-secs", "60");
+
+            // 缓冲欠载后恢复播放所需的缓存时长，默认 1 秒。seek 会清空缓存，
+            // 在慢速 CDN 上这 1 秒的要等数据明显拉长停顿；0.2 秒足够吸收抖动。
+            mpv.SetPropertyString("cache-pause-wait", "0.2");
 
             mpv.FileLoaded += (_, _) => OnFileLoaded();
             mpv.EndFile += (_, e) => OnEndFile(e);
