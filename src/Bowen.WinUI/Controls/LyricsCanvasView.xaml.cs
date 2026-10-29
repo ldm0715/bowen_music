@@ -59,6 +59,10 @@ public sealed partial class LyricsCanvasView : UserControl
 
     /// <summary>超过目标这么多才算声音真的接上。</summary>
     private static readonly TimeSpan SeekSettledThreshold = TimeSpan.FromMilliseconds(50);
+
+    /// <summary>播放期间定时让常驻设备归还缓存。<b>不这么做的话，逐行渲染的显存会一直占着。</b></summary>
+    private DispatcherQueueTimer? _cacheTrimTimer;
+    private static readonly TimeSpan CacheTrimInterval = TimeSpan.FromSeconds(30);
     private DispatcherQueueTimer? _playbackProbeTimer;
     private CanvasDevice? _canvasDevice;
     private CompositionSurfaceBrush? _surfaceBrush;
@@ -195,6 +199,12 @@ public sealed partial class LyricsCanvasView : UserControl
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
         _engine.SeekPending += OnSeekPending;
+
+        _cacheTrimTimer = DispatcherQueue.CreateTimer();
+        _cacheTrimTimer.Interval = CacheTrimInterval;
+        _cacheTrimTimer.IsRepeating = true;
+        _cacheTrimTimer.Tick += OnCacheTrimTick;
+        _cacheTrimTimer.Start();
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _subscribedRoot = XamlRoot;
         if (_subscribedRoot is not null) _subscribedRoot.Changed += OnXamlRootChanged;
@@ -210,6 +220,13 @@ public sealed partial class LyricsCanvasView : UserControl
         _engine.PositionChanged -= OnPositionChanged;
         _engine.StateChanged -= OnStateChanged;
         _engine.SeekPending -= OnSeekPending;
+
+        if (_cacheTrimTimer is not null)
+        {
+            _cacheTrimTimer.Stop();
+            _cacheTrimTimer.Tick -= OnCacheTrimTick;
+            _cacheTrimTimer = null;
+        }
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ResetPointerGesture();
         if (_subscribedRoot is not null) _subscribedRoot.Changed -= OnXamlRootChanged;
@@ -435,6 +452,19 @@ public sealed partial class LyricsCanvasView : UserControl
         _clock.SetPlaying(false);
         StartPlaybackProbe();
         _renderLoop?.Invalidate();
+    }
+
+    /// <summary>
+    /// 播放期间定时归还常驻设备的缓存。
+    /// </summary>
+    /// <remarks>
+    /// 逐字高亮与长音发光每帧都会碰设备缓存；驱动把已经释放的块留在自己的堆里，
+    /// 私有提交与显存会停在「唱过的整首歌」的峰值。跳转、换歌时已经会 Trim，
+    /// 这里兜住「一直顺着播」的情况；暂停时不 Trim，等恢复后再说。
+    /// </remarks>
+    private void OnCacheTrimTick(DispatcherQueueTimer sender, object args)
+    {
+        if (_engine.State == PlaybackState.Playing) BackgroundCanvasDeviceLease.TrimShared();
     }
 
     private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)

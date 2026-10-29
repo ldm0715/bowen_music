@@ -123,8 +123,14 @@ internal sealed class LyricsActiveLineImage : IDisposable
             var pulse = Math.Sin(Math.PI * _progress[glyphIndex]);
             var region = line.Glyphs[glyphIndex].Bounds;
             if (pulse > 0.01)
-                using (session.CreateLayer((float)(pulse * 0.55)))
+            {
+                // ★ 图层必须收在这个字形的矩形里。不带矩形的 CreateLayer 会按整块绘制表面
+                //   开中间位图，逐字高亮时每帧一张，GPU 提交会一路涨到暂停才回落。
+                var layerBounds = new Rect(region.X, region.Y,
+                    Math.Max(1, region.Width), Math.Max(1, region.Height));
+                using (session.CreateLayer((float)(pulse * 0.55), layerBounds))
                     session.DrawImage(glow, (float)region.X, (float)region.Y);
+            }
         }
         session.DrawImage(_result, (float)_bounds.X, (float)_bounds.Y);
     }
