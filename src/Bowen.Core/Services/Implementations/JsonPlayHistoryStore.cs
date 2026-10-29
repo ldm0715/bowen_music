@@ -27,6 +27,7 @@ namespace Bowen.Core.Services.Implementations;
 /// </para>
 /// <para>
 /// 内存里只保留一份，按「最新的在前」维护；<b>上限之外的直接丢掉</b>（<see cref="Capacity"/>）。
+/// 读取时同样裁剪，旧版本留下的超大文件不会全量进内存，裁完还会把文件缩回上限。
 /// </para>
 /// </remarks>
 public sealed class JsonPlayHistoryStore : IPlayHistoryStore
@@ -178,9 +179,20 @@ public sealed class JsonPlayHistoryStore : IPlayHistoryStore
             var loaded = JsonSerializer.Deserialize(bytes, PlayHistoryJsonContext.Default.ListPlayHistoryEntry);
 
             // 排序只为让「最新的在前」这个不变量对旧文件也成立，之后不再重复排序。
-            return _entries = loaded is null
+            List<PlayHistoryEntry> entries = loaded is null
                 ? []
                 : [.. loaded.OrderByDescending(entry => entry.PlayedAt)];
+
+            // ★ 读的时候也要裁。写入路径已经裁过，正常文件不会超上限；但旧版本或手工改过的文件
+            //   可能远超它，全量留在内存里会让「最多 500 条」只存在于显示层。裁完顺手把盘上那份
+            //   也缩回去，下次启动不必再走这一遍。
+            if (entries.Count > Capacity)
+            {
+                entries.RemoveRange(Capacity, entries.Count - Capacity);
+                await SaveAsync(entries, cancellationToken).ConfigureAwait(false);
+            }
+
+            return _entries = entries;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {

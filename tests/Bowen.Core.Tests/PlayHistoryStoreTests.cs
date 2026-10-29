@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Bowen.Core.Models;
+using Bowen.Core.Services;
 using Bowen.Core.Services.Implementations;
 using Xunit;
 
@@ -113,6 +115,36 @@ public sealed class PlayHistoryStoreTests : IDisposable
         var entries = await store.GetRecentAsync(100, Ct);
 
         Assert.Equal([5L, 4L, 3L], entries.Select(e => e.MusicId));
+    }
+
+    /// <summary>
+    /// 文件超过容量时，读入就裁掉最旧的，并把盘上那份也缩回去。
+    /// </summary>
+    /// <remarks>
+    /// 正常写入路径已经裁过；这条防的是旧版本或手工改过的文件 —— 不能让它把上限撑破内存。
+    /// 文件由测试直接写，绕过 <c>RecordAsync</c> 的裁剪。
+    /// </remarks>
+    [Fact]
+    public async Task OversizedFile_IsTrimmedOnRead()
+    {
+        var entries = Enumerable.Range(1, 5)
+            .Select(id => PlayHistoryEntry.From(TrackWith(id, $"第 {id} 首"), Origin.AddMinutes(id)))
+            .ToList();
+
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllBytesAsync(Path_,
+            JsonSerializer.SerializeToUtf8Bytes(entries, PlayHistoryJsonContext.Default.ListPlayHistoryEntry), Ct);
+
+        var store = NewStore(new Clock(Origin), capacity: 3);
+
+        var recent = await store.GetRecentAsync(100, Ct);
+
+        Assert.Equal([5L, 4L, 3L], recent.Select(e => e.MusicId));
+
+        var rewritten = JsonSerializer.Deserialize(
+            await File.ReadAllBytesAsync(Path_, Ct), PlayHistoryJsonContext.Default.ListPlayHistoryEntry);
+
+        Assert.Equal(3, rewritten!.Count);
     }
 
     [Theory]
