@@ -102,8 +102,14 @@ internal sealed class LyricsLineLayout : IDisposable
     public bool GlyphsPrepared { get; set; }
     public CanvasRenderTarget? PlainImage { get; set; }
     public LyricsLineGlyphMask? GlyphMask { get; set; }
-    public GaussianBlurEffect? Blur { get; set; }
-    public float BlurAmount { get; set; }
+
+    /// <summary>
+    /// 远景模糊的半分辨率位图。绘制时直接画它，不再保留逐行的 D2D 效果缓存。
+    /// </summary>
+    public CanvasRenderTarget? BlurredImage { get; set; }
+
+    /// <summary>当前模糊级；<c>-1</c> 表示还没有生成。</summary>
+    public float BlurredAmount { get; set; } = -1;
     public bool ActivePrepared { get; set; }
     public LyricsActiveLineImage? ActiveImage { get; set; }
 
@@ -125,10 +131,11 @@ internal sealed class LyricsLineLayout : IDisposable
     public void ReleaseDrawingResources()
     {
         ReleaseActiveResources();
-        Blur?.Dispose();
+        BlurredImage?.Dispose();
         PlainImage?.Dispose();
         GlyphMask?.Dispose();
-        Blur = null;
+        BlurredImage = null;
+        BlurredAmount = -1;
         PlainImage = null;
         GlyphMask = null;
     }

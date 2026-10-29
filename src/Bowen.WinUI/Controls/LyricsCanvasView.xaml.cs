@@ -74,6 +74,9 @@ public sealed partial class LyricsCanvasView : UserControl
     private int _pressedLine = -1;
     private bool _dragging;
     private bool _tapSuppressed;
+    private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
+    private double _lastSurfaceWidth = -1;
+    private double _lastSurfaceHeight = -1;
 
     public LyricsCanvasView(LyricsViewModel viewModel, IPlaybackService engine, ILoggerFactory? loggerFactory = null)
     {
@@ -327,6 +330,13 @@ public sealed partial class LyricsCanvasView : UserControl
         var scale = XamlRoot.RasterizationScale;
         var width = Math.Ceiling(Canvas.ActualWidth * scale) / scale;
         var height = Math.Ceiling(Canvas.ActualHeight * scale) / scale;
+        if (_diagnostics && (Math.Abs(width - _lastSurfaceWidth) > 0.5 || Math.Abs(height - _lastSurfaceHeight) > 0.5))
+        {
+            _lastSurfaceWidth = width;
+            _lastSurfaceHeight = height;
+            _logger.LogInformation("歌词表面尺寸：{Width:F0}×{Height:F0} DIP，{Pixels:F0}×{Pixels2:F0} 像素",
+                width, height, width * scale, height * scale);
+        }
         if (_surfaceVisual is not null) _surfaceVisual.Size = new Vector2((float)width, (float)height);
         _renderLoop.SetViewport(width, height, scale, _fontSize);
     }

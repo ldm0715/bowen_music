@@ -464,3 +464,56 @@ Debug 和正常生成 apphost 的 Release 构建均通过。初次覆盖构建�
 歌词页打开时的静态 GPU/提交基线（约 +140 MB GPU、+98 MB 提交）没有降下来。
 关频谱、关长音发光、关整视口图层三组对照都没能隔离出具体分配方，
 下一步需要用 GPUView / WPR 抓 GPU 分配调用栈再定。0.5.0 的「已知问题」已如实披露。
+
+## 歌词页首次打开的显存归因（2026-10-29 晚）
+
+用 GPUView 自带的 `gpuview/log_mem.cmd`（DxgKrnl 0x100845 + D3D11/D3D12/UMD 全量）
+抓取冷启动后首次点开歌词页的 20 秒。同一状态的提交从 179.3 MB 涨到 279.9 MB，
+期间本进程的 `AdapterAllocation` 合计 158.5 MB，集中在打开后的 150 ms 内：
+
+| 分配 | 数量 | 单张 | 合计 | 归属 |
+| --- | ---: | ---: | ---: | --- |
+| 1728×992 BGRA 表面 | 3 | 6.75 MB | 20.2 MB | 合成表面（三缓冲） |
+| 2592×1472 BGRA 表面 | 1 | 15.2 MB | 15.2 MB | 合成/缩放表面 |
+| 1376×992 BGRA 表面 | 1 | 5.4 MB | 5.4 MB | 合成表面 |
+| 512×512 `D2D Internal: Cached texture` | 17 | 1.0 MB | 17.0 MB | 每行歌词的模糊效果缓存 |
+| 1026×1026 封面 | 1 | 4.2 MB | 4.2 MB | `SetCoverDecodePixels(1024)` |
+
+同一时刻还新建了 **2 台 D3D11 设备**：`LyricsBackdrop` 的 `CanvasControl`
+（Win2D 共享设备）和 `BackgroundCanvasDeviceLease`。之后的播放过程中，
+同名的 D2D 缓存纹理还会以 1024×1024（4 MB/张）反复出现，这是逐字行位图与长音发光
+共用的效果缓存，暂停后会回落。
+
+### 本轮改动
+
+1. `LyricsBackdrop` 改为 `CompositionCanvasHost` 渲染器，复用后台常驻 `CanvasDevice`，
+   不再创建 Win2D 共享设备。模糊、饱和度、交叉淡入的视觉效果保持不变。
+2. 歌词行的 `GaussianBlurEffect` 改为半分辨率预模糊位图：模糊级变化时画进一张
+   约 0.05 MB 的 `CanvasRenderTarget`，绘制时不再挂 D2D 效果，也不再保留
+   `D2D Internal: Cached texture`。这是本轮最大的一项，GPU 提交约少 25 MB。
+3. 歌词页封面按当前 DPI 解码：125% 下 768 px（原固定 1024），少约 1.8 MB。
+
+### 没有采用的方案
+
+- 共用一份 `CompositionGraphicsDevice`：多个后台绘制线程同时在同一个合成设备上
+  `CreateDrawingSession` 会抛 `COMException 0x80131509`，歌词与背景一起停画。
+  合成设备必须每个绘制表面一份。
+- `GaussianBlurEffect.CacheOutput = false`：内存没有稳定下降，反而让 D2D 每帧重建
+  512×512 中间纹理（打开 29 张、播放时每秒一百多张），已回退。
+
+### 复测
+
+同一台机器、同一首 57 行歌词、冷启动后首次打开，`tools/Measure-PlayerResources.ps1`
+同口径的即时读数（私有工作集 / 提交 / GPU 提交）：
+
+| 状态 | 改动前 | 改动后 |
+| --- | ---: | ---: |
+| 打开前 | 112 MB / 179 MB / 59 MB | 112 MB / 179 MB / 59 MB |
+| 首次打开歌词页 | 165 MB / 337 MB / 236 MB | 137 MB / 249 MB / 138 MB |
+| **增量** | **+53 / +158 / +177** | **+25 / +69 / +79** |
+
+首次打开的提交增量从约 +98 MB 降到 +69 MB，GPU 提交增量从约 +140 MB 降到 +79 MB。
+剩下的主要是 WinUI 为沉浸页新建的整窗合成层（三张 6.75 MB 加两张 5–15 MB），
+以及 XAML 页面树本身；关亚克力只差约 5 MB，已排除。
+私有工作集仍未达到“打开歌词页 200 MB、空闲 100 MB”的原始目标：
+空闲约 112 MB，打开后约 137 MB；提交与 GPU 提交受框架和驱动影响，不能按同一目标压缩。

@@ -1,52 +1,44 @@
-using System.Diagnostics;
 using System.Numerics;
 using Bowen.Core.Media;
 using Microsoft.Extensions.Logging;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Hosting;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Effects;
-using Microsoft.Graphics.Canvas.UI;
-using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Windows.Foundation;
+using Windows.UI;
 
 namespace Bowen.WinUI.Controls;
 
+/// <summary>封面驱动的模糊背景；固定 384 px 源图，由合成器缩放到整页。</summary>
+/// <remarks>
+/// <para>
+/// 走 <see cref="CompositionCanvasHost"/> 的共用后台设备，不再建 <c>CanvasControl</c>。
+/// 后者会拉起 Win2D 的进程级共享 D3D 设备；首次打开歌词页时这台设备与后台设备同时创建，
+/// 是静态显存的主要来源之一。
+/// </para>
+/// <para>
+/// 模糊、饱和度和 600 ms 交叉淡入与原实现一致，只是改为直接画到页面大小的合成表面。
+/// </para>
+/// </remarks>
 public sealed class LyricsBackdrop : UserControl
 {
     public static readonly DependencyProperty CoverUriProperty = DependencyProperty.Register(
         nameof(CoverUri), typeof(Uri), typeof(LyricsBackdrop), new PropertyMetadata(null, OnCoverChanged));
 
     private const double SurfaceSize = 384;
-    private CanvasControl? _canvas;
-    private readonly Viewbox _host = new() { Stretch = Stretch.UniformToFill };
-    private readonly DispatcherQueueTimer _fadeTimer;
-    private readonly Stopwatch _fadeClock = new();
-    private readonly ILogger? _logger;
-    private CanvasDevice? _device;
-    private CoverSurface? _current;
-    private CoverSurface? _previous;
-    private Uri? _requestedUri;
-    private int _request;
-    private bool _loaded;
-    private bool _paused;
-    private bool _resourcesSuspended;
-    private double _fade = 1;
+    private readonly CompositionCanvasHost _canvas;
+    private Uri? _coverUri;
 
     public LyricsBackdrop()
     {
         IsHitTestVisible = false;
-        // 模糊背景只需低分辨率缓存；窗口缩放交给合成器，避免每个 WM_SIZE
-        // 都分配一张窗口大小的 Win2D 表面并重跑模糊效果。
-        Content = _host;
-        _logger = (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)
+        var logger = (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)
             ?.CreateLogger<LyricsBackdrop>();
-        _fadeTimer = DispatcherQueue.CreateTimer();
-        _fadeTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / 60);
-        Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
+        _canvas = new CompositionCanvasHost("歌词背景",
+            (device, token) => new BackdropRenderer(device, () => Volatile.Read(ref _coverUri), token, logger),
+            framesPerSecond: 60);
+        Content = _canvas;
     }
 
     public Uri? CoverUri
@@ -57,205 +49,178 @@ public sealed class LyricsBackdrop : UserControl
 
     public bool IsPaused
     {
-        get => _paused;
-        set
-        {
-            if (_paused == value) return;
-            _paused = value;
-            if (value) _fadeTimer.Stop();
-            else if (_loaded)
-            {
-                if (_fade < 1) _fadeTimer.Start();
-                _canvas?.Invalidate();
-            }
-        }
+        get => _canvas.IsPaused;
+        set => _canvas.IsPaused = value;
     }
 
     public bool IsResourceSuspended
     {
-        get => _resourcesSuspended;
-        set
-        {
-            if (_resourcesSuspended == value) return;
-            _resourcesSuspended = value;
-            if (value)
-            {
-                _request++;
-                _requestedUri = null;
-                ClearSurfaces();
-                ReleaseCanvas();
-            }
-            else if (_loaded)
-            {
-                EnsureCanvas();
-                _ = LoadCoverAsync();
-            }
-        }
+        get => _canvas.IsResourceSuspended;
+        set => _canvas.IsResourceSuspended = value;
     }
 
     private static void OnCoverChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
-        => _ = ((LyricsBackdrop)sender).LoadCoverAsync();
-
-    private void OnLoaded(object sender, RoutedEventArgs args)
     {
-        _loaded = true;
-        _fadeTimer.Tick += OnFadeTick;
-        if (!_resourcesSuspended) EnsureCanvas();
-        var visual = ElementCompositionPreview.GetElementVisual(this);
-        visual.Clip = visual.Compositor.CreateInsetClip();
-        _canvas?.Invalidate();
-        _ = LoadCoverAsync();
+        var view = (LyricsBackdrop)sender;
+        Volatile.Write(ref view._coverUri, (Uri?)args.NewValue);
+        view._canvas.Invalidate();
     }
 
-    private void EnsureCanvas()
+    private sealed class BackdropRenderer(
+        CanvasDevice device, Func<Uri?> cover, CancellationToken stop, ILogger? logger) : ICompositionCanvasRenderer
     {
-        if (_canvas is not null) return;
-        // 用 Win2D 的进程共享设备。独占设备每次进出歌词页都要新建、销毁一台，
-        // 驱动侧会残留句柄和原生内存，长时间使用持续累积；常驻一台反而占用固定。
-        _canvas = new CanvasControl
+        private const double FadeSeconds = 0.6;
+
+        private CanvasBitmap? _loadingBitmap;
+        private CoverSurface? _current;
+        private CoverSurface? _previous;
+        private CancellationTokenSource? _loadCancellation;
+        private Uri? _requested;
+        private bool _loading;
+        private double _fade = 1;
+        private TimeSpan _fadeStarted;
+        private bool _fading;
+
+        public bool Draw(CanvasDrawingSession session, double width, double height, TimeSpan now)
         {
-            Width = SurfaceSize, Height = SurfaceSize,
-            ClearColor = Windows.UI.Color.FromArgb(0, 0, 0, 0),
-        };
-        _canvas.CreateResources += OnCreateResources;
-        _canvas.Draw += OnDraw;
-        _host.Child = _canvas;
-    }
+            if (width <= 0 || height <= 0) return false;
 
-    private void ReleaseCanvas()
-    {
-        var canvas = _canvas;
-        _canvas = null;
-        _device = null;
-        if (canvas is null) return;
-        canvas.CreateResources -= OnCreateResources;
-        canvas.Draw -= OnDraw;
-        _host.Child = null;
-        canvas.RemoveFromVisualTree();
-    }
+            var uri = cover();
+            if (uri != _requested) BeginLoad(uri);
 
-    private void OnCreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)
-    {
-        _request++;
-        ClearSurfaces();
-        _requestedUri = null;
-        _device = sender.Device;
-        _device.MaximumCacheSize = 2UL * 1024 * 1024;
-        _ = LoadCoverAsync();
-    }
+            if (_loadingBitmap is { } bitmap)
+            {
+                _loadingBitmap = null;
+                _loading = false;
+                _previous?.Dispose();
+                _previous = _current;
+                _current = new CoverSurface(bitmap);
+                _fade = 0;
+                _fadeStarted = now;
+                _fading = true;
+            }
 
-    private async Task LoadCoverAsync()
-    {
-        if (!_loaded || _resourcesSuspended || _device is not { } device) return;
-        var uri = CoverUri;
-        if (uri == _requestedUri && _current is not null) return;
-        _requestedUri = uri;
-        var request = ++_request;
-        if (uri is null)
-        {
-            ClearSurfaces();
-            _canvas?.Invalidate();
-            return;
+            if (_fading)
+            {
+                var progress = Math.Clamp((now - _fadeStarted).TotalSeconds / FadeSeconds, 0, 1);
+                _fade = progress * progress * (3 - 2 * progress);
+                if (progress >= 1)
+                {
+                    _fading = false;
+                    _previous?.Dispose();
+                    _previous = null;
+                    _fade = 1;
+                }
+            }
+
+            var animating = _fading || _loading;
+            if (_previous is { } previous) DrawSurface(session, previous, width, height, 1 - _fade);
+            if (_current is { } current) DrawSurface(session, current, width, height, _fade);
+            return animating;
         }
 
-        try
+        private void BeginLoad(Uri? uri)
         {
-            var bitmap = await CanvasBitmap.LoadAsync(device, CoverArtUrl.Jpeg(uri, (int)SurfaceSize));
-            if (!_loaded || request != _request || device != _device)
+            CancelLoad();
+            _requested = uri;
+            if (uri is null)
             {
-                bitmap.Dispose();
+                _current?.Dispose();
+                _previous?.Dispose();
+                _current = _previous = null;
+                _fading = false;
+                _fade = 1;
                 return;
             }
-            _fadeTimer.Stop();
-            _previous?.Dispose();
-            _previous = _current;
-            _current = new CoverSurface(bitmap);
-            _fade = 0;
-            _fadeClock.Restart();
-            if (!_paused) _fadeTimer.Start();
-            _canvas?.Invalidate();
+
+            _loadCancellation = CancellationTokenSource.CreateLinkedTokenSource(stop);
+            _loading = true;
+            _ = LoadAsync(uri, _loadCancellation.Token);
         }
-        catch (Exception exception)
+
+        private async Task LoadAsync(Uri uri, CancellationToken token)
         {
-            if (!_loaded || request != _request) return;
-            _logger?.LogWarning(exception, "全屏歌词封面背景加载失败");
-            ClearSurfaces();
-            _canvas?.Invalidate();
+            try
+            {
+                var bitmap = await CanvasBitmap.LoadAsync(device, CoverArtUrl.Jpeg(uri, (int)SurfaceSize)).AsTask(token);
+                if (token.IsCancellationRequested || uri != _requested)
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+
+                _loadingBitmap = bitmap;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (Exception exception)
+            {
+                _loading = false;
+                logger?.LogWarning(exception, "全屏歌词封面背景加载失败");
+            }
+            finally
+            {
+                if (token.IsCancellationRequested || uri != _requested) _loading = false;
+            }
         }
-    }
 
-    private void OnFadeTick(DispatcherQueueTimer sender, object args)
-    {
-        var progress = Math.Clamp(_fadeClock.Elapsed.TotalMilliseconds / 600, 0, 1);
-        _fade = progress * progress * (3 - 2 * progress);
-        _canvas?.Invalidate();
-        if (progress < 1) return;
-        _fadeTimer.Stop();
-        _previous?.Dispose();
-        _previous = null;
-    }
-
-    private void OnDraw(CanvasControl sender, CanvasDrawEventArgs args)
-    {
-        if (_paused) return;
-        var session = args.DrawingSession;
-        if (_previous is { } previous) DrawSurface(session, previous, 1 - _fade);
-        if (_current is { } current) DrawSurface(session, current, _fade);
-    }
-
-    private void DrawSurface(CanvasDrawingSession session, CoverSurface surface, double opacity)
-    {
-        if (opacity <= 0 || _canvas is not { } canvas || canvas.ActualWidth <= 0 || canvas.ActualHeight <= 0) return;
-        var size = surface.Bitmap.Size;
-        var scale = Math.Max(canvas.ActualWidth / size.Width, canvas.ActualHeight / size.Height) * 1.1;
-        var displayScale = Math.Max(ActualWidth, ActualHeight) / SurfaceSize;
-        surface.Blur.BlurAmount = (float)(52 / (scale * Math.Max(0.1, displayScale)));
-        var previousTransform = session.Transform;
-        session.Transform = Matrix3x2.CreateScale((float)scale)
-            * Matrix3x2.CreateTranslation((float)((canvas.ActualWidth - size.Width * scale) / 2),
-                (float)((canvas.ActualHeight - size.Height * scale) / 2));
-        using (session.CreateLayer((float)(opacity * 0.72))) session.DrawImage(surface.Blur);
-        session.Transform = previousTransform;
-    }
-
-    private void ClearSurfaces()
-    {
-        _fadeTimer.Stop();
-        _current?.Dispose();
-        _previous?.Dispose();
-        _current = _previous = null;
-    }
-
-    private void OnUnloaded(object sender, RoutedEventArgs args)
-    {
-        _loaded = false;
-        _fadeTimer.Tick -= OnFadeTick;
-        _request++;
-        _device = null;
-        _requestedUri = null;
-        ClearSurfaces();
-        ReleaseCanvas();
-        var visual = ElementCompositionPreview.GetElementVisual(this);
-        visual.Clip?.Dispose();
-        visual.Clip = null;
-    }
-
-    private sealed class CoverSurface(CanvasBitmap bitmap) : IDisposable
-    {
-        public CanvasBitmap Bitmap { get; } = bitmap;
-        private readonly SaturationEffect _saturation = new() { Source = bitmap, Saturation = 0.68f };
-        private GaussianBlurEffect? _blur;
-        public GaussianBlurEffect Blur => _blur ??= new GaussianBlurEffect
+        private void DrawSurface(CanvasDrawingSession session, CoverSurface surface, double width, double height,
+            double opacity)
         {
-            Source = _saturation,
-            BorderMode = EffectBorderMode.Hard,
-            Optimization = EffectOptimization.Balanced,
-        };
+            if (opacity <= 0) return;
+            var size = surface.Bitmap.Size;
+            if (size.Width <= 0 || size.Height <= 0) return;
+
+            // 与原来的 Viewbox UniformToFill 一致：铺满整页后放大 10%，居中。
+            var scale = Math.Max(width / size.Width, height / size.Height) * 1.1;
+            surface.Blur.BlurAmount = (float)(52 / scale);
+            var previous = session.Transform;
+            session.Transform = Matrix3x2.CreateScale((float)scale)
+                * Matrix3x2.CreateTranslation((float)((width - size.Width * scale) / 2),
+                    (float)((height - size.Height * scale) / 2));
+            using (session.CreateLayer((float)(opacity * 0.72))) session.DrawImage(surface.Blur);
+            session.Transform = previous;
+        }
+
+        private void CancelLoad()
+        {
+            _loadCancellation?.Cancel();
+            _loadCancellation?.Dispose();
+            _loadCancellation = null;
+            if (_loadingBitmap is { } bitmap)
+            {
+                _loadingBitmap = null;
+                bitmap.Dispose();
+            }
+            _loading = false;
+        }
+
         public void Dispose()
         {
-            _blur?.Dispose();
-            _saturation.Dispose();
-            Bitmap.Dispose();
+            CancelLoad();
+            _current?.Dispose();
+            _previous?.Dispose();
+            _current = _previous = null;
+        }
+
+        private sealed class CoverSurface(CanvasBitmap bitmap) : IDisposable
+        {
+            public CanvasBitmap Bitmap { get; } = bitmap;
+            private readonly SaturationEffect _saturation = new() { Source = bitmap, Saturation = 0.68f };
+            private GaussianBlurEffect? _blur;
+
+            public GaussianBlurEffect Blur => _blur ??= new GaussianBlurEffect
+            {
+                Source = _saturation,
+                BorderMode = EffectBorderMode.Hard,
+                Optimization = EffectOptimization.Balanced,
+            };
+
+            public void Dispose()
+            {
+                _blur?.Dispose();
+                _saturation.Dispose();
+                Bitmap.Dispose();
+            }
         }
     }
 }

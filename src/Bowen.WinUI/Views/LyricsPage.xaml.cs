@@ -191,7 +191,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _chromeTimer.Tick += OnChromeTimer;
         _pointerTimer.Tick += OnPointerTimer;
         _layoutTimer.Tick += OnLayoutTimer;
-        Player.SetCoverDecodePixels(1024);
+        // 封面槽最大 580 DIP；按当前 DPI 取够用的解码尺寸，别一律按 1024 解。
+        // 125% 下 725 px，取 768；150% 以上才需要接近 1024。
+        var coverScale = XamlRoot?.RasterizationScale ?? 1;
+        Player.SetCoverDecodePixels(Math.Min(1024, (int)Math.Ceiling(580 * coverScale / 64) * 64));
         _windowVisible = _window.AppWindow.IsVisible;
         _themeRoot = _window.ThemeRoot;
         _themeRoot.ActualThemeChanged += OnAppThemeChanged;

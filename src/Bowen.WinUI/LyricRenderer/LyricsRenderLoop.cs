@@ -221,6 +221,8 @@ internal sealed class LyricsRenderLoop
             session.Clear(Windows.UI.Color.FromArgb(0, 0, 0, 0));
             _renderer.Draw(session);
         }
+        // 预模糊过程中产生的 D2D 中间表面已不再被引用，在绘制会话结束后归还。
+        if (_renderer.TakeTrimRequest()) BackgroundCanvasDeviceLease.TrimShared();
         if (_diagnostics) RecordFrame(drawStarted);
         if (_browsing == _renderer.IsBrowsing) return;
         _browsing = _renderer.IsBrowsing;

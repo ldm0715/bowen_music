@@ -38,6 +38,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private bool _scaleAnimating;
     private double[] _centers = [];
     private CanvasLinearGradientBrush? _edgeBrush;
+    private bool _blurredCreated;
     private Color _played = Color.FromArgb(242, 255, 255, 255);
     private Color _unplayed = Color.FromArgb(80, 255, 255, 255);
 
@@ -337,15 +338,29 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 {
                     var distance = Math.Abs(index - _focusIndex);
                     var blurAmount = (float)Math.Min(settings.FarBlurAmount, Math.Max(0, distance - 1) * 1.25);
-                    // 同值也写效果属性会使缓存失效；只有焦点距离变化才重算模糊。
-                    if (line.BlurAmount != blurAmount) line.Blur!.BlurAmount = line.BlurAmount = blurAmount;
                     if (blurAmount < 0.01)
                         session.DrawImage(line.PlainImage!, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
-                    else session.DrawImage(line.Blur, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
+                    else
+                    {
+                        EnsureBlurredImage(line, blurAmount);
+                        var bounds = line.GlyphMask!.Bounds;
+                        session.DrawImage(line.BlurredImage,
+                            new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+                    }
                 }
             }
             session.Transform = previousTransform;
         }
+    }
+
+    /// <summary>
+    /// 取走“本帧生成过模糊中间表面”的标记，由绘制循环在结束绘制会话后调用 Trim。
+    /// </summary>
+    public bool TakeTrimRequest()
+    {
+        var requested = _blurredCreated;
+        _blurredCreated = false;
+        return requested;
     }
 
     /// <summary>
@@ -384,14 +399,38 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         line.ReleaseDrawingResources();
         line.GlyphMask = new LyricsLineGlyphMask(_creator!, line, _dpi);
         line.PlainImage = line.GlyphMask.Paint(WithOpacity(InactiveTextColor, settings.InactiveLineOpacity));
-        line.BlurAmount = 0;
-        line.Blur = new GaussianBlurEffect
+    }
+
+    /// <summary>
+    /// 生成远景模糊的半分辨率位图。
+    /// </summary>
+    /// <remarks>
+    /// 原来每条可见行各挂一个 <see cref="GaussianBlurEffect"/> + <c>CacheOutput</c>，
+    /// D2D 会为每行留一张 512×512 或 1024×1024 的缓存纹理（首次打开实测 17 张、17 MB）。
+    /// 现在只在模糊级变化时把结果画进一张半分辨率位图，效果对象用完即弃，绘制时零效果。
+    /// </remarks>
+    private void EnsureBlurredImage(LyricsLineLayout line, float blurAmount)
+    {
+        if (line.BlurredImage is not null && Math.Abs(line.BlurredAmount - blurAmount) < 0.01) return;
+        if (line.PlainImage is not { } plain || line.GlyphMask is not { } mask) return;
+        line.BlurredImage?.Dispose();
+        var bounds = mask.Bounds;
+        const float scale = 0.5f;
+        var target = new CanvasRenderTarget(_creator!, (float)bounds.Width, (float)bounds.Height, _dpi * scale);
+        using var effect = new GaussianBlurEffect
         {
-            BlurAmount = 0,
-            Source = line.PlainImage,
+            Source = plain,
+            BlurAmount = blurAmount,
             BorderMode = EffectBorderMode.Soft,
-            CacheOutput = true,
         };
+        using (var session = target.CreateDrawingSession())
+        {
+            session.Clear(Color.FromArgb(0, 0, 0, 0));
+            session.DrawImage(effect);
+        }
+        line.BlurredImage = target;
+        line.BlurredAmount = blurAmount;
+        _blurredCreated = true;
     }
 
     private void DrawActiveLine(CanvasDrawingSession session, LyricsLayoutSnapshot snapshot, int index)
