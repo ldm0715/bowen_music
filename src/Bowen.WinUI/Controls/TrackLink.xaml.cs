@@ -65,15 +65,27 @@ public sealed partial class TrackLink : UserControl
     /// 切「显示哪一格」。格子里是链接还是普通文字由模板绑行上的判据决定，这里不掺和。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <b>Row 还没赋上时两格一起收起</b>：否则空路径会闪出一对空链接。
     /// 容器回收换曲目时本方法会被再调一次（<c>Row="{x:Bind}"</c> 会重赋），不需要别的清理。
+    /// </para>
+    /// <para>
+    /// 两格都是 <c>x:Load="False"</c>：第一次要显示时才用 <c>FindName</c> 创建，
+    /// 之后只切显隐。从不显示的那一格始终不创建。
+    /// </para>
     /// </remarks>
     private void ApplyKind()
     {
         var present = Row is not null;
 
-        ArtistRoot.Visibility = Vis(present && Kind == TrackLinkKind.Artist);
-        AlbumRoot.Visibility = Vis(present && Kind == TrackLinkKind.Album);
+        Show(nameof(ArtistRoot), present && Kind == TrackLinkKind.Artist);
+        Show(nameof(AlbumRoot), present && Kind == TrackLinkKind.Album);
+    }
+
+    private void Show(string name, bool visible)
+    {
+        var part = visible ? FindName(name) as UIElement : name == nameof(ArtistRoot) ? ArtistRoot : AlbumRoot;
+        if (part is not null) part.Visibility = Vis(visible);
     }
 
     private static Visibility Vis(bool value) => value ? Visibility.Visible : Visibility.Collapsed;

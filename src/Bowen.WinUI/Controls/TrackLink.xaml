@@ -69,10 +69,13 @@
         </Style>
     </UserControl.Resources>
 
-    <!-- 根 Grid 不设 Background：空白处不参与命中，点它照旧落到整行（播放 / 勾选）。 -->
+    <!--
+        根 Grid 不设 Background：空白处不参与命中，点它照旧落到整行（播放 / 勾选）。
+        两格都延迟创建：每个实例只用其中一格，另一格的两份 MarqueeText 不建。
+    -->
     <Grid>
         <!-- 歌手：可点时是链接，点不动时是次级灰的普通文字。 -->
-        <Grid x:Name="ArtistRoot" Visibility="Collapsed">
+        <Grid x:Name="ArtistRoot" x:Load="False">
             <HyperlinkButton
                 Click="OnArtistClick"
                 Style="{StaticResource TrackLinkButtonStyle}"
@@ -96,7 +99,7 @@
         </Grid>
 
         <!-- 专辑：同上，灰阶用三级。 -->
-        <Grid x:Name="AlbumRoot" Visibility="Collapsed">
+        <Grid x:Name="AlbumRoot" x:Load="False">
             <HyperlinkButton
                 Click="OnAlbumClick"
                 Style="{StaticResource TrackLinkButtonStyle}"

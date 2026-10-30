@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
@@ -53,12 +54,20 @@ public sealed partial class MarqueeText : UserControl
     /// <summary>当前水平位移（≤ 0）。取消时要从这里接着往回滚，不能回到 0 再重来。</summary>
     private double _offset;
 
+    /// <summary>
+    /// 文字层的合成视觉。<b>第一次真正需要滚动时才取。</b>
+    /// </summary>
+    /// <remarks>
+    /// 取元素的合成视觉会让该元素永久转入合成层交接，每个实例都要额外建视觉与属性集。
+    /// 每行歌曲有多个本控件，而会被悬停滚动的只有指针下那一行，所以不在构造或换文字时取。
+    /// </remarks>
+    private Visual? _trackVisual;
+
+    private RectangleGeometry? _clip;
+
     public MarqueeText()
     {
         InitializeComponent();
-
-        // Translation 必须显式打开，否则写进 visual 的偏移不生效（与 AppMotion 同一做法）。
-        ElementCompositionPreview.SetIsTranslationEnabled(Track, true);
 
         // 容器回收时事件会重新挂到新曲目上，偏移必须归零，否则新行一露面就停在半截。
         Unloaded += (_, _) => Reset();
@@ -88,10 +97,11 @@ public sealed partial class MarqueeText : UserControl
     }
 
     private void OnClipHostSizeChanged(object sender, SizeChangedEventArgs e)
-        => ClipHost.Clip = new RectangleGeometry
-        {
-            Rect = new Rect(0, 0, Math.Max(0, e.NewSize.Width), Math.Max(0, e.NewSize.Height)),
-        };
+    {
+        // 复用同一个几何对象，尺寸变化只改矩形。
+        _clip ??= ClipHost.Clip = new RectangleGeometry();
+        _clip.Rect = new Rect(0, 0, Math.Max(0, e.NewSize.Width), Math.Max(0, e.NewSize.Height));
+    }
 
     private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
     {
@@ -190,8 +200,19 @@ public sealed partial class MarqueeText : UserControl
     }
 
     private void ApplyOffset(double value)
-        => ElementCompositionPreview.GetElementVisual(Track)
-            .Properties.InsertVector3("Translation", new Vector3((float)value, 0, 0));
+    {
+        if (_trackVisual is null)
+        {
+            // 从未滚动过时位移本来就是 0，归零不需要建视觉。
+            if (value == 0) return;
+
+            // Translation 必须显式打开，否则写进 visual 的偏移不生效（与 AppMotion 同一做法）。
+            ElementCompositionPreview.SetIsTranslationEnabled(Track, true);
+            _trackVisual = ElementCompositionPreview.GetElementVisual(Track);
+        }
+
+        _trackVisual.Properties.InsertVector3("Translation", new Vector3((float)value, 0, 0));
+    }
 
     /// <summary>取消当前滚动并回到起点（不在树里、换文字时走这里）。</summary>
     private void Reset()

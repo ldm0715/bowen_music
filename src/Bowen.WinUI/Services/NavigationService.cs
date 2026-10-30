@@ -22,6 +22,17 @@ public sealed class NavigationService : INavigationService
     private readonly bool _diagnostics = Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1";
 
     private readonly NavigationStack<Page> _stack;
+    /// <summary>
+    /// 无参根页缓存的上限，取侧栏根页的总数。
+    /// </summary>
+    /// <remarks>
+    /// 上限小于侧栏根页数时，用户依次点侧栏就会不断丢弃、重建最重的那几页（排行榜、发现页）。
+    /// 实测轮流点侧栏时原生内存每轮都在上涨，而托管侧没有对象存活；重建根页是最可疑的来源，
+    /// 但调大上限后的效果尚未验证，见 <c>docs/browse-memory.md</c>。
+    /// 最小化、隐藏到托盘和换账号时缓存照旧清空，常驻的最多就是这几页。
+    /// </remarks>
+    private const int MaxCachedRootPages = 8;
+
     private readonly Dictionary<Type, Page> _rootPages = [];
     private readonly LinkedList<Type> _rootRecency = new();
 
@@ -110,7 +121,7 @@ public sealed class NavigationService : INavigationService
             _rootPages[type] = page;
             _rootRecency.Remove(type);
             _rootRecency.AddFirst(type);
-            if (_rootPages.Count > 3 && _rootRecency.Last is { } oldest)
+            if (_rootPages.Count > MaxCachedRootPages && _rootRecency.Last is { } oldest)
             {
                 _rootPages.Remove(oldest.Value);
                 _rootRecency.RemoveLast();
