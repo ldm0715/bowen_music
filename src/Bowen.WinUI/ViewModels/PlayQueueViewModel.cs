@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Bowen.Core.Models;
 using Bowen.WinUI.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
@@ -9,13 +10,14 @@ namespace Bowen.WinUI.ViewModels;
 /// 右侧播放队列抽屉的状态与动作。**单例**，与主窗口同寿命。
 /// </summary>
 /// <remarks>
-/// <b>条目有增删挪动就整表重建，不做增量同步。</b> 那类变动不频繁（换页、增删、拖动重排），
-/// 而增量同步要自己维护一套「哪一行对应哪个下标」的影子状态 ——
-/// 队列那边刚因为下标重映射踩过一遍，这里没必要再来一次。
+/// <b>集合的变更尽量就地做，不整表重建。</b> 整表重建（清空再填满）会让 ListView 的滚动位置
+/// 弹回顶部：点行切歌、删一首、拖动重排都会被写成「刷了一下、回到最上面」。
+/// 只有「条目真的变了、且不是单删/单挪」时才重建（换页、批量增删、随机重洗）。
 /// <para>
-/// <b>例外是「条目没动」的变更</b>：点行切歌、一首放完自动续播只挪游标，切播放模式只改
-/// 「能不能拖」。这时就地更新行上的 <c>IsCurrent</c> / <c>CanReorder</c>，不重建集合 ——
-/// 整表重建会让 ListView 的滚动位置弹回顶部，用户看到的是「没动列表却刷了一下」。
+/// <b>三种就地路径</b>：条目没动只改 <c>IsCurrent</c> / <c>CanReorder</c>；
+/// 少了一首就 <c>RemoveAt</c>；只挪了一首就 <c>Move</c>。
+/// 增量同步要自己维护「哪一行对应哪个下标」的影子状态，但队列那边已经因为下标重映射踩过一遍，
+/// 这里的判据只认引用比对，不做影子状态。
 /// </para>
 /// </remarks>
 public sealed partial class PlayQueueViewModel : ObservableObject
@@ -115,8 +117,10 @@ public sealed partial class PlayQueueViewModel : ObservableObject
     /// 把第 <paramref name="from"/> 首挪到第 <paramref name="to"/> 位（挪完后的最终下标）。
     /// </summary>
     /// <remarks>
-    /// 行号与行对象靠 <c>Changed → RefreshIfOpen</c> 自动重建，不用在这里同步维护 ——
-    /// 那次重建排在 dispatcher 下一轮，正好落在触发它的那个指针事件处理之后。
+    /// 行号与行对象靠 <c>Changed → RefreshIfOpen</c> 自动同步，不用在这里维护 ——
+    /// 那次同步排在 dispatcher 下一轮，正好落在触发它的那个指针事件处理之后。
+    /// <see cref="Refresh"/> 认得「只挪了一行」这种变更，会就地 <c>Move</c>，不重建集合
+    /// （重建会把滚动位置弹回顶部，见 <see cref="TryApplyMove"/>）。
     /// </remarks>
     public void Move(int from, int to) => _ = _coordinator.MoveQueueItem(from, to);
 
@@ -144,6 +148,12 @@ public sealed partial class PlayQueueViewModel : ObservableObject
 
         // 只删了一行时也只删对应的行，保留其余容器与滚动位置。
         if (TryApplyRemoval(queue, current, canReorder))
+        {
+            return;
+        }
+
+        // 只挪了一行（拖动排序）时原地 Move，保留滚动位置。
+        if (TryApplyMove(queue, current, canReorder))
         {
             return;
         }
@@ -234,12 +244,116 @@ public sealed partial class PlayQueueViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 队列里只有一行换了位置时，就地 <c>Move</c>，不整表重建。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>拖动排序走这条。</b> 整表重建（清空再填满）会让 ListView 的滚动位置弹回顶部 ——
+    /// 用户把一首歌拖到列表末尾、松手却被甩回队首。就地 <c>Move</c> 只发一次
+    /// <c>NotifyCollectionChangedAction.Move</c>，条数不变，列表照旧停在原处。
+    /// </para>
+    /// <para>
+    /// <b>判据与 <see cref="TryApplyRemoval"/> 同一套：只认引用。</b> 先找第一处对不上的下标，
+    /// 用相邻那一格判断是往前往后挪，再把被挪的那行在两边的下标都找出来；
+    /// 最后整表逐格验证「恰好是一次抽出再插入」的结果。对不上（同时增删、换页、重新洗牌）
+    /// 就返回 <c>false</c>，让 <see cref="Refresh"/> 走整表重建。
+    /// </para>
+    /// </remarks>
+    private bool TryApplyMove(PlayQueue queue, int current, bool canReorder)
+    {
+        if (Rows.Count == 0 || Rows.Count != queue.Count)
+        {
+            return false;
+        }
+
+        var first = -1;
+
+        for (var i = 0; i < Rows.Count; i++)
+        {
+            if (!ReferenceEquals(Rows[i].Source, queue.Items[i]))
+            {
+                first = i;
+                break;
+            }
+        }
+
+        // 逐格引用都对得上：条目没动，交给 CanReuseRows 那条路。
+        if (first < 0)
+        {
+            return false;
+        }
+
+        // 往后挪时，旧第 first 行让位给旧第 first+1 行；往前挪时反过来。
+        var forward = first + 1 < Rows.Count
+            && ReferenceEquals(Rows[first + 1].Source, queue.Items[first]);
+
+        var from = forward ? first : IndexOfSource(Rows, queue.Items[first]);
+        var to = forward ? IndexOfSource(queue.Items, Rows[first].Source) : first;
+
+        if (from < 0 || to < 0 || from == to)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < Rows.Count; i++)
+        {
+            var source = i == to ? from
+                : from < to && i >= from && i < to ? i + 1
+                : from > to && i > to && i <= from ? i - 1
+                : i;
+
+            if (!ReferenceEquals(Rows[source].Source, queue.Items[i]))
+            {
+                return false;
+            }
+        }
+
+        Rows.Move(from, to);
+
+        for (var i = 0; i < Rows.Count; i++)
+        {
+            Rows[i].Position = i;
+            Rows[i].IsCurrent = i == current;
+            Rows[i].CanReorder = canReorder;
+        }
+
+        return true;
+    }
+
+    private static int IndexOfSource(IReadOnlyList<PlayQueueRow> rows, Track source)
+    {
+        for (var i = 0; i < rows.Count; i++)
+        {
+            if (ReferenceEquals(rows[i].Source, source))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int IndexOfSource(IReadOnlyList<Track> items, Track source)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (ReferenceEquals(items[i], source))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
     /// 现有这些行还能不能接着用，不必重建。
     /// </summary>
     /// <remarks>
-    /// <b>按下标逐个比引用。</b> 增删、拖动重排会让某一格对不上，于是整表重建；
+    /// <b>按下标逐个比引用。</b> 增删、换页会让某一格对不上，于是整表重建；
     /// 只动游标或只切播放模式的变更则每一格都对得上 —— 行号
     /// （<see cref="PlayQueueRow.Position"/>）没变，<c>CanReorder</c> 就地更新。
+    /// 单删与单挪（拖动排序）在此之前已经由各自的路径处理掉，走不到这里。
     /// </remarks>
     private bool CanReuseRows(PlayQueue queue)
     {

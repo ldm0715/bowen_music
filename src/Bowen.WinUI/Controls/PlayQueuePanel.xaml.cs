@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.Numerics;
 using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -61,6 +62,12 @@ public sealed partial class PlayQueuePanel : UserControl
     /// <summary>卡片浮起来的高度，<c>ThemeShadow</c> 靠它投影。</summary>
     private const float GhostLift = 32;
 
+    /// <summary>拖动时指针进入列表上下边缘这么多 DIP 内开始自动滚动。</summary>
+    private const double AutoScrollZone = 36;
+
+    /// <summary>自动滚动每帧最多走多少 DIP（16 ms 一帧）。</summary>
+    private const double AutoScrollMaxStep = 16;
+
     private readonly ThemeShadow _ghostShadow = new();
 
     /// <summary>
@@ -79,6 +86,11 @@ public sealed partial class PlayQueuePanel : UserControl
     private double _grabOffset;
     private double _pitch;
     private bool _dragging;
+    private ScrollViewer? _scroll;
+    private DispatcherQueueTimer? _autoScrollTimer;
+    private double _autoScrollStep;
+    private double _pointerY;
+    private double _contentTop = double.NaN;
 
     public PlayQueuePanel()
     {
@@ -94,6 +106,10 @@ public sealed partial class PlayQueuePanel : UserControl
         RowList.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnListPointerReleased), true);
         RowList.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnListPointerCaptureLost), true);
         RowList.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnListPointerCanceled), true);
+
+        // ★ 拖动时列表会随自动滚动回收容器。容器上的位移/透明度是元素自身的属性，
+        //   不跟着行数据走 —— 复用去装另一行时必须按新行重算，否则会串到别的行上。
+        RowList.ContainerContentChanging += OnContainerContentChanging;
 
         // 行列先藏起来：打开时要把它滑到「正在播放」那一行，定位完成前露出来的就是列表顶部。
         AppMotion.Hide(RowList);
@@ -651,6 +667,11 @@ public sealed partial class PlayQueuePanel : UserControl
         // 一行占的高度（含行间距），让位时整行整行地挪。
         _pitch = container.ActualHeight + container.Margin.Top + container.Margin.Bottom;
 
+        // 自动滚动与落点都按「滚动偏移 + 行距」算：先把滚动器与第 0 行在内容坐标里的
+        // 位置量出来，之后指针不动、列表滚动时也能算对落点。
+        _scroll = FindDescendant<ScrollViewer>(RowList);
+        _contentTop = ContentTop();
+
         RowList.CapturePointer(e.Pointer);
 
         // ★ 不标 Handled 的话，ListViewItem 会把这次按下当成一次行点击，松手就切歌。
@@ -665,6 +686,7 @@ public sealed partial class PlayQueuePanel : UserControl
         }
 
         var y = e.GetCurrentPoint(RowHost).Position.Y;
+        _pointerY = y;
 
         // 位移不够就不算开始拖。
         if (!_dragging)
@@ -679,13 +701,10 @@ public sealed partial class PlayQueuePanel : UserControl
 
         MoveGhost(y);
 
-        var slot = SlotAt(y);
+        ApplyShifts(SlotAt(y));
 
-        if (slot != _slot)
-        {
-            _slot = slot;
-            ApplyShifts(slot);
-        }
+        // 拖到列表上下边缘附近时自动滚动；指针离开边缘区就停。
+        UpdateAutoScroll();
 
         e.Handled = true;
     }
@@ -765,12 +784,17 @@ public sealed partial class PlayQueuePanel : UserControl
     /// </remarks>
     private void ApplyShifts(int slot)
     {
-        if (RowList.ItemsPanelRoot is not { } panel)
+        if (slot < 0 || slot == _slot)
         {
             return;
         }
 
-        var to = slot > _dragFrom ? slot - 1 : slot;
+        _slot = slot;
+
+        if (RowList.ItemsPanelRoot is not { } panel)
+        {
+            return;
+        }
 
         foreach (var child in panel.Children)
         {
@@ -781,18 +805,28 @@ public sealed partial class PlayQueuePanel : UserControl
 
             var index = RowList.IndexFromContainer(container);
 
-            if (index < 0 || index == _dragFrom)
+            if (index < 0)
             {
                 continue;
             }
 
-            var offset = _dragFrom < to && index > _dragFrom && index <= to ? -_pitch
-                : _dragFrom > to && index >= to && index < _dragFrom ? _pitch
-                : 0;
+            SetShift(container, ShiftFor(index));
+        }
+    }
 
-            SetShift(container, offset);
+    /// <summary>这一行该让开多少：插到 <see cref="_slot"/> 之前时，区间内的行整体挪一格。</summary>
+    private double ShiftFor(int index)
+    {
+        if (_dragFrom < 0 || _slot < 0 || index < 0 || index == _dragFrom)
+        {
+            return 0;
         }
 
+        var to = _slot > _dragFrom ? _slot - 1 : _slot;
+
+        return _dragFrom < to && index > _dragFrom && index <= to ? -_pitch
+            : _dragFrom > to && index >= to && index < _dragFrom ? _pitch
+            : 0;
     }
 
     /// <summary>把某一行整体平移 <paramref name="y"/> 像素。<c>TranslationTransition</c> 负责补间。</summary>
@@ -823,6 +857,10 @@ public sealed partial class PlayQueuePanel : UserControl
         _dragFrom = -1;
         _slot = -1;
 
+        StopAutoScroll();
+        _scroll = null;
+        _contentTop = double.NaN;
+
         DraggedRow = null;
         DragGhost.Visibility = Visibility.Collapsed;
         DragGhostShift.Y = 0;
@@ -835,8 +873,15 @@ public sealed partial class PlayQueuePanel : UserControl
     /// 把已经实例化的行全部摆回原位。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <b>扫全部而不是只扫动过的那些</b>：容器是会被回收的，一个带着平移或透明度的容器
     /// 去装另一行时会把那副样子一起带过去。容器数量就是屏幕上那几行，扫一遍不值一提。
+    /// </para>
+    /// <para>
+    /// <b>归零不能带过渡。</b> 松手时让位的行已经停在落点上了，接下来 <c>Rows.Move</c>
+    /// 会把它们按新顺序放到同一个位置；这里若还播 140 ms 回零动画，就会和新布局叠成
+    /// 一次明显的滑动。无过渡地清零，两者在同一帧里正好抵消。
+    /// </para>
     /// </remarks>
     private void ResetVisuals()
     {
@@ -853,7 +898,8 @@ public sealed partial class PlayQueuePanel : UserControl
                 continue;
             }
 
-            container.Translation = Vector3.Zero;
+            ClearShift(container);
+            container.OpacityTransition = null;
             container.Opacity = 1;
         }
     }
@@ -863,10 +909,16 @@ public sealed partial class PlayQueuePanel : UserControl
     /// 算不出来（队列空、一行都没实例化）时返回 <c>-1</c>。
     /// </summary>
     /// <remarks>
-    /// <b>不直接遍历全表问 <c>ContainerFromIndex</c></b>：虚拟化下未实现的行会返回 <c>null</c>。
-    /// 先拿 <see cref="ItemsStackPanel"/> 的可视区间把范围收窄，区间内 null 的照旧跳过。
-    /// 已实现的行是连续的，所以指针在可视区内必有边界行把它夹住；指针在可视区之外会自然落到
-    /// 区间首行或「末行 + 1」，正是该有的钳制。<b>不做自动滚动</b>。
+    /// <para>
+    /// <b>优先按内容坐标算，不看可视区。</b> 行等长，行距已知，于是把指针换算进内容坐标
+    /// （<c>指针 - 列表顶 + 滚动偏移</c>）就能直接得到落点，超出可视区也不受影响。
+    /// <b>自动滚动时必须用这条路</b>：滚动时指针没动、列表在动，可视区里的容器位置要等下一轮
+    /// 布局才更新，拿它算落点会慢半拍；而滚动偏移是 <c>ChangeView</c> 当场就变的。
+    /// </para>
+    /// <para>
+    /// 兜底：量不到滚动器或行距时，退回在可视区里逐行比中点（虚拟化下未实现的行跳过，
+    /// 指针在可视区之外自然落到区间首行或「末行 + 1」）。
+    /// </para>
     /// </remarks>
     private int SlotAt(double y)
     {
@@ -875,6 +927,14 @@ public sealed partial class PlayQueuePanel : UserControl
         if (count == 0)
         {
             return -1;
+        }
+
+        if (_scroll is not null && _pitch > 0 && double.IsFinite(_contentTop))
+        {
+            var top = RowList.TransformToVisual(RowHost).TransformPoint(default).Y;
+            var contentY = y - top + _scroll.VerticalOffset;
+
+            return Math.Clamp((int)Math.Round((contentY - _contentTop) / _pitch), 0, count);
         }
 
         var first = 0;
@@ -912,4 +972,158 @@ public sealed partial class PlayQueuePanel : UserControl
             ? container.TransformToVisual(RowHost)
                 .TransformBounds(new Rect(0, 0, container.ActualWidth, container.ActualHeight))
             : null;
+
+    /// <summary>第 0 行在内容坐标里的顶边；量不到时返回 <c>NaN</c>。</summary>
+    private double ContentTop()
+    {
+        if (RowList.ItemsPanelRoot is not ItemsStackPanel panel || _pitch <= 0)
+        {
+            return double.NaN;
+        }
+
+        var anchor = panel.FirstVisibleIndex;
+
+        if (anchor < 0 || RowList.ContainerFromIndex(anchor) is not FrameworkElement container)
+        {
+            return double.NaN;
+        }
+
+        var top = container.TransformToVisual(panel).TransformPoint(default).Y;
+
+        return top - (anchor * _pitch);
+    }
+
+    // ── 拖动时自动滚动 ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 按指针离列表上下边缘的深度决定这一帧滚多少：越靠边越快，回到中间就停。
+    /// </summary>
+    private void UpdateAutoScroll()
+    {
+        if (!_dragging || _scroll is null)
+        {
+            StopAutoScroll();
+            return;
+        }
+
+        var top = RowList.TransformToVisual(RowHost).TransformPoint(default).Y;
+        var bottom = top + RowList.ActualHeight;
+        var step = 0.0;
+
+        if (_pointerY < top + AutoScrollZone)
+        {
+            step = -AutoScrollMaxStep * Math.Clamp((top + AutoScrollZone - _pointerY) / AutoScrollZone, 0, 1);
+        }
+        else if (_pointerY > bottom - AutoScrollZone)
+        {
+            step = AutoScrollMaxStep * Math.Clamp((_pointerY - (bottom - AutoScrollZone)) / AutoScrollZone, 0, 1);
+        }
+
+        _autoScrollStep = step;
+
+        if (Math.Abs(step) < 0.5)
+        {
+            StopAutoScroll();
+            return;
+        }
+
+        EnsureAutoScrollTimer();
+    }
+
+    private void EnsureAutoScrollTimer()
+    {
+        if (_autoScrollTimer is null)
+        {
+            if (DispatcherQueue is not { } dispatcher)
+            {
+                return;
+            }
+
+            _autoScrollTimer = dispatcher.CreateTimer();
+            _autoScrollTimer.Interval = TimeSpan.FromMilliseconds(16);
+            _autoScrollTimer.IsRepeating = true;
+            _autoScrollTimer.Tick += OnAutoScrollTick;
+        }
+
+        if (!_autoScrollTimer.IsRunning)
+        {
+            _autoScrollTimer.Start();
+        }
+    }
+
+    private void StopAutoScroll()
+    {
+        if (_autoScrollTimer?.IsRunning == true)
+        {
+            _autoScrollTimer.Stop();
+        }
+
+        _autoScrollStep = 0;
+    }
+
+    /// <summary>
+    /// 自动滚动的一帧：滚一点，然后按新的偏移重算落点。
+    /// </summary>
+    /// <remarks>
+    /// <b>落点必须跟着偏移重算。</b> 指针是静止的，滚的是列表 —— 指针下面换了一行，
+    /// 让位的行也得跟着换。刚被回收出来的容器由
+    /// <see cref="OnContainerContentChanging"/> 在准备时补上位移。
+    /// </remarks>
+    private void OnAutoScrollTick(DispatcherQueueTimer sender, object args)
+    {
+        if (!_dragging || _scroll is null || _dragPointerId is null)
+        {
+            StopAutoScroll();
+            return;
+        }
+
+        var offset = _scroll.VerticalOffset;
+        var target = Math.Clamp(offset + _autoScrollStep, 0, _scroll.ScrollableHeight);
+
+        // 已经到顶/到底：停下来，别空转。指针再动时 UpdateAutoScroll 会重新拉起。
+        if (Math.Abs(target - offset) < 0.01)
+        {
+            StopAutoScroll();
+            return;
+        }
+
+        _scroll.ChangeView(null, target, null, true);
+
+        var slot = SlotAt(_pointerY);
+
+        if (slot >= 0 && slot != _slot)
+        {
+            ApplyShifts(slot);
+        }
+    }
+
+    /// <summary>
+    /// 容器被复用去装另一行时，按新行重放拖动状态。
+    /// </summary>
+    /// <remarks>
+    /// <b>自动滚动会让行容器不停地回收。</b> 被藏起来的那一行、以及正在让位的行，
+    /// 都会随滚动滚出可视区、被拿去装别的行 —— 容器上的 <c>Opacity</c> / <c>Translation</c>
+    /// 是元素自身的属性，不跟着行数据走，不在这里重算就会串到别的行上。
+    /// </remarks>
+    private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.ItemContainer is not ListViewItem container)
+        {
+            return;
+        }
+
+        if (_dragging)
+        {
+            container.Opacity = ReferenceEquals(args.Item, _dragRow) ? 0 : 1;
+            SetShift(container, ShiftFor(args.ItemIndex));
+            return;
+        }
+
+        // 不在拖：把拖动期间留下、但滚出可视区没来得及还原的容器摆回去。
+        // 删除动画自己的透明态由 ResetWhenReused 管（容器在 _reuseWaiters 里），不能在这里碰。
+        if (!_reuseWaiters.ContainsKey(container))
+        {
+            ResetRowContainer(container);
+        }
+    }
 }
