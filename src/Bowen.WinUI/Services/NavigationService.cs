@@ -279,6 +279,7 @@ public sealed class NavigationService : INavigationService
         _shownHost = nextHost;
         if (!ReferenceEquals(_shownHost.Content, next)) _shownHost.Content = next;
         _shown = next;
+        PageLifetimeDiagnostics.Track(next);
         // 换页会让列表从顶上重来；把上一轮的滚动位置放回去，返回才有「原位置」。
         // 收起沉浸页时页面根本没离树，偏移一直在，再「藏住 → 落位 → 淡入」只会闪一下。
         var scrollRestore = arrivingWasMounted ? Task.CompletedTask : ScrollMemory.RestoreAsync(next);
