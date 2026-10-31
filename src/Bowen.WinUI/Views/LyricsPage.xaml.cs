@@ -678,9 +678,6 @@ public sealed partial class LyricsPage : Page, INavigationAware
         SyncTranslationButtonVisibility();
         if (Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1")
             _logger.LogInformation("全屏阶段：同步标题栏 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(start).TotalMilliseconds);
-        LyricsTitleBar.RecomputeDragRegions();
-        if (Environment.GetEnvironmentVariable("BODIAN_LYRICS_DIAGNOSTICS") == "1")
-            _logger.LogInformation("全屏阶段：重算区域累计 {Elapsed:F2} ms", Stopwatch.GetElapsedTime(start).TotalMilliseconds);
         ShowChrome();
     }
 
