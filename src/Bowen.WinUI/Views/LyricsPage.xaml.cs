@@ -1215,6 +1215,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         try
         {
             LyricsFontPicker.SelectedIndex = FontIndexOf(Lyrics.FontFamily);
+            TranslationSettingsPanel.Visibility = Lyrics.HasTranslation
+                ? Visibility.Visible
+                : Visibility.Collapsed;
             LyricsBackgroundMicaItem.IsEnabled = MainWindow.IsMicaSupported;
             LyricsBackgroundMicaItem.Content = MainWindow.IsMicaSupported ? "Mica" : "Mica（需要 Windows 11）";
             LyricsBackgroundCombo.SelectedIndex = Lyrics.BackgroundMode switch
@@ -2343,6 +2346,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (args.PropertyName is nameof(LyricsViewModel.HasTranslation) or nameof(LyricsViewModel.ShowTranslation))
         {
             SyncTranslation();
+            // 当前歌曲没有译文时，外观面板里的「译文」分组直接收起来。
+            if (_appearanceOpen)
+            {
+                TranslationSettingsPanel.Visibility = Lyrics.HasTranslation
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+
             return;
         }
 

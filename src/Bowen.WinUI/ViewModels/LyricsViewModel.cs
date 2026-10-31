@@ -742,19 +742,10 @@ public sealed partial class LyricsViewModel : ObservableObject
     }
 
     /// <remarks>
-    /// <b>每次打开歌词页都从默认值起步。</b> 「默认」的语义就是「打开时用哪个」——
-    /// 只在构造函数里读一次的话，应用启动那一刻的值会一直粘到进程结束，
-    /// 中途在设置页改了默认值，已经打开过的这次也不会重新按默认值来。
+    /// <b>会话内保持译文开关。</b> 从歌词页退出再进来不应把用户刚关掉的译文重新打开；
+    /// 只有应用重启（构造函数重新读设置）时，才从设置页的默认值起步。
     /// </remarks>
-    partial void OnIsOpenChanged(bool value)
-    {
-        if (value)
-        {
-            ShowTranslation = DefaultShowTranslation;
-        }
-
-        OnActivationChanged();
-    }
+    partial void OnIsOpenChanged(bool value) => OnActivationChanged();
 
     partial void OnIsDesktopLyricsOpenChanged(bool value) => OnActivationChanged();
 

@@ -697,7 +697,7 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <StackPanel Spacing="8">
+                            <StackPanel x:Name="TranslationSettingsPanel" Spacing="8">
                                 <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="译文" />
 
                                 <Grid ColumnSpacing="12">
