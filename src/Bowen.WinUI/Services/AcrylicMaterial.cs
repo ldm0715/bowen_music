@@ -28,8 +28,13 @@ public static class AcrylicMaterial
     /// <summary>XAML 里引用的资源键。</summary>
     public const string BrushKey = "BowenAcrylicBrush";
 
+    /// <summary>下拉弹层共用的表面刷：ComboBox 弹层与字体选择器 Flyout 都引用它。</summary>
+    public const string PopupBrushKey = "BowenPopupSurfaceBrush";
+
     private static AcrylicBrush? _light;
     private static AcrylicBrush? _dark;
+    private static SolidColorBrush? _popupLight;
+    private static SolidColorBrush? _popupDark;
     private static SolidColorBrush? _highContrast;
     private static bool _enabled = true;
 
@@ -63,18 +68,26 @@ public static class AcrylicMaterial
             FallbackColor = Color.FromArgb(0xFF, 0x20, 0x20, 0x20),
         };
 
+        // 弹层是独立合成层，亚克力没有页面内容可采样，统一用半透明表面色。
+        // ComboBox 弹层与字体选择器 Flyout 共用这一份，样式才对得齐。
+        _popupLight = new SolidColorBrush(Color.FromArgb(0xEB, 0xF3, 0xF3, 0xF3));
+        _popupDark = new SolidColorBrush(Color.FromArgb(0xEB, 0x1C, 0x1C, 0x1C));
+
         var highContrast = new SolidColorBrush(
             new UISettings().GetColorValue(UIColorType.Background));
         _highContrast = highContrast;
 
         var lightTheme = new ResourceDictionary();
         lightTheme[BrushKey] = _light;
+        lightTheme[PopupBrushKey] = _popupLight;
 
         var darkTheme = new ResourceDictionary();
         darkTheme[BrushKey] = _dark;
+        darkTheme[PopupBrushKey] = _popupDark;
 
         var highContrastTheme = new ResourceDictionary();
         highContrastTheme[BrushKey] = highContrast;
+        highContrastTheme[PopupBrushKey] = highContrast;
 
         var dictionary = new ResourceDictionary();
         dictionary.ThemeDictionaries["Light"] = lightTheme;
@@ -99,6 +112,18 @@ public static class AcrylicMaterial
         if (_dark is not null)
         {
             _dark.AlwaysUseFallback = !enabled;
+        }
+
+        // 开关亚克力时，弹层表面也要在「半透明」与「实色」之间切。
+        var alpha = enabled ? (byte)0xEB : (byte)0xFF;
+        if (_popupLight is not null)
+        {
+            _popupLight.Color = Color.FromArgb(alpha, 0xF3, 0xF3, 0xF3);
+        }
+
+        if (_popupDark is not null)
+        {
+            _popupDark.Color = Color.FromArgb(alpha, 0x1C, 0x1C, 0x1C);
         }
     }
 
@@ -125,10 +150,13 @@ public static class AcrylicMaterial
             // 高对比度查询失败时按普通主题处理。
         }
 
-        var alpha = _enabled ? (byte)0xEB : (byte)0xFF;
+        // 返回共享实例：XAML 里的 BowenPopupSurfaceBrush 与这里指向同一份，
+        // 主题 / 亚克力开关变化时两边一起更新。
+        if (theme == ElementTheme.Dark)
+        {
+            return _popupDark ?? new SolidColorBrush(Color.FromArgb(0xEB, 0x1C, 0x1C, 0x1C));
+        }
 
-        return new SolidColorBrush(theme == ElementTheme.Dark
-            ? Color.FromArgb(alpha, 0x1C, 0x1C, 0x1C)
-            : Color.FromArgb(alpha, 0xF3, 0xF3, 0xF3));
+        return _popupLight ?? new SolidColorBrush(Color.FromArgb(0xEB, 0xF3, 0xF3, 0xF3));
     }
 }

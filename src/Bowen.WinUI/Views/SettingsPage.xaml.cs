@@ -142,8 +142,16 @@ public sealed partial class SettingsPage : Page, INavigationAware
 
         CollectComboBoxes(this);
 
+        var itemStyle = Application.Current.Resources["BowenDropdownItemStyle"] as Style;
+
         foreach (var combo in _acrylicCombos)
         {
+            // 下拉项与字体选择器的列表项共用同一套行高与内边距。
+            if (itemStyle is not null)
+            {
+                combo.ItemContainerStyle = itemStyle;
+            }
+
             combo.DropDownOpened += OnComboBoxDropDownOpened;
         }
     }
@@ -200,6 +208,18 @@ public sealed partial class SettingsPage : Page, INavigationAware
         if (root is Border border)
         {
             border.Background = brush;
+
+            // 与字体选择器 Flyout 共用同一套弹层外观：边框、圆角、上下留白。
+            if (Application.Current.Resources["SurfaceStrokeColorFlyoutBrush"] is Brush borderBrush)
+            {
+                border.BorderBrush = borderBrush;
+            }
+
+            border.BorderThickness = new Thickness(1);
+            border.CornerRadius = Application.Current.Resources["RadiusMd"] is CornerRadius radius
+                ? radius
+                : new CornerRadius(8);
+            border.Padding = new Thickness(0, 4, 0, 4);
             return;
         }
 

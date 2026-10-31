@@ -40,13 +40,13 @@
             <Flyout x:Name="PickerFlyout" Placement="BottomEdgeAlignedRight">
                 <Flyout.FlyoutPresenterStyle>
                     <Style TargetType="FlyoutPresenter">
-                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Padding" Value="{StaticResource BowenDropdownPadding}" />
                         <Setter Property="MinWidth" Value="0" />
                         <Setter Property="MaxWidth" Value="340" />
-                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
+                        <Setter Property="Background" Value="{ThemeResource BowenPopupSurfaceBrush}" />
                         <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}" />
                         <Setter Property="BorderThickness" Value="1" />
-                        <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
+                        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
                     </Style>
                 </Flyout.FlyoutPresenterStyle>
                 <ListView
@@ -54,21 +54,14 @@
                     MaxHeight="400"
                     MaxWidth="320"
                     MinWidth="200"
-                    Padding="0,4,0,4"
+                    Padding="0"
                     SelectionChanged="OnFontSelectionChanged"
-                    SelectionMode="Single">
+                    SelectionMode="Single"
+                    ItemContainerStyle="{StaticResource BowenDropdownListItemStyle}">
                     <ListView.Resources>
                         <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
                         <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
                     </ListView.Resources>
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                            <Setter Property="MinHeight" Value="32" />
-                            <Setter Property="Padding" Value="11,0,11,0" />
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
-                        </Style>
-                    </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:FontOption">
                             <TextBlock Text="{x:Bind DisplayName}" TextTrimming="CharacterEllipsis" />
