@@ -93,24 +93,44 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="80" />
             </Grid.RowDefinitions>
-            <TitleBar x:Name="LyricsTitleBar" AutoRefreshDragRegions="False" Height="48" VerticalAlignment="Top"
+            <TitleBar x:Name="LyricsTitleBar" Height="48" VerticalAlignment="Top"
                 Background="Transparent" Foreground="#CCFFFFFF" AutomationProperties.Name="全屏歌词标题栏">
                 <TitleBar.Resources>
                     <x:Double x:Key="TitleBarCompactHeight">48</x:Double>
                     <x:Double x:Key="TitleBarExpandedHeight">48</x:Double>
                     <x:Double x:Key="TitleBarLeftPaddingWidth">0</x:Double>
-                    <x:Double x:Key="TitleBarLeftHeaderPaddingWidth">0</x:Double>
                     <x:Double x:Key="TitleBarMinDragRegionWidth">0</x:Double>
                     <Thickness x:Key="TitleBarCompactContentMargin">0</Thickness>
                     <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
                     <!-- WinUI 默认在窗口失焦时把标题栏内容压到 50% 不透明度；这里保持原样。 -->
                     <x:Double x:Key="TitleBarDeactivatedOpacity">1</x:Double>
                 </TitleBar.Resources>
-                <TitleBar.LeftHeader>
-                    <Grid x:Name="LeftChromeHost" Width="186">
-                        <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
-                            HorizontalAlignment="Left" Margin="16,0,0,0"
-                            AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
+                <TitleBar.Content>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Grid x:Name="LeftChromeHost" Grid.Column="0" Width="186">
+                            <Button x:Name="CollapseButton" Click="OnBackClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
+                                HorizontalAlignment="Left" Margin="16,0,0,0"
+                                AutomationProperties.Name="收起歌词" ToolTipService.ToolTip="收起歌词 (Esc)">
+                                <Button.Resources>
+                                    <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
+                                        盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
+                                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                                </Button.Resources>
+
+                                <controls:Icon Data="{StaticResource IconChevronDown}" Size="{StaticResource SizeIconMd}" />
+                            </Button>
+                        </Grid>
+
+                        <Button x:Name="FullscreenButton" Grid.Column="2" Click="OnFullscreenClick"
+                            Style="{StaticResource PlayerRoundIconButtonStyle}"
+                            AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
                             <Button.Resources>
                                 <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
                                     盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
@@ -118,30 +138,10 @@
                                 <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
                             </Button.Resources>
 
-                            <controls:Icon Data="{StaticResource IconChevronDown}" Size="{StaticResource SizeIconMd}" />
+                            <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
                         </Button>
                     </Grid>
-                </TitleBar.LeftHeader>
-                <TitleBar.Content>
-                    <Grid />
                 </TitleBar.Content>
-                <TitleBar.RightHeader>
-                    <!--
-                        译文那颗搬到了歌词区域右上角（见 MainStage），这一侧只剩全屏。
-                        ★ RightHeader 只吃一个子元素 —— 以后要在这侧再加按钮，记得套一层 StackPanel。
-                    -->
-                    <Button x:Name="FullscreenButton" Click="OnFullscreenClick" Style="{StaticResource PlayerRoundIconButtonStyle}"
-                        AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="进入全屏 (F11)">
-                        <Button.Resources>
-                            <!-- 图标按钮禁用时不该有底色：默认模板的 Disabled 态会铺 ButtonBackgroundDisabled，
-                                盖住 Background="Transparent"。这里连同描边一起置空，只用前景色变淡表示禁用。 -->
-                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
-                        </Button.Resources>
-
-                        <controls:Icon x:Name="FullscreenIcon" Data="{StaticResource IconFullScreen}" Size="{StaticResource SizeIconMd}" />
-                    </Button>
-                </TitleBar.RightHeader>
             </TitleBar>
             <Grid x:Name="HeadingHost" Height="48" Margin="64,0,64,0" VerticalAlignment="Top"
                 IsHitTestVisible="False" SizeChanged="OnHeadingHostSizeChanged">

@@ -250,13 +250,11 @@
                 <x:Double x:Key="TitleBarCompactHeight">48</x:Double>
                 <x:Double x:Key="TitleBarExpandedHeight">48</x:Double>
                 <x:Double x:Key="TitleBarLeftPaddingWidth">0</x:Double>
-                <x:Double x:Key="TitleBarLeftHeaderPaddingWidth">0</x:Double>
                 <Thickness x:Key="TitleBarCompactContentMargin">0</Thickness>
                 <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
                 <!--
                     按钮组与系统窗口三按钮之间的最小拖动区。模板默认 48 DIP，那道空档看起来像
-                    按钮被推远了 —— 这里压到 8。整条标题栏仍然是拖动区（SetTitleBar 已接管），
-                    8 足够留出「按钮与窗口按钮之间不误触」的余量。
+                    按钮被推远了 —— 这里压到 8，留出「按钮与窗口按钮之间不误触」的余量。
                 -->
                 <x:Double x:Key="TitleBarMinDragRegionWidth">8</x:Double>
                 <!--
@@ -266,616 +264,627 @@
                 -->
                 <x:Double x:Key="TitleBarDeactivatedOpacity">1</x:Double>
             </TitleBar.Resources>
-            <TitleBar.LeftHeader>
-                <!--
-                    应用 Logo：图标 + 名字。左内边距 24 与 SpacePagePadding 的左值对齐，
-                    于是页内内容、搜索框与 Logo 共用同一条左基准线。
-                    ★ 收起侧栏时只留图标、内边距收到 12（48 宽的轨道刚好 12+24+12 居中），
-                      由 UpdateSidebarPaneMode 切。
-
-                    ★ 图标走 {ThemeResource AppIconSource}：深浅两版放在 Theme.xaml 的
-                      主题字典里，主题一换自动重解析，不需要在代码里监听 ActualThemeChanged。
-                -->
-                <Border
-                    x:Name="LogoHost"
-                    Width="{StaticResource SizeSidebarWidth}"
-                    Height="32"
-                    Padding="24,0"
-                    IsHitTestVisible="False">
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="10"
-                        VerticalAlignment="Center">
-                        <Image
-                            Width="24"
-                            Height="24"
-                            Source="{ThemeResource AppIconSource}" />
-                        <!--
-                            ★ RenderTransform 上移 2 像素是为了让文字与图标看起来在同一水平线上。
-                              TextBlock 的行盒按拉丁字母的上下伸部分配空间，而汉字的重心在 em 框里
-                              偏下 —— 两者都 VerticalAlignment=Center 时，汉字看上去会低一两个像素。
-                              用 RenderTransform 而不是负 Margin：前者是纯视觉位移、正好 -2，
-                              后者会被居中布局吃掉一半，调不到准数。
-                        -->
-                        <TextBlock
-                            x:Name="LogoLabel"
-                            VerticalAlignment="Center"
-                            FontSize="{StaticResource FontSizeBodyLarge}"
-                            FontWeight="SemiBold"
-                            Text="{x:Bind local:Formats.AppName}"
-                            TextTrimming="CharacterEllipsis">
-                            <TextBlock.RenderTransform>
-                                <TranslateTransform Y="-2" />
-                            </TextBlock.RenderTransform>
-                        </TextBlock>
-                    </StackPanel>
-                </Border>
-            </TitleBar.LeftHeader>
             <TitleBar.Content>
-                <!-- 搜索宽度随可用空间收缩，并限制最大宽度以保留标题栏留白。 -->
-                <Grid x:Name="SearchBarHost" Margin="24,0,24,0" ColumnSpacing="8" Visibility="Collapsed">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" MaxWidth="400" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
+
                     <!--
-                        ★ 尺寸与底色照抄右侧的 ThemeButton / AccountButton，**不要**给按钮套
-                          ContentControl 外壳，也不要用 SubtleButtonStyle：那个样式的
-                          HorizontalAlignment=Left，外壳上的 Stretch 拉不住它，按钮会缩回图标
-                          自身的宽度（悬停背景比图标还小）。显式给 32×32 才是整块可点、整块出底色。
+                        应用 Logo：图标 + 名字。左内边距 24 与 SpacePagePadding 的左值对齐，
+                        于是页内内容、搜索框与 Logo 共用同一条左基准线。
+                        ★ 收起侧栏时只留图标、内边距收到 12（48 宽的轨道刚好 12+24+12 居中），
+                          由 UpdateSidebarPaneMode 切。
+
+                        ★ 图标走 {ThemeResource AppIconSource}：深浅两版放在 Theme.xaml 的
+                          主题字典里，主题一换自动重解析，不需要在代码里监听 ActualThemeChanged。
                     -->
-                    <Button
-                        x:Name="BackButton"
-                        Width="{StaticResource SizeRoundButton}"
-                        Height="{StaticResource SizeRoundButton}"
-                        MinWidth="0"
-                        MinHeight="0"
-                        Padding="0"
-                        CornerRadius="8"
-                        VerticalAlignment="Center"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        IsEnabled="{x:Bind _navigation.CanGoBack, Mode=OneWay}"
-                        Click="OnBackClick"
-                        AllowFocusOnInteraction="False"
-                        AutomationProperties.Name="返回上一级"
-                        ToolTipService.ToolTip="返回上一级">
-                        <Button.Resources>
+                    <Border
+                        x:Name="LogoHost"
+                        Width="{StaticResource SizeSidebarWidth}"
+                        Height="32"
+                        Padding="24,0"
+                        IsHitTestVisible="False">
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="10"
+                            VerticalAlignment="Center">
+                            <Image
+                                Width="24"
+                                Height="24"
+                                Source="{ThemeResource AppIconSource}" />
                             <!--
-                                ★ 默认模板的 Disabled 态会把背景铺成 ButtonBackgroundDisabled，
-                                  盖住上面那句 Background="Transparent" —— 症状是「能点的时候没底色、
-                                  不能点的时候反而有底色」。把它连同描边一起置空，
-                                  禁用只体现在前景色变淡（那才是这个按钮该有的反馈）。
-                                  旁边的主题 / 账号按钮没有 IsEnabled 绑定，所以从来没露过这个问题。
+                                ★ RenderTransform 上移 2 像素是为了让文字与图标看起来在同一水平线上。
+                                  TextBlock 的行盒按拉丁字母的上下伸部分配空间，而汉字的重心在 em 框里
+                                  偏下 —— 两者都 VerticalAlignment=Center 时，汉字看上去会低一两个像素。
+                                  用 RenderTransform 而不是负 Margin：前者是纯视觉位移、正好 -2，
+                                  后者会被居中布局吃掉一半，调不到准数。
                             -->
-                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
-                        </Button.Resources>
-                        <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconBack}" />
-                    </Button>
-                    <AutoSuggestBox
-                        x:Name="SearchBox"
+                            <TextBlock
+                                x:Name="LogoLabel"
+                                VerticalAlignment="Center"
+                                FontSize="{StaticResource FontSizeBodyLarge}"
+                                FontWeight="SemiBold"
+                                Text="{x:Bind local:Formats.AppName}"
+                                TextTrimming="CharacterEllipsis">
+                                <TextBlock.RenderTransform>
+                                    <TranslateTransform Y="-2" />
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 搜索宽度随可用空间收缩，并限制最大宽度以保留标题栏留白。 -->
+                    <Grid
+                        x:Name="SearchBarHost"
                         Grid.Column="1"
-                        MinWidth="0"
-                        VerticalAlignment="Center"
-                        PlaceholderText="搜索单曲、歌单、专辑、歌手"
-                        QueryIcon="Find"
-                        QuerySubmitted="OnSearchQuerySubmitted"
-                        TextChanged="OnSearchTextChanged"
-                        GotFocus="OnSearchGotFocus"
-                        ItemsSource="{x:Bind Search.Suggestions, Mode=OneWay}"
-                        Text="{x:Bind Search.Keyword, Mode=TwoWay}"
-                        AutomationProperties.Name="搜索单曲、歌单、专辑、歌手" />
-
-                </Grid>
-            </TitleBar.Content>
-            <TitleBar.RightHeader>
-                <StackPanel x:Name="TitleBarRightHeader" Orientation="Horizontal" Spacing="8">
-                    <Button
-                        x:Name="AccountButton"
-                        Visibility="Collapsed"
-                        AutomationProperties.Name="账号"
-                        Width="{StaticResource SizeRoundButton}"
-                        Height="{StaticResource SizeRoundButton}"
-                        VerticalAlignment="Center"
-                        MinWidth="0"
-                        MinHeight="0"
-                        Padding="0"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        ToolTipService.ToolTip="{x:Bind Account.EntryToolTip, Mode=OneWay}">
-                        <Border
-                            Width="24"
-                            Height="24"
-                            Background="{ThemeResource ControlFillColorDefaultBrush}"
-                            CornerRadius="12">
-                            <!--
-                                未登录时这里原来是一个空灰圆 —— 看不出那是个入口。
-                                换成人形图标：位置不变，但一眼知道「点头像能去登录」。
-                            -->
-                            <Grid>
-                                <Image
-                                    Source="{x:Bind Account.Avatar, Mode=OneWay}"
-                                    Stretch="UniformToFill"
-                                    Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}" />
-                                <controls:Icon
-                                    Size="14"
-                                    Data="{StaticResource IconPerson}"
-                                    Visibility="{x:Bind Account.SignedOutVisibility, Mode=OneWay}" />
-                            </Grid>
-                        </Border>
-
-                        <Button.Flyout>
-                            <!-- 正下方居中，与主题弹层一致。之前用 BottomEdgeAlignedRight，
-                                 弹窗比头像按钮宽得多，右对齐会把整块甩到头像左边去。 -->
-                            <Flyout Opening="OnAccountFlyoutOpening" Placement="Bottom">
+                        Margin="24,0,24,0"
+                        ColumnSpacing="8"
+                        Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" MaxWidth="400" />
+                        </Grid.ColumnDefinitions>
+                        <!--
+                            ★ 尺寸与底色照抄右侧的 ThemeButton / AccountButton，**不要**给按钮套
+                              ContentControl 外壳，也不要用 SubtleButtonStyle：那个样式的
+                              HorizontalAlignment=Left，外壳上的 Stretch 拉不住它，按钮会缩回图标
+                              自身的宽度（悬停背景比图标还小）。显式给 32×32 才是整块可点、整块出底色。
+                        -->
+                        <Button
+                            x:Name="BackButton"
+                            Width="{StaticResource SizeRoundButton}"
+                            Height="{StaticResource SizeRoundButton}"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            CornerRadius="8"
+                            VerticalAlignment="Center"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            IsEnabled="{x:Bind _navigation.CanGoBack, Mode=OneWay}"
+                            Click="OnBackClick"
+                            AllowFocusOnInteraction="False"
+                            AutomationProperties.Name="返回上一级"
+                            ToolTipService.ToolTip="返回上一级">
+                            <Button.Resources>
                                 <!--
-                                    底色与其余下拉、菜单统一：应用亚克力刷，与字体选择器同源。
-
-                                    显式给 Style 会整份替换掉框架默认样式，所以 Padding 与 MaxWidth
-                                    要照着原来的值写回来（框架默认是 12 与 456）：
-                                    漏掉 MaxWidth，下面那个昵称的省略号就不生效、长昵称会把弹层撑宽。
-                                    这里不用主题弹层的 Padding="6" —— 那份的内容是自带内边距的列表，
-                                    这份是裸 StackPanel，保持 12。
+                                    ★ 默认模板的 Disabled 态会把背景铺成 ButtonBackgroundDisabled，
+                                      盖住上面那句 Background="Transparent" —— 症状是「能点的时候没底色、
+                                      不能点的时候反而有底色」。把它连同描边一起置空，
+                                      禁用只体现在前景色变淡（那才是这个按钮该有的反馈）。
+                                      旁边的主题 / 账号按钮没有 IsEnabled 绑定，所以从来没露过这个问题。
                                 -->
-                                <Flyout.FlyoutPresenterStyle>
-                                    <Style TargetType="FlyoutPresenter">
-                                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
-                                        <Setter Property="Padding" Value="12" />
-                                        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
-                                        <Setter Property="MaxWidth" Value="456" />
-                                    </Style>
-                                </Flyout.FlyoutPresenterStyle>
+                                <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                            </Button.Resources>
+                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconBack}" />
+                        </Button>
+                        <AutoSuggestBox
+                            x:Name="SearchBox"
+                            Grid.Column="1"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            PlaceholderText="搜索单曲、歌单、专辑、歌手"
+                            QueryIcon="Find"
+                            QuerySubmitted="OnSearchQuerySubmitted"
+                            TextChanged="OnSearchTextChanged"
+                            GotFocus="OnSearchGotFocus"
+                            ItemsSource="{x:Bind Search.Suggestions, Mode=OneWay}"
+                            Text="{x:Bind Search.Keyword, Mode=TwoWay}"
+                            AutomationProperties.Name="搜索单曲、歌单、专辑、歌手" />
 
+                    </Grid>
+
+                    <StackPanel x:Name="TitleBarRightHeader" Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="AccountButton"
+                            Visibility="Collapsed"
+                            AutomationProperties.Name="账号"
+                            Width="{StaticResource SizeRoundButton}"
+                            Height="{StaticResource SizeRoundButton}"
+                            VerticalAlignment="Center"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            ToolTipService.ToolTip="{x:Bind Account.EntryToolTip, Mode=OneWay}">
+                            <Border
+                                Width="24"
+                                Height="24"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="12">
                                 <!--
-                                    两块内容互斥：一级是账号信息，二级是「切换账号」列表。
-                                    用同一个 Flyout 里的两块 StackPanel 切 Visibility，而不是
-                                    Flyout 套 Flyout 或弹 ContentDialog —— 前者行为很难收拾，后者对
-                                    「点一下就切」这种动作太重。
+                                    未登录时这里原来是一个空灰圆 —— 看不出那是个入口。
+                                    换成人形图标：位置不变，但一眼知道「点头像能去登录」。
                                 -->
-                                <Grid x:Name="AccountFlyoutRoot" MinWidth="200">
+                                <Grid>
+                                    <Image
+                                        Source="{x:Bind Account.Avatar, Mode=OneWay}"
+                                        Stretch="UniformToFill"
+                                        Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}" />
+                                    <controls:Icon
+                                        Size="14"
+                                        Data="{StaticResource IconPerson}"
+                                        Visibility="{x:Bind Account.SignedOutVisibility, Mode=OneWay}" />
+                                </Grid>
+                            </Border>
+
+                            <Button.Flyout>
+                                <!-- 正下方居中，与主题弹层一致。之前用 BottomEdgeAlignedRight，
+                                     弹窗比头像按钮宽得多，右对齐会把整块甩到头像左边去。 -->
+                                <Flyout Opening="OnAccountFlyoutOpening" Placement="Bottom">
                                     <!--
-                                        这一屏只在**已登录**时出现（判据见 AccountPanelVisibility）：
-                                        未登录时没有账号卡片可看，弹层直接是账号列表那一屏。
+                                        底色与其余下拉、菜单统一：应用亚克力刷，与字体选择器同源。
+
+                                        显式给 Style 会整份替换掉框架默认样式，所以 Padding 与 MaxWidth
+                                        要照着原来的值写回来（框架默认是 12 与 456）：
+                                        漏掉 MaxWidth，下面那个昵称的省略号就不生效、长昵称会把弹层撑宽。
+                                        这里不用主题弹层的 Padding="6" —— 那份的内容是自带内边距的列表，
+                                        这份是裸 StackPanel，保持 12。
                                     -->
-                                    <StackPanel Spacing="12" Visibility="{x:Bind Account.AccountPanelVisibility, Mode=OneWay}">
-                                        <StackPanel
-                                            Orientation="Horizontal"
-                                            Spacing="10"
-                                            Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}">
-                                            <Border
-                                                Width="32"
-                                                Height="32"
-                                                VerticalAlignment="Center"
-                                                Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                                CornerRadius="16">
-                                                <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
-                                            </Border>
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
+                                            <Setter Property="Padding" Value="12" />
+                                            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
+                                            <Setter Property="MaxWidth" Value="456" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
 
-                                            <StackPanel VerticalAlignment="Center" Spacing="2">
-                                                <TextBlock
-                                                    Text="{x:Bind Account.AccountText, Mode=OneWay}"
-                                                    TextTrimming="CharacterEllipsis" />
+                                    <!--
+                                        两块内容互斥：一级是账号信息，二级是「切换账号」列表。
+                                        用同一个 Flyout 里的两块 StackPanel 切 Visibility，而不是
+                                        Flyout 套 Flyout 或弹 ContentDialog —— 前者行为很难收拾，后者对
+                                        「点一下就切」这种动作太重。
+                                    -->
+                                    <Grid x:Name="AccountFlyoutRoot" MinWidth="200">
+                                        <!--
+                                            这一屏只在**已登录**时出现（判据见 AccountPanelVisibility）：
+                                            未登录时没有账号卡片可看，弹层直接是账号列表那一屏。
+                                        -->
+                                        <StackPanel Spacing="12" Visibility="{x:Bind Account.AccountPanelVisibility, Mode=OneWay}">
+                                            <StackPanel
+                                                Orientation="Horizontal"
+                                                Spacing="10"
+                                                Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}">
+                                                <Border
+                                                    Width="32"
+                                                    Height="32"
+                                                    VerticalAlignment="Center"
+                                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                                    CornerRadius="16">
+                                                    <Image Source="{x:Bind Account.Avatar, Mode=OneWay}" Stretch="UniformToFill" />
+                                                </Border>
 
-                                                <!--
-                                                    会员徽标只是展示：播放权限一律以服务端 checkRight 为准。
-                                                    胶囊 = 图标 + 档位名，按档位三选一，每档一套配色（金 / 银 / 浅绿，
-                                                    见 Themes/VipBadge.xaml）；非会员三个都不显示。
-
-                                                    ★ 图标必须是 Path 而不是 PathIcon：PathIcon 按几何的原始尺寸
-                                                      出图，不缩放到 Width/Height，超出部分会被裁掉（皇冠会只剩一半）。
-                                                      Path 的 Stretch 才真的缩放。写法同 SongCommentsPanel.xaml。
-                                                -->
-                                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
-                                                    <!-- 大会员：金，皇冠 + 顶星 -->
-                                                    <Border
-                                                        Padding="6,2"
-                                                        Background="{ThemeResource VipBadgeBigBackgroundBrush}"
-                                                        CornerRadius="10"
-                                                        Visibility="{x:Bind Account.BigVipVisibility, Mode=OneWay}">
-                                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <Path
-                                                                Width="11"
-                                                                Height="13"
-                                                                VerticalAlignment="Center"
-                                                                Data="M 2,9 L 6,13.5 L 10,7 L 14,13.5 L 18,9 L 16.5,21 L 3.5,21 Z M 10,0.1 L 10.85,2.33 L 13.23,2.45 L 11.38,3.95 L 12,6.25 L 10,4.95 L 8,6.25 L 8.62,3.95 L 6.77,2.45 L 9.15,2.33 Z"
-                                                                Fill="{ThemeResource VipBadgeBigForegroundBrush}"
-                                                                Stretch="Uniform" />
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                VerticalAlignment="Center"
-                                                                Foreground="{ThemeResource VipBadgeBigForegroundBrush}"
-                                                                Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <!-- 畅听会员：银，三尖皇冠 -->
-                                                    <Border
-                                                        Padding="6,2"
-                                                        Background="{ThemeResource VipBadgeStandardBackgroundBrush}"
-                                                        CornerRadius="10"
-                                                        Visibility="{x:Bind Account.StandardVipVisibility, Mode=OneWay}">
-                                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <Path
-                                                                Width="15"
-                                                                Height="13"
-                                                                VerticalAlignment="Center"
-                                                                Data="M 2,5 L 6,9.5 L 10,3 L 14,9.5 L 18,5 L 16.5,17 L 3.5,17 Z"
-                                                                Fill="{ThemeResource VipBadgeStandardForegroundBrush}"
-                                                                Stretch="Uniform" />
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                VerticalAlignment="Center"
-                                                                Foreground="{ThemeResource VipBadgeStandardForegroundBrush}"
-                                                                Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <!-- 福利会员：浅绿，礼物盒 -->
-                                                    <Border
-                                                        Padding="6,2"
-                                                        Background="{ThemeResource VipBadgeWelfareBackgroundBrush}"
-                                                        CornerRadius="10"
-                                                        Visibility="{x:Bind Account.WelfareVipVisibility, Mode=OneWay}">
-                                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <Path
-                                                                Width="15"
-                                                                Height="13"
-                                                                VerticalAlignment="Center"
-                                                                Data="M 1.5,9 L 22.5,9 L 22.5,12.8 L 1.5,12.8 Z M 3,14.4 L 21,14.4 L 21,21 L 3,21 Z M 12,8.8 C 11,4.6 8.5,2.6 7,4 C 5.5,5.4 7.5,8.8 12,8.8 Z M 12,8.8 C 13,4.6 15.5,2.6 17,4 C 18.5,5.4 16.5,8.8 12,8.8 Z"
-                                                                Fill="{ThemeResource VipBadgeWelfareForegroundBrush}"
-                                                                Stretch="Uniform" />
-                                                            <TextBlock
-                                                                FontSize="11"
-                                                                VerticalAlignment="Center"
-                                                                Foreground="{ThemeResource VipBadgeWelfareForegroundBrush}"
-                                                                Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
-                                                        </StackPanel>
-                                                    </Border>
+                                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                                    <TextBlock
+                                                        Text="{x:Bind Account.AccountText, Mode=OneWay}"
+                                                        TextTrimming="CharacterEllipsis" />
 
                                                     <!--
-                                                        到期时间：胶囊同一行的小字。
-                                                        数据来自登录响应 payInfo 的到期字段（取最晚的一个，见 VipStatus.LatestExpiry），
-                                                        **不需要额外接口**；老凭据里没存时整块收掉。
+                                                        会员徽标只是展示：播放权限一律以服务端 checkRight 为准。
+                                                        胶囊 = 图标 + 档位名，按档位三选一，每档一套配色（金 / 银 / 浅绿，
+                                                        见 Themes/VipBadge.xaml）；非会员三个都不显示。
+
+                                                        ★ 图标必须是 Path 而不是 PathIcon：PathIcon 按几何的原始尺寸
+                                                          出图，不缩放到 Width/Height，超出部分会被裁掉（皇冠会只剩一半）。
+                                                          Path 的 Stretch 才真的缩放。写法同 SongCommentsPanel.xaml。
                                                     -->
-                                                    <TextBlock
-                                                        Margin="6,0,0,0"
-                                                        FontSize="11"
-                                                        VerticalAlignment="Center"
-                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                        Text="{x:Bind Account.VipExpiryText, Mode=OneWay}"
-                                                        Visibility="{x:Bind Account.VipExpiryVisibility, Mode=OneWay}" />
+                                                    <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                                        <!-- 大会员：金，皇冠 + 顶星 -->
+                                                        <Border
+                                                            Padding="6,2"
+                                                            Background="{ThemeResource VipBadgeBigBackgroundBrush}"
+                                                            CornerRadius="10"
+                                                            Visibility="{x:Bind Account.BigVipVisibility, Mode=OneWay}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <Path
+                                                                    Width="11"
+                                                                    Height="13"
+                                                                    VerticalAlignment="Center"
+                                                                    Data="M 2,9 L 6,13.5 L 10,7 L 14,13.5 L 18,9 L 16.5,21 L 3.5,21 Z M 10,0.1 L 10.85,2.33 L 13.23,2.45 L 11.38,3.95 L 12,6.25 L 10,4.95 L 8,6.25 L 8.62,3.95 L 6.77,2.45 L 9.15,2.33 Z"
+                                                                    Fill="{ThemeResource VipBadgeBigForegroundBrush}"
+                                                                    Stretch="Uniform" />
+                                                                <TextBlock
+                                                                    FontSize="11"
+                                                                    VerticalAlignment="Center"
+                                                                    Foreground="{ThemeResource VipBadgeBigForegroundBrush}"
+                                                                    Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- 畅听会员：银，三尖皇冠 -->
+                                                        <Border
+                                                            Padding="6,2"
+                                                            Background="{ThemeResource VipBadgeStandardBackgroundBrush}"
+                                                            CornerRadius="10"
+                                                            Visibility="{x:Bind Account.StandardVipVisibility, Mode=OneWay}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <Path
+                                                                    Width="15"
+                                                                    Height="13"
+                                                                    VerticalAlignment="Center"
+                                                                    Data="M 2,5 L 6,9.5 L 10,3 L 14,9.5 L 18,5 L 16.5,17 L 3.5,17 Z"
+                                                                    Fill="{ThemeResource VipBadgeStandardForegroundBrush}"
+                                                                    Stretch="Uniform" />
+                                                                <TextBlock
+                                                                    FontSize="11"
+                                                                    VerticalAlignment="Center"
+                                                                    Foreground="{ThemeResource VipBadgeStandardForegroundBrush}"
+                                                                    Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- 福利会员：浅绿，礼物盒 -->
+                                                        <Border
+                                                            Padding="6,2"
+                                                            Background="{ThemeResource VipBadgeWelfareBackgroundBrush}"
+                                                            CornerRadius="10"
+                                                            Visibility="{x:Bind Account.WelfareVipVisibility, Mode=OneWay}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <Path
+                                                                    Width="15"
+                                                                    Height="13"
+                                                                    VerticalAlignment="Center"
+                                                                    Data="M 1.5,9 L 22.5,9 L 22.5,12.8 L 1.5,12.8 Z M 3,14.4 L 21,14.4 L 21,21 L 3,21 Z M 12,8.8 C 11,4.6 8.5,2.6 7,4 C 5.5,5.4 7.5,8.8 12,8.8 Z M 12,8.8 C 13,4.6 15.5,2.6 17,4 C 18.5,5.4 16.5,8.8 12,8.8 Z"
+                                                                    Fill="{ThemeResource VipBadgeWelfareForegroundBrush}"
+                                                                    Stretch="Uniform" />
+                                                                <TextBlock
+                                                                    FontSize="11"
+                                                                    VerticalAlignment="Center"
+                                                                    Foreground="{ThemeResource VipBadgeWelfareForegroundBrush}"
+                                                                    Text="{x:Bind Account.VipKindLabel, Mode=OneWay}" />
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!--
+                                                            到期时间：胶囊同一行的小字。
+                                                            数据来自登录响应 payInfo 的到期字段（取最晚的一个，见 VipStatus.LatestExpiry），
+                                                            **不需要额外接口**；老凭据里没存时整块收掉。
+                                                        -->
+                                                        <TextBlock
+                                                            Margin="6,0,0,0"
+                                                            FontSize="11"
+                                                            VerticalAlignment="Center"
+                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                            Text="{x:Bind Account.VipExpiryText, Mode=OneWay}"
+                                                            Visibility="{x:Bind Account.VipExpiryVisibility, Mode=OneWay}" />
+                                                    </StackPanel>
                                                 </StackPanel>
                                             </StackPanel>
+
+                                            <!--
+                                                账号统计：关注数 / 听歌总时长。两条接口各自独立，谁先回来谁先显示；
+                                                两个都拿不到时整块收掉，不留一行「—  —」。
+                                            -->
+                                            <Grid ColumnSpacing="16" Visibility="{x:Bind Account.StatsVisibility, Mode=OneWay}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Spacing="2">
+                                                    <TextBlock
+                                                        FontSize="16"
+                                                        FontWeight="SemiBold"
+                                                        Text="{x:Bind Account.FollowedArtistCountText, Mode=OneWay}" />
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        Text="关注歌手" />
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock
+                                                        FontSize="16"
+                                                        FontWeight="SemiBold"
+                                                        Text="{x:Bind Account.ListenTimeText, Mode=OneWay}" />
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        Text="听歌时长" />
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid ColumnSpacing="8" Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Button
+                                                    Grid.Column="0"
+                                                    HorizontalAlignment="Stretch"
+                                                    Click="OnShowSwitchListClick"
+                                                    Content="切换账号"
+                                                    ToolTipService.ToolTip="切到另一个登录过的账号，不用重新扫码" />
+
+                                                <Button
+                                                    Grid.Column="1"
+                                                    HorizontalAlignment="Stretch"
+                                                    Command="{x:Bind Account.SignOutCommand}"
+                                                    Content="退出登录"
+                                                    ToolTipService.ToolTip="清除当前会话，回到登录页；已记住的账号仍留在切换列表里" />
+                                            </Grid>
                                         </StackPanel>
 
                                         <!--
-                                            账号统计：关注数 / 听歌总时长。两条接口各自独立，谁先回来谁先显示；
-                                            两个都拿不到时整块收掉，不留一行「—  —」。
+                                            账号列表。点一下即切，不重新认证。
+                                            **未登录时这一屏就是全部内容**（没有账号卡片可看，而刚登出的人
+                                            最想做的就是换个账号回来）。所以标题、下面那颗按钮的名字、
+                                            空态文案都随登录态变。
                                         -->
-                                        <Grid ColumnSpacing="16" Visibility="{x:Bind Account.StatsVisibility, Mode=OneWay}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="8" Visibility="{x:Bind Account.SwitchListVisibility, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Button
+                                                    Width="28"
+                                                    Height="28"
+                                                    MinWidth="0"
+                                                    MinHeight="0"
+                                                    Padding="0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Click="OnHideSwitchListClick"
+                                                    ToolTipService.ToolTip="返回"
+                                                    Visibility="{x:Bind Account.BackVisibility, Mode=OneWay}">
+                                                    <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconBack}" />
+                                                </Button>
 
-                                            <StackPanel Grid.Column="0" Spacing="2">
                                                 <TextBlock
-                                                    FontSize="16"
+                                                    VerticalAlignment="Center"
                                                     FontWeight="SemiBold"
-                                                    Text="{x:Bind Account.FollowedArtistCountText, Mode=OneWay}" />
-                                                <TextBlock
-                                                    FontSize="11"
-                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                    Text="关注歌手" />
+                                                    Text="{x:Bind Account.ListTitle, Mode=OneWay}" />
                                             </StackPanel>
-
-                                            <StackPanel Grid.Column="1" Spacing="2">
-                                                <TextBlock
-                                                    FontSize="16"
-                                                    FontWeight="SemiBold"
-                                                    Text="{x:Bind Account.ListenTimeText, Mode=OneWay}" />
-                                                <TextBlock
-                                                    FontSize="11"
-                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                    Text="听歌时长" />
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <Grid ColumnSpacing="8" Visibility="{x:Bind Account.SignedInVisibility, Mode=OneWay}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Button
-                                                Grid.Column="0"
-                                                HorizontalAlignment="Stretch"
-                                                Click="OnShowSwitchListClick"
-                                                Content="切换账号"
-                                                ToolTipService.ToolTip="切到另一个登录过的账号，不用重新扫码" />
-
-                                            <Button
-                                                Grid.Column="1"
-                                                HorizontalAlignment="Stretch"
-                                                Command="{x:Bind Account.SignOutCommand}"
-                                                Content="退出登录"
-                                                ToolTipService.ToolTip="清除当前会话，回到登录页；已记住的账号仍留在切换列表里" />
-                                        </Grid>
-                                    </StackPanel>
-
-                                    <!--
-                                        账号列表。点一下即切，不重新认证。
-                                        **未登录时这一屏就是全部内容**（没有账号卡片可看，而刚登出的人
-                                        最想做的就是换个账号回来）。所以标题、下面那颗按钮的名字、
-                                        空态文案都随登录态变。
-                                    -->
-                                    <StackPanel Spacing="8" Visibility="{x:Bind Account.SwitchListVisibility, Mode=OneWay}">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Button
-                                                Width="28"
-                                                Height="28"
-                                                MinWidth="0"
-                                                MinHeight="0"
-                                                Padding="0"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Click="OnHideSwitchListClick"
-                                                ToolTipService.ToolTip="返回"
-                                                Visibility="{x:Bind Account.BackVisibility, Mode=OneWay}">
-                                                <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconBack}" />
-                                            </Button>
 
                                             <TextBlock
-                                                VerticalAlignment="Center"
-                                                FontWeight="SemiBold"
-                                                Text="{x:Bind Account.ListTitle, Mode=OneWay}" />
-                                        </StackPanel>
+                                                FontSize="11"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Text="{x:Bind Account.EmptyListHint, Mode=OneWay}"
+                                                TextWrapping="Wrap"
+                                                Visibility="{x:Bind Account.EmptyListVisibility, Mode=OneWay}" />
 
-                                        <TextBlock
-                                            FontSize="11"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            Text="{x:Bind Account.EmptyListHint, Mode=OneWay}"
-                                            TextWrapping="Wrap"
-                                            Visibility="{x:Bind Account.EmptyListVisibility, Mode=OneWay}" />
+                                            <ItemsControl ItemsSource="{x:Bind Account.RememberedAccounts}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:RememberedAccountRow">
+                                                        <Grid ColumnSpacing="4" Margin="0,1">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
 
-                                        <ItemsControl ItemsSource="{x:Bind Account.RememberedAccounts}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:RememberedAccountRow">
-                                                    <Grid ColumnSpacing="4" Margin="0,1">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
+                                                            <!--
+                                                                当前账号用**底色**表示，不用勾（与托盘播放模式菜单同一套做法：
+                                                                一层铺满的 Border + 上层内容；画刷与悬停相同，鼠标划过时不突兀）。
+                                                                Border 与按钮同格叠着，随格子铺满；两个都收起来时行高不变。
+                                                            -->
+                                                            <Border
+                                                                Grid.Column="0"
+                                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                                CornerRadius="{ThemeResource ControlCornerRadius}"
+                                                                Visibility="{x:Bind CurrentHighlightVisibility}" />
 
-                                                        <!--
-                                                            当前账号用**底色**表示，不用勾（与托盘播放模式菜单同一套做法：
-                                                            一层铺满的 Border + 上层内容；画刷与悬停相同，鼠标划过时不突兀）。
-                                                            Border 与按钮同格叠着，随格子铺满；两个都收起来时行高不变。
-                                                        -->
-                                                        <Border
-                                                            Grid.Column="0"
-                                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                                            CornerRadius="{ThemeResource ControlCornerRadius}"
-                                                            Visibility="{x:Bind CurrentHighlightVisibility}" />
+                                                            <!--
+                                                                整行就是切换按钮。当前那个禁掉而不是隐藏 ——
+                                                                列表的位置不会因为「当前是谁」而变。
+                                                            -->
+                                                            <Button
+                                                                Grid.Column="0"
+                                                                HorizontalAlignment="Stretch"
+                                                                HorizontalContentAlignment="Left"
+                                                                Background="Transparent"
+                                                                BorderThickness="0"
+                                                                Click="OnSwitchRememberedAccountClick"
+                                                                IsEnabled="{x:Bind CanSwitch}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                    <Border
+                                                                        Width="24"
+                                                                        Height="24"
+                                                                        VerticalAlignment="Center"
+                                                                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                                                        CornerRadius="12">
+                                                                        <Image Source="{x:Bind Avatar}" Stretch="UniformToFill" />
+                                                                    </Border>
 
-                                                        <!--
-                                                            整行就是切换按钮。当前那个禁掉而不是隐藏 ——
-                                                            列表的位置不会因为「当前是谁」而变。
-                                                        -->
-                                                        <Button
-                                                            Grid.Column="0"
-                                                            HorizontalAlignment="Stretch"
-                                                            HorizontalContentAlignment="Left"
-                                                            Background="Transparent"
-                                                            BorderThickness="0"
-                                                            Click="OnSwitchRememberedAccountClick"
-                                                            IsEnabled="{x:Bind CanSwitch}">
-                                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                                <Border
-                                                                    Width="24"
-                                                                    Height="24"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                                                    CornerRadius="12">
-                                                                    <Image Source="{x:Bind Avatar}" Stretch="UniformToFill" />
-                                                                </Border>
-
-                                                                <StackPanel VerticalAlignment="Center" Spacing="1">
-                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                        <TextBlock
-                                                                            Text="{x:Bind DisplayName}"
-                                                                            TextTrimming="CharacterEllipsis" />
-
-                                                                        <Border
-                                                                            Padding="6,1"
-                                                                            VerticalAlignment="Center"
-                                                                            Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                                                            CornerRadius="8"
-                                                                            Visibility="{x:Bind StaleLabelVisibility}">
+                                                                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                                                                        <StackPanel Orientation="Horizontal" Spacing="6">
                                                                             <TextBlock
-                                                                                FontSize="11"
-                                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                                Text="登录已失效" />
-                                                                        </Border>
+                                                                                Text="{x:Bind DisplayName}"
+                                                                                TextTrimming="CharacterEllipsis" />
+
+                                                                            <Border
+                                                                                Padding="6,1"
+                                                                                VerticalAlignment="Center"
+                                                                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                                                                CornerRadius="8"
+                                                                                Visibility="{x:Bind StaleLabelVisibility}">
+                                                                                <TextBlock
+                                                                                    FontSize="11"
+                                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                                    Text="登录已失效" />
+                                                                            </Border>
+                                                                        </StackPanel>
+
+                                                                        <TextBlock
+                                                                            FontSize="11"
+                                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                            Text="{x:Bind Uid}" />
                                                                     </StackPanel>
-
-                                                                    <TextBlock
-                                                                        FontSize="11"
-                                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                        Text="{x:Bind Uid}" />
                                                                 </StackPanel>
-                                                            </StackPanel>
-                                                        </Button>
+                                                            </Button>
 
-                                                        <Button
-                                                            Grid.Column="1"
-                                                            Width="28"
-                                                            Height="28"
-                                                            MinWidth="0"
-                                                            MinHeight="0"
-                                                            Padding="0"
-                                                            VerticalAlignment="Center"
-                                                            Background="Transparent"
-                                                            BorderThickness="0"
-                                                            Click="OnForgetRememberedAccountClick"
-                                                            ToolTipService.ToolTip="从这台机器上移除这个账号的登录凭据">
-                                                            <controls:Icon Size="12" Data="{StaticResource IconDelete}" />
-                                                        </Button>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                                            <Button
+                                                                Grid.Column="1"
+                                                                Width="28"
+                                                                Height="28"
+                                                                MinWidth="0"
+                                                                MinHeight="0"
+                                                                Padding="0"
+                                                                VerticalAlignment="Center"
+                                                                Background="Transparent"
+                                                                BorderThickness="0"
+                                                                Click="OnForgetRememberedAccountClick"
+                                                                ToolTipService.ToolTip="从这台机器上移除这个账号的登录凭据">
+                                                                <controls:Icon Size="12" Data="{StaticResource IconDelete}" />
+                                                            </Button>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
 
-                                        <!--
-                                            打开登录框。已登录时叫「添加账号」，未登录时叫「登录」——
-                                            同一件事（`OnSignInClick`），只是这个人此刻缺的是什么不一样。
-                                            不再先登出：那样一旦反悔就无路可回（旧行为只能退出应用）。
-                                        -->
-                                        <Button
-                                            HorizontalAlignment="Stretch"
-                                            Click="OnSignInClick"
-                                            ToolTipService.ToolTip="登录一个新账号并记进列表">
-                                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                                <controls:Icon VerticalAlignment="Center" Size="12" Data="{StaticResource IconAdd}" />
-                                                <TextBlock Text="{x:Bind Account.ListFooterText, Mode=OneWay}" />
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
+                                            <!--
+                                                打开登录框。已登录时叫「添加账号」，未登录时叫「登录」——
+                                                同一件事（`OnSignInClick`），只是这个人此刻缺的是什么不一样。
+                                                不再先登出：那样一旦反悔就无路可回（旧行为只能退出应用）。
+                                            -->
+                                            <Button
+                                                HorizontalAlignment="Stretch"
+                                                Click="OnSignInClick"
+                                                ToolTipService.ToolTip="登录一个新账号并记进列表">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                    <controls:Icon VerticalAlignment="Center" Size="12" Data="{StaticResource IconAdd}" />
+                                                    <TextBlock Text="{x:Bind Account.ListFooterText, Mode=OneWay}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
 
-                    <Button
-                        x:Name="ThemeButton"
-                        Width="{StaticResource SizeRoundButton}"
-                        Height="{StaticResource SizeRoundButton}"
-                        MinWidth="0"
-                        MinHeight="0"
-                        Padding="0"
-                        VerticalAlignment="Center"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        ToolTipService.ToolTip="{x:Bind Theme.CurrentLabel, Mode=OneWay}"
-                        AutomationProperties.Name="切换主题">
-                        <controls:Icon Size="{StaticResource SizeIconSm}"
-                            Data="{x:Bind local:Formats.IconPaths(Theme.CurrentIcon), Mode=OneWay}" />
-                        <Button.Flyout>
-                            <Flyout Opening="OnThemeFlyoutOpening" Placement="Bottom">
-                                <Flyout.FlyoutPresenterStyle>
-                                    <Style TargetType="FlyoutPresenter">
-                                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
-                                        <Setter Property="Padding" Value="6" />
-                                        <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
-                                    </Style>
-                                </Flyout.FlyoutPresenterStyle>
-                                <!-- 竖排单选列表：仅以背景表示选中，隐藏圆点、勾选和强调线。 -->
-                                <ListView
-                                    x:Name="ThemeOptions"
-                                    MinWidth="0"
-                                    HorizontalAlignment="Left"
-                                    SelectionMode="Single"
-                                    ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                    ScrollViewer.VerticalScrollMode="Disabled"
-                                    AutomationProperties.Name="主题">
-                                    <ListView.Resources>
-                                        <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
-                                        <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
-                                    </ListView.Resources>
-                                    <ListView.ItemContainerStyle>
-                                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                                            <Setter Property="MinWidth" Value="0" />
-                                            <Setter Property="Padding" Value="10,8" />
-                                            <Setter Property="Margin" Value="0,2" />
-                                            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Button
+                            x:Name="ThemeButton"
+                            Width="{StaticResource SizeRoundButton}"
+                            Height="{StaticResource SizeRoundButton}"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            ToolTipService.ToolTip="{x:Bind Theme.CurrentLabel, Mode=OneWay}"
+                            AutomationProperties.Name="切换主题">
+                            <controls:Icon Size="{StaticResource SizeIconSm}"
+                                Data="{x:Bind local:Formats.IconPaths(Theme.CurrentIcon), Mode=OneWay}" />
+                            <Button.Flyout>
+                                <Flyout Opening="OnThemeFlyoutOpening" Placement="Bottom">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
+                                            <Setter Property="Padding" Value="6" />
+                                            <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
                                         </Style>
-                                    </ListView.ItemContainerStyle>
-                                    <ListViewItem x:Name="SystemThemeOption" AutomationProperties.Name="跟随系统">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeAuto}" />
-                                            <TextBlock VerticalAlignment="Center" Text="跟随系统" />
-                                        </StackPanel>
-                                    </ListViewItem>
-                                    <ListViewItem x:Name="LightThemeOption" AutomationProperties.Name="浅色">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeLight}" />
-                                            <TextBlock VerticalAlignment="Center" Text="浅色" />
-                                        </StackPanel>
-                                    </ListViewItem>
-                                    <ListViewItem x:Name="DarkThemeOption" AutomationProperties.Name="深色">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeDark}" />
-                                            <TextBlock VerticalAlignment="Center" Text="深色" />
-                                        </StackPanel>
-                                    </ListViewItem>
-                                </ListView>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
-                    <!--
-                        小窗开关。与旁边的主题按钮同一套尺寸与底色。
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <!-- 竖排单选列表：仅以背景表示选中，隐藏圆点、勾选和强调线。 -->
+                                    <ListView
+                                        x:Name="ThemeOptions"
+                                        MinWidth="0"
+                                        HorizontalAlignment="Left"
+                                        SelectionMode="Single"
+                                        ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                        ScrollViewer.VerticalScrollMode="Disabled"
+                                        AutomationProperties.Name="主题">
+                                        <ListView.Resources>
+                                            <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                                            <x:Boolean x:Key="ListViewItemSelectionCheckMarkVisualEnabled">False</x:Boolean>
+                                        </ListView.Resources>
+                                        <ListView.ItemContainerStyle>
+                                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                                <Setter Property="MinWidth" Value="0" />
+                                                <Setter Property="Padding" Value="10,8" />
+                                                <Setter Property="Margin" Value="0,2" />
+                                                <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            </Style>
+                                        </ListView.ItemContainerStyle>
+                                        <ListViewItem x:Name="SystemThemeOption" AutomationProperties.Name="跟随系统">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeAuto}" />
+                                                <TextBlock VerticalAlignment="Center" Text="跟随系统" />
+                                            </StackPanel>
+                                        </ListViewItem>
+                                        <ListViewItem x:Name="LightThemeOption" AutomationProperties.Name="浅色">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeLight}" />
+                                                <TextBlock VerticalAlignment="Center" Text="浅色" />
+                                            </StackPanel>
+                                        </ListViewItem>
+                                        <ListViewItem x:Name="DarkThemeOption" AutomationProperties.Name="深色">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconThemeDark}" />
+                                                <TextBlock VerticalAlignment="Center" Text="深色" />
+                                            </StackPanel>
+                                        </ListViewItem>
+                                    </ListView>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <!--
+                            小窗开关。与旁边的主题按钮同一套尺寸与底色。
 
-                        激活态的着色走元素级 VisualState（不是 code-behind 设画刷）：
-                        后者拿一次 ThemeResource 就永久设上，切主题后前景不会跟着变 ——
-                        播放条那颗桌面歌词开关就是踩过这个才改的，见 docs/icons.md。
+                            激活态的着色走元素级 VisualState（不是 code-behind 设画刷）：
+                            后者拿一次 ThemeResource 就永久设上，切主题后前景不会跟着变 ——
+                            播放条那颗桌面歌词开关就是踩过这个才改的，见 docs/icons.md。
 
-                        ★ VisualStateManager.GoToState 的第一个参数必须是 Control，
-                          而 MainWindow 是 Window，所以这组状态挂在按钮自己身上，
-                          不能像 PlayerBar 那样挂在 UserControl 根上。
-                    -->
-                    <Button
-                        x:Name="MiniPlayerButton"
-                        Width="{StaticResource SizeRoundButton}"
-                        Height="{StaticResource SizeRoundButton}"
-                        MinWidth="0"
-                        MinHeight="0"
-                        Padding="0"
-                        VerticalAlignment="Center"
-                        AutomationProperties.Name="小窗"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Click="OnMiniPlayerClick"
-                        ToolTipService.ToolTip="小窗">
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup x:Name="MiniPlayerStates">
-                                <VisualState x:Name="MiniPlayerInactive" />
-                                <VisualState x:Name="MiniPlayerActive">
-                                    <VisualState.Setters>
-                                        <Setter Target="MiniPlayerButton.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                        <Setter Target="MiniPlayerButton.Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}" />
-                                    </VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
-                        <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconMiniPlayer}" />
-                    </Button>
+                            ★ VisualStateManager.GoToState 的第一个参数必须是 Control，
+                              而 MainWindow 是 Window，所以这组状态挂在按钮自己身上，
+                              不能像 PlayerBar 那样挂在 UserControl 根上。
+                        -->
+                        <Button
+                            x:Name="MiniPlayerButton"
+                            Width="{StaticResource SizeRoundButton}"
+                            Height="{StaticResource SizeRoundButton}"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="小窗"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnMiniPlayerClick"
+                            ToolTipService.ToolTip="小窗">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="MiniPlayerStates">
+                                    <VisualState x:Name="MiniPlayerInactive" />
+                                    <VisualState x:Name="MiniPlayerActive">
+                                        <VisualState.Setters>
+                                            <Setter Target="MiniPlayerButton.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <Setter Target="MiniPlayerButton.Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconMiniPlayer}" />
+                        </Button>
 
-                    <!-- 设置。与左边的按钮同一套尺寸与底色，打开设置页（压栈，返回回到原处）。 -->
-                    <Button
-                        x:Name="SettingsButton"
-                        Width="{StaticResource SizeRoundButton}"
-                        Height="{StaticResource SizeRoundButton}"
-                        MinWidth="0"
-                        MinHeight="0"
-                        Padding="0"
-                        VerticalAlignment="Center"
-                        AutomationProperties.Name="设置"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Click="OnSettingsClick"
-                        ToolTipService.ToolTip="设置">
-                        <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconSettings}" />
-                    </Button>
-                    <Border
-                        Width="1"
-                        Height="16"
-                        Margin="8,0,0,0"
-                        VerticalAlignment="Center"
-                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                </StackPanel>
-            </TitleBar.RightHeader>
+                        <!-- 设置。与左边的按钮同一套尺寸与底色，打开设置页（压栈，返回回到原处）。 -->
+                        <Button
+                            x:Name="SettingsButton"
+                            Width="{StaticResource SizeRoundButton}"
+                            Height="{StaticResource SizeRoundButton}"
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="设置"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnSettingsClick"
+                            ToolTipService.ToolTip="设置">
+                            <controls:Icon Size="{StaticResource SizeIconSm}" Data="{StaticResource IconSettings}" />
+                        </Button>
+                        <Border
+                            Width="1"
+                            Height="16"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                    </StackPanel>
+                </Grid>
+            </TitleBar.Content>
         </TitleBar>
 
         <!--

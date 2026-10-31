@@ -322,14 +322,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             UpdateShellResourceState();
         };
         _renderActivity.InteractionChanged += (_, _) =>
-        {
             WindowViewport.IsInteractive = _renderActivity.IsInteractive;
-            if (!_renderActivity.IsInteractive)
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    if (!IsMinimized && !_immersiveVisible) AppTitleBar.RecomputeDragRegions();
-                });
-        };
         Closed += (_, _) =>
         {
             _closed = true;
@@ -440,7 +433,6 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     {
         ExtendsContentIntoTitleBar = true;
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-        AppTitleBar.AutoRefreshDragRegions = false;
         SetTitleBar(AppTitleBar);
 
         // 任务栏与 Alt-Tab 上显示的名字。标题栏本身是自绘的，看不到它，但系统那几处会读。
@@ -1967,13 +1959,6 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         LogoLabel.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         LogoHost.Padding = compact ? new Thickness(12, 0, 12, 0) : new Thickness(24, 0, 0, 0);
 
-        // 拖拽区按子元素边界算，而 AutoRefreshDragRegions 是关掉的，宽度变了要重算一次。
-        // 排到队列尾：本方法由 IsPaneOpen 的属性回调触发，此刻模板还在切视觉状态。
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            if (!_immersiveVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
-        });
-
         // 展开态自己有那一段，浮层就没用了；收起时反过来，浮层不该留着。
         if (!compact)
         {
@@ -2738,10 +2723,6 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             });
         }
         SyncSelection();
-        if (!_immersiveVisible) DispatcherQueue.TryEnqueue(() =>
-        {
-            if (!_immersiveVisible && !IsMinimized) AppTitleBar.RecomputeDragRegions();
-        });
     }
 
     /// <summary>
