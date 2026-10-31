@@ -1,7 +1,7 @@
 namespace Bowen.Core.Media;
 
 /// <summary>
-/// 从一张位图的像素里挑出主色。
+/// 从一张位图的像素里挑出主色与多色配色。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -42,8 +42,16 @@ public static class ColorQuantizer
     /// <summary>彩色候选桶的最小像素数；小图上按比例算出来可能只有几个像素。</summary>
     private const int MinimumCandidatePixels = 18;
 
-    /// <summary>低于这个饱和度就不算「彩色候选」。</summary>
-    private const double CandidateSaturation = 0.18;
+    /// <summary>
+    /// 低于这个 OKLCH 彩度就不算「彩色候选」。
+    /// </summary>
+    /// <remarks>
+    /// <b>用绝对彩度而不是 HSV 饱和度。</b> HSV 的饱和度是相对值，浅粉 `#F7DCE3` 的
+    /// 饱和度只有 0.11，看起来却明显是粉色；用 0.18 的门槛会把它排除，
+    /// 白底封面上的彩色条就消失了。OKLCH 彩度约 0.031，能正确识别这类浅色。
+    /// 真正的灰（`#888886` 彩度约 0.002、暖灰约 0.02）仍在门槛之下。
+    /// </remarks>
+    private const double MinimumCandidateChroma = 0.025;
 
     /// <summary>亮度低于这个值按黑边处理，高于上限按白边处理。</summary>
     private const double CandidateMinimumLuminance = 0.10;
@@ -55,6 +63,32 @@ public static class ColorQuantizer
 
     /// <summary>没有任何彩色候选时，沿用原来的低饱和度基数，让灰阶封面仍能稳定选出主色。</summary>
     private const double FallbackSaturationWeight = 0.35;
+
+    /// <summary>多色提取最多返回的颜色数，与氛围背景的三团光晕一致。</summary>
+    public const int MaximumPaletteColors = 3;
+
+    /// <summary>两个彩色种子之间至少差这么多色相，才算「另一种颜色」。</summary>
+    private const double MinimumHueDistance = 24;
+
+    /// <summary>凑不满时放宽的色相距离。</summary>
+    private const double RelaxedHueDistance = 15;
+
+    /// <summary>
+    /// 两个种子之间至少差这么多通道值，避免选到几乎一样的颜色。
+    /// </summary>
+    /// <remarks>
+    /// 24 太松：实测橙红封面上两个 RGB 只差 29 的橙色会同时入选，第三个种子变成重复色。
+    /// 32 能挡住这类近似色，又不会把灰阶封面的暗部与中间调拆开。
+    /// </remarks>
+    private const int MinimumRgbDistance = 32;
+
+    /// <summary>中性色补位时希望拉开的明暗差。</summary>
+    private const double MinimumLuminanceDistance = 0.12;
+
+    /// <summary>中性色补位优先避开纯白与纯黑，最后才放开。</summary>
+    private const double NeutralMinimumLuminance = 0.15;
+
+    private const double NeutralMaximumLuminance = 0.85;
 
     /// <summary>
     /// 挑出主色。
@@ -69,7 +103,7 @@ public static class ColorQuantizer
     /// <remarks>
     /// <b>先找彩色候选，找不到才退回面积主色。</b> 只按「面积开平方 × 适合度」排序时，
     /// 白底封面上的白色桶经常赢过小面积彩色主体（30% 白底可以压过 0.8% 的棕色），
-    /// 主色变成白色后，<see cref="ColorPalette.Ambient"/> 会直接退回默认配色，表现为「没变色」。
+    /// 主色变成白色后，氛围色会失去色相。
     /// 两段式先把近白、近黑和低饱和的桶排除，再在剩下的桶里按面积与饱和度排序。
     /// </remarks>
     public static RgbColor? Dominant(ReadOnlySpan<byte> bgra)
@@ -79,13 +113,254 @@ public static class ColorQuantizer
             return null;
         }
 
+        var buckets = BuildBuckets(bgra, out var visiblePixels);
+
+        if (visiblePixels == 0)
+        {
+            return null;
+        }
+
+        var minimumCandidateCount = MinimumCandidateCount(visiblePixels);
+
+        var bestCandidateWeight = 0.0;
+        RgbColor? bestCandidate = null;
+
+        var bestFallbackWeight = 0.0;
+        RgbColor? bestFallback = null;
+
+        foreach (var bucket in buckets)
+        {
+            if (bucket.Count == 0)
+            {
+                continue;
+            }
+
+            var fallbackWeight = Math.Sqrt(bucket.Count)
+                * Suitability(bucket.Saturation, bucket.Luminance, FallbackSaturationWeight);
+
+            if (fallbackWeight > bestFallbackWeight)
+            {
+                bestFallbackWeight = fallbackWeight;
+                bestFallback = bucket.Color;
+            }
+
+            if (!IsColoredCandidate(bucket, minimumCandidateCount))
+            {
+                continue;
+            }
+
+            var candidateWeight = Math.Sqrt(bucket.Count)
+                * Suitability(bucket.Saturation, bucket.Luminance, CandidateSaturationWeight);
+
+            if (candidateWeight <= bestCandidateWeight)
+            {
+                continue;
+            }
+
+            bestCandidateWeight = candidateWeight;
+            bestCandidate = bucket.Color;
+        }
+
+        return bestCandidate ?? bestFallback;
+    }
+
+    /// <summary>
+    /// 提取 1–3 个封面里真实存在的颜色，供氛围背景使用。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>不再由单个主色派生同族色。</b> 单主色加 ±40° 偏移只能得到一种色相，
+    /// 整页看起来像一套固定渐变，与封面的色彩构成无关。这里先按得分取最高的一色，
+    /// 再挑选与已选颜色色相差足够大的候选，得到真正来自封面的多个色相。
+    /// </para>
+    /// <para>
+    /// <b>灰阶封面不再返回空或默认配色。</b> 没有彩色候选时挑选明暗不同的中性色，
+    /// 让背景保持封面本身的灰调；真正的默认配色只留给没有封面和解码失败。
+    /// </para>
+    /// </remarks>
+    /// <param name="bgra">BGRA 像素，顺序同 <see cref="Dominant"/>。</param>
+    /// <param name="count">期望的颜色数，1–<see cref="MaximumPaletteColors"/>。</param>
+    /// <returns>提取结果；输入为空或全部透明时返回 <c>null</c>。</returns>
+    public static ExtractedPalette? Palette(ReadOnlySpan<byte> bgra, int count = MaximumPaletteColors)
+    {
+        if (bgra.Length < 4)
+        {
+            return null;
+        }
+
+        count = Math.Clamp(count, 1, MaximumPaletteColors);
+
+        var buckets = BuildBuckets(bgra, out var visiblePixels);
+
+        if (visiblePixels == 0)
+        {
+            return null;
+        }
+
+        var minimumCandidateCount = MinimumCandidateCount(visiblePixels);
+
+        var colored = new List<ScoredBucket>();
+        var fallback = new List<ScoredBucket>();
+
+        foreach (var bucket in buckets)
+        {
+            if (bucket.Count == 0)
+            {
+                continue;
+            }
+
+            fallback.Add(new ScoredBucket(
+                bucket,
+                Math.Sqrt(bucket.Count) * Suitability(bucket.Saturation, bucket.Luminance, FallbackSaturationWeight)));
+
+            if (!IsColoredCandidate(bucket, minimumCandidateCount))
+            {
+                continue;
+            }
+
+            colored.Add(new ScoredBucket(
+                bucket,
+                Math.Sqrt(bucket.Count) * Suitability(bucket.Saturation, bucket.Luminance, CandidateSaturationWeight)));
+        }
+
+        colored.Sort(static (left, right) => right.Weight.CompareTo(left.Weight));
+        fallback.Sort(static (left, right) => right.Weight.CompareTo(left.Weight));
+
+        var seeds = new List<RgbColor>(count);
+
+        // 先按色相拉开，凑不满再放宽；同一色相的两个桶只当作一种颜色。
+        AddColoredSeeds(seeds, colored, count, MinimumHueDistance);
+        if (seeds.Count < count)
+        {
+            AddColoredSeeds(seeds, colored, count, RelaxedHueDistance);
+        }
+
+        if (seeds.Count < count)
+        {
+            AddColoredSeeds(seeds, colored, count, 0);
+        }
+
+        var neutralCount = seeds.Count;
+
+        // 彩色不足时用封面里真实存在的中性色补位，而不是凭空派生色相。
+        // 先避开纯白和纯黑，最后才放开，否则白底封面会补出一团白。
+        AddNeutralSeeds(seeds, fallback, count, NeutralMinimumLuminance, NeutralMaximumLuminance, MinimumLuminanceDistance);
+        if (seeds.Count < count)
+        {
+            AddNeutralSeeds(seeds, fallback, count, NeutralMinimumLuminance, NeutralMaximumLuminance, MinimumLuminanceDistance / 2);
+        }
+
+        if (seeds.Count < count)
+        {
+            AddNeutralSeeds(seeds, fallback, count, 0, 1, 0);
+        }
+
+        if (seeds.Count == 0)
+        {
+            return null;
+        }
+
+        return new ExtractedPalette(
+            seeds,
+            colored.Count,
+            UsedFallbackFill: seeds.Count > neutralCount || colored.Count == 0);
+    }
+
+    private static int MinimumCandidateCount(int visiblePixels)
+        => Math.Max(MinimumCandidatePixels, (int)Math.Ceiling(visiblePixels * MinimumCandidateFraction));
+
+    private static bool IsColoredCandidate(Bucket bucket, int minimumCandidateCount)
+        => bucket.Count >= minimumCandidateCount
+            && bucket.Chroma >= MinimumCandidateChroma
+            && bucket.Luminance >= CandidateMinimumLuminance
+            && bucket.Luminance <= CandidateMaximumLuminance;
+
+    private static void AddColoredSeeds(
+        List<RgbColor> seeds,
+        List<ScoredBucket> candidates,
+        int count,
+        double hueThreshold)
+    {
+        foreach (var (bucket, _) in candidates)
+        {
+            if (seeds.Count >= count)
+            {
+                return;
+            }
+
+            if (seeds.Any(seed => ColorMath.RgbDistance(seed, bucket.Color) < MinimumRgbDistance))
+            {
+                continue;
+            }
+
+            if (seeds.Any(seed => HueGap(seed, bucket.Color) < hueThreshold))
+            {
+                continue;
+            }
+
+            seeds.Add(bucket.Color);
+        }
+    }
+
+    private static void AddNeutralSeeds(
+        List<RgbColor> seeds,
+        List<ScoredBucket> candidates,
+        int count,
+        double minimumLuminance,
+        double maximumLuminance,
+        double luminanceThreshold)
+    {
+        foreach (var (bucket, _) in candidates)
+        {
+            if (seeds.Count >= count)
+            {
+                return;
+            }
+
+            if (bucket.Luminance < minimumLuminance || bucket.Luminance > maximumLuminance)
+            {
+                continue;
+            }
+
+            if (seeds.Any(seed => ColorMath.RgbDistance(seed, bucket.Color) < MinimumRgbDistance))
+            {
+                continue;
+            }
+
+            if (luminanceThreshold > 0
+                && seeds.Any(seed => Math.Abs(ColorMath.Luminance(seed) - bucket.Luminance) < luminanceThreshold))
+            {
+                continue;
+            }
+
+            seeds.Add(bucket.Color);
+        }
+    }
+
+    /// <summary>两个颜色的色相距离；任一颜色接近灰时按「离得很远」处理。</summary>
+    private static double HueGap(RgbColor first, RgbColor second)
+    {
+        var firstOklch = ColorMath.ToOklch(first);
+        var secondOklch = ColorMath.ToOklch(second);
+
+        if (firstOklch.Chroma < MinimumCandidateChroma || secondOklch.Chroma < MinimumCandidateChroma)
+        {
+            return 180;
+        }
+
+        return ColorMath.HueDistance(firstOklch.Hue, secondOklch.Hue);
+    }
+
+    /// <summary>一趟扫描把像素分进 4096 个桶，并算好桶内平均色与色度。</summary>
+    private static Bucket[] BuildBuckets(ReadOnlySpan<byte> bgra, out int visiblePixels)
+    {
         var counts = new int[BucketCount];
         var sumR = new int[BucketCount];
         var sumG = new int[BucketCount];
         var sumB = new int[BucketCount];
 
+        visiblePixels = 0;
         var pixels = bgra.Length / 4;
-        var visiblePixels = 0;
 
         for (var i = 0; i < pixels; i++)
         {
@@ -112,15 +387,7 @@ public static class ColorQuantizer
             sumB[index] += b;
         }
 
-        var minimumCandidateCount = Math.Max(
-            MinimumCandidatePixels,
-            (int)Math.Ceiling(visiblePixels * MinimumCandidateFraction));
-
-        var bestCandidateWeight = 0.0;
-        RgbColor? bestCandidate = null;
-
-        var bestFallbackWeight = 0.0;
-        RgbColor? bestFallback = null;
+        var buckets = new Bucket[BucketCount];
 
         for (var index = 0; index < BucketCount; index++)
         {
@@ -134,51 +401,14 @@ public static class ColorQuantizer
             var r = (byte)(sumR[index] / count);
             var g = (byte)(sumG[index] / count);
             var b = (byte)(sumB[index] / count);
+            var color = new RgbColor(r, g, b);
+            var (_, saturation, _) = ColorMath.ToHsv(color);
+            var (_, chroma, _) = ColorMath.ToOklch(color);
 
-            var (saturation, luminance) = Chroma(r, g, b);
-
-            var fallbackWeight = Math.Sqrt(count) * Suitability(saturation, luminance, FallbackSaturationWeight);
-
-            if (fallbackWeight > bestFallbackWeight)
-            {
-                bestFallbackWeight = fallbackWeight;
-                bestFallback = new RgbColor(r, g, b);
-            }
-
-            if (count < minimumCandidateCount
-                || saturation < CandidateSaturation
-                || luminance < CandidateMinimumLuminance
-                || luminance > CandidateMaximumLuminance)
-            {
-                continue;
-            }
-
-            var candidateWeight = Math.Sqrt(count) * Suitability(saturation, luminance, CandidateSaturationWeight);
-
-            if (candidateWeight <= bestCandidateWeight)
-            {
-                continue;
-            }
-
-            bestCandidateWeight = candidateWeight;
-            bestCandidate = new RgbColor(r, g, b);
+            buckets[index] = new Bucket(count, color, saturation, chroma, ColorMath.Luminance(color));
         }
 
-        return bestCandidate ?? bestFallback;
-    }
-
-    /// <summary>饱和度和亮度；亮度用来排除封面的白边与黑边。</summary>
-    private static (double Saturation, double Luminance) Chroma(byte r, byte g, byte b)
-    {
-        var max = Math.Max(r, Math.Max(g, b));
-        var min = Math.Min(r, Math.Min(g, b));
-
-        var saturation = max == 0 ? 0.0 : (double)(max - min) / max;
-
-        // 线性化之前先归一化即可 —— 这里只是排序用，不需要严格的光度学精度。
-        var luminance = ((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) / 255.0;
-
-        return (saturation, luminance);
+        return buckets;
     }
 
     /// <summary>
@@ -197,4 +427,33 @@ public static class ColorQuantizer
     private static double Suitability(double saturation, double luminance, double saturationWeight)
         => ((saturationWeight + ((1 - saturationWeight) * saturation))
             * (1 - (0.9 * Math.Abs(luminance - 0.55) / 0.55)));
+
+    private readonly struct Bucket(int count, RgbColor color, double saturation, double chroma, double luminance)
+    {
+        public int Count { get; } = count;
+
+        public RgbColor Color { get; } = color;
+
+        public double Saturation { get; } = saturation;
+
+        public double Chroma { get; } = chroma;
+
+        public double Luminance { get; } = luminance;
+    }
+
+    private readonly record struct ScoredBucket(Bucket Bucket, double Weight)
+    {
+        public RgbColor Color => Bucket.Color;
+
+        public double Luminance => Bucket.Luminance;
+    }
 }
+
+/// <summary>多色提取的结果。</summary>
+/// <param name="Seeds">按得分排序的封面颜色，1–3 个。</param>
+/// <param name="ColoredCandidateCount">通过饱和度与亮度筛选的彩色候选桶数量。</param>
+/// <param name="UsedFallbackFill">是否因为彩色候选不足而使用了其他封面颜色补位，或走了灰阶分支。</param>
+public sealed record ExtractedPalette(
+    IReadOnlyList<RgbColor> Seeds,
+    int ColoredCandidateCount,
+    bool UsedFallbackFill);

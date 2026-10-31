@@ -29,6 +29,7 @@ public sealed partial class AmbientBackdrop : UserControl
     private readonly SemaphoreSlim _renderGate = new(1, 1);
 
     private IReadOnlyList<RgbColor> _palette = ColorPalette.DefaultAmbient;
+    private IReadOnlyList<RgbColor> _seeds = [];
     private IReadOnlyList<RgbColor>? _transitionTarget;
     private PlayerViewModel? _player;
     private WriteableBitmap? _bitmap;
@@ -48,6 +49,7 @@ public sealed partial class AmbientBackdrop : UserControl
             if (!_resourcesSuspended) Resume();
         };
         Unloaded += (_, _) => { _loaded = false; Release(); };
+        ActualThemeChanged += (_, _) => _ = RefreshThemeAsync();
     }
 
     public bool IsResourceSuspended
@@ -83,8 +85,12 @@ public sealed partial class AmbientBackdrop : UserControl
         BackdropImage.Source = null;
         _bitmap = null;
         _pixels = null;
+        _seeds = [];
         _transitionTarget = null;
     }
+
+    private AmbientTheme CurrentTheme
+        => ActualTheme == ElementTheme.Dark ? AmbientTheme.Dark : AmbientTheme.Light;
 
     private void OnPlayerChanged(object? sender, PropertyChangedEventArgs args)
     {
@@ -98,11 +104,31 @@ public sealed partial class AmbientBackdrop : UserControl
         var request = ++_paletteRequest;
         var trackId = player.CurrentTrackId ?? 0;
         var cover = player.CurrentCoverUri;
-        var palette = await _loader.LoadAsync(trackId, cover);
+        var seeds = await _loader.LoadAsync(trackId, cover);
         if (request != _paletteRequest || !_loaded || _resourcesSuspended
             || !ReferenceEquals(_player, player) || (player.CurrentTrackId ?? 0) != trackId || player.CurrentCoverUri != cover) return;
+        _seeds = seeds;
+        var palette = ColorPalette.Ambient(seeds, CurrentTheme);
         if (_bitmap is not null && _palette.SequenceEqual(palette)) return;
         if (_transitionTarget is not null && _transitionTarget.SequenceEqual(palette)) return;
+        await TransitionAsync(palette);
+    }
+
+    /// <summary>
+    /// 主题切换后按同一批封面种子重新映射明度与彩度。
+    /// </summary>
+    /// <remarks>
+    /// 暗色与浅色的目标明度不同，但色相与种子不变；重算只涉及三个颜色，成本可以忽略。
+    /// 没有封面时默认配色与主题无关，不重绘。
+    /// </remarks>
+    private async Task RefreshThemeAsync()
+    {
+        if (!_loaded || _resourcesSuspended || _seeds.Count == 0) return;
+
+        var palette = ColorPalette.Ambient(_seeds, CurrentTheme);
+
+        if (_transitionTarget is not null && _transitionTarget.SequenceEqual(palette)) return;
+
         await TransitionAsync(palette);
     }
 

@@ -8,7 +8,7 @@ using Windows.UI;
 namespace Bowen.WinUI.Media;
 
 /// <summary>
-/// 取当前封面的主色，派生成三团氛围色。
+/// 从当前封面提取 1–3 个真实颜色；主题映射由 <see cref="ColorPalette.Ambient"/> 负责。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -39,12 +39,18 @@ public sealed class CoverPaletteLoader
         => _logger = logger ?? NullLogger<CoverPaletteLoader>.Instance;
 
     /// <summary>
-    /// 取某一首的颜色。<b>永远不会抛</b> —— 失败时退回默认网格配色。
+    /// 取某一首的封面颜色种子。<b>永远不会抛</b> —— 失败时返回空列表。
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// <b>缓存的是种子而不是最终调色板。</b> 同一个封面在深色与浅色主题下要映射成
+    /// 不同的明度与彩度；缓存种子后切主题只需重算三个颜色，不必重新解码。
+    /// </para>
+    /// <para>
     /// <b>切歌竞态要自己挡。</b> 连着切两首时，前一首的解码可能后完成，
     /// 结果是把旧歌的颜色刷到界面上。每次调用会取消上一次的 CTS，
     /// 返回前再确认一次没被取消。
+    /// </para>
     /// </remarks>
     public async Task<IReadOnlyList<RgbColor>> LoadAsync(long trackId, Uri? cover)
     {
@@ -54,11 +60,11 @@ public sealed class CoverPaletteLoader
         _cts = cancellation;
         try
         {
-            var palette = await ExtractAsync(cover, cancellation.Token).ConfigureAwait(true);
-            if (cancellation.IsCancellationRequested) return palette;
+            var seeds = await ExtractAsync(cover, cancellation.Token).ConfigureAwait(true);
+            if (cancellation.IsCancellationRequested) return seeds;
             if (_cache.Count >= CacheLimit) _cache.Clear();
-            _cache[trackId] = palette;
-            return palette;
+            _cache[trackId] = seeds;
+            return seeds;
         }
         finally
         {
@@ -74,9 +80,9 @@ public sealed class CoverPaletteLoader
 
         if (url is null)
         {
-            _logger.LogDebug("没有封面地址，氛围色退回默认网格配色");
+            _logger.LogDebug("没有封面地址，返回空种子");
 
-            return ColorPalette.DefaultAmbient;
+            return [];
         }
 
         try
@@ -95,23 +101,23 @@ public sealed class CoverPaletteLoader
             token.ThrowIfCancellationRequested();
             var bgra = pixels.DetachPixelData();
 
-            var dominant = ColorQuantizer.Dominant(bgra);
+            var extraction = ColorQuantizer.Palette(bgra, ColorPalette.ColorCount);
 
             _logger.LogInformation(
-                "氛围取色：解码 {Width}×{Height}，主色 {Dominant}，地址 {Url}",
+                "氛围取色：解码 {Width}×{Height}，彩色候选 {Candidates}，补位 {Neutral}，种子 {Seeds}，地址 {Url}",
                 width,
                 height,
-                dominant is null ? "（无）" : $"#{dominant.Value.R:X2}{dominant.Value.G:X2}{dominant.Value.B:X2}",
+                extraction?.ColoredCandidateCount ?? 0,
+                extraction?.UsedFallbackFill ?? false,
+                extraction is null ? "（无）" : string.Join("、", extraction.Seeds.Select(FormatHex)),
                 url);
 
-            return dominant is { } seed
-                ? ColorPalette.Ambient(seed)
-                : ColorPalette.DefaultAmbient;
+            return extraction?.Seeds ?? [];
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             // 新封面请求取代了本次请求；控件会丢弃过期结果，取消不应进入 async void 异常通道。
-            return ColorPalette.DefaultAmbient;
+            return [];
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -120,9 +126,9 @@ public sealed class CoverPaletteLoader
             // ★ 一定要记日志。**静默失败会让这个功能看起来「没生效」而不是「出错了」** ——
             //   实测踩过：win10 上 Win2D 解不了 webp，异常被吞掉，界面只是颜色不变，
             //   完全看不出是解码失败。
-            _logger.LogWarning(ex, "氛围取色失败，退回默认网格配色。地址 {Url}", url);
+            _logger.LogWarning(ex, "氛围取色失败，返回空种子。地址 {Url}", url);
 
-            return ColorPalette.DefaultAmbient;
+            return [];
         }
     }
 
@@ -133,4 +139,6 @@ public sealed class CoverPaletteLoader
     /// </remarks>
     public static Color ToColor(RgbColor color, byte alpha = 255) =>
         Color.FromArgb(alpha, color.R, color.G, color.B);
+
+    private static string FormatHex(RgbColor color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
 }

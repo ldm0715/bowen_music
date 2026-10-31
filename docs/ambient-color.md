@@ -1,7 +1,9 @@
 # 封面驱动的动态取色
 
-更新日期：2026-10-23。记录当前规则、实测问题与修复方案。
-**4.1 与 4.2 已实现；4.3 / 4.4 按当前决定不做。**
+更新日期：2026-10-31。记录当前规则、实测问题与修复方案。
+**4.1 与 4.2 已实现。**
+**2026-10-31 起，4.3 / 4.4 的「不做」结论被推翻：改为多色提取与保留原色明暗，
+灰阶封面不再退回默认配色。方案与实施见 [`shell-background.md`](shell-background.md) §6。**
 
 相关：[`ui-refresh.md`](ui-refresh.md) §8（封面取色与层级分离）、[`performance.md`](performance.md)（取色开销与缓存）。
 
@@ -33,21 +35,24 @@
 两者都不变就不重新取色；取到的新调色板与当前完全相同时也不重绘
 （`_palette.SequenceEqual(palette)`）。
 
+主题切换是另一条触发路径：缓存的是封面种子，切换明暗主题时用同一批种子重新映射，
+不需要重新解码封面。
+
 同一张专辑封面连续播放、没有封面、以及取色失败，都会得到同一个结果：画面不动。
 
 ### 2.3 取色管线
 
 ```
 封面原始地址
-  → CoverArtUrl.Jpeg(cover, 60)        改写成 60px JPEG
+  → CoverArtUrl.Jpeg(cover, 96)        改写成 96px JPEG
   → BitmapDecoder（CPU 像素）
-  → ColorQuantizer.Dominant            直方图分桶主色
-  → ColorPalette.Ambient               派生三团同族色
+  → ColorQuantizer.Palette             多色提取（1–3 个真实封面色）
+  → ColorPalette.Ambient(seeds, theme) 在 OKLCH 空间里按主题映射
 ```
 
 - `CoverArtUrl.Jpeg` 只改写 `*.kuwo.cn` 的 `/star/albumcover/` 与 `/star/starheads/` 路径；
   其它主机或路径原样返回。原始图是 WebP 时，Win10 没有预装编解码器，解码会失败并退回默认配色。
-- 采样边长 60px，缓存按 `trackId`，上限 256 条，超了整体清空。
+- 采样边长 96px，缓存按 `trackId`，上限 256 条，超了整体清空。
 - 无封面、解码失败、取色异常都退回 `ColorPalette.DefaultAmbient`。
 
 ### 2.4 主色算法
@@ -67,15 +72,26 @@ suitability = (0.35 + 0.65 * saturation)
 - **饱和度基数是 0.35**，即使完全灰的颜色也能拿到三分之一的分；亮度惩罚以 0.55 为中心，
   纯白与纯黑各被压到约三成。
 
-### 2.5 派生规则
+多色提取 `Palette` 沿用同一套打分；彩色候选的饱和度基数降到 0.10，避免近灰的大色块
+再次压过小面积彩色主体。
 
-`ColorPalette.Ambient` 拿到主色后：
+### 2.5 配色规则（2026-10-31 起）
 
-| 条件 | 结果 |
-| --- | --- |
-| 饱和度 `< 0.15` | 固定默认配色：青绿 `#18E0B6`、亮蓝 `#3790FF`、紫 `#A158FF` |
-| 饱和度 `≥ 0.15` | 饱和度钳制到 `0.60–0.88`，明度钳制到 `0.78–0.94` |
-| 色相派生 | 主色色相 `-40° / 0° / +40°`，明度倍率 `0.88 / 1.0 / 0.94` |
+`ColorQuantizer.Palette` 先给 1–3 个封面里真实存在的颜色，`ColorPalette.Ambient(seeds, theme)`
+再在 OKLCH 空间里按主题映射：
+
+| 条件 | 浅色主题 | 深色主题 |
+| --- | --- | --- |
+| 彩色种子 | 明度约 `0.78–0.90`，彩度 `0.04–0.10` | 明度约 `0.60–0.74`，彩度 `0.07–0.15` |
+| 中性种子（OKLCH 彩度 `< 0.035`） | 明度同上，彩度 `≤ 0.015` | 明度同上，彩度 `≤ 0.015` |
+| 没有封面 / 解码失败 / 全透明 | 固定默认配色 | 固定默认配色 |
+
+- 三团分别有 `-0.03 / +0.02 / -0.01` 的明度偏移，叠起来才有层次。
+- 目标彩度超出 sRGB 色域时二分降低彩度，保持明度与色相。
+- **用 OKLCH 而不是 HSV**：HSV 压低 `V` 会把绝对彩度一起压掉，深色主题就会发灰发浑；
+  OKLCH 的明度与彩度解耦，可以单独调整。
+- 深色主题的目标明度参考 Material 3 的做法：深色底上的角色色要比浅色主题更亮，
+  否则色相读不出来。见 [`shell-background.md`](shell-background.md) §6.2。
 
 ## 3. 为什么很多歌不变色
 
@@ -133,7 +149,9 @@ suitability = (0.35 + 0.65 * saturation)
 先找「可用的彩色桶」，找不到才退回原来的主色：
 
 1. 候选桶必须有足够面积：`count >= max(18, pixels * 0.005)`，即至少 0.5%。
-2. 候选桶饱和度 `>= 0.18`，亮度在 `0.10–0.92` 之间，排除白边、黑边与近灰。
+2. 候选桶的 OKLCH 彩度 `>= 0.025`，亮度在 `0.10–0.92` 之间，排除白边、黑边与近灰。
+   不用 HSV 饱和度：浅粉 `#F7DCE3` 的饱和度只有 0.11，但彩度约 0.031，应当算彩色。
+   `Dominant` 仍沿用原来的饱和度 0.18 门槛，只有多色 `Palette` 改判据。
 3. 候选桶之间用 `sqrt(count) * suitability` 排序，`suitability` 的饱和度基数从 0.35 降到 0.10；
    面积下限挡住单个噪点，避免「一个饱和像素胜出」。
 4. 没有候选桶时，再走原来的 `Dominant` 结果与灰阶兜底。
@@ -148,15 +166,21 @@ suitability = (0.35 + 0.65 * saturation)
 96×96 有 9216 个像素，彩色主体的占比更稳定；取色仍在小图上做，解码与统计开销可以忽略。
 `CoverPaletteLoader.SampleSize` 已改为 96。
 
-### 4.3 低饱和但有色相的封面走淡色分支（不做）
+### 4.3 低饱和但有色相的封面走淡色分支（2026-10-31 已推翻）
 
-当前决定：**真正灰阶的封面保持默认配色**，不为它凭空染色。浅色但饱和度低于 0.15 的封面
-同样走默认，避免浅蓝、米色封面变成发灰的色块。
+原决定：真正灰阶的封面保持默认配色，不为它凭空染色。
 
-### 4.4 放宽派生范围（不做）
+新决定：**灰阶封面用封面自身的灰调生成低饱和光晕**，不再换成青绿蓝紫。
+真正灰的封面得到灰调背景，浅蓝、米色封面保留自身色温。默认配色只留给无封面与解码失败。
+依据是 issue #3 的反馈：用户看不出背景与封面的关系，而灰阶封面跳默认色是最直接的断裂。
 
-当前决定：先不改 `ColorPalette.Ambient` 的饱和度与明度钳制。4.1 解决「主色被白底抢走」，
-4.2 提高采样精度；派生范围的观感变化留到真机验证之后再单独评估。
+### 4.4 放宽派生范围（2026-10-31 已推翻）
+
+原决定：先不改 `ColorPalette.Ambient` 的饱和度与明度钳制，留到真机验证后再评估。
+
+新决定：不再统一钳到高明度，改为在 OKLCH 空间里按主题映射目标明度与彩度，
+保留封面之间的色相差异，同时避免深色发浑、浅色刺眼。
+实现与调参记录见 [`shell-background.md`](shell-background.md) §6。
 
 ### 4.5 调色板过渡（已实现）
 
@@ -172,51 +196,61 @@ suitability = (0.35 + 0.65 * saturation)
 渲染复用同一块 384×256 的像素缓冲区，并用信号量串行化渲染与写回，避免切歌时旧帧还没画完
 就覆盖同一块内存。
 
-### 4.6 诊断日志（未做）
+### 4.6 诊断日志（2026-10-31 已实现）
 
-每次取色记录：主色、是否命中彩色候选、候选占比、最终分支。当前仍只有主色一行日志，
-排查时先用 `主色 #RRGGBB` 与本文打分的表对照。
+每取色记录：彩色候选数量、是否使用补位色、最终种子颜色列表、封面地址。
+不再只有一行主色，排查灰阶分支与多色选择时可以直接对照。
 
 ## 5. 测试与验收
 
 ### 5.1 离线单测
 
-给 `ColorQuantizer` 与 `ColorPalette` 补合成像素用例，已落地的两条：
+给 `ColorQuantizer` 与 `ColorPalette` 补合成像素用例，当前覆盖：
 
 | 用例 | 期望 | 测试 |
 | --- | --- | --- |
 | 1080 白底 + 30 棕色 | 取到棕色，不取白 | `LargeWhiteFieldWithSmallDullPatch_PicksThePatch` |
 | 1000 白底 + 1 个饱和红像素 | 仍取白底，不让单像素胜出 | `SingleSaturatedPixel_DoesNotOverrideLargeWhiteField` |
-
-既有的 `LargeWhiteFieldWithSmallSaturatedPatch_PicksThePatch`、灰阶默认配色、
-暗色/低饱和种子保持可辨认彩度等用例继续保留。
+| 红蓝两块 | 两个色相都进入种子 | `Palette_TwoColoredPatches_ReturnsBothHues` |
+| 灰阶三段 | 返回明暗不同的中性色，不走默认配色 | `Palette_GrayCover_ReturnsNeutralSeeds` |
+| 纯色封面 | 只取到一个真实色，氛围色仍补足三团 | `Palette_SolidColor_ReturnsOneSeedAndAmbientStillHasThree` |
+| 灰阶种子 | 光晕保持中性，不凭空染色 | `Ambient_GreySeed_StaysNeutral` |
+| 浅粉彩色条 | 低饱和但有色，仍进入种子 | `Palette_PalePinkAccent_IsSelected` |
+| 深色主题暗封面 | 抬到可读出色相，不发灰 | `Ambient_DarkTheme_LiftsDarkSeedsOutOfMud` |
+| 浅色与深色对比 | 浅色更亮，色相不变 | `Ambient_LightTheme_IsLighterThanDarkTheme` |
+| 多个种子 | 各自色相保留 | `Ambient_MultipleSeeds_PreserveEachHue` |
 
 ### 5.2 真机验收
 
-准备 10 张封面：白底彩色主体、黑底彩色主体、浅色、深色、灰阶、同专辑连续播放。
+准备 10 张封面：白底彩色主体、黑底彩色主体、浅色、深色、灰阶、双色、同专辑连续播放。
 逐首播放，确认：
 
 - 白底彩色主体不再固定成默认配色；
-- 真正灰阶仍保持默认，不出现凭空的颜色；
+- 灰阶封面得到灰调背景，不再出现青绿蓝紫；
+- 深色主题下暗封面不发灰发浑，浅色主题下颜色不刺眼；
 - 切歌时颜色变化可察觉，歌词页也不至于完全看不见；
-- 日志里的分支与界面一致。
+- 日志里的候选数、补位与种子列表与界面一致。
 
 ## 6. 已定范围
 
 1. **只改背景氛围色。** 按钮、强调色与歌词颜色不跟随封面；那需要覆盖 `SystemAccentColor`
    一类的主题键并处理前景对比度，属于另一套方案。
-2. **灰阶封面保持默认配色。** 不为灰阶封面凭空染色，4.3 不做。
+2. **灰阶封面保留自身灰调。** 不为灰阶封面凭空染色，也不退回固定默认配色；
+   默认配色只留给无封面与解码失败。
 
 ## 7. 改动清单
 
 | 文件 | 改动 |
 | --- | --- |
-| `src/Bowen.Core/Media/ColorQuantizer.cs` | `Dominant` 改成两段式：先筛面积与饱和度达标的彩色桶，没有再退回原主色 |
-| `src/Bowen.WinUI/Media/CoverPaletteLoader.cs` | 采样边长 60 → 96 |
-| `src/Bowen.Core/Media/ColorPalette.cs` | 新增 `Blend`，在两个调色板之间按通道插值 |
+| `src/Bowen.Core/Media/ColorQuantizer.cs` | `Dominant` 改成两段式；新增 `Palette` 多色提取；彩色候选改用 OKLCH 彩度判据；`ExtractedPalette` 诊断信息 |
+| `src/Bowen.Core/Media/ColorMath.cs` | 新增：HSV / OKLCH 转换、色域裁切、亮度、色相与通道距离，供取色与配色共用 |
+| `src/Bowen.Core/Media/AmbientTheme.cs` | 新增：浅色 / 深色主题枚举 |
+| `src/Bowen.Core/Media/ColorPalette.cs` | `Ambient` 改为接收多个种子与主题；OKLCH 主题映射；灰阶走中性分支；新增 `ColorCount` |
+| `src/Bowen.WinUI/Media/CoverPaletteLoader.cs` | 采样边长 60 → 96；缓存封面种子；改用 `Palette` 与新的诊断日志 |
+| `src/Bowen.WinUI/Controls/AmbientBackdrop.xaml.cs` | 主题切换时按同一批种子重算调色板 |
 | `src/Bowen.Core/Media/AmbientBackground.cs` | 新增写入调用方缓冲区的 `Render` 重载，过渡时复用像素数组 |
 | `src/Bowen.WinUI/Controls/AmbientBackdrop.xaml.cs` | 650ms 调色板过渡，40ms 一帧；渲染请求序号与信号量处理连续切歌 |
-| `tests/Bowen.Core.Tests/CoverPaletteTests.cs` | 白底小棕块、单像素噪点、`Blend` 端点/中点/钳制/长度校验 |
+| `tests/Bowen.Core.Tests/CoverPaletteTests.cs` | 多色提取、灰阶分支、纯色封面、保留色相，以及原有白底/单像素/`Blend` 用例 |
 | `tests/Bowen.Core.Tests/AmbientBackgroundTests.cs` | 复用缓冲区渲染与缓冲区过小 |
 
-验证：`Bowen.Core.Tests` 1685 项通过，0 失败；WinUI 构建 0 警告 0 错误。
+验证：`Bowen.Core.Tests` 1753 项通过，0 失败；WinUI 构建 0 警告 0 错误。
