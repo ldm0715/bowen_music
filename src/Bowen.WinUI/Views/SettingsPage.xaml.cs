@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using Windows.UI;
 
@@ -52,6 +53,7 @@ public sealed partial class SettingsPage : Page, INavigationAware
     private readonly BackgroundImageStore _backgroundImages;
     private readonly IWindowHandleProvider _window;
     private readonly ILogger<SettingsPage> _logger;
+    private readonly List<ComboBox> _acrylicCombos = [];
     private bool _syncingShellImage;
     private bool _syncingShellColor;
     private bool _openingShellCustomColor;
@@ -84,6 +86,9 @@ public sealed partial class SettingsPage : Page, INavigationAware
         {
             ShellMicaItem.Content = "Mica（需要 Windows 11）";
         }
+
+        Loaded += (_, _) => AttachComboBoxAcrylic();
+        Unloaded += (_, _) => DetachComboBoxAcrylic();
     }
 
     public SettingsViewModel ViewModel { get; }
@@ -115,7 +120,113 @@ public sealed partial class SettingsPage : Page, INavigationAware
             ActualTheme == ElementTheme.Dark ? AmbientTheme.Dark : AmbientTheme.Light);
 
     private void OnActualThemeChanged(FrameworkElement sender, object args)
-        => SyncShellBackgroundTheme();
+    {
+        SyncShellBackgroundTheme();
+        UpdateComboBoxAcrylic();
+    }
+
+    /// <summary>
+    /// 给设置页所有 ComboBox 的弹层挂应用亚克力刷。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能只改 Application.Resources。</b> ComboBox 模板会在自己的主题字典里
+    /// 先命中系统的 <c>ComboBoxDropDownBackground</c>，全局覆盖不一定生效。
+    /// 这里在弹层打开时直接找到 PopupBorder 改背景，优先级最高。
+    /// </remarks>
+    private void AttachComboBoxAcrylic()
+    {
+        if (_acrylicCombos.Count > 0)
+        {
+            return;
+        }
+
+        CollectComboBoxes(this);
+
+        foreach (var combo in _acrylicCombos)
+        {
+            combo.DropDownOpened += OnComboBoxDropDownOpened;
+        }
+    }
+
+    private void DetachComboBoxAcrylic()
+    {
+        foreach (var combo in _acrylicCombos)
+        {
+            combo.DropDownOpened -= OnComboBoxDropDownOpened;
+        }
+
+        _acrylicCombos.Clear();
+    }
+
+    private void CollectComboBoxes(DependencyObject root)
+    {
+        var count = VisualTreeHelper.GetChildrenCount(root);
+
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+
+            if (child is ComboBox combo)
+            {
+                _acrylicCombos.Add(combo);
+            }
+
+            CollectComboBoxes(child);
+        }
+    }
+
+    private void OnComboBoxDropDownOpened(object? sender, object args)
+    {
+        if (sender is not ComboBox { XamlRoot: { } root }) return;
+
+        var brush = AcrylicMaterial.GetPopupBrush(ActualTheme);
+        var popups = VisualTreeHelper.GetOpenPopupsForXamlRoot(root);
+        if (popups.Count == 0) return;
+
+        ApplyPopupBrush(popups[popups.Count - 1].Child, brush);
+    }
+
+    /// <summary>把弹层根容器的背景改成半透明表面色。</summary>
+    private static void ApplyPopupBrush(DependencyObject? root, Brush brush)
+    {
+        if (root is null) return;
+
+        if (root is FlyoutPresenter presenter)
+        {
+            presenter.Background = brush;
+            return;
+        }
+
+        if (root is Border border)
+        {
+            border.Background = brush;
+            return;
+        }
+
+        if (root is Control control)
+        {
+            control.Background = brush;
+            return;
+        }
+
+        var count = VisualTreeHelper.GetChildrenCount(root);
+
+        for (var i = 0; i < count; i++)
+        {
+            ApplyPopupBrush(VisualTreeHelper.GetChild(root, i), brush);
+        }
+    }
+
+    /// <summary>主题变化时更新已经挂上的弹层刷；下次打开也会重新取。</summary>
+    private void UpdateComboBoxAcrylic()
+    {
+        var brush = AcrylicMaterial.GetPopupBrush(ActualTheme);
+
+        foreach (var combo in _acrylicCombos)
+        {
+            combo.Resources["ComboBoxDropDownBackground"] = brush;
+        }
+    }
 
     private void OnShellBackgroundModeChanged(object sender, SelectionChangedEventArgs args)
     {

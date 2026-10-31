@@ -30,6 +30,8 @@ public static class AcrylicMaterial
 
     private static AcrylicBrush? _light;
     private static AcrylicBrush? _dark;
+    private static SolidColorBrush? _highContrast;
+    private static bool _enabled = true;
 
     /// <summary>
     /// 注入主题字典。必须在创建任何窗口之前调用（<see cref="App.OnLaunched"/> 里）。
@@ -63,6 +65,7 @@ public static class AcrylicMaterial
 
         var highContrast = new SolidColorBrush(
             new UISettings().GetColorValue(UIColorType.Background));
+        _highContrast = highContrast;
 
         var lightTheme = new ResourceDictionary();
         lightTheme[BrushKey] = _light;
@@ -86,6 +89,8 @@ public static class AcrylicMaterial
     /// </summary>
     public static void SetEnabled(bool enabled)
     {
+        _enabled = enabled;
+
         if (_light is not null)
         {
             _light.AlwaysUseFallback = !enabled;
@@ -95,5 +100,35 @@ public static class AcrylicMaterial
         {
             _dark.AlwaysUseFallback = !enabled;
         }
+    }
+
+    /// <summary>
+    /// 弹层使用的表面色。
+    /// </summary>
+    /// <remarks>
+    /// <b>弹层里不能用 <see cref="AcrylicBrush"/>。</b> Popup 是独立合成层，亚克力没有
+    /// 可以采样的页面内容，只剩 tint 叠在黑底上，观感接近纯黑。这里改用半透明表面色，
+    /// 让弹层透出下面的卡片或壁纸：开启亚克力时 70% 不透明，关闭时完全不透明。
+    /// 高对比度仍用系统背景实色。
+    /// </remarks>
+    public static Brush GetPopupBrush(ElementTheme theme)
+    {
+        try
+        {
+            if (new AccessibilitySettings().HighContrast && _highContrast is not null)
+            {
+                return _highContrast;
+            }
+        }
+        catch
+        {
+            // 高对比度查询失败时按普通主题处理。
+        }
+
+        var alpha = _enabled ? (byte)0xEB : (byte)0xFF;
+
+        return new SolidColorBrush(theme == ElementTheme.Dark
+            ? Color.FromArgb(alpha, 0x1C, 0x1C, 0x1C)
+            : Color.FromArgb(alpha, 0xF3, 0xF3, 0xF3));
     }
 }
