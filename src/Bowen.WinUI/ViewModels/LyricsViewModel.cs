@@ -88,6 +88,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         Alignment = loaded.Alignment;
         HighlightColorArgb = loaded.HighlightColorArgb;
         LineGap = loaded.LineGap;
+        SyncTranslationHighlight = loaded.SyncTranslationHighlight;
+        TranslationFontScale = loaded.TranslationFontScale;
+        TranslationLineGap = loaded.TranslationLineGap;
         HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
         VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
@@ -161,6 +164,15 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>行与行之间的额外间距，DIP。</summary>
     public double LineGap { get; private set; } = LyricsSettings.DefaultLineGap;
+
+    /// <summary>译文是否跟随原文同步扫色。</summary>
+    public bool SyncTranslationHighlight { get; private set; } = true;
+
+    /// <summary>译文相对歌词字号的缩放，0.5–1。</summary>
+    public double TranslationFontScale { get; private set; } = LyricsSettings.DefaultTranslationFontScale;
+
+    /// <summary>译文与原文之间的间距，DIP。</summary>
+    public double TranslationLineGap { get; private set; } = LyricsSettings.DefaultTranslationLineGap;
 
     /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
     public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
@@ -282,6 +294,51 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>歌词页改译文同步高亮：立即落盘，只影响绘制，不重排。</summary>
+    public void SetSyncTranslationHighlight(bool enabled)
+    {
+        if (SyncTranslationHighlight == enabled)
+        {
+            return;
+        }
+
+        SyncTranslationHighlight = enabled;
+        OnPropertyChanged(nameof(SyncTranslationHighlight));
+        Persist();
+    }
+
+    /// <summary>歌词页改译文大小：夹到 50%–100% 后落盘。</summary>
+    public void SetTranslationFontScale(double scale)
+    {
+        scale = double.IsFinite(scale) && scale > 0
+            ? Math.Clamp(scale, LyricsSettings.MinimumTranslationFontScale, LyricsSettings.MaximumTranslationFontScale)
+            : LyricsSettings.DefaultTranslationFontScale;
+        if (Math.Abs(TranslationFontScale - scale) < 0.001)
+        {
+            return;
+        }
+
+        TranslationFontScale = scale;
+        OnPropertyChanged(nameof(TranslationFontScale));
+        Persist();
+    }
+
+    /// <summary>歌词页改译文间距：夹到 0–32 DIP 后落盘。</summary>
+    public void SetTranslationLineGap(double gap)
+    {
+        gap = double.IsFinite(gap)
+            ? Math.Clamp(gap, LyricsSettings.MinimumTranslationLineGap, LyricsSettings.MaximumTranslationLineGap)
+            : LyricsSettings.DefaultTranslationLineGap;
+        if (Math.Abs(TranslationLineGap - gap) < 0.01)
+        {
+            return;
+        }
+
+        TranslationLineGap = gap;
+        OnPropertyChanged(nameof(TranslationLineGap));
+        Persist();
+    }
+
     /// <summary>歌词页改水平偏移：夹到 -30%–30% 后落盘。</summary>
     public void SetHorizontalOffsetPercent(double percent)
     {
@@ -326,6 +383,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         Alignment = Alignment,
         HighlightColorArgb = HighlightColorArgb,
         LineGap = LineGap,
+        SyncTranslationHighlight = SyncTranslationHighlight,
+        TranslationFontScale = TranslationFontScale,
+        TranslationLineGap = TranslationLineGap,
         HorizontalOffsetPercent = HorizontalOffsetPercent,
         VerticalOffsetPercent = VerticalOffsetPercent,
     });

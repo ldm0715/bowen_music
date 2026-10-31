@@ -37,13 +37,20 @@ public sealed record LyricsRenderSettings
 
     /// <summary>
     /// 译文行相对歌词字号的缩放。译文比原文小一档，避免喧宾夺主。
+    /// 可变：外观面板改译文大小后由渲染线程更新并标记重排。
     /// </summary>
-    public double TranslationFontScale { get; init; } = 0.72;
+    public double TranslationFontScale { get; set; } = LyricsSettings.DefaultTranslationFontScale;
 
     /// <summary>
-    /// 原文与译文之间的行距相对普通行距的比例。收紧成一组，避免译文被当成下一句。
+    /// 原文与译文之间的间距，DIP。收紧成一组，避免译文被当成下一句。
+    /// 可变：外观面板改译文间距后由渲染线程更新并标记重排。
     /// </summary>
-    public double TranslationLineGapRatio { get; init; } = 0.25;
+    public double TranslationLineGap { get; set; } = LyricsSettings.DefaultTranslationLineGap;
+
+    /// <summary>
+    /// 译文是否跟随原文同步扫色。关掉后译文保持未播放行的暗色。
+    /// </summary>
+    public bool SyncTranslationHighlight { get; set; } = true;
     public double PlayingLineTopOffsetFactor { get; init; } = 0.42;
     public double FarBlurAmount { get; init; } = 5;
     public double CurrentLineScale { get; init; } = 1;

@@ -59,6 +59,9 @@ public sealed class JsonLyricsSettingsStore : ILyricsSettingsStore
                 Alignment = Has("Alignment") ? loaded.Alignment : LyricsAlignment.Left,
                 HighlightColorArgb = Has("HighlightColorArgb") ? loaded.HighlightColorArgb : LyricsSettings.DefaultHighlightColor,
                 LineGap = Has("LineGap") ? loaded.LineGap : LyricsSettings.DefaultLineGap,
+                SyncTranslationHighlight = Has("SyncTranslationHighlight") ? loaded.SyncTranslationHighlight : true,
+                TranslationFontScale = Has("TranslationFontScale") ? loaded.TranslationFontScale : LyricsSettings.DefaultTranslationFontScale,
+                TranslationLineGap = Has("TranslationLineGap") ? loaded.TranslationLineGap : LyricsSettings.DefaultTranslationLineGap,
             };
 
             return loaded.Normalized();

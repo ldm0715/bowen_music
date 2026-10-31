@@ -74,6 +74,24 @@ public sealed record LyricsSettings
     /// <summary>默认行距（DIP）。</summary>
     public const double DefaultLineGap = 24;
 
+    /// <summary>译文相对歌词字号的缩放下限。</summary>
+    public const double MinimumTranslationFontScale = 0.5;
+
+    /// <summary>译文相对歌词字号的缩放上限。</summary>
+    public const double MaximumTranslationFontScale = 1;
+
+    /// <summary>译文默认按歌词字号的 72% 排版。</summary>
+    public const double DefaultTranslationFontScale = 0.72;
+
+    /// <summary>译文与原文之间的间距下限（DIP）。</summary>
+    public const double MinimumTranslationLineGap = 0;
+
+    /// <summary>译文与原文之间的间距上限（DIP）。</summary>
+    public const double MaximumTranslationLineGap = 32;
+
+    /// <summary>译文与原文之间的默认间距（DIP）。</summary>
+    public const double DefaultTranslationLineGap = 6;
+
     /// <summary>水平偏移下限，占歌词区域宽度的百分比。</summary>
     public const double MinimumHorizontalOffsetPercent = -30;
 
@@ -118,6 +136,20 @@ public sealed record LyricsSettings
     public double LineGap { get; init; } = DefaultLineGap;
 
     /// <summary>
+    /// 译文是否跟随原文同步扫色。默认开。
+    /// </summary>
+    /// <remarks>
+    /// 关掉后译文仍按原文下方显示，但不再跟随演唱进度染色，保持未播放行的暗色。
+    /// </remarks>
+    public bool SyncTranslationHighlight { get; init; } = true;
+
+    /// <summary>译文相对歌词字号的缩放，0.5–1；默认 0.72。</summary>
+    public double TranslationFontScale { get; init; } = DefaultTranslationFontScale;
+
+    /// <summary>译文与原文之间的间距，DIP；默认 6。</summary>
+    public double TranslationLineGap { get; init; } = DefaultTranslationLineGap;
+
+    /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
     /// </summary>
     public double HorizontalOffsetPercent { get; init; } = DefaultOffsetPercent;
@@ -148,6 +180,14 @@ public sealed record LyricsSettings
         LineGap = double.IsFinite(LineGap)
             ? Math.Clamp(LineGap, MinimumLineGap, MaximumLineGap)
             : DefaultLineGap,
+
+        TranslationFontScale = double.IsFinite(TranslationFontScale) && TranslationFontScale > 0
+            ? Math.Clamp(TranslationFontScale, MinimumTranslationFontScale, MaximumTranslationFontScale)
+            : DefaultTranslationFontScale,
+
+        TranslationLineGap = double.IsFinite(TranslationLineGap)
+            ? Math.Clamp(TranslationLineGap, MinimumTranslationLineGap, MaximumTranslationLineGap)
+            : DefaultTranslationLineGap,
 
         // 0 不是合法的高亮色；其余颜色把 alpha 顶回不透明（色板不提供透明度）。
         HighlightColorArgb = HighlightColorArgb == 0

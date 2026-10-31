@@ -485,12 +485,12 @@
                     <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="Transparent" />
                     <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="Transparent" />
                 </Border.Resources>
-                <Grid Padding="20,18,20,20" RowSpacing="16">
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Grid>
+                    <Grid Padding="20,18,20,0">
                         <StackPanel Spacing="2">
                             <TextBlock Text="歌词外观" FontSize="{StaticResource FontSizeTitle}"
                                 FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -503,9 +503,10 @@
                             <controls:Icon Data="{StaticResource IconDismiss}" Size="12" />
                         </Button>
                     </Grid>
-                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
-                        VerticalScrollBarVisibility="Auto">
-                        <StackPanel Spacing="{StaticResource SpaceSection}">
+                        <ScrollViewer Grid.Row="1" Margin="0,16,0,0" HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                            <!-- 滚动区铺到卡片右缘，滚动条贴边；内容单独留出左侧 20、右侧 32 的槽位。 -->
+                            <StackPanel Spacing="{StaticResource SpaceSection}" Padding="20,0,32,20">
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="56" />
@@ -569,6 +570,80 @@
                                         <Slider x:Name="LyricsLineGapSlider" Grid.Column="1" Minimum="0" Maximum="64"
                                             StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
                                             ValueChanged="OnLyricsLineGapChanged" AutomationProperties.Name="歌词行距" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="译文" />
+
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="同步高亮" FontSize="{StaticResource FontSizeBody}"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock Text="译文跟随原文进度扫色" FontSize="{StaticResource FontSizeCaption}"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="LyricsTranslationSyncToggle" Grid.Column="1"
+                                        MinWidth="0" OffContent="" OnContent=""
+                                        Toggled="OnTranslationSyncToggled" AutomationProperties.Name="译文同步高亮" />
+                                </Grid>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="译文大小" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetTranslationFontScaleClick"
+                                                AutomationProperties.Name="恢复默认译文大小" ToolTipService.ToolTip="恢复默认译文大小">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsTranslationFontSizeValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="A-" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsTranslationFontSizeSlider" Grid.Column="1" Minimum="50" Maximum="100"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsTranslationFontSizeChanged" AutomationProperties.Name="译文大小" />
+                                        <TextBlock Grid.Column="2" Text="A+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="译文间距" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetTranslationLineGapClick"
+                                                AutomationProperties.Name="恢复默认译文间距" ToolTipService.ToolTip="恢复默认译文间距">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsTranslationLineGapValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsTranslationLineGapSlider" Grid.Column="1" Minimum="0" Maximum="32"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsTranslationLineGapChanged" AutomationProperties.Name="译文间距" />
                                         <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
                                     </Grid>
                                 </StackPanel>

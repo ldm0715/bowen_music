@@ -46,6 +46,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsAlignment.Left, loaded.Alignment);
         Assert.Equal(LyricsSettings.DefaultHighlightColor, loaded.HighlightColorArgb);
         Assert.Equal(LyricsSettings.DefaultLineGap, loaded.LineGap);
+        Assert.True(loaded.SyncTranslationHighlight);
+        Assert.Equal(LyricsSettings.DefaultTranslationFontScale, loaded.TranslationFontScale);
+        Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
@@ -62,6 +65,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
             Alignment = LyricsAlignment.Center,
             HighlightColorArgb = 0xFF4D9CFF,
             LineGap = 0,
+            SyncTranslationHighlight = false,
+            TranslationFontScale = 0.9,
+            TranslationLineGap = 12,
             HorizontalOffsetPercent = 15,
             VerticalOffsetPercent = -10,
         });
@@ -74,6 +80,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsAlignment.Center, loaded.Alignment);
         Assert.Equal(0xFF4D9CFFu, loaded.HighlightColorArgb);
         Assert.Equal(0d, loaded.LineGap);
+        Assert.False(loaded.SyncTranslationHighlight);
+        Assert.Equal(0.9d, loaded.TranslationFontScale);
+        Assert.Equal(12d, loaded.TranslationLineGap);
         Assert.Equal(15d, loaded.HorizontalOffsetPercent);
         Assert.Equal(-10d, loaded.VerticalOffsetPercent);
     }
@@ -91,6 +100,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Contains("\"Alignment\"", json, StringComparison.Ordinal);
         Assert.Contains("\"HighlightColorArgb\"", json, StringComparison.Ordinal);
         Assert.Contains("\"LineGap\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"SyncTranslationHighlight\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"TranslationFontScale\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"TranslationLineGap\"", json, StringComparison.Ordinal);
         Assert.Contains("\"HorizontalOffsetPercent\"", json, StringComparison.Ordinal);
         Assert.Contains("\"VerticalOffsetPercent\"", json, StringComparison.Ordinal);
     }
@@ -116,6 +128,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsAlignment.Left, loaded.Alignment);
         Assert.Equal(LyricsSettings.DefaultHighlightColor, loaded.HighlightColorArgb);
         Assert.Equal(LyricsSettings.DefaultLineGap, loaded.LineGap);
+        Assert.True(loaded.SyncTranslationHighlight);
+        Assert.Equal(LyricsSettings.DefaultTranslationFontScale, loaded.TranslationFontScale);
+        Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
@@ -138,6 +153,26 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         NewStore().Save(new LyricsSettings { LineGap = stored });
 
         Assert.Equal(expected, NewStore().Load().LineGap);
+    }
+
+    [Theory]
+    [InlineData(0.1, LyricsSettings.MinimumTranslationFontScale)]
+    [InlineData(2, LyricsSettings.MaximumTranslationFontScale)]
+    public void TranslationFontScale_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { TranslationFontScale = stored });
+
+        Assert.Equal(expected, NewStore().Load().TranslationFontScale);
+    }
+
+    [Theory]
+    [InlineData(-5, LyricsSettings.MinimumTranslationLineGap)]
+    [InlineData(99, LyricsSettings.MaximumTranslationLineGap)]
+    public void TranslationLineGap_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { TranslationLineGap = stored });
+
+        Assert.Equal(expected, NewStore().Load().TranslationLineGap);
     }
 
     [Theory]

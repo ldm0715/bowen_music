@@ -129,6 +129,34 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _layoutDirty = true;
     }
 
+    /// <summary>改译文大小。字号参与排版，整份重排。</summary>
+    public void SetTranslationFontScale(double scale)
+    {
+        scale = double.IsFinite(scale) && scale > 0
+            ? Math.Clamp(scale, LyricsSettings.MinimumTranslationFontScale, LyricsSettings.MaximumTranslationFontScale)
+            : LyricsSettings.DefaultTranslationFontScale;
+        if (Math.Abs(settings.TranslationFontScale - scale) < 0.001) return;
+        settings.TranslationFontScale = scale;
+        _layoutDirty = true;
+    }
+
+    /// <summary>改译文与原文的间距。间距参与排版，整份重排。</summary>
+    public void SetTranslationLineGap(double gap)
+    {
+        gap = double.IsFinite(gap)
+            ? Math.Clamp(gap, LyricsSettings.MinimumTranslationLineGap, LyricsSettings.MaximumTranslationLineGap)
+            : LyricsSettings.DefaultTranslationLineGap;
+        if (Math.Abs(settings.TranslationLineGap - gap) < 0.01) return;
+        settings.TranslationLineGap = gap;
+        _layoutDirty = true;
+    }
+
+    /// <summary>切换译文同步高亮。只改绘制方式，不重排。</summary>
+    public void SetSyncTranslationHighlight(bool enabled)
+    {
+        settings.SyncTranslationHighlight = enabled;
+    }
+
     /// <summary>改横向对齐。文字排版与绘制原点都要跟着变，整份文档重排。</summary>
     public void SetAlignment(LyricsAlignment alignment)
     {
@@ -211,6 +239,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         var line = _document.Lines[CurrentIndex];
         // 译文没有自己的逐字时间，整段演唱窗口内都要连续出帧，否则扫色会在音节间隙里冻住。
         if (_position >= line.Start && _position < line.SpeechEnd()
+            && settings.SyncTranslationHighlight
             && snapshot.UnitHasTranslation[snapshot.UnitOfLine[CurrentIndex]])
             return true;
         foreach (var syllable in line.Syllables)
@@ -349,6 +378,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 // 不能要求位置已到译文行行首：译文的时间戳借的是下一句原文的行首，
                 // 原文演唱期间它自己的 Start 还没到。
                 var translation = !active && !IsBrowsing && _hasTranslation
+                    && settings.SyncTranslationHighlight
                     && snapshot.Document.Lines[index].IsTranslation
                     && snapshot.SourceOfLine[index] == CurrentIndex;
                 var center = new Vector2(0, (float)(top + line.Height / 2));
@@ -502,7 +532,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         if (!_layoutDirty || _creator is null || _device is null || _width <= 0) return false;
         var key = new LayoutKey(_document, Math.Max(1, _width - 28), settings.BaseFontSize,
-            settings.FontFamily, settings.Alignment, settings.LineGap);
+            settings.FontFamily, settings.Alignment, settings.LineGap,
+            settings.TranslationFontScale, settings.TranslationLineGap);
         if (_device.Snapshot is { } previous)
             foreach (var line in previous.Lines) line.ReleaseDrawingResources();
         _device.Snapshot = null;
@@ -584,7 +615,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     }
 
     private sealed record LayoutKey(LyricDocument Document, double Width, double FontSize,
-        string FontFamily, LyricsAlignment Alignment, double LineGap);
+        string FontFamily, LyricsAlignment Alignment, double LineGap,
+        double TranslationFontScale, double TranslationLineGap);
     private sealed record CachedLayout(LayoutKey Key, LyricsLayoutSnapshot Snapshot);
 
     private static Color WithOpacity(Color color, double opacity)

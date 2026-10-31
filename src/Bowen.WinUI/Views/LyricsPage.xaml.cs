@@ -1003,6 +1003,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
             LyricsFontSizeValue.Text = ((int)Math.Round(Lyrics.FontSize)).ToString();
             LyricsLineGapSlider.Value = Lyrics.LineGap;
             LyricsLineGapValue.Text = ((int)Math.Round(Lyrics.LineGap)).ToString();
+            LyricsTranslationSyncToggle.IsOn = Lyrics.SyncTranslationHighlight;
+            LyricsTranslationFontSizeSlider.Value = Math.Round(Lyrics.TranslationFontScale * 100);
+            LyricsTranslationFontSizeValue.Text = $"{(int)Math.Round(Lyrics.TranslationFontScale * 100)}%";
+            LyricsTranslationLineGapSlider.Value = Lyrics.TranslationLineGap;
+            LyricsTranslationLineGapValue.Text = ((int)Math.Round(Lyrics.TranslationLineGap)).ToString();
             SyncAlignmentButtons(Lyrics.Alignment);
             LyricsHorizontalOffsetSlider.Value = Lyrics.HorizontalOffsetPercent;
             LyricsHorizontalOffsetValue.Text = FormatOffsetPercent(Lyrics.HorizontalOffsetPercent);
@@ -1036,6 +1041,26 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics.SetLineGap(args.NewValue);
     }
 
+    private void OnTranslationSyncToggled(object sender, RoutedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetSyncTranslationHighlight(LyricsTranslationSyncToggle.IsOn);
+    }
+
+    private void OnLyricsTranslationFontSizeChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsTranslationFontSizeValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        Lyrics.SetTranslationFontScale(args.NewValue / 100);
+    }
+
+    private void OnLyricsTranslationLineGapChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsTranslationLineGapValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        Lyrics.SetTranslationLineGap(args.NewValue);
+    }
+
     private void OnAlignLeftClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Left);
     private void OnAlignCenterClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Center);
     private void OnAlignRightClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Right);
@@ -1064,6 +1089,18 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         if (!_appearanceOpen) return;
         Lyrics.SetLineGap(LyricsSettings.DefaultLineGap);
+    }
+
+    private void OnResetTranslationFontScaleClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetTranslationFontScale(LyricsSettings.DefaultTranslationFontScale);
+    }
+
+    private void OnResetTranslationLineGapClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetTranslationLineGap(LyricsSettings.DefaultTranslationLineGap);
     }
 
     private void OnLyricsHorizontalOffsetChanged(object sender, RangeBaseValueChangedEventArgs args)
@@ -1163,6 +1200,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _canvas.SetFontSize(Lyrics.FontSize);
         _canvas.SetFontFamily(Lyrics.FontFamily);
         _canvas.SetLineGap(Lyrics.LineGap);
+        _canvas.SetSyncTranslationHighlight(Lyrics.SyncTranslationHighlight);
+        _canvas.SetTranslationFontScale(Lyrics.TranslationFontScale);
+        _canvas.SetTranslationLineGap(Lyrics.TranslationLineGap);
         _canvas.SetAlignment(Lyrics.Alignment);
         _canvas.SetHorizontalOffsetPercent(Lyrics.HorizontalOffsetPercent);
         _canvas.SetVerticalOffsetPercent(Lyrics.VerticalOffsetPercent);
@@ -1183,6 +1223,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
             or nameof(LyricsViewModel.Alignment)
             or nameof(LyricsViewModel.HighlightColorArgb)
             or nameof(LyricsViewModel.LineGap)
+            or nameof(LyricsViewModel.SyncTranslationHighlight)
+            or nameof(LyricsViewModel.TranslationFontScale)
+            or nameof(LyricsViewModel.TranslationLineGap)
             or nameof(LyricsViewModel.HorizontalOffsetPercent)
             or nameof(LyricsViewModel.VerticalOffsetPercent))
         {

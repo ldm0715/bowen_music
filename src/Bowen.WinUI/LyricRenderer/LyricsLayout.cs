@@ -331,7 +331,7 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
             // 同一个滚动单元内的相邻行是原文与译文，收紧行距成一组；
             // 单元之间保持正常行距，否则译文会被读成下一句。
             var gap = i + 1 < document.Lines.Count && units[i + 1] == units[i]
-                ? settings.LineGap * Math.Clamp(settings.TranslationLineGapRatio, 0, 1)
+                ? settings.TranslationLineGap
                 : settings.LineGap;
             y += item.Height + (float)gap;
         }
@@ -541,7 +541,10 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
     /// <summary>取整行排版格式；译文行用缩小的字号，避免和原文抢视觉重心。</summary>
     private CanvasTextFormat GetFormat(bool translation)
     {
-        var scale = translation ? Math.Clamp(settings.TranslationFontScale, 0.5, 1) : 1;
+        var scale = translation
+            ? Math.Clamp(settings.TranslationFontScale,
+                LyricsSettings.MinimumTranslationFontScale, LyricsSettings.MaximumTranslationFontScale)
+            : 1;
         var fontSize = (float)(settings.BaseFontSize * scale);
         var alignment = ToCanvasAlignment(settings.Alignment);
         var cached = translation ? _translationFormat : _format;
