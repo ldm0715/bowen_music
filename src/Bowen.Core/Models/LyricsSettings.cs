@@ -153,6 +153,18 @@ public sealed record LyricsSettings
     /// <summary>默认高亮色：不透明白色。</summary>
     public const uint DefaultHighlightColor = 0xFFFFFFFF;
 
+    /// <summary>默认纯色背景：深蓝，够暗且能看出颜色。</summary>
+    public const uint DefaultBackgroundColor = 0xFF24324A;
+
+    /// <summary>
+    /// 纯色背景的预设。压到低亮度保证白色歌词可读，但保留明显的色相差异。
+    /// </summary>
+    public static readonly (uint Argb, string Name)[] BackgroundPalette =
+    [
+        (0xFF24324A, "深蓝"), (0xFF2B2B31, "石墨"), (0xFF1F3B33, "墨绿"), (0xFF3A2E1C, "琥珀棕"),
+        (0xFF3A2230, "梅红"), (0xFF2C2542, "深紫"), (0xFF1E3A44, "青灰"), (0xFF33302A, "暖灰"),
+    ];
+
     /// <summary>
     /// 可选的高亮色。与桌面歌词一样只给基础色，不做色轮。
     /// </summary>
@@ -223,6 +235,15 @@ public sealed record LyricsSettings
 
     /// <summary>自定义背景图片在 cover 基础上的缩放，1–3；1 表示刚好铺满。</summary>
     public double BackgroundImageZoom { get; init; } = 1;
+
+    /// <summary>纯色背景的颜色，<c>0xAARRGGBB</c>。</summary>
+    public uint BackgroundColorArgb { get; init; } = DefaultBackgroundColor;
+
+    /// <summary>自定义取色最近一次选的颜色，供预设行末尾的「自定义」圆点使用。</summary>
+    public uint BackgroundCustomColorArgb { get; init; } = DefaultBackgroundColor;
+
+    /// <summary>纯色背景是否跟随当前封面自动取色。</summary>
+    public bool BackgroundColorAuto { get; init; }
 
     /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
@@ -308,5 +329,14 @@ public sealed record LyricsSettings
         BackgroundImageZoom = double.IsFinite(BackgroundImageZoom)
             ? Math.Clamp(BackgroundImageZoom, 1, 3)
             : 1,
+
+        // 0 不是合法颜色；纯色背景不提供透明度，统一顶回不透明。
+        BackgroundColorArgb = BackgroundColorArgb == 0
+            ? DefaultBackgroundColor
+            : BackgroundColorArgb | 0xFF000000,
+
+        BackgroundCustomColorArgb = BackgroundCustomColorArgb == 0
+            ? DefaultBackgroundColor
+            : BackgroundCustomColorArgb | 0xFF000000,
     };
 }

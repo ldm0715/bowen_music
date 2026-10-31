@@ -263,4 +263,25 @@ public sealed class CoverPaletteTests
 
         Assert.Throws<ArgumentException>(() => ColorPalette.Blend(from, to, 0.5));
     }
+
+    // ── 纯色背景 ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void DarkBackground_KeepsHueAndStaysDark()
+    {
+        var color = ColorPalette.DarkBackground(new RgbColor(255, 80, 120));
+        var luminance = ((0.2126 * color.R) + (0.7152 * color.G) + (0.0722 * color.B)) / 255;
+
+        Assert.InRange(luminance, 0.03, 0.25);
+
+        // 红色分量的主色仍应偏红，不能把色相丢掉变成灰。
+        Assert.True(color.R > color.G);
+        Assert.True(color.R > color.B);
+    }
+
+    [Fact]
+    public void DarkBackground_GraySeedFallsBackToDeepBlue()
+    {
+        Assert.Equal(new RgbColor(36, 50, 74), ColorPalette.DarkBackground(new RgbColor(128, 128, 128)));
+    }
 }

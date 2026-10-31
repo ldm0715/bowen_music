@@ -57,6 +57,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(0.5d, loaded.BackgroundImageFocusX);
         Assert.Equal(0.5d, loaded.BackgroundImageFocusY);
         Assert.Equal(1d, loaded.BackgroundImageZoom);
+        Assert.Equal(LyricsSettings.DefaultBackgroundColor, loaded.BackgroundColorArgb);
+        Assert.Equal(LyricsSettings.DefaultBackgroundColor, loaded.BackgroundCustomColorArgb);
+        Assert.False(loaded.BackgroundColorAuto);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
@@ -84,6 +87,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
             BackgroundImageFocusX = 0.2,
             BackgroundImageFocusY = 0.8,
             BackgroundImageZoom = 1.6,
+            BackgroundColorArgb = 0xFF112233,
+            BackgroundCustomColorArgb = 0xFF445566,
+            BackgroundColorAuto = true,
             HorizontalOffsetPercent = 15,
             VerticalOffsetPercent = -10,
         });
@@ -107,6 +113,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(0.2d, loaded.BackgroundImageFocusX);
         Assert.Equal(0.8d, loaded.BackgroundImageFocusY);
         Assert.Equal(1.6d, loaded.BackgroundImageZoom);
+        Assert.Equal(0xFF112233u, loaded.BackgroundColorArgb);
+        Assert.Equal(0xFF445566u, loaded.BackgroundCustomColorArgb);
+        Assert.True(loaded.BackgroundColorAuto);
         Assert.Equal(15d, loaded.HorizontalOffsetPercent);
         Assert.Equal(-10d, loaded.VerticalOffsetPercent);
     }
@@ -135,6 +144,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Contains("\"BackgroundImageFocusX\"", json, StringComparison.Ordinal);
         Assert.Contains("\"BackgroundImageFocusY\"", json, StringComparison.Ordinal);
         Assert.Contains("\"BackgroundImageZoom\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundColorArgb\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundCustomColorArgb\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundColorAuto\"", json, StringComparison.Ordinal);
         Assert.Contains("\"HorizontalOffsetPercent\"", json, StringComparison.Ordinal);
         Assert.Contains("\"VerticalOffsetPercent\"", json, StringComparison.Ordinal);
     }
@@ -171,6 +183,9 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(0.5d, loaded.BackgroundImageFocusX);
         Assert.Equal(0.5d, loaded.BackgroundImageFocusY);
         Assert.Equal(1d, loaded.BackgroundImageZoom);
+        Assert.Equal(LyricsSettings.DefaultBackgroundColor, loaded.BackgroundColorArgb);
+        Assert.Equal(LyricsSettings.DefaultBackgroundColor, loaded.BackgroundCustomColorArgb);
+        Assert.False(loaded.BackgroundColorAuto);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
@@ -278,6 +293,16 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         NewStore().Save(new LyricsSettings { BackgroundImageFile = @"C:\somewhere\photo.png" });
 
         Assert.Equal("photo.png", NewStore().Load().BackgroundImageFile);
+    }
+
+    [Fact]
+    public void BackgroundColor_ZeroFallsBackToDefaultAndIsForcedOpaque()
+    {
+        NewStore().Save(new LyricsSettings { BackgroundColorArgb = 0 });
+        Assert.Equal(LyricsSettings.DefaultBackgroundColor, NewStore().Load().BackgroundColorArgb);
+
+        NewStore().Save(new LyricsSettings { BackgroundColorArgb = 0x10FF00FF });
+        Assert.Equal(0xFFFF00FFu, NewStore().Load().BackgroundColorArgb);
     }
 
     [Theory]

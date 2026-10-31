@@ -533,7 +533,7 @@
                                     <ComboBoxItem Content="封面模糊" />
                                     <ComboBoxItem x:Name="LyricsBackgroundMicaItem" Content="Mica" />
                                     <ComboBoxItem Content="自定义图片" />
-                                    <ComboBoxItem Content="纯色（即将支持）" IsEnabled="False" />
+                                    <ComboBoxItem Content="纯色" />
                                 </ComboBox>
                             </Grid>
 
@@ -612,6 +612,31 @@
                                         <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
                                     </Grid>
                                 </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel x:Name="SolidColorPanel" Spacing="8" Visibility="Collapsed">
+                                <StackPanel x:Name="SolidColorPalette" Orientation="Horizontal" Spacing="6"
+                                    HorizontalAlignment="Center" Margin="0,4,0,0" />
+
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="跟随封面" FontSize="{StaticResource FontSizeBody}"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock Text="按当前封面自动取暗色" FontSize="{StaticResource FontSizeCaption}"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="SolidColorAutoToggle" Grid.Column="1"
+                                        MinWidth="0" OffContent="" OnContent=""
+                                        Toggled="OnSolidColorAutoToggled" AutomationProperties.Name="跟随封面自动取色" />
+                                </Grid>
+
+                                <TextBlock x:Name="SolidColorHex" VerticalAlignment="Center"
+                                    FontSize="{StaticResource FontSizeCaption}"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                             </StackPanel>
 
                             <StackPanel Spacing="8">

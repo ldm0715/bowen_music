@@ -70,6 +70,9 @@ public sealed class JsonLyricsSettingsStore : ILyricsSettingsStore
                 BackgroundImageFocusX = Has("BackgroundImageFocusX") ? loaded.BackgroundImageFocusX : 0.5,
                 BackgroundImageFocusY = Has("BackgroundImageFocusY") ? loaded.BackgroundImageFocusY : 0.5,
                 BackgroundImageZoom = Has("BackgroundImageZoom") ? loaded.BackgroundImageZoom : 1,
+                BackgroundColorArgb = Has("BackgroundColorArgb") ? loaded.BackgroundColorArgb : LyricsSettings.DefaultBackgroundColor,
+                BackgroundCustomColorArgb = Has("BackgroundCustomColorArgb") ? loaded.BackgroundCustomColorArgb : LyricsSettings.DefaultBackgroundColor,
+                BackgroundColorAuto = Has("BackgroundColorAuto") && loaded.BackgroundColorAuto,
             };
 
             return loaded.Normalized();

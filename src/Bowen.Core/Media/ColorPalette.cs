@@ -67,6 +67,21 @@ public static class ColorPalette
     }
 
     /// <summary>
+    /// 把封面主色压成适合做纯色背景的暗色：保留色相，明度压到约 0.16。
+    /// </summary>
+    /// <remarks>
+    /// 氛围色为了发光效果保持在 0.78–0.94 的高明度，直接拿来当背景会把白色歌词吃掉；
+    /// 这里只取色相，饱和度与明度都重新收口到深色区间。灰阶封面退回默认的深夜蓝。
+    /// </remarks>
+    public static RgbColor DarkBackground(RgbColor seed)
+    {
+        var (hue, saturation, _) = ToHsv(seed);
+        return saturation < DesaturatedThreshold
+            ? new RgbColor(36, 50, 74)
+            : FromHsv(hue, Math.Clamp(saturation, 0.40, 0.70), 0.20);
+    }
+
+    /// <summary>
     /// 在两个调色板之间线性插值，供切换封面时的颜色过渡使用。
     /// </summary>
     /// <param name="from">起始调色板。</param>

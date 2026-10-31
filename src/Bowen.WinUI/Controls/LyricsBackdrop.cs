@@ -185,6 +185,9 @@ public sealed class LyricsBackdrop : UserControl
         CanvasDevice device, Func<BackdropState> state, CancellationToken stop, ILogger? logger) : ICompositionCanvasRenderer
     {
         private const double FadeSeconds = 0.6;
+        // 同一时刻只允许一张图在解码：快速来回切背景时，旧解码会被取消，
+        // 但 Win2D 的 LoadAsync 不保证立刻停下；串行化能避免多张 1920px 位图同时驻留。
+        private readonly SemaphoreSlim _loadGate = new(1, 1);
         private CanvasBitmap? _loadingBitmap;
         private float _loadingSaturation = 0.68f;
         private CoverSurface? _current;
@@ -201,8 +204,11 @@ public sealed class LyricsBackdrop : UserControl
             if (width <= 0 || height <= 0) return false;
 
             var next = state();
-            if (!next.SameSource(_requested)) BeginLoad(next);
+            // 必须先记下新的请求，再启动加载：LoadAsync 拿到锁后会用 _requested
+            // 判断这次加载是否过期；顺序反了会把刚换的来源当成过期请求丢掉。
+            var changed = !next.SameSource(_requested);
             _requested = next;
+            if (changed) BeginLoad(next);
 
             if (_loadingBitmap is { } bitmap)
             {
@@ -259,8 +265,16 @@ public sealed class LyricsBackdrop : UserControl
         private async Task LoadAsync(BackdropState source, CancellationToken token)
         {
             CanvasBitmap? bitmap = null;
+            var acquired = false;
             try
             {
+                // 串行化解码：快速来回切背景时，旧解码虽然已被取消，但底层可能还要跑完；
+                // 只允许一张在飞，避免多张 1920px 位图同时驻留。
+                await _loadGate.WaitAsync(token);
+                acquired = true;
+
+                if (token.IsCancellationRequested || !source.SameSource(_requested)) return;
+
                 if (source.HasLocal)
                 {
                     bitmap = await CanvasBitmap.LoadAsync(device, source.LocalPath).AsTask(token);
@@ -291,10 +305,22 @@ public sealed class LyricsBackdrop : UserControl
             {
                 _loading = false;
                 logger?.LogWarning(exception, "全屏歌词背景加载失败");
+
+                // 新来源加载失败时不要继续留着上一张图：否则切回封面成功、
+                // 只是解码失败的情况下，自定义图片的纹理会一直占着。
+                // 如果期间已经请求了新来源，这次失败已经过期，交给新的加载处理。
+                if (!source.SameSource(_requested)) return;
+
+                _current?.Dispose();
+                _previous?.Dispose();
+                _current = _previous = null;
+                _fading = false;
+                _fade = 1;
             }
             finally
             {
                 bitmap?.Dispose();
+                if (acquired) _loadGate.Release();
                 if (token.IsCancellationRequested || !source.SameSource(_requested)) _loading = false;
             }
         }

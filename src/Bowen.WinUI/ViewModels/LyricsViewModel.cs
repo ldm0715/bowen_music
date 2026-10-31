@@ -99,6 +99,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         BackgroundImageFocusX = loaded.BackgroundImageFocusX;
         BackgroundImageFocusY = loaded.BackgroundImageFocusY;
         BackgroundImageZoom = loaded.BackgroundImageZoom;
+        BackgroundColorArgb = loaded.BackgroundColorArgb;
+        BackgroundCustomColorArgb = loaded.BackgroundCustomColorArgb;
+        BackgroundColorAuto = loaded.BackgroundColorAuto;
         HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
         VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
@@ -205,6 +208,15 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>自定义背景图片在 cover 基础上的缩放，1–3。</summary>
     public double BackgroundImageZoom { get; private set; } = 1;
+
+    /// <summary>纯色背景的颜色，<c>0xAARRGGBB</c>。</summary>
+    public uint BackgroundColorArgb { get; private set; } = LyricsSettings.DefaultBackgroundColor;
+
+    /// <summary>自定义取色最近一次选的颜色。</summary>
+    public uint BackgroundCustomColorArgb { get; private set; } = LyricsSettings.DefaultBackgroundColor;
+
+    /// <summary>纯色背景是否跟随封面自动取色。</summary>
+    public bool BackgroundColorAuto { get; private set; }
 
     /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
     public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
@@ -417,6 +429,48 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>选一个纯色背景：同时关闭「跟随封面」，一并落盘。</summary>
+    public void SetBackgroundColor(uint argb, bool auto)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultBackgroundColor : argb | 0xFF000000;
+        if (BackgroundColorArgb == argb && BackgroundColorAuto == auto)
+        {
+            return;
+        }
+
+        BackgroundColorArgb = argb;
+        BackgroundColorAuto = auto;
+        OnPropertyChanged(nameof(BackgroundColorArgb));
+        OnPropertyChanged(nameof(BackgroundColorAuto));
+        Persist();
+    }
+
+    /// <summary>纯色背景是否跟随封面自动取色。</summary>
+    public void SetBackgroundColorAuto(bool enabled)
+    {
+        if (BackgroundColorAuto == enabled)
+        {
+            return;
+        }
+
+        BackgroundColorAuto = enabled;
+        OnPropertyChanged(nameof(BackgroundColorAuto));
+        Persist();
+    }
+
+    /// <summary>应用自定义颜色：同时记为最近一次自定义色，并关闭「跟随封面」。</summary>
+    public void SetBackgroundCustomColor(uint argb)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultBackgroundColor : argb | 0xFF000000;
+        BackgroundColorArgb = argb;
+        BackgroundCustomColorArgb = argb;
+        BackgroundColorAuto = false;
+        OnPropertyChanged(nameof(BackgroundColorArgb));
+        OnPropertyChanged(nameof(BackgroundCustomColorArgb));
+        OnPropertyChanged(nameof(BackgroundColorAuto));
+        Persist();
+    }
+
     /// <summary>重新裁剪已有背景图片：更新裁剪中心与缩放并落盘。</summary>
     public void SetBackgroundImageCrop(double focusX, double focusY, double zoom)
     {
@@ -521,6 +575,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         BackgroundImageFocusX = BackgroundImageFocusX,
         BackgroundImageFocusY = BackgroundImageFocusY,
         BackgroundImageZoom = BackgroundImageZoom,
+        BackgroundColorArgb = BackgroundColorArgb,
+        BackgroundCustomColorArgb = BackgroundCustomColorArgb,
+        BackgroundColorAuto = BackgroundColorAuto,
         HorizontalOffsetPercent = HorizontalOffsetPercent,
         VerticalOffsetPercent = VerticalOffsetPercent,
     });
