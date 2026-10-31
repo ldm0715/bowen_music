@@ -84,6 +84,12 @@ public sealed record ShellBackgroundSettings
     /// <summary>浅色主题的手动纯色，<c>0xAARRGGBB</c>。</summary>
     public uint LightSolidColorArgb { get; init; } = DefaultLightSolidColorArgb;
 
+    /// <summary>深色主题保存的自定义色；下拉框选中它时直接应用。</summary>
+    public uint CustomSolidColorArgb { get; init; } = DefaultSolidColorArgb;
+
+    /// <summary>浅色主题保存的自定义色；下拉框选中它时直接应用。</summary>
+    public uint LightCustomSolidColorArgb { get; init; } = DefaultLightSolidColorArgb;
+
     /// <summary>纯色是否跟随当前封面自动取色。</summary>
     public bool SolidColorAuto { get; init; }
 
@@ -140,6 +146,8 @@ public sealed record ShellBackgroundSettings
         // 0 不是合法的颜色；其余颜色把 alpha 顶回不透明（预设不提供透明度）。
         SolidColorArgb = NormalizeColor(SolidColorArgb, DefaultSolidColorArgb),
         LightSolidColorArgb = NormalizeColor(LightSolidColorArgb, DefaultLightSolidColorArgb),
+        CustomSolidColorArgb = NormalizeColor(CustomSolidColorArgb, DefaultSolidColorArgb),
+        LightCustomSolidColorArgb = NormalizeColor(LightCustomSolidColorArgb, DefaultLightSolidColorArgb),
     };
 
     private static uint NormalizeColor(uint value, uint fallback)

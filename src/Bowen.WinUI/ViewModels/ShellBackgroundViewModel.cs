@@ -42,6 +42,8 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
     private ShellBackgroundMode _mode;
     private uint _manualDarkSolidColorArgb;
     private uint _manualLightSolidColorArgb;
+    private uint _customDarkSolidColorArgb;
+    private uint _customLightSolidColorArgb;
     private bool _solidColorAuto;
     private IReadOnlyList<RgbColor> _autoSeeds = [];
     private IReadOnlyList<ShellColorOption> _solidColorOptions;
@@ -74,6 +76,23 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
         _mode = settings.Mode;
         _manualDarkSolidColorArgb = settings.SolidColorArgb;
         _manualLightSolidColorArgb = settings.LightSolidColorArgb;
+        _customDarkSolidColorArgb = settings.CustomSolidColorArgb;
+        _customLightSolidColorArgb = settings.LightCustomSolidColorArgb;
+
+        // 旧文件没有自定义色字段：手动色不是预设时，把它迁移成自定义色，
+        // 否则升级后下拉框里的自定义项会退回默认色。
+        if (!IsPreset(_manualDarkSolidColorArgb, ShellBackgroundSettings.DarkSolidPresets)
+            && _customDarkSolidColorArgb == ShellBackgroundSettings.DefaultSolidColorArgb)
+        {
+            _customDarkSolidColorArgb = _manualDarkSolidColorArgb;
+        }
+
+        if (!IsPreset(_manualLightSolidColorArgb, ShellBackgroundSettings.LightSolidPresets)
+            && _customLightSolidColorArgb == ShellBackgroundSettings.DefaultLightSolidColorArgb)
+        {
+            _customLightSolidColorArgb = _manualLightSolidColorArgb;
+        }
+
         _solidColorAuto = settings.SolidColorAuto;
         _imageFile = settings.ImageFile;
         _imageDim = settings.ImageDim;
@@ -81,7 +100,7 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
         _imageFocusX = settings.ImageFocusX;
         _imageFocusY = settings.ImageFocusY;
         _imageZoom = settings.ImageZoom;
-        _solidColorOptions = BuildSolidColorOptions(_currentTheme);
+        _solidColorOptions = BuildSolidColorOptions(_currentTheme, _customDarkSolidColorArgb);
 
         _player.PropertyChanged += OnPlayerChanged;
 
@@ -181,15 +200,54 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
         }
 
         _currentTheme = theme;
-        _solidColorOptions = BuildSolidColorOptions(theme);
+        _solidColorOptions = BuildSolidColorOptions(
+            theme,
+            theme == AmbientTheme.Dark ? _customDarkSolidColorArgb : _customLightSolidColorArgb);
         OnPropertyChanged(nameof(SolidColorOptions));
         OnPropertyChanged(nameof(SolidColorIndex));
+        OnPropertyChanged(nameof(ManualSolidColorArgb));
+        OnPropertyChanged(nameof(CustomSolidColorArgb));
         SolidColorChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private static IReadOnlyList<ShellColorOption> BuildSolidColorOptions(AmbientTheme theme)
-        => [.. ShellBackgroundSettings.SolidPresets(theme).Select(entry =>
-            new ShellColorOption(entry.Name, entry.Argb, new SolidColorBrush(ToColor(entry.Argb))))];
+    private static IReadOnlyList<ShellColorOption> BuildSolidColorOptions(
+        AmbientTheme theme,
+        uint customArgb)
+    {
+        var options = ShellBackgroundSettings.SolidPresets(theme)
+            .Select(entry => new ShellColorOption(
+                entry.Name,
+                entry.Argb,
+                new SolidColorBrush(ToColor(entry.Argb))))
+            .ToList();
+
+        // 最后一项是保存的自定义色：名称带十六进制，色块就是保存的颜色。
+        var color = Color.FromArgb(
+            (byte)(customArgb >> 24),
+            (byte)(customArgb >> 16),
+            (byte)(customArgb >> 8),
+            (byte)customArgb);
+
+        options.Add(new ShellColorOption(
+            $"自定义颜色 #{color.R:X2}{color.G:X2}{color.B:X2}",
+            customArgb,
+            new SolidColorBrush(color)));
+
+        return options;
+    }
+
+    private static bool IsPreset(uint argb, (uint Argb, string Name)[] presets)
+    {
+        foreach (var preset in presets)
+        {
+            if (preset.Argb == argb)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// 当前主题下实际应用的纯色。
@@ -206,7 +264,17 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
                 ? _manualDarkSolidColorArgb
                 : _manualLightSolidColorArgb;
 
-    /// <summary>当前主题的手动色在预设里的下标；不在预设中时返回 -1。</summary>
+    /// <summary>当前主题保存的自定义色；下拉框选中它时直接应用。</summary>
+    public uint CustomSolidColorArgb => _currentTheme == AmbientTheme.Dark
+        ? _customDarkSolidColorArgb
+        : _customLightSolidColorArgb;
+
+    /// <summary>当前主题的手动色，<c>0xAARRGGBB</c>。</summary>
+    public uint ManualSolidColorArgb => _currentTheme == AmbientTheme.Dark
+        ? _manualDarkSolidColorArgb
+        : _manualLightSolidColorArgb;
+
+    /// <summary>当前主题的手动色在预设里的下标；自定义色返回最后一项。</summary>
     public int SolidColorIndex
     {
         get
@@ -224,13 +292,19 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
                 }
             }
 
-            return -1;
+            return presets.Length;
         }
         set
         {
             var presets = ShellBackgroundSettings.SolidPresets(_currentTheme);
 
-            if (value < 0 || value >= presets.Length)
+            if (value < 0 || value > presets.Length)
+            {
+                return;
+            }
+
+            // 最后一项是「自定义颜色」：不在这里改色，由设置页弹出色盘。
+            if (value == presets.Length)
             {
                 return;
             }
@@ -327,6 +401,71 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
 
         Persist();
         OnPropertyChanged(nameof(SolidColorIndex));
+        OnPropertyChanged(nameof(ManualSolidColorArgb));
+        SolidColorChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 选中下拉框里的「自定义颜色」：直接应用保存的自定义色，不打开色盘。
+    /// </summary>
+    public void ApplyCustomSolidColor()
+    {
+        var custom = CustomSolidColorArgb;
+        var current = _currentTheme == AmbientTheme.Dark
+            ? _manualDarkSolidColorArgb
+            : _manualLightSolidColorArgb;
+
+        if (current == custom)
+        {
+            return;
+        }
+
+        if (_currentTheme == AmbientTheme.Dark)
+        {
+            _manualDarkSolidColorArgb = custom;
+        }
+        else
+        {
+            _manualLightSolidColorArgb = custom;
+        }
+
+        Persist();
+        OnPropertyChanged(nameof(SolidColorIndex));
+        OnPropertyChanged(nameof(ManualSolidColorArgb));
+        SolidColorChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 应用一个自定义色：关闭跟随封面，写入当前主题的自定义色与手动色，并落盘。
+    /// </summary>
+    public void SetSolidColorCustom(uint argb)
+    {
+        var fallback = _currentTheme == AmbientTheme.Dark
+            ? ShellBackgroundSettings.DefaultSolidColorArgb
+            : ShellBackgroundSettings.DefaultLightSolidColorArgb;
+
+        argb = argb == 0 ? fallback : argb | 0xFF000000;
+
+        if (_currentTheme == AmbientTheme.Dark)
+        {
+            _customDarkSolidColorArgb = argb;
+            _manualDarkSolidColorArgb = argb;
+        }
+        else
+        {
+            _customLightSolidColorArgb = argb;
+            _manualLightSolidColorArgb = argb;
+        }
+
+        _solidColorAuto = false;
+        Persist();
+        _solidColorOptions = BuildSolidColorOptions(_currentTheme, argb);
+        OnPropertyChanged(nameof(SolidColorOptions));
+        OnPropertyChanged(nameof(SolidColorIndex));
+        OnPropertyChanged(nameof(SolidColorAuto));
+        OnPropertyChanged(nameof(IsManualSolidColor));
+        OnPropertyChanged(nameof(ManualSolidColorArgb));
+        OnPropertyChanged(nameof(CustomSolidColorArgb));
         SolidColorChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -433,6 +572,8 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
             ImageZoom = _imageZoom,
             SolidColorArgb = _manualDarkSolidColorArgb,
             LightSolidColorArgb = _manualLightSolidColorArgb,
+            CustomSolidColorArgb = _customDarkSolidColorArgb,
+            LightCustomSolidColorArgb = _customLightSolidColorArgb,
             SolidColorAuto = _solidColorAuto,
         });
 

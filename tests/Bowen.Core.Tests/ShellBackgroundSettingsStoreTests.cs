@@ -41,6 +41,8 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
         Assert.Equal(ShellBackgroundMode.CoverAmbient, loaded.Mode);
         Assert.Equal(ShellBackgroundSettings.DefaultSolidColorArgb, loaded.SolidColorArgb);
         Assert.Equal(ShellBackgroundSettings.DefaultLightSolidColorArgb, loaded.LightSolidColorArgb);
+        Assert.Equal(ShellBackgroundSettings.DefaultSolidColorArgb, loaded.CustomSolidColorArgb);
+        Assert.Equal(ShellBackgroundSettings.DefaultLightSolidColorArgb, loaded.LightCustomSolidColorArgb);
         Assert.False(loaded.SolidColorAuto);
         Assert.Equal(string.Empty, loaded.ImageFile);
         Assert.Equal(ShellBackgroundSettings.DefaultImageDim, loaded.ImageDim);
@@ -58,6 +60,8 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
             Mode = ShellBackgroundMode.SolidColor,
             SolidColorArgb = 0xFF2C2542,
             LightSolidColorArgb = 0xFFF0EBF7,
+            CustomSolidColorArgb = 0xFF494A2D,
+            LightCustomSolidColorArgb = 0xFFEAF3E9,
             SolidColorAuto = true,
             ImageFile = "shell-bg-test.png",
             ImageDim = 0.3,
@@ -72,6 +76,8 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
         Assert.Equal(ShellBackgroundMode.SolidColor, loaded.Mode);
         Assert.Equal(0xFF2C2542u, loaded.SolidColorArgb);
         Assert.Equal(0xFFF0EBF7u, loaded.LightSolidColorArgb);
+        Assert.Equal(0xFF494A2Du, loaded.CustomSolidColorArgb);
+        Assert.Equal(0xFFEAF3E9u, loaded.LightCustomSolidColorArgb);
         Assert.True(loaded.SolidColorAuto);
         Assert.Equal("shell-bg-test.png", loaded.ImageFile);
         Assert.Equal(0.3d, loaded.ImageDim);
@@ -100,12 +106,14 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
     [Fact]
     public void ZeroColor_FallsBackToDefaultAndForcesOpaque()
     {
-        WriteRaw("""{ "Mode": "SolidColor", "SolidColorArgb": 0, "LightSolidColorArgb": 0, "SolidColorAuto": false }""");
+        WriteRaw("""{ "Mode": "SolidColor", "SolidColorArgb": 0, "LightSolidColorArgb": 0, "CustomSolidColorArgb": 0, "LightCustomSolidColorArgb": 0, "SolidColorAuto": false }""");
 
         var loaded = NewStore().Load();
 
         Assert.Equal(ShellBackgroundSettings.DefaultSolidColorArgb, loaded.SolidColorArgb);
         Assert.Equal(ShellBackgroundSettings.DefaultLightSolidColorArgb, loaded.LightSolidColorArgb);
+        Assert.Equal(ShellBackgroundSettings.DefaultSolidColorArgb, loaded.CustomSolidColorArgb);
+        Assert.Equal(ShellBackgroundSettings.DefaultLightSolidColorArgb, loaded.LightCustomSolidColorArgb);
 
         WriteRaw("""{ "Mode": "SolidColor", "SolidColorArgb": 2372170, "LightSolidColorArgb": 15922681, "SolidColorAuto": false }""");
 

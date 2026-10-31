@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Windows.Storage.Pickers;
+using Windows.UI;
 
 namespace Bowen.WinUI.Views;
 
@@ -52,6 +53,8 @@ public sealed partial class SettingsPage : Page, INavigationAware
     private readonly IWindowHandleProvider _window;
     private readonly ILogger<SettingsPage> _logger;
     private bool _syncingShellImage;
+    private bool _syncingShellColor;
+    private bool _openingShellCustomColor;
     private bool _shellModeReady;
 
     public SettingsPage(
@@ -128,6 +131,71 @@ public sealed partial class SettingsPage : Page, INavigationAware
         }
 
         SyncShellImageControls();
+    }
+
+    private async void OnShellSolidCustomColorClick(object sender, RoutedEventArgs args)
+        => await OpenShellCustomColorAsync();
+
+    private void OnShellSolidColorSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_syncingShellColor) return;
+
+        var count = ViewModel.ShellBackground.SolidColorOptions.Count;
+        if (count == 0 || ShellSolidColorCombo.SelectedIndex != count - 1) return;
+
+        // 最后一项是保存的自定义色：直接应用，不弹色盘。编辑走旁边的按钮。
+        _syncingShellColor = true;
+        ViewModel.ShellBackground.ApplyCustomSolidColor();
+        _syncingShellColor = false;
+    }
+
+    private async Task OpenShellCustomColorAsync()
+    {
+        if (_openingShellCustomColor) return;
+        _openingShellCustomColor = true;
+
+        try
+        {
+            var theme = ActualTheme;
+            var argb = ViewModel.ShellBackground.CustomSolidColorArgb;
+            var current = Color.FromArgb(
+                (byte)(argb >> 24),
+                (byte)(argb >> 16),
+                (byte)(argb >> 8),
+                (byte)argb);
+
+            var (preview, applyPreview) = ShellColorPreview.Create(theme);
+
+            var chosen = await ColorPickerDialog.ShowAsync(
+                current,
+                XamlRoot,
+                theme,
+                preview,
+                applyPreview,
+                color => theme == ElementTheme.Dark
+                    ? (ColorPickerDialog.RelativeLuminance(color) > 0.45
+                        ? "颜色偏亮，界面浅色文字可能不够清晰"
+                        : "对比度良好")
+                    : (ColorPickerDialog.RelativeLuminance(color) < 0.45
+                        ? "颜色偏暗，界面深色文字可能不够清晰"
+                        : "对比度良好"),
+                _logger);
+
+            _syncingShellColor = true;
+
+            if (chosen is { } value)
+            {
+                ViewModel.ShellBackground.SetSolidColorCustom(value);
+            }
+
+            // 取消时把下拉框拨回当前实际颜色；确定时也会落到自定义项。
+            ShellSolidColorCombo.SelectedIndex = ViewModel.ShellBackground.SolidColorIndex;
+        }
+        finally
+        {
+            _syncingShellColor = false;
+            _openingShellCustomColor = false;
+        }
     }
 
     private async void OnPickShellImageClick(object sender, RoutedEventArgs args)
