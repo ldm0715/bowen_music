@@ -34,6 +34,16 @@ public sealed record LyricsRenderSettings
     /// <see cref="LyricsRenderer.SetFontFamily"/> 更新并标记重排。
     /// </summary>
     public string FontFamily { get; set; } = "Segoe UI Variable Display";
+
+    /// <summary>
+    /// 译文行相对歌词字号的缩放。译文比原文小一档，避免喧宾夺主。
+    /// </summary>
+    public double TranslationFontScale { get; init; } = 0.72;
+
+    /// <summary>
+    /// 原文与译文之间的行距相对普通行距的比例。收紧成一组，避免译文被当成下一句。
+    /// </summary>
+    public double TranslationLineGapRatio { get; init; } = 0.25;
     public double PlayingLineTopOffsetFactor { get; init; } = 0.42;
     public double FarBlurAmount { get; init; } = 5;
     public double CurrentLineScale { get; init; } = 1;

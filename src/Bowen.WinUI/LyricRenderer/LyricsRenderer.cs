@@ -205,11 +205,13 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     public bool NeedsContinuousFrames(bool playing)
     {
         if (IsMotionAnimating) return true;
-        if (!playing || IsBrowsing || _document.Kind != LyricKind.WordByWord || CurrentIndex < 0 || CurrentIndex >= _document.Lines.Count) return false;
+        var snapshot = _device?.Snapshot;
+        if (!playing || IsBrowsing || _document.Kind != LyricKind.WordByWord
+            || snapshot is not { Count: > 0 } || CurrentIndex < 0 || CurrentIndex >= snapshot.Count) return false;
         var line = _document.Lines[CurrentIndex];
         // 译文没有自己的逐字时间，整段演唱窗口内都要连续出帧，否则扫色会在音节间隙里冻住。
         if (_position >= line.Start && _position < line.SpeechEnd()
-            && CurrentIndex + 1 < _document.Lines.Count && _document.Lines[CurrentIndex + 1].IsTranslation)
+            && snapshot.UnitHasTranslation[snapshot.UnitOfLine[CurrentIndex]])
             return true;
         foreach (var syllable in line.Syllables)
             if (syllable.Duration > TimeSpan.Zero && _position >= syllable.Start && _position < syllable.End) return true;
@@ -233,6 +235,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
             return changed;
         }
         var current = Math.Max(0, snapshot.Document.IndexOfLineAt(_position));
+        // 原文与译文时间戳相同，二分查找取文档里靠后的一行；译文可能在原文之后，
+        // 不归到原文行就会把译文自己当成当前行整行染色。
+        current = snapshot.SourceOfLine[current];
         // 锚点对齐整个滚动单元的中心：双行歌词绕焦点线居中，单行时与行中心相同。
         // 垂直偏移按歌词区域高度换算成 DIP，叠加在焦点线上。
         var focusY = _height * settings.PlayingLineTopOffsetFactor;
@@ -293,8 +298,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         var hadTranslation = _hasTranslation;
         var previousTranslationProgress = _translationProgress;
         _hasTranslation = !IsBrowsing && current >= 0
-            && current + 1 < snapshot.Document.Lines.Count
-            && snapshot.Document.Lines[current + 1].IsTranslation;
+            && snapshot.UnitHasTranslation[snapshot.UnitOfLine[current]];
         _translationProgress = _hasTranslation
             ? TranslationProgress(snapshot.Document.Lines[current], _position)
             : 0;
@@ -342,9 +346,11 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 EnsurePlainImage(line);
                 var active = index == CurrentIndex && _position >= snapshot.Document.Lines[index].Start;
                 // 译文紧跟在原文后面，跟着当前句一起扫色，避免被误认成下一句。
+                // 不能要求位置已到译文行行首：译文的时间戳借的是下一句原文的行首，
+                // 原文演唱期间它自己的 Start 还没到。
                 var translation = !active && !IsBrowsing && _hasTranslation
                     && snapshot.Document.Lines[index].IsTranslation
-                    && snapshot.Document.SourceLineIndex(index) == CurrentIndex;
+                    && snapshot.SourceOfLine[index] == CurrentIndex;
                 var center = new Vector2(0, (float)(top + line.Height / 2));
                 session.Transform = Matrix3x2.CreateTranslation(originX, (float)top)
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
