@@ -39,6 +39,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private double[] _centers = [];
     private CanvasLinearGradientBrush? _edgeBrush;
     private bool _blurredCreated;
+    // 当前句若紧跟译文，译文跟随原文的演唱进度扫色。
+    private bool _hasTranslation;
+    private double _translationProgress;
     private Color _played = Color.FromArgb(242, 255, 255, 255);
     private Color _unplayed = Color.FromArgb(80, 255, 255, 255);
 
@@ -203,7 +206,12 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         if (IsMotionAnimating) return true;
         if (!playing || IsBrowsing || _document.Kind != LyricKind.WordByWord || CurrentIndex < 0 || CurrentIndex >= _document.Lines.Count) return false;
-        foreach (var syllable in _document.Lines[CurrentIndex].Syllables)
+        var line = _document.Lines[CurrentIndex];
+        // 译文没有自己的逐字时间，整段演唱窗口内都要连续出帧，否则扫色会在音节间隙里冻住。
+        if (_position >= line.Start && _position < line.SpeechEnd()
+            && CurrentIndex + 1 < _document.Lines.Count && _document.Lines[CurrentIndex + 1].IsTranslation)
+            return true;
+        foreach (var syllable in line.Syllables)
             if (syllable.Duration > TimeSpan.Zero && _position >= syllable.Start && _position < syllable.End) return true;
         return false;
     }
@@ -281,6 +289,18 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         if (!IsBrowsing && _document.Kind == LyricKind.WordByWord && previousPosition != _position)
             foreach (var syllable in _document.Lines[current].Syllables)
                 if (syllable.ProgressAt(previousPosition) != syllable.ProgressAt(_position)) { changed = true; break; }
+        // 译文跟读原文的整句进度：进度每帧变化都要提交，否则行内没有音节可触发重绘。
+        var hadTranslation = _hasTranslation;
+        var previousTranslationProgress = _translationProgress;
+        _hasTranslation = !IsBrowsing && current >= 0
+            && current + 1 < snapshot.Document.Lines.Count
+            && snapshot.Document.Lines[current + 1].IsTranslation;
+        _translationProgress = _hasTranslation
+            ? TranslationProgress(snapshot.Document.Lines[current], _position)
+            : 0;
+        if (_hasTranslation != hadTranslation
+            || (_hasTranslation && _translationProgress != previousTranslationProgress))
+            changed = true;
         return changed || rebuilt || _scroll.HasMoved || current != previousIndex || wasBrowsing != IsBrowsing;
     }
 
@@ -321,6 +341,10 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 if (index != CurrentIndex || IsBrowsing) line.ReleaseActiveResources();
                 EnsurePlainImage(line);
                 var active = index == CurrentIndex && _position >= snapshot.Document.Lines[index].Start;
+                // 译文紧跟在原文后面，跟着当前句一起扫色，避免被误认成下一句。
+                var translation = !active && !IsBrowsing && _hasTranslation
+                    && snapshot.Document.Lines[index].IsTranslation
+                    && snapshot.Document.SourceLineIndex(index) == CurrentIndex;
                 var center = new Vector2(0, (float)(top + line.Height / 2));
                 session.Transform = Matrix3x2.CreateTranslation(originX, (float)top)
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
@@ -332,7 +356,11 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 }
                 if (active && !IsBrowsing)
                 {
-                    DrawActiveLine(session, snapshot, index);
+                    DrawActiveLine(session, snapshot, index, null);
+                }
+                else if (translation)
+                {
+                    DrawActiveLine(session, snapshot, index, _translationProgress);
                 }
                 else
                 {
@@ -433,7 +461,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _blurredCreated = true;
     }
 
-    private void DrawActiveLine(CanvasDrawingSession session, LyricsLayoutSnapshot snapshot, int index)
+    private void DrawActiveLine(CanvasDrawingSession session, LyricsLayoutSnapshot snapshot, int index,
+        double? lineProgress)
     {
         var rendered = snapshot.Lines[index];
         var text = snapshot.Document.Lines[index];
@@ -449,7 +478,18 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
             rendered.ActiveImage = new LyricsActiveLineImage(_creator!, rendered, settings,
                 _played, _unplayed, _dpi, wordByWord);
         }
-        rendered.ActiveImage.Draw(session, text, rendered, _position, wordByWord);
+        rendered.ActiveImage.Draw(session, text, rendered, _position, wordByWord, lineProgress);
+    }
+
+    /// <summary>
+    /// 译文跟读的整句进度：原文行首到最后一个音节结束，而不是到下一行行首。
+    /// </summary>
+    private static double TranslationProgress(LyricLine source, TimeSpan position)
+    {
+        var end = source.SpeechEnd();
+        var span = end - source.Start;
+        if (span <= TimeSpan.Zero) return position >= source.Start ? 1 : 0;
+        return Math.Clamp((position - source.Start) / span, 0, 1);
     }
 
     private bool EnsureLayout()

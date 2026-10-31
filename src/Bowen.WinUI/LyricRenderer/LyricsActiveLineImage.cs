@@ -22,6 +22,7 @@ internal sealed class LyricsActiveLineImage : IDisposable
     private readonly Color _played, _unplayed;
     private readonly double _featherRatio;
     private readonly Rect _bounds;
+    private readonly double _lineLeft, _lineWidth;
     private bool _painted;
 
     public LyricsActiveLineImage(CanvasDevice device, LyricsLineLayout line, LyricsRenderSettings settings,
@@ -40,6 +41,16 @@ internal sealed class LyricsActiveLineImage : IDisposable
         _colors = mask.CreateTarget();
         _result = mask.CreateTarget();
         _image = new AlphaMaskEffect { Source = _colors, AlphaMask = _mask };
+        // 译文没有逐字时间，按整行宽度扫色；这里预存行内字形范围。
+        var lineLeft = double.PositiveInfinity;
+        var lineRight = double.NegativeInfinity;
+        foreach (var glyph in line.Glyphs)
+        {
+            lineLeft = Math.Min(lineLeft, glyph.Bounds.X);
+            lineRight = Math.Max(lineRight, glyph.Bounds.Right);
+        }
+        _lineLeft = double.IsFinite(lineLeft) ? lineLeft : _bounds.X;
+        _lineWidth = double.IsFinite(lineRight) ? Math.Max(0, lineRight - lineLeft) : _bounds.Width;
         _brushes = new CanvasLinearGradientBrush[line.Glyphs.Length];
         _progress = new double[_brushes.Length];
         Array.Fill(_progress, double.NaN);
@@ -85,16 +96,19 @@ internal sealed class LyricsActiveLineImage : IDisposable
     public float Dpi { get; }
 
     public void Draw(CanvasDrawingSession session, LyricLine text, LyricsLineLayout line,
-        TimeSpan position, bool wordByWord)
+        TimeSpan position, bool wordByWord, double? lineProgress = null)
     {
         var changed = !_painted;
         for (var index = 0; index < line.Glyphs.Length; index++)
         {
             var glyph = line.Glyphs[index];
-            var progress = wordByWord && glyph.Syllable >= 0 && glyph.Syllable < text.Syllables.Count
-                ? LyricMotionMath.GlyphProgress(text.Syllables[glyph.Syllable].ProgressAt(position),
-                    glyph.Offset, glyph.Bounds.Width, glyph.TotalWidth)
-                : 1;
+            var progress = lineProgress.HasValue
+                ? LyricMotionMath.GlyphProgress(lineProgress.Value,
+                    glyph.Bounds.X - _lineLeft, glyph.Bounds.Width, _lineWidth)
+                : wordByWord && glyph.Syllable >= 0 && glyph.Syllable < text.Syllables.Count
+                    ? LyricMotionMath.GlyphProgress(text.Syllables[glyph.Syllable].ProgressAt(position),
+                        glyph.Offset, glyph.Bounds.Width, glyph.TotalWidth)
+                    : 1;
             if (_progress[index] == progress) continue;
             _progress[index] = progress;
             changed = true;
