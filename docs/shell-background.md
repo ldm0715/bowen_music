@@ -207,8 +207,14 @@ Mica 是窗口级属性，现在由 `MainWindow.SetLyricsMaterialBackdrop` 独�
 **封面取色**：复用 `AmbientBackdrop`，只替换 `ColorPalette` 的输入（见 §6）。
 窗口最小化、隐藏、沉浸时继续走 `IsResourceSuspended`，不新增常驻成本。
 
-**Mica**：`MicaBackdrop { Kind = MicaKind.Base }`。进入 Mica 前先等沉浸入场动画结束的逻辑
-只属于歌词页；外壳模式可以立即切换。Win10 上保证 `IsMicaSupported` 为假时永不设置。
+**Mica**：`MicaController` + `SystemBackdropConfiguration`，主题与外壳**互相独立**：
+常规页跟随外壳实际主题，歌词页与 MV 页固定深色。**每次主题变化都要重新
+`SetSystemBackdropConfiguration`** —— 只改配置对象的 `Theme` 属性不会让已创建的控制器
+重新读取，表现就是歌词页仍沿用外壳的亮色 Mica。
+Mica 本身的颜色由 Windows 按壁纸决定，应用改不了；开启着色时直接把**同一套多色封面
+氛围层**（`AmbientBackdrop`）叠在 Mica 上，不走单色 tint，切歌沿用 650ms 颜色过渡。
+关闭着色后回到系统 Mica 原色。外壳与歌词页各有一个开关。
+Win10 上保证 `IsMicaSupported` 为假时永不创建控制器。
 
 **纯色**：一层 `SolidColorBrush`。深色与浅色主题各有一组独立预设，手动色也分别保存；
 自定义颜色走公共 `ColorPickerDialog`，外壳的预览是整窗界面缩略图，歌词页仍是歌词预览。
@@ -513,6 +519,8 @@ OKLCH 的明度与彩度解耦，可以单独抬高明度而保住颜色。这�
 | `ColorPickerDialog` | 从歌词页抽出的公共 HSV 色盘；预览与对比度提示由调用方提供 |
 | `ShellColorPreview` | 外壳色盘的整窗缩略图预览（标题栏 / 侧栏 / 卡片 / 播放条） |
 | 外壳自定义纯色 | 下拉框末项是保存的自定义色（带十六进制），选中直接应用；旁边按钮才开色盘 |
+| Mica 主题 | 每次切换都重新提交 `SetSystemBackdropConfiguration`；歌词页独立使用深色，退出时先切回外壳主题再显示外壳 |
+| Mica 着色 | 外壳与歌词页各一个开关；复用多色封面氛围层叠在 Mica 上，切歌有 650ms 过渡 |
 | Win10 | Mica 选项置灰并回退封面取色 |
 | 验证 | Core 测试 1763 项通过；Release 构建 0 警告 0 错误 |
 

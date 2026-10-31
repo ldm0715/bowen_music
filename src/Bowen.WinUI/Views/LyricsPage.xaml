@@ -537,6 +537,25 @@
                                 </ComboBox>
                             </Grid>
 
+                            <StackPanel x:Name="MicaTintPanel" Spacing="6" Visibility="Collapsed">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="56" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="着色" Style="{StaticResource LyricsSectionTitleStyle}"
+                                        VerticalAlignment="Center" />
+                                    <ToggleSwitch x:Name="MicaTintToggle" Grid.Column="1"
+                                        MinWidth="0" OffContent="" OnContent=""
+                                        Toggled="OnMicaTintToggled"
+                                        AutomationProperties.Name="Mica 着色" />
+                                </Grid>
+                                <TextBlock Text="在系统 Mica 上叠一层当前封面氛围色"
+                                    FontSize="{StaticResource FontSizeCaption}"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+
                             <StackPanel x:Name="BackgroundImagePanel" Spacing="8" Visibility="Collapsed">
                                 <Grid ColumnSpacing="12">
                                     <Grid.ColumnDefinitions>

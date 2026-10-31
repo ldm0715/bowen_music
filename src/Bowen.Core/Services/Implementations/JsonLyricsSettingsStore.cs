@@ -73,6 +73,7 @@ public sealed class JsonLyricsSettingsStore : ILyricsSettingsStore
                 BackgroundColorArgb = Has("BackgroundColorArgb") ? loaded.BackgroundColorArgb : LyricsSettings.DefaultBackgroundColor,
                 BackgroundCustomColorArgb = Has("BackgroundCustomColorArgb") ? loaded.BackgroundCustomColorArgb : LyricsSettings.DefaultBackgroundColor,
                 BackgroundColorAuto = Has("BackgroundColorAuto") && loaded.BackgroundColorAuto,
+                MicaTintEnabled = Has("MicaTintEnabled") ? loaded.MicaTintEnabled : true,
             };
 
             return loaded.Normalized();

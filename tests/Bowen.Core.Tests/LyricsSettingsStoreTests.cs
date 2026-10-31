@@ -51,6 +51,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
         Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
+        Assert.True(loaded.MicaTintEnabled);
         Assert.Equal(string.Empty, loaded.BackgroundImageFile);
         Assert.Equal(LyricsSettings.DefaultBackgroundDim, loaded.BackgroundImageDim);
         Assert.Equal(LyricsSettings.DefaultBackgroundBlur, loaded.BackgroundImageBlur);
@@ -81,6 +82,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
             TranslationLineGap = 12,
             EdgeBlurRatio = 0.35,
             BackgroundMode = LyricsBackgroundMode.Mica,
+            MicaTintEnabled = false,
             BackgroundImageFile = "lyrics-bg-test.png",
             BackgroundImageDim = 0.45,
             BackgroundImageBlur = 12,
@@ -107,6 +109,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(12d, loaded.TranslationLineGap);
         Assert.Equal(0.35d, loaded.EdgeBlurRatio);
         Assert.Equal(LyricsBackgroundMode.Mica, loaded.BackgroundMode);
+        Assert.False(loaded.MicaTintEnabled);
         Assert.Equal("lyrics-bg-test.png", loaded.BackgroundImageFile);
         Assert.Equal(0.45d, loaded.BackgroundImageDim);
         Assert.Equal(12d, loaded.BackgroundImageBlur);
@@ -177,6 +180,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
         Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
+        Assert.True(loaded.MicaTintEnabled);
         Assert.Equal(string.Empty, loaded.BackgroundImageFile);
         Assert.Equal(LyricsSettings.DefaultBackgroundDim, loaded.BackgroundImageDim);
         Assert.Equal(LyricsSettings.DefaultBackgroundBlur, loaded.BackgroundImageBlur);

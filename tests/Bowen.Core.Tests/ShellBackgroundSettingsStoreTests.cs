@@ -44,6 +44,7 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
         Assert.Equal(ShellBackgroundSettings.DefaultSolidColorArgb, loaded.CustomSolidColorArgb);
         Assert.Equal(ShellBackgroundSettings.DefaultLightSolidColorArgb, loaded.LightCustomSolidColorArgb);
         Assert.False(loaded.SolidColorAuto);
+        Assert.True(loaded.MicaTintEnabled);
         Assert.Equal(string.Empty, loaded.ImageFile);
         Assert.Equal(ShellBackgroundSettings.DefaultImageDim, loaded.ImageDim);
         Assert.Equal(ShellBackgroundSettings.DefaultImageBlur, loaded.ImageBlur);
@@ -62,6 +63,7 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
             LightSolidColorArgb = 0xFFF0EBF7,
             CustomSolidColorArgb = 0xFF494A2D,
             LightCustomSolidColorArgb = 0xFFEAF3E9,
+            MicaTintEnabled = false,
             SolidColorAuto = true,
             ImageFile = "shell-bg-test.png",
             ImageDim = 0.3,
@@ -78,6 +80,7 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
         Assert.Equal(0xFFF0EBF7u, loaded.LightSolidColorArgb);
         Assert.Equal(0xFF494A2Du, loaded.CustomSolidColorArgb);
         Assert.Equal(0xFFEAF3E9u, loaded.LightCustomSolidColorArgb);
+        Assert.False(loaded.MicaTintEnabled);
         Assert.True(loaded.SolidColorAuto);
         Assert.Equal("shell-bg-test.png", loaded.ImageFile);
         Assert.Equal(0.3d, loaded.ImageDim);

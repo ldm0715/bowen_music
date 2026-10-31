@@ -232,6 +232,17 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.ShellBackground.IsMicaSelected), Mode=OneWay}">
+                                    <controls:SettingsRow Description="在系统 Mica 上叠一层当前封面主色；灰阶或无封面时为默认蓝灰。关闭后回到系统 Mica 原色" Header="Mica 着色">
+                                        <controls:SettingsRow.RightContent>
+                                            <ToggleSwitch
+                                                IsOn="{x:Bind ViewModel.ShellBackground.MicaTintEnabled, Mode=TwoWay}"
+                                                MinWidth="0" OffContent="" OnContent=""
+                                                AutomationProperties.Name="Mica 着色" />
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                </StackPanel>
                                 <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.ShellBackground.IsCustomImage), Mode=OneWay}">
                                     <controls:SettingsRow Description="按窗口比例铺满；可拖动与缩放取景" Header="自定义图片">
                                         <controls:SettingsRow.RightContent>

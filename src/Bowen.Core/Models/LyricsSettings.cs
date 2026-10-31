@@ -215,6 +215,9 @@ public sealed record LyricsSettings
     /// <summary>全屏歌词页的背景来源；默认封面模糊。</summary>
     public LyricsBackgroundMode BackgroundMode { get; init; } = LyricsBackgroundMode.CoverBlur;
 
+    /// <summary>Mica 之上是否叠一层封面主色，避免暗色下纯黑。</summary>
+    public bool MicaTintEnabled { get; init; } = true;
+
     /// <summary>
     /// 自定义背景图片的文件名，位于应用数据目录的 <c>backgrounds</c> 下。
     /// </summary>

@@ -24,6 +24,7 @@ using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
 using Windows.Graphics;
 using Windows.UI;
+using WinRT;
 
 namespace Bowen.WinUI;
 
@@ -122,7 +123,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private bool _closed;
     private FrameworkElement? _lyricsTitleBar;
     private bool _immersiveVisible;
-    private MicaBackdrop? _micaBackdrop;
+    private MicaController? _micaController;
+    private SystemBackdropConfiguration? _micaConfiguration;
     private bool _lyricsMicaRequested;
     private SolidColorBrush? _shellSolidBrush;
     private bool _isChangingLyricsPresenter;
@@ -361,6 +363,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             _trayIcon?.Dispose();
             _trayIcon = null;
             _trayIconDark = null;
+
+            _micaController?.Dispose();
+            _micaController = null;
 
             SaveWindowPlacement();
         };
@@ -2651,27 +2656,103 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void ApplyWindowBackdrop()
     {
         var shellMica = _shellBackground.EffectiveMode == ShellBackgroundMode.Mica;
-        var mica = IsMicaSupported
+        var wantMica = IsMicaSupported
             && ((_immersiveVisible && (_lyricsMicaRequested || shellMica))
                 || (!_immersiveVisible && shellMica));
 
-        if (mica)
-        {
-            _micaBackdrop ??= new MicaBackdrop { Kind = MicaKind.Base };
+        var useMica = wantMica && EnsureMicaController();
 
-            if (!ReferenceEquals(SystemBackdrop, _micaBackdrop))
+        if (useMica)
+        {
+            // 歌词页与 MV 页固定深色；常规页面跟随外壳实际主题。
+            SetMicaTheme(_immersiveVisible || CurrentAmbientTheme == AmbientTheme.Dark);
+
+            // 旧实现可能留下 MicaBackdrop；控制器接管后清空，避免两层背板。
+            if (SystemBackdrop is not null)
             {
-                SystemBackdrop = _micaBackdrop;
+                SystemBackdrop = null;
             }
         }
-        else if (SystemBackdrop is MicaBackdrop)
+        else
         {
-            SystemBackdrop = null;
+            _micaController?.Dispose();
+            _micaController = null;
+            _micaConfiguration = null;
+
+            if (SystemBackdrop is not null)
+            {
+                SystemBackdrop = null;
+            }
         }
 
         if (!_immersiveVisible)
         {
             ApplyShellBackgroundLayers();
+        }
+    }
+
+    /// <summary>
+    /// 切换 Mica 的明暗主题。
+    /// </summary>
+    /// <remarks>
+    /// <b>必须重新 SetSystemBackdropConfiguration。</b> 只改 <see cref="SystemBackdropConfiguration.Theme"/>
+    /// 不会让已创建的控制器重新读取配置 —— 表现就是切到歌词页后仍然是外壳的亮色 Mica，
+    /// 退出时再闪一下。每次主题变化都重新提交一次配置。
+    /// </remarks>
+    private void SetMicaTheme(bool dark)
+    {
+        if (_micaController is null || _micaConfiguration is null)
+        {
+            return;
+        }
+
+        var theme = dark ? SystemBackdropTheme.Dark : SystemBackdropTheme.Light;
+
+        if (_micaConfiguration.Theme == theme)
+        {
+            return;
+        }
+
+        _micaConfiguration.Theme = theme;
+        _micaController.SetSystemBackdropConfiguration(_micaConfiguration);
+    }
+
+    /// <summary>首次需要 Mica 时创建控制器，并绑定到当前窗口。</summary>
+    private bool EnsureMicaController()
+    {
+        if (_micaController is not null)
+        {
+            return true;
+        }
+
+        try
+        {
+            _micaConfiguration = new SystemBackdropConfiguration
+            {
+                IsInputActive = true,
+                Theme = _immersiveVisible || CurrentAmbientTheme == AmbientTheme.Dark
+                    ? SystemBackdropTheme.Dark
+                    : SystemBackdropTheme.Light,
+            };
+
+            _micaController = new MicaController();
+            _micaController.AddSystemBackdropTarget(
+                this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
+            _micaController.SetSystemBackdropConfiguration(_micaConfiguration);
+
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _micaController?.Dispose();
+            _micaController = null;
+            _micaConfiguration = null;
+
+            (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)
+                ?.CreateLogger<MainWindow>()
+                .LogWarning(exception, "Mica 初始化失败，回退封面取色");
+
+            return false;
         }
     }
 
@@ -2692,7 +2773,15 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void ApplyShellBackgroundLayers()
     {
         var mode = _shellBackground.EffectiveMode;
+
+        // 控制器创建失败时不能让底色 / 氛围层一直藏着，否则整窗没有背景。
+        if (mode == ShellBackgroundMode.Mica && _micaController is null)
+        {
+            mode = ShellBackgroundMode.CoverAmbient;
+        }
+
         var custom = mode == ShellBackgroundMode.CustomImage && _shellBackground.HasImage;
+        var micaTint = mode == ShellBackgroundMode.Mica && _shellBackground.MicaTintEnabled;
 
         ShellSurfaceBorder.Visibility = mode is ShellBackgroundMode.CoverAmbient or ShellBackgroundMode.CustomImage
             ? Visibility.Visible
@@ -2702,7 +2791,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        ShellBackdrop.Visibility = mode == ShellBackgroundMode.CoverAmbient
+        // Mica 着色复用同一套多色封面氛围层：叠在系统材质上，切歌时沿用 650ms 过渡。
+        ShellBackdrop.Visibility = mode == ShellBackgroundMode.CoverAmbient || micaTint
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -2768,9 +2858,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _immersiveVisible = false;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = null;
-        SetShellSurfaceVisible(true);
-        // 歌词页可能选了系统材质；离开沉浸态要把窗口背板和外层底色一起恢复。
+        // 先把窗口背板切回外壳主题，再显示外壳；否则亮色 Mica 退出时会先露一帧深色。
         SetLyricsMaterialBackdrop(false);
+        SetShellSurfaceVisible(true);
 
         // 播放条回来了，通知条也跟着回到「播放条上方」那个位置。
         NotificationBar.Margin = new Thickness(0, 0, 0, NotificationBottomGap);
@@ -2869,6 +2959,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _nextImmersiveEntryFromImmersive = (current is LyricsPage or MvPage) && (next is LyricsPage or MvPage);
         if (current is not LyricsPage and not MvPage || next is LyricsPage or MvPage) return;
         _immersiveMotionVersion++;
+        // 退场动画期间外壳就要露出来；先把 Mica 切到外壳主题，避免亮色外壳先闪一帧深色。
+        SetMicaTheme(CurrentAmbientTheme == AmbientTheme.Dark);
         SetShellSurfaceVisible(true);
         if (_closed || IsRenderingSuspended || _isChangingLyricsPresenter)
         {

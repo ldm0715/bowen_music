@@ -45,6 +45,7 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
     private uint _customDarkSolidColorArgb;
     private uint _customLightSolidColorArgb;
     private bool _solidColorAuto;
+    private bool _micaTintEnabled;
     private IReadOnlyList<RgbColor> _autoSeeds = [];
     private IReadOnlyList<ShellColorOption> _solidColorOptions;
     private AmbientTheme _currentTheme = AmbientTheme.Dark;
@@ -74,6 +75,7 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
 
         var settings = store.Load();
         _mode = settings.Mode;
+        _micaTintEnabled = settings.MicaTintEnabled;
         _manualDarkSolidColorArgb = settings.SolidColorArgb;
         _manualLightSolidColorArgb = settings.LightSolidColorArgb;
         _customDarkSolidColorArgb = settings.CustomSolidColorArgb;
@@ -150,6 +152,23 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
 
     /// <summary>当前是否使用纯色背景。</summary>
     public bool IsSolid => _mode == ShellBackgroundMode.SolidColor;
+
+    /// <summary>当前是否使用 Mica；设置页据此显示着色开关。</summary>
+    public bool IsMicaSelected => _mode == ShellBackgroundMode.Mica;
+
+    /// <summary>Mica 之上是否叠一层封面氛围色。</summary>
+    public bool MicaTintEnabled
+    {
+        get => _micaTintEnabled;
+        set
+        {
+            if (_micaTintEnabled == value) return;
+
+            _micaTintEnabled = value;
+            Persist();
+            OnPropertyChanged(nameof(MicaTintEnabled));
+        }
+    }
 
     /// <summary>当前是否使用自定义图片；没有图片时 <see cref="EffectiveMode"/> 仍回退封面取色。</summary>
     public bool IsCustomImage => _mode == ShellBackgroundMode.CustomImage;
@@ -365,6 +384,7 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
         OnPropertyChanged(nameof(ModeIndex));
         OnPropertyChanged(nameof(IsSolid));
         OnPropertyChanged(nameof(IsCustomImage));
+        OnPropertyChanged(nameof(IsMicaSelected));
 
         // 从别的模式切回纯色时补一次自动取色；跟随开关打开时构造期可能还没有歌。
         if (mode == ShellBackgroundMode.SolidColor && _solidColorAuto)
@@ -575,6 +595,7 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
             CustomSolidColorArgb = _customDarkSolidColorArgb,
             LightCustomSolidColorArgb = _customLightSolidColorArgb,
             SolidColorAuto = _solidColorAuto,
+            MicaTintEnabled = _micaTintEnabled,
         });
 
     private void OnPlayerChanged(object? sender, PropertyChangedEventArgs args)

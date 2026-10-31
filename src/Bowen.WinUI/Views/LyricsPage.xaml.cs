@@ -468,15 +468,18 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _spectrum.IsPaused = _canvas.IsPaused;
         ReflectionView.IsPaused = _canvas.IsPaused;
         var solid = Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor;
-        var backdropActive = !solid && !(UsesMicaBackdrop && _immersiveEntranceCompleted);
-        BackdropView.IsPaused = _canvas.IsPaused || !backdropActive;
+        var mica = UsesMicaBackdrop && _immersiveEntranceCompleted;
+        var micaTint = mica && Lyrics.MicaTintEnabled;
+        var coverActive = !solid && !mica;
+        var ambientActive = !solid && (!mica || micaTint);
+        BackdropView.IsPaused = _canvas.IsPaused || !coverActive;
         // 过渡仅暂停绘制；真正进入后台才释放设备和纹理，避免全屏切换反复重建。
         var releaseResources = !Lyrics.IsOpen || !_windowVisible || !_window.IsWindowVisible || _window.IsMinimized;
         _canvas.IsResourceSuspended = releaseResources;
         _spectrum.IsResourceSuspended = releaseResources;
         ReflectionView.IsResourceSuspended = releaseResources;
-        BackdropView.IsResourceSuspended = releaseResources || !backdropActive;
-        AmbientView.IsResourceSuspended = releaseResources || !backdropActive || UsesCustomImage;
+        BackdropView.IsResourceSuspended = releaseResources || !coverActive;
+        AmbientView.IsResourceSuspended = releaseResources || !ambientActive || UsesCustomImage;
     }
 
     /// <summary>沉浸入场动画结束：此时外壳已收起，可以安全地亮出 Mica 背板。</summary>
@@ -542,7 +545,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         BackdropView.FocusX = custom ? Lyrics.BackgroundImageFocusX : 0.5;
         BackdropView.FocusY = custom ? Lyrics.BackgroundImageFocusY : 0.5;
         BackdropView.Zoom = custom ? Lyrics.BackgroundImageZoom : 1;
-        AmbientView.Visibility = mica || custom || solid ? Visibility.Collapsed : Visibility.Visible;
+        AmbientView.Visibility = (!mica && !custom && !solid) || (mica && Lyrics.MicaTintEnabled)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AmbientView.Opacity = mica && Lyrics.MicaTintEnabled ? 0.9 : 0.18;
         BackgroundDimLayer.Opacity = custom ? Lyrics.BackgroundImageDim : 0;
         if (solid) _solidBackgroundBrush.Color = SolidDisplayColor;
 
@@ -1249,6 +1255,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
             ReCropBackgroundButton.IsEnabled = Lyrics.BackgroundImageFile.Length > 0;
             var solidBackground = Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor;
             SolidColorPanel.Visibility = solidBackground ? Visibility.Visible : Visibility.Collapsed;
+            var micaTint = Lyrics.BackgroundMode == LyricsBackgroundMode.Mica && MainWindow.IsMicaSupported;
+            MicaTintPanel.Visibility = micaTint ? Visibility.Visible : Visibility.Collapsed;
+            MicaTintToggle.IsOn = Lyrics.MicaTintEnabled;
             SolidColorAutoToggle.IsOn = Lyrics.BackgroundColorAuto;
             var displayColor = SolidDisplayColor;
             SolidColorHex.Text = Lyrics.BackgroundColorAuto
@@ -1324,6 +1333,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         if (_syncingAppearance || !_appearanceOpen) return;
         Lyrics.SetBackgroundColorAuto(SolidColorAutoToggle.IsOn);
+    }
+
+    private void OnMicaTintToggled(object sender, RoutedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetMicaTintEnabled(MicaTintToggle.IsOn);
     }
 
     private async Task OpenSolidColorDialogAsync()
@@ -1732,7 +1747,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
             or nameof(LyricsViewModel.BackgroundImageZoom)
             or nameof(LyricsViewModel.BackgroundColorArgb)
             or nameof(LyricsViewModel.BackgroundCustomColorArgb)
-            or nameof(LyricsViewModel.BackgroundColorAuto))
+            or nameof(LyricsViewModel.BackgroundColorAuto)
+            or nameof(LyricsViewModel.MicaTintEnabled))
         {
             if (Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor && Lyrics.BackgroundColorAuto)
             {

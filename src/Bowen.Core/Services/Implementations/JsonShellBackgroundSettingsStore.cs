@@ -43,14 +43,34 @@ public sealed class JsonShellBackgroundSettingsStore : IShellBackgroundSettingsS
         try
         {
             var bytes = File.ReadAllBytes(_path);
-            var loaded = JsonSerializer.Deserialize(
-                bytes,
+            using var document = JsonDocument.Parse(bytes);
+            var loaded = document.RootElement.Deserialize(
                 ShellBackgroundSettingsJsonContext.Default.ShellBackgroundSettings);
 
             if (loaded is null)
             {
                 return ShellBackgroundSettings.Default;
             }
+
+            bool Has(string name) => document.RootElement.TryGetProperty(name, out _);
+
+            // 源生成的 record 走参数化构造：文件里缺字段时塞 CLR 默认值，属性初始值不参与。
+            // 旧文件没有图片字段或 Mica 着色字段，必须按「文件里有没有」补默认。
+            loaded = loaded with
+            {
+                ImageFile = Has("ImageFile") ? loaded.ImageFile : string.Empty,
+                ImageDim = Has("ImageDim") ? loaded.ImageDim : ShellBackgroundSettings.DefaultImageDim,
+                ImageBlur = Has("ImageBlur") ? loaded.ImageBlur : ShellBackgroundSettings.DefaultImageBlur,
+                ImageFocusX = Has("ImageFocusX") ? loaded.ImageFocusX : 0.5,
+                ImageFocusY = Has("ImageFocusY") ? loaded.ImageFocusY : 0.5,
+                ImageZoom = Has("ImageZoom") ? loaded.ImageZoom : 1,
+                SolidColorArgb = Has("SolidColorArgb") ? loaded.SolidColorArgb : ShellBackgroundSettings.DefaultSolidColorArgb,
+                LightSolidColorArgb = Has("LightSolidColorArgb") ? loaded.LightSolidColorArgb : ShellBackgroundSettings.DefaultLightSolidColorArgb,
+                CustomSolidColorArgb = Has("CustomSolidColorArgb") ? loaded.CustomSolidColorArgb : ShellBackgroundSettings.DefaultSolidColorArgb,
+                LightCustomSolidColorArgb = Has("LightCustomSolidColorArgb") ? loaded.LightCustomSolidColorArgb : ShellBackgroundSettings.DefaultLightSolidColorArgb,
+                SolidColorAuto = Has("SolidColorAuto") && loaded.SolidColorAuto,
+                MicaTintEnabled = Has("MicaTintEnabled") ? loaded.MicaTintEnabled : true,
+            };
 
             // 字符串枚举会挡掉未知名字，但数字仍能反序列化成未定义的枚举值。
             if (!Enum.IsDefined(loaded.Mode))

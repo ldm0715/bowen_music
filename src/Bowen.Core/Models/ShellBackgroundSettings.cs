@@ -93,6 +93,9 @@ public sealed record ShellBackgroundSettings
     /// <summary>纯色是否跟随当前封面自动取色。</summary>
     public bool SolidColorAuto { get; init; }
 
+    /// <summary>Mica 之上是否叠一层封面主色，避免暗色下纯黑。</summary>
+    public bool MicaTintEnabled { get; init; } = true;
+
     /// <summary>深色主题的纯色预设。全部压到低明度，保证白色文字可读。</summary>
     public static readonly (uint Argb, string Name)[] DarkSolidPresets =
     [

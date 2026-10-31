@@ -93,6 +93,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationLineGap = loaded.TranslationLineGap;
         EdgeBlurRatio = loaded.EdgeBlurRatio;
         BackgroundMode = loaded.BackgroundMode;
+        MicaTintEnabled = loaded.MicaTintEnabled;
         BackgroundImageFile = loaded.BackgroundImageFile;
         BackgroundImageDim = loaded.BackgroundImageDim;
         BackgroundImageBlur = loaded.BackgroundImageBlur;
@@ -190,6 +191,9 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>全屏歌词页的背景来源。</summary>
     public LyricsBackgroundMode BackgroundMode { get; private set; } = LyricsBackgroundMode.CoverBlur;
+
+    /// <summary>Mica 之上是否叠一层封面主色。</summary>
+    public bool MicaTintEnabled { get; private set; } = true;
 
     /// <summary>自定义背景图片的文件名，位于应用数据目录的 backgrounds 下。</summary>
     public string BackgroundImageFile { get; private set; } = string.Empty;
@@ -413,6 +417,19 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>Mica 着色开关。</summary>
+    public void SetMicaTintEnabled(bool enabled)
+    {
+        if (MicaTintEnabled == enabled)
+        {
+            return;
+        }
+
+        MicaTintEnabled = enabled;
+        OnPropertyChanged(nameof(MicaTintEnabled));
+        Persist();
+    }
+
     /// <summary>歌词页选定背景图片：记录文件名、初始暗度与裁剪，一并落盘。</summary>
     public void SetBackgroundImage(string fileName, double dim, double focusX, double focusY, double zoom)
     {
@@ -569,6 +586,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationLineGap = TranslationLineGap,
         EdgeBlurRatio = EdgeBlurRatio,
         BackgroundMode = BackgroundMode,
+        MicaTintEnabled = MicaTintEnabled,
         BackgroundImageFile = BackgroundImageFile,
         BackgroundImageDim = BackgroundImageDim,
         BackgroundImageBlur = BackgroundImageBlur,
