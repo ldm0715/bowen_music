@@ -43,8 +43,8 @@ public sealed record LyricsRenderSettings
     public double ViewportMarginLines { get; init; } = 3;
     public double SweepFeatherRatio { get; init; } = 0.5;
     public TimeSpan LongSyllableThreshold { get; init; } = TimeSpan.FromMilliseconds(1000);
-    // 长音保持位置和字号，只保留扫色与发光，避免当前句逐字起伏。
-    public double LongSyllableScale { get; init; } = 1;
+    // 长音字随进度放大并上浮，唱完落回原位；只作用于长音，普通字不动。
+    public double LongSyllableScale { get; init; } = 1.08;
     public double LongSyllableGlowRatio { get; init; } = 0.14;
-    public double FloatRatio { get; init; } = 0;
+    public double FloatRatio { get; init; } = 0.055;
 }
