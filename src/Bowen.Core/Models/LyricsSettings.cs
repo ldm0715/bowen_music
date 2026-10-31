@@ -92,6 +92,15 @@ public sealed record LyricsSettings
     /// <summary>译文与原文之间的默认间距（DIP）。</summary>
     public const double DefaultTranslationLineGap = 6;
 
+    /// <summary>视口边缘模糊范围下限，占视口高度的比例；0 表示关闭边缘模糊。</summary>
+    public const double MinimumEdgeBlurRatio = 0;
+
+    /// <summary>视口边缘模糊范围上限，占视口高度的比例。</summary>
+    public const double MaximumEdgeBlurRatio = 0.5;
+
+    /// <summary>默认让视口上下各 20% 的范围逐渐模糊。</summary>
+    public const double DefaultEdgeBlurRatio = 0.2;
+
     /// <summary>水平偏移下限，占歌词区域宽度的百分比。</summary>
     public const double MinimumHorizontalOffsetPercent = -30;
 
@@ -150,6 +159,14 @@ public sealed record LyricsSettings
     public double TranslationLineGap { get; init; } = DefaultTranslationLineGap;
 
     /// <summary>
+    /// 视口边缘模糊范围，占视口高度的比例，0–0.5；默认 0.2。
+    /// </summary>
+    /// <remarks>
+    /// 歌词在视口中部保持清晰，越靠近上下边缘越模糊；0 表示不按边缘模糊。
+    /// </remarks>
+    public double EdgeBlurRatio { get; init; } = DefaultEdgeBlurRatio;
+
+    /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
     /// </summary>
     public double HorizontalOffsetPercent { get; init; } = DefaultOffsetPercent;
@@ -188,6 +205,10 @@ public sealed record LyricsSettings
         TranslationLineGap = double.IsFinite(TranslationLineGap)
             ? Math.Clamp(TranslationLineGap, MinimumTranslationLineGap, MaximumTranslationLineGap)
             : DefaultTranslationLineGap,
+
+        EdgeBlurRatio = double.IsFinite(EdgeBlurRatio)
+            ? Math.Clamp(EdgeBlurRatio, MinimumEdgeBlurRatio, MaximumEdgeBlurRatio)
+            : DefaultEdgeBlurRatio,
 
         // 0 不是合法的高亮色；其余颜色把 alpha 顶回不透明（色板不提供透明度）。
         HighlightColorArgb = HighlightColorArgb == 0

@@ -39,6 +39,7 @@ public sealed partial class LyricsCanvasView : UserControl
     private bool _syncTranslationHighlight = true;
     private double _translationFontScale = LyricsSettings.DefaultTranslationFontScale;
     private double _translationLineGap = LyricsSettings.DefaultTranslationLineGap;
+    private double _edgeBlurRatio = LyricsSettings.DefaultEdgeBlurRatio;
     private LyricsAlignment _alignment = LyricsAlignment.Left;
     private double _horizontalOffsetPercent;
     private double _verticalOffsetPercent;
@@ -176,6 +177,14 @@ public sealed partial class LyricsCanvasView : UserControl
         if (Math.Abs(_translationLineGap - gap) < 0.01) return;
         _translationLineGap = gap;
         _renderLoop?.Send(renderer => renderer.SetTranslationLineGap(gap));
+    }
+
+    /// <summary>切换视口边缘的模糊范围。只改绘制方式，不重排。</summary>
+    public void SetEdgeBlurRatio(double ratio)
+    {
+        if (Math.Abs(_edgeBlurRatio - ratio) < 0.001) return;
+        _edgeBlurRatio = ratio;
+        _renderLoop?.Send(renderer => renderer.SetEdgeBlurRatio(ratio));
     }
 
     /// <summary>切换横向对齐。渲染线程收到后整份文档重排。</summary>
@@ -316,6 +325,7 @@ public sealed partial class LyricsCanvasView : UserControl
         loop.Send(renderer => renderer.SetSyncTranslationHighlight(_syncTranslationHighlight));
         loop.Send(renderer => renderer.SetTranslationFontScale(_translationFontScale));
         loop.Send(renderer => renderer.SetTranslationLineGap(_translationLineGap));
+        loop.Send(renderer => renderer.SetEdgeBlurRatio(_edgeBlurRatio));
         loop.Send(renderer => renderer.SetAlignment(_alignment));
         loop.Send(renderer => renderer.SetHorizontalOffsetPercent(_horizontalOffsetPercent));
         loop.Send(renderer => renderer.SetVerticalOffsetPercent(_verticalOffsetPercent));

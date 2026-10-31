@@ -51,6 +51,11 @@ public sealed record LyricsRenderSettings
     /// 译文是否跟随原文同步扫色。关掉后译文保持未播放行的暗色。
     /// </summary>
     public bool SyncTranslationHighlight { get; set; } = true;
+
+    /// <summary>
+    /// 视口上下边缘的模糊范围，占视口高度的比例；0 表示不按边缘模糊。
+    /// </summary>
+    public double EdgeBlurRatio { get; set; } = LyricsSettings.DefaultEdgeBlurRatio;
     public double PlayingLineTopOffsetFactor { get; init; } = 0.42;
     public double FarBlurAmount { get; init; } = 5;
     public double CurrentLineScale { get; init; } = 1;

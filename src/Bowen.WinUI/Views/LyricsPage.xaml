@@ -723,6 +723,36 @@
                             </StackPanel>
 
                             <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="模糊" />
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="边缘范围" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetEdgeBlurClick"
+                                                AutomationProperties.Name="恢复默认边缘模糊" ToolTipService.ToolTip="恢复默认边缘模糊">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsEdgeBlurValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsEdgeBlurSlider" Grid.Column="1" Minimum="0" Maximum="50"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsEdgeBlurChanged" AutomationProperties.Name="边缘模糊范围" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
                                 <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="高亮颜色" />
                                 <StackPanel x:Name="LyricsColorPalette" Orientation="Horizontal" Spacing="6"
                                     HorizontalAlignment="Center" Margin="0,4,0,0" />

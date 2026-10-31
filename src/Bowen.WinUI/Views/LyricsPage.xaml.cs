@@ -1008,6 +1008,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
             LyricsTranslationFontSizeValue.Text = $"{(int)Math.Round(Lyrics.TranslationFontScale * 100)}%";
             LyricsTranslationLineGapSlider.Value = Lyrics.TranslationLineGap;
             LyricsTranslationLineGapValue.Text = ((int)Math.Round(Lyrics.TranslationLineGap)).ToString();
+            LyricsEdgeBlurSlider.Value = Math.Round(Lyrics.EdgeBlurRatio * 100);
+            LyricsEdgeBlurValue.Text = $"{(int)Math.Round(Lyrics.EdgeBlurRatio * 100)}%";
             SyncAlignmentButtons(Lyrics.Alignment);
             LyricsHorizontalOffsetSlider.Value = Lyrics.HorizontalOffsetPercent;
             LyricsHorizontalOffsetValue.Text = FormatOffsetPercent(Lyrics.HorizontalOffsetPercent);
@@ -1061,6 +1063,13 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics.SetTranslationLineGap(args.NewValue);
     }
 
+    private void OnLyricsEdgeBlurChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsEdgeBlurValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        Lyrics.SetEdgeBlurRatio(args.NewValue / 100);
+    }
+
     private void OnAlignLeftClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Left);
     private void OnAlignCenterClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Center);
     private void OnAlignRightClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Right);
@@ -1101,6 +1110,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         if (!_appearanceOpen) return;
         Lyrics.SetTranslationLineGap(LyricsSettings.DefaultTranslationLineGap);
+    }
+
+    private void OnResetEdgeBlurClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetEdgeBlurRatio(LyricsSettings.DefaultEdgeBlurRatio);
     }
 
     private void OnLyricsHorizontalOffsetChanged(object sender, RangeBaseValueChangedEventArgs args)
@@ -1203,6 +1218,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _canvas.SetSyncTranslationHighlight(Lyrics.SyncTranslationHighlight);
         _canvas.SetTranslationFontScale(Lyrics.TranslationFontScale);
         _canvas.SetTranslationLineGap(Lyrics.TranslationLineGap);
+        _canvas.SetEdgeBlurRatio(Lyrics.EdgeBlurRatio);
         _canvas.SetAlignment(Lyrics.Alignment);
         _canvas.SetHorizontalOffsetPercent(Lyrics.HorizontalOffsetPercent);
         _canvas.SetVerticalOffsetPercent(Lyrics.VerticalOffsetPercent);
@@ -1226,6 +1242,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             or nameof(LyricsViewModel.SyncTranslationHighlight)
             or nameof(LyricsViewModel.TranslationFontScale)
             or nameof(LyricsViewModel.TranslationLineGap)
+            or nameof(LyricsViewModel.EdgeBlurRatio)
             or nameof(LyricsViewModel.HorizontalOffsetPercent)
             or nameof(LyricsViewModel.VerticalOffsetPercent))
         {

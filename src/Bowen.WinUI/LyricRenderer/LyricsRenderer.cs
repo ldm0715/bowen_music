@@ -157,6 +157,16 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         settings.SyncTranslationHighlight = enabled;
     }
 
+    /// <summary>改视口边缘模糊范围。只影响绘制，不重排。</summary>
+    public void SetEdgeBlurRatio(double ratio)
+    {
+        ratio = double.IsFinite(ratio)
+            ? Math.Clamp(ratio, LyricsSettings.MinimumEdgeBlurRatio, LyricsSettings.MaximumEdgeBlurRatio)
+            : LyricsSettings.DefaultEdgeBlurRatio;
+        if (Math.Abs(settings.EdgeBlurRatio - ratio) < 0.001) return;
+        settings.EdgeBlurRatio = ratio;
+    }
+
     /// <summary>改横向对齐。文字排版与绘制原点都要跟着变，整份文档重排。</summary>
     public void SetAlignment(LyricsAlignment alignment)
     {
@@ -400,8 +410,11 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                 }
                 else
                 {
-                    var distance = Math.Abs(index - _focusIndex);
-                    var blurAmount = (float)Math.Min(settings.FarBlurAmount, Math.Max(0, distance - 1) * 1.25);
+                    // 模糊按离视口边缘的距离算：中部保持清晰，接近上下边缘才逐渐模糊。
+                    // 浏览时锚点行与鼠标悬停行始终清晰，方便拖到边缘后选句。
+                    var blurAmount = IsBrowsing && (index == _focusIndex || index == hovered)
+                        ? 0
+                        : EdgeBlurAmount(top, line.Height);
                     if (blurAmount < 0.01)
                         session.DrawImage(line.PlainImage!, (float)line.GlyphMask!.Bounds.X, (float)line.GlyphMask.Bounds.Y);
                     else
@@ -463,6 +476,26 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         line.ReleaseDrawingResources();
         line.GlyphMask = new LyricsLineGlyphMask(_creator!, line, _dpi);
         line.PlainImage = line.GlyphMask.Paint(WithOpacity(InactiveTextColor, settings.InactiveLineOpacity));
+    }
+
+    /// <summary>
+    /// 按行中心离视口上下边缘的距离取模糊量：中间清晰，越靠近边缘越糊。
+    /// </summary>
+    /// <remarks>
+    /// 结果是整数级。<b>不要用连续值</b>：滚动时同一行的边缘距离每帧都在变，
+    /// 连续值会让每一行每帧都重建半分辨率位图与模糊效果，把缓存优势全丢掉。
+    /// </remarks>
+    private float EdgeBlurAmount(double top, double height)
+    {
+        var range = settings.EdgeBlurRatio * _height;
+        if (range <= 1) return 0;
+
+        var center = top + (height / 2);
+        var edge = Math.Min(center, _height - center);
+        var t = Math.Clamp(1 - (edge / range), 0, 1);
+
+        // 平方让中部保持更大的清晰区域，模糊集中在贴近边缘的一两行。
+        return (float)Math.Round(t * t * settings.FarBlurAmount);
     }
 
     /// <summary>

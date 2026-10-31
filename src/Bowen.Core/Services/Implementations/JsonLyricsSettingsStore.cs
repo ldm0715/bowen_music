@@ -62,6 +62,7 @@ public sealed class JsonLyricsSettingsStore : ILyricsSettingsStore
                 SyncTranslationHighlight = Has("SyncTranslationHighlight") ? loaded.SyncTranslationHighlight : true,
                 TranslationFontScale = Has("TranslationFontScale") ? loaded.TranslationFontScale : LyricsSettings.DefaultTranslationFontScale,
                 TranslationLineGap = Has("TranslationLineGap") ? loaded.TranslationLineGap : LyricsSettings.DefaultTranslationLineGap,
+                EdgeBlurRatio = Has("EdgeBlurRatio") ? loaded.EdgeBlurRatio : LyricsSettings.DefaultEdgeBlurRatio,
             };
 
             return loaded.Normalized();

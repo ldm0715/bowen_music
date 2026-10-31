@@ -91,6 +91,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         SyncTranslationHighlight = loaded.SyncTranslationHighlight;
         TranslationFontScale = loaded.TranslationFontScale;
         TranslationLineGap = loaded.TranslationLineGap;
+        EdgeBlurRatio = loaded.EdgeBlurRatio;
         HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
         VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
@@ -173,6 +174,9 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>译文与原文之间的间距，DIP。</summary>
     public double TranslationLineGap { get; private set; } = LyricsSettings.DefaultTranslationLineGap;
+
+    /// <summary>视口上下边缘的模糊范围，占视口高度的比例。</summary>
+    public double EdgeBlurRatio { get; private set; } = LyricsSettings.DefaultEdgeBlurRatio;
 
     /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
     public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
@@ -339,6 +343,22 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>歌词页改边缘模糊范围：夹到 0%–50% 后落盘。</summary>
+    public void SetEdgeBlurRatio(double ratio)
+    {
+        ratio = double.IsFinite(ratio)
+            ? Math.Clamp(ratio, LyricsSettings.MinimumEdgeBlurRatio, LyricsSettings.MaximumEdgeBlurRatio)
+            : LyricsSettings.DefaultEdgeBlurRatio;
+        if (Math.Abs(EdgeBlurRatio - ratio) < 0.001)
+        {
+            return;
+        }
+
+        EdgeBlurRatio = ratio;
+        OnPropertyChanged(nameof(EdgeBlurRatio));
+        Persist();
+    }
+
     /// <summary>歌词页改水平偏移：夹到 -30%–30% 后落盘。</summary>
     public void SetHorizontalOffsetPercent(double percent)
     {
@@ -386,6 +406,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         SyncTranslationHighlight = SyncTranslationHighlight,
         TranslationFontScale = TranslationFontScale,
         TranslationLineGap = TranslationLineGap,
+        EdgeBlurRatio = EdgeBlurRatio,
         HorizontalOffsetPercent = HorizontalOffsetPercent,
         VerticalOffsetPercent = VerticalOffsetPercent,
     });
