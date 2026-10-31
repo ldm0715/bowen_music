@@ -76,6 +76,8 @@
         <Grid x:Name="BackdropLayer" Background="#0B1222">
             <controls:LyricsBackdrop x:Name="BackdropView" CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
             <controls:AmbientBackdrop x:Name="AmbientView" Opacity="0.18" />
+            <!-- 自定义图片的暗度蒙版：必须在图片之上，Grid.Background 画在子元素后面压不到。 -->
+            <Border x:Name="BackgroundDimLayer" IsHitTestVisible="False" Background="Black" Opacity="0" />
             <Border IsHitTestVisible="False">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -485,12 +487,12 @@
                     <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="Transparent" />
                     <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="Transparent" />
                 </Border.Resources>
-                <Grid Padding="20,18,20,20" RowSpacing="16">
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Grid>
+                    <Grid Padding="20,18,20,0">
                         <StackPanel Spacing="2">
                             <TextBlock Text="歌词外观" FontSize="{StaticResource FontSizeTitle}"
                                 FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -503,9 +505,10 @@
                             <controls:Icon Data="{StaticResource IconDismiss}" Size="12" />
                         </Button>
                     </Grid>
-                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
-                        VerticalScrollBarVisibility="Auto">
-                        <StackPanel Spacing="{StaticResource SpaceSection}">
+                        <ScrollViewer Grid.Row="1" Margin="0,16,0,0" HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                            <!-- 滚动区铺到卡片右缘，滚动条贴边；内容单独留出左侧 20、右侧 32 的槽位。 -->
+                            <StackPanel Spacing="{StaticResource SpaceSection}" Padding="20,0,32,20">
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="56" />
@@ -515,6 +518,145 @@
                                     VerticalAlignment="Center" />
                                 <controls:FontPicker x:Name="LyricsFontPicker" Grid.Column="1" />
                             </Grid>
+
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="背景" Style="{StaticResource LyricsSectionTitleStyle}"
+                                    VerticalAlignment="Center" />
+                                <ComboBox x:Name="LyricsBackgroundCombo" Grid.Column="1"
+                                    HorizontalAlignment="Stretch"
+                                    SelectionChanged="OnLyricsBackgroundSelectionChanged"
+                                    AutomationProperties.Name="歌词背景">
+                                    <ComboBoxItem Content="封面模糊" />
+                                    <ComboBoxItem x:Name="LyricsBackgroundMicaItem" Content="Mica" />
+                                    <ComboBoxItem Content="自定义图片" />
+                                    <ComboBoxItem Content="纯色" />
+                                </ComboBox>
+                            </Grid>
+
+                            <StackPanel x:Name="MicaTintPanel" Spacing="6" Visibility="Collapsed">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="56" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="着色" Style="{StaticResource LyricsSectionTitleStyle}"
+                                        VerticalAlignment="Center" />
+                                    <ToggleSwitch x:Name="MicaTintToggle" Grid.Column="1"
+                                        MinWidth="0" OffContent="" OnContent=""
+                                        Toggled="OnMicaTintToggled"
+                                        AutomationProperties.Name="Mica 着色" />
+                                </Grid>
+                                <TextBlock Text="在系统 Mica 上叠一层当前封面氛围色"
+                                    FontSize="{StaticResource FontSizeCaption}"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel x:Name="BackgroundImagePanel" Spacing="8" Visibility="Collapsed">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="56" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="图片" Style="{StaticResource LyricsSectionTitleStyle}"
+                                        VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                        <Button x:Name="PickBackgroundImageButton" Content="选择图片…"
+                                            Click="OnPickBackgroundImageClick"
+                                            AutomationProperties.Name="选择背景图片" />
+                                        <Button x:Name="ReCropBackgroundButton" Content="重新裁剪…"
+                                            Click="OnReCropBackgroundClick" IsEnabled="False"
+                                            AutomationProperties.Name="重新裁剪背景图片" />
+                                        <TextBlock x:Name="BackgroundImageName" VerticalAlignment="Center"
+                                            FontSize="{StaticResource FontSizeCaption}"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="暗度" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetBackgroundDimClick"
+                                                AutomationProperties.Name="恢复默认暗度" ToolTipService.ToolTip="恢复默认暗度">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="BackgroundDimValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="BackgroundDimSlider" Grid.Column="1" Minimum="0" Maximum="80"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnBackgroundDimChanged" AutomationProperties.Name="背景暗度" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="模糊" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetBackgroundBlurClick"
+                                                AutomationProperties.Name="恢复默认背景模糊" ToolTipService.ToolTip="恢复默认背景模糊">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="BackgroundBlurValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="BackgroundBlurSlider" Grid.Column="1" Minimum="0" Maximum="40"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnBackgroundBlurChanged" AutomationProperties.Name="背景模糊" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel x:Name="SolidColorPanel" Spacing="8" Visibility="Collapsed">
+                                <StackPanel x:Name="SolidColorPalette" Orientation="Horizontal" Spacing="6"
+                                    HorizontalAlignment="Center" Margin="0,4,0,0" />
+
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="跟随封面" FontSize="{StaticResource FontSizeBody}"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock Text="按当前封面自动取暗色" FontSize="{StaticResource FontSizeCaption}"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="SolidColorAutoToggle" Grid.Column="1"
+                                        MinWidth="0" OffContent="" OnContent=""
+                                        Toggled="OnSolidColorAutoToggled" AutomationProperties.Name="跟随封面自动取色" />
+                                </Grid>
+
+                                <TextBlock x:Name="SolidColorHex" VerticalAlignment="Center"
+                                    FontSize="{StaticResource FontSizeCaption}"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
 
                             <StackPanel Spacing="8">
                                 <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="字号与间距" />
@@ -569,6 +711,80 @@
                                         <Slider x:Name="LyricsLineGapSlider" Grid.Column="1" Minimum="0" Maximum="64"
                                             StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
                                             ValueChanged="OnLyricsLineGapChanged" AutomationProperties.Name="歌词行距" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel x:Name="TranslationSettingsPanel" Spacing="8">
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="译文" />
+
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="同步高亮" FontSize="{StaticResource FontSizeBody}"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock Text="译文跟随原文进度扫色" FontSize="{StaticResource FontSizeCaption}"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="LyricsTranslationSyncToggle" Grid.Column="1"
+                                        MinWidth="0" OffContent="" OnContent=""
+                                        Toggled="OnTranslationSyncToggled" AutomationProperties.Name="译文同步高亮" />
+                                </Grid>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="译文大小" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetTranslationFontScaleClick"
+                                                AutomationProperties.Name="恢复默认译文大小" ToolTipService.ToolTip="恢复默认译文大小">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsTranslationFontSizeValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="A-" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsTranslationFontSizeSlider" Grid.Column="1" Minimum="50" Maximum="100"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsTranslationFontSizeChanged" AutomationProperties.Name="译文大小" />
+                                        <TextBlock Grid.Column="2" Text="A+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="译文间距" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetTranslationLineGapClick"
+                                                AutomationProperties.Name="恢复默认译文间距" ToolTipService.ToolTip="恢复默认译文间距">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsTranslationLineGapValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsTranslationLineGapSlider" Grid.Column="1" Minimum="0" Maximum="32"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsTranslationLineGapChanged" AutomationProperties.Name="译文间距" />
                                         <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
                                     </Grid>
                                 </StackPanel>
@@ -643,6 +859,36 @@
                                             StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
                                             ValueChanged="OnLyricsVerticalOffsetChanged" AutomationProperties.Name="垂直偏移" />
                                         <TextBlock Grid.Column="2" Text="下" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="模糊" />
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="边缘范围" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetEdgeBlurClick"
+                                                AutomationProperties.Name="恢复默认边缘模糊" ToolTipService.ToolTip="恢复默认边缘模糊">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="LyricsEdgeBlurValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="LyricsEdgeBlurSlider" Grid.Column="1" Minimum="0" Maximum="50"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnLyricsEdgeBlurChanged" AutomationProperties.Name="边缘模糊范围" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
                                     </Grid>
                                 </StackPanel>
                             </StackPanel>

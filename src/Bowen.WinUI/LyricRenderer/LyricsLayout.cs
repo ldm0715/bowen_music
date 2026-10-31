@@ -169,6 +169,7 @@ internal sealed class LyricsLayoutSnapshot : IDisposable
         TotalHeight = totalHeight;
         ViewportWidth = viewportWidth;
         UnitOfLine = document.BuildScrollUnitMap();
+        (SourceOfLine, UnitHasTranslation) = BuildPairMap(document, UnitOfLine);
         (UnitCenters, UnitTops, UnitHeights) = MeasureUnits(Lines, Tops, UnitOfLine);
     }
 
@@ -183,6 +184,18 @@ internal sealed class LyricsLayoutSnapshot : IDisposable
     /// 每一行所属的滚动单元。原文与其译文共用一个单元，滚动时刚性同动。
     /// </summary>
     public int[] UnitOfLine { get; }
+
+    /// <summary>
+    /// 每一行对应单元的原文行下标。译文行找不到原文时（整份都是译文）取单元首行。
+    /// </summary>
+    /// <remarks>
+    /// 原文与译文的时间戳相同，<see cref="LyricDocument.IndexOfLineAt"/> 会取文档里靠后的那一行。
+    /// 译文可能排在原文之前，也可能之后，不能靠「往前找一行」判断配对。
+    /// </remarks>
+    public int[] SourceOfLine { get; }
+
+    /// <summary>每个滚动单元里是否含译文。</summary>
+    public bool[] UnitHasTranslation { get; }
 
     /// <summary>
     /// 每个滚动单元在文档空间里的中心 Y。滚动锚点对齐到这里，双行歌词整体绕焦点线居中。
@@ -207,6 +220,32 @@ internal sealed class LyricsLayoutSnapshot : IDisposable
         {
             line.Dispose();
         }
+    }
+
+    /// <summary>按滚动单元找出每行的原文行，并标出哪些单元带译文。</summary>
+    private static (int[] SourceOfLine, bool[] UnitHasTranslation) BuildPairMap(
+        LyricDocument document, int[] unitOfLine)
+    {
+        var sourceOfLine = new int[unitOfLine.Length];
+        var unitCount = unitOfLine.Length == 0 ? 0 : unitOfLine[^1] + 1;
+        var unitSource = new int[unitCount];
+        var unitHasTranslation = new bool[unitCount];
+        Array.Fill(unitSource, -1);
+
+        for (var i = 0; i < unitOfLine.Length; i++)
+        {
+            var unit = unitOfLine[i];
+            if (unitSource[unit] < 0) unitSource[unit] = i;
+            if (document.Lines[i].IsTranslation) unitHasTranslation[unit] = true;
+            else unitSource[unit] = i;
+        }
+
+        for (var i = 0; i < unitOfLine.Length; i++)
+        {
+            sourceOfLine[i] = unitSource[unitOfLine[i]];
+        }
+
+        return (sourceOfLine, unitHasTranslation);
     }
 
     /// <summary>把同一单元内各行的外接范围合成为中心、顶边与高度。</summary>
@@ -260,6 +299,7 @@ internal sealed class LyricsLayoutSnapshot : IDisposable
 internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDisposable
 {
     private CanvasTextFormat? _format;
+    private CanvasTextFormat? _translationFormat;
 
     /// <summary>
     /// 建整份排版。
@@ -275,20 +315,25 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         ArgumentNullException.ThrowIfNull(resourceCreator);
         ArgumentNullException.ThrowIfNull(document);
 
-        var format = GetFormat();
         var width = (float)Math.Max(1, viewportWidth);
         var lines = new LyricsLineLayout[document.Lines.Count];
         var tops = new float[document.Lines.Count];
+        var units = document.BuildScrollUnitMap();
         var y = 0f;
 
         for (var i = 0; i < document.Lines.Count; i++)
         {
             var line = document.Lines[i];
-            var item = BuildLine(resourceCreator, format, line, width);
+            var item = BuildLine(resourceCreator, line, width);
 
             lines[i] = item;
             tops[i] = y;
-            y += item.Height + (float)settings.LineGap;
+            // 同一个滚动单元内的相邻行是原文与译文，收紧行距成一组；
+            // 单元之间保持正常行距，否则译文会被读成下一句。
+            var gap = i + 1 < document.Lines.Count && units[i + 1] == units[i]
+                ? settings.TranslationLineGap
+                : settings.LineGap;
+            y += item.Height + (float)gap;
         }
 
         var total = document.Lines.Count > 0 ? y - (float)settings.LineGap : 0f;
@@ -300,17 +345,19 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
     {
         _format?.Dispose();
         _format = null;
+        _translationFormat?.Dispose();
+        _translationFormat = null;
     }
 
     private LyricsLineLayout BuildLine(
         ICanvasResourceCreator resourceCreator,
-        CanvasTextFormat format,
         LyricLine line,
         float width)
     {
+        var format = GetFormat(line.IsTranslation);
         // 高度给一个有限上限而不是 0：0 在 Win2D 里是「无约束」，无约束 + 折行
         // 在不同版本上行为不一致。按「最多 20 个视觉行」封顶，足够且确定。
-        var maxHeight = (float)(settings.BaseFontSize * settings.LineHeight * 20);
+        var maxHeight = (float)(format.FontSize * settings.LineHeight * 20);
 
         // 空行（理论上游解析器不会产出，但手工构造的文档可能）也要占一行高度，
         // 否则后面的行会挤在一起。
@@ -491,20 +538,36 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         return bounds;
     }
 
-    private CanvasTextFormat GetFormat()
+    /// <summary>取整行排版格式；译文行用缩小的字号，避免和原文抢视觉重心。</summary>
+    private CanvasTextFormat GetFormat(bool translation)
     {
+        var scale = translation
+            ? Math.Clamp(settings.TranslationFontScale,
+                LyricsSettings.MinimumTranslationFontScale, LyricsSettings.MaximumTranslationFontScale)
+            : 1;
+        var fontSize = (float)(settings.BaseFontSize * scale);
         var alignment = ToCanvasAlignment(settings.Alignment);
-        if (_format is not null && (Math.Abs(_format.FontSize - settings.BaseFontSize) > 0.1
-            || !string.Equals(_format.FontFamily, settings.FontFamily, StringComparison.Ordinal)
-            || _format.HorizontalAlignment != alignment))
+        var cached = translation ? _translationFormat : _format;
+        if (cached is not null && (Math.Abs(cached.FontSize - fontSize) > 0.1
+            || !string.Equals(cached.FontFamily, settings.FontFamily, StringComparison.Ordinal)
+            || cached.HorizontalAlignment != alignment))
         {
-            _format.Dispose();
-            _format = null;
+            cached.Dispose();
+            cached = null;
         }
-        return _format ??= new CanvasTextFormat
+        if (cached is null)
+        {
+            cached = CreateFormat(fontSize, alignment);
+            if (translation) _translationFormat = cached;
+            else _format = cached;
+        }
+        return cached;
+    }
+
+    private CanvasTextFormat CreateFormat(float fontSize, CanvasHorizontalAlignment alignment) => new()
     {
         FontFamily = settings.FontFamily,
-        FontSize = (float)settings.BaseFontSize,
+        FontSize = fontSize,
         FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 
         // 中文按字断行；WrapWholeWords 会把整句中文当成一个词，长句溢出。
@@ -514,11 +577,10 @@ internal sealed class LyricsLayoutEngine(LyricsRenderSettings settings) : IDispo
         VerticalAlignment = CanvasVerticalAlignment.Top,
 
         LineSpacingMode = CanvasLineSpacingMode.Uniform,
-        LineSpacing = (float)(settings.BaseFontSize * settings.LineHeight),
+        LineSpacing = (float)(fontSize * settings.LineHeight),
         // 固定行距同时指定基线；默认 0 会把文字画到行框上方，颜色纹理只能覆盖字形底部。
-        LineSpacingBaseline = (float)(settings.BaseFontSize * settings.LineHeight * 0.8),
+        LineSpacingBaseline = (float)(fontSize * settings.LineHeight * 0.8),
     };
-    }
 
     private static CanvasHorizontalAlignment ToCanvasAlignment(LyricsAlignment alignment) => alignment switch
     {

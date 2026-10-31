@@ -9,23 +9,27 @@ using Windows.UI;
 
 namespace Bowen.WinUI.LyricRenderer;
 
-/// <summary>用同一整行排版缓存字形；逐字只更新颜色，长音发光也裁自同一字形遮罩。</summary>
+/// <summary>同一整行排版缓存字形；逐字只更新颜色，长音另用自己的排版做发光、放大与上浮。</summary>
 internal sealed class LyricsActiveLineImage : IDisposable
 {
     private readonly CanvasRenderTarget _mask, _colors, _result;
     private readonly AlphaMaskEffect _image;
     private readonly CanvasLinearGradientBrush[] _brushes;
     private readonly double[] _progress;
-    private readonly List<(int Glyph, CanvasRenderTarget Image, GaussianBlurEffect Glow)> _glows = [];
+    private readonly List<(int Glyph, CanvasRenderTarget Image, GaussianBlurEffect Glow, Rect Bounds,
+        LyricsLongSyllable Syllable)> _glows = [];
+    private readonly LyricsRenderSettings _settings;
     private readonly Color _played, _unplayed;
     private readonly double _featherRatio;
     private readonly Rect _bounds;
+    private readonly double _lineLeft, _lineWidth;
     private bool _painted;
 
     public LyricsActiveLineImage(CanvasDevice device, LyricsLineLayout line, LyricsRenderSettings settings,
         Color played, Color unplayed, float dpi, bool wordByWord)
     {
         Dpi = dpi;
+        _settings = settings;
         _played = played;
         _unplayed = unplayed;
         _featherRatio = settings.SweepFeatherRatio;
@@ -37,6 +41,16 @@ internal sealed class LyricsActiveLineImage : IDisposable
         _colors = mask.CreateTarget();
         _result = mask.CreateTarget();
         _image = new AlphaMaskEffect { Source = _colors, AlphaMask = _mask };
+        // 译文没有逐字时间，按整行宽度扫色；这里预存行内字形范围。
+        var lineLeft = double.PositiveInfinity;
+        var lineRight = double.NegativeInfinity;
+        foreach (var glyph in line.Glyphs)
+        {
+            lineLeft = Math.Min(lineLeft, glyph.Bounds.X);
+            lineRight = Math.Max(lineRight, glyph.Bounds.Right);
+        }
+        _lineLeft = double.IsFinite(lineLeft) ? lineLeft : _bounds.X;
+        _lineWidth = double.IsFinite(lineRight) ? Math.Max(0, lineRight - lineLeft) : _bounds.Width;
         _brushes = new CanvasLinearGradientBrush[line.Glyphs.Length];
         _progress = new double[_brushes.Length];
         Array.Fill(_progress, double.NaN);
@@ -67,7 +81,13 @@ internal sealed class LyricsActiveLineImage : IDisposable
                     BorderMode = EffectBorderMode.Soft,
                     CacheOutput = true,
                 };
-                _glows.Add((glyphIndex, cropped, glow));
+                // 长音字单独排版绘制，扫色画刷挂在这份排版上。
+                syllable.Brush ??= new CanvasLinearGradientBrush(device, played, unplayed);
+                syllable.Layout.SetBrush(0, syllable.CharCount, syllable.Brush);
+                // Soft 边界的模糊输出会向四周扩出约 3 倍模糊半径；图层必须按这个范围开，
+                // 只按字形矩形裁会把光晕切掉，只剩框内一团色块。
+                _glows.Add((glyphIndex, cropped, glow,
+                    glow.GetBounds(device, Matrix3x2.Identity), syllable));
             }
         }
         finally { fullGlowImage.Dispose(); }
@@ -76,16 +96,19 @@ internal sealed class LyricsActiveLineImage : IDisposable
     public float Dpi { get; }
 
     public void Draw(CanvasDrawingSession session, LyricLine text, LyricsLineLayout line,
-        TimeSpan position, bool wordByWord)
+        TimeSpan position, bool wordByWord, double? lineProgress = null)
     {
         var changed = !_painted;
         for (var index = 0; index < line.Glyphs.Length; index++)
         {
             var glyph = line.Glyphs[index];
-            var progress = wordByWord && glyph.Syllable >= 0 && glyph.Syllable < text.Syllables.Count
-                ? LyricMotionMath.GlyphProgress(text.Syllables[glyph.Syllable].ProgressAt(position),
-                    glyph.Offset, glyph.Bounds.Width, glyph.TotalWidth)
-                : 1;
+            var progress = lineProgress.HasValue
+                ? LyricMotionMath.GlyphProgress(lineProgress.Value,
+                    glyph.Bounds.X - _lineLeft, glyph.Bounds.Width, _lineWidth)
+                : wordByWord && glyph.Syllable >= 0 && glyph.Syllable < text.Syllables.Count
+                    ? LyricMotionMath.GlyphProgress(text.Syllables[glyph.Syllable].ProgressAt(position),
+                        glyph.Offset, glyph.Bounds.Width, glyph.TotalWidth)
+                    : 1;
             if (_progress[index] == progress) continue;
             _progress[index] = progress;
             changed = true;
@@ -108,6 +131,15 @@ internal sealed class LyricsActiveLineImage : IDisposable
                     if (region.Width > 0 && region.Height > 0)
                         paint.FillRectangle(region, _brushes[index]);
                 }
+                // 正在缩放/上浮的长音字由独立排版绘制，先从主纹理里挖掉，避免原位留下重影。
+                // 整个过程都在 changed 里，挖孔集合与当前进度一一对应。
+                foreach (var (glyphIndex, _, _, _, _) in _glows)
+                {
+                    if (glyphIndex < 0) continue;
+                    if (!(Math.Sin(Math.PI * _progress[glyphIndex]) > 0.01)) continue;
+                    var region = line.Glyphs[glyphIndex].Bounds;
+                    paint.FillRectangle(region, Color.FromArgb(0, 0, 0, 0));
+                }
             }
             // 高亮也先提交成与未唱层相同 DPI、相同原点的位图，再进行窗口坐标变换。
             using (var paint = _result.CreateDrawingSession())
@@ -117,27 +149,62 @@ internal sealed class LyricsActiveLineImage : IDisposable
             }
             _painted = true;
         }
-        foreach (var (glyphIndex, _, glow) in _glows)
+        foreach (var (glyphIndex, _, glow, glowBounds, _) in _glows)
         {
             if (glyphIndex < 0) continue;
             var pulse = Math.Sin(Math.PI * _progress[glyphIndex]);
+            if (!(pulse > 0.01)) continue;
             var region = line.Glyphs[glyphIndex].Bounds;
-            if (pulse > 0.01)
-            {
-                // ★ 图层必须收在这个字形的矩形里。不带矩形的 CreateLayer 会按整块绘制表面
-                //   开中间位图，逐字高亮时每帧一张，GPU 提交会一路涨到暂停才回落。
-                var layerBounds = new Rect(region.X, region.Y,
-                    Math.Max(1, region.Width), Math.Max(1, region.Height));
-                using (session.CreateLayer((float)(pulse * 0.55), layerBounds))
-                    session.DrawImage(glow, (float)region.X, (float)region.Y);
-            }
+            var previous = session.Transform;
+            session.Transform = LiftTransform(region, pulse) * previous;
+            // 图层收在模糊输出自己的范围内：既保住光晕，又不会像不带矩形的 CreateLayer
+            // 那样每帧按整块表面开中间位图。
+            var layerBounds = new Rect(region.X + glowBounds.X, region.Y + glowBounds.Y,
+                Math.Max(1, glowBounds.Width), Math.Max(1, glowBounds.Height));
+            using (session.CreateLayer((float)(pulse * 0.55), layerBounds))
+                session.DrawImage(glow, (float)region.X, (float)region.Y);
+            session.Transform = previous;
         }
         session.DrawImage(_result, (float)_bounds.X, (float)_bounds.Y);
+        foreach (var (glyphIndex, _, _, _, syllable) in _glows)
+        {
+            if (glyphIndex < 0) continue;
+            var progress = _progress[glyphIndex];
+            var pulse = Math.Sin(Math.PI * progress);
+            if (!(pulse > 0.01)) continue;
+            DrawLiftedSyllable(session, syllable, progress, pulse);
+        }
+    }
+
+    /// <summary>长音字的缩放与上浮按进度起伏，唱完落回原位。</summary>
+    private Matrix3x2 LiftTransform(Rect bounds, double pulse)
+    {
+        var center = new Vector2((float)(bounds.X + bounds.Width / 2), (float)(bounds.Y + bounds.Height / 2));
+        var scale = 1 + (_settings.LongSyllableScale - 1) * pulse;
+        var lift = -_settings.BaseFontSize * _settings.FloatRatio * pulse;
+        return Matrix3x2.CreateScale((float)scale, center)
+            * Matrix3x2.CreateTranslation(0, (float)lift);
+    }
+
+    private void DrawLiftedSyllable(CanvasDrawingSession session, LyricsLongSyllable syllable,
+        double progress, double pulse)
+    {
+        if (syllable.Brush is not { } brush) return;
+        var bounds = syllable.Bounds;
+        var feather = Math.Max(1, bounds.Width * _featherRatio);
+        var edge = bounds.X - feather / 2 + progress * (bounds.Width + feather);
+        brush.StartPoint = new Vector2((float)(edge - feather / 2), 0);
+        brush.EndPoint = new Vector2((float)(edge + feather / 2), 0);
+        var previous = session.Transform;
+        session.Transform = LiftTransform(bounds, pulse) * previous;
+        var origin = syllable.Layout.LayoutBounds;
+        session.DrawTextLayout(syllable.Layout, (float)(bounds.X - origin.X), (float)(bounds.Y - origin.Y), _played);
+        session.Transform = previous;
     }
 
     public void Dispose()
     {
-        foreach (var (_, image, glow) in _glows)
+        foreach (var (_, image, glow, _, _) in _glows)
         {
             glow.Dispose();
             image.Dispose();

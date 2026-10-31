@@ -35,6 +35,7 @@ internal sealed class CompositionCanvasHost : UserControl
     private bool _paused;
     private bool _resourcesSuspended;
     private bool _loaded;
+    private double _maxRenderScale = double.PositiveInfinity;
 
     public CompositionCanvasHost(string name, Func<CanvasDevice, CancellationToken, ICompositionCanvasRenderer> factory,
         double framesPerSecond = 120)
@@ -84,9 +85,32 @@ internal sealed class CompositionCanvasHost : UserControl
 
     public void Invalidate() => _worker?.Invalidate();
 
+    /// <summary>
+    /// 合成表面的最大缩放倍率；超过这个值就按该倍率分配，再由合成器拉伸到控件尺寸。
+    /// </summary>
+    /// <remarks>
+    /// 背景图本身是柔和的，没必要按 150%/200% 的物理像素分配整窗表面。
+    /// 外壳常驻时把上限压到 1.0，可以显著减少显存与私有工作集。
+    /// </remarks>
+    public double MaxRenderScale
+    {
+        get => _maxRenderScale;
+        set
+        {
+            if (!double.IsFinite(value) || value <= 0) value = double.PositiveInfinity;
+            if (Math.Abs(_maxRenderScale - value) < 0.001) return;
+            _maxRenderScale = value;
+            UpdateViewport();
+        }
+    }
+
     private void OnRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => UpdateViewport();
+
     private void UpdateViewport()
-        => _worker?.SetViewport(_host.ActualWidth, _host.ActualHeight, XamlRoot?.RasterizationScale ?? 1);
+    {
+        var scale = Math.Min(XamlRoot?.RasterizationScale ?? 1, _maxRenderScale);
+        _worker?.SetViewport(_host.ActualWidth, _host.ActualHeight, scale);
+    }
 
     private void CreateSurface()
     {

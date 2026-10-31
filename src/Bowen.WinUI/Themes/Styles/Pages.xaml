@@ -229,6 +229,28 @@
     </Style>
 
     <!--
+        下拉弹层的共用度量：ComboBox 弹层与字体选择器 Flyout 都按这一组来。
+        表面刷见 AcrylicMaterial.PopupBrushKey，边框与圆角跟设置卡片同一套。
+    -->
+    <Thickness x:Key="BowenDropdownPadding">0,4,0,4</Thickness>
+
+    <Style x:Key="BowenDropdownItemStyle" TargetType="ComboBoxItem"
+           BasedOn="{StaticResource DefaultComboBoxItemStyle}">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="11,0,11,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+    </Style>
+
+    <Style x:Key="BowenDropdownListItemStyle" TargetType="ListViewItem"
+           BasedOn="{StaticResource DefaultListViewItemStyle}">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="11,0,11,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
+    </Style>
+
+    <!--
         设置分组。底色与下拉、菜单统一，用应用亚克力刷：
         它是浮在氛围渐变上的卡片，模糊背板不会像半透明平色那样让上下两端观感不一致。
     -->

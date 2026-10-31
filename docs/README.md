@@ -61,6 +61,7 @@
 | [`icons.md`](icons.md) | 图标来源与许可（Fluent System Icons） |
 | [`animations.md`](animations.md) | 页面 / Tab / 卡片切换、共享封面、歌词展开回位、主题资源保护与验证 |
 | [`ambient-color.md`](ambient-color.md) | 封面驱动的动态取色：当前规则、白底封面取色失效的实测、900ms 颜色过渡与验收 |
+| [`shell-background.md`](shell-background.md) | 首页背景模式（封面取色 / Mica / 自定义图片 / 纯色）、多色提取改进、Mica 与亚克力联动 |
 | [`lyrics-ui.md`](lyrics-ui.md) | 歌词界面方案与第三方代码的许可边界 |
 | [`fullscreen-lyrics.md`](fullscreen-lyrics.md) | 全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`lyrics-appearance.md`](lyrics-appearance.md) | 歌词页外观浮层：字体、字号、行距、对齐、高亮色、亚克力与存储 |

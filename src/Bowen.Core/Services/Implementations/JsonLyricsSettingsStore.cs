@@ -59,6 +59,21 @@ public sealed class JsonLyricsSettingsStore : ILyricsSettingsStore
                 Alignment = Has("Alignment") ? loaded.Alignment : LyricsAlignment.Left,
                 HighlightColorArgb = Has("HighlightColorArgb") ? loaded.HighlightColorArgb : LyricsSettings.DefaultHighlightColor,
                 LineGap = Has("LineGap") ? loaded.LineGap : LyricsSettings.DefaultLineGap,
+                SyncTranslationHighlight = Has("SyncTranslationHighlight") ? loaded.SyncTranslationHighlight : true,
+                TranslationFontScale = Has("TranslationFontScale") ? loaded.TranslationFontScale : LyricsSettings.DefaultTranslationFontScale,
+                TranslationLineGap = Has("TranslationLineGap") ? loaded.TranslationLineGap : LyricsSettings.DefaultTranslationLineGap,
+                EdgeBlurRatio = Has("EdgeBlurRatio") ? loaded.EdgeBlurRatio : LyricsSettings.DefaultEdgeBlurRatio,
+                BackgroundMode = Has("BackgroundMode") ? loaded.BackgroundMode : LyricsBackgroundMode.CoverBlur,
+                BackgroundImageFile = Has("BackgroundImageFile") ? loaded.BackgroundImageFile : string.Empty,
+                BackgroundImageDim = Has("BackgroundImageDim") ? loaded.BackgroundImageDim : LyricsSettings.DefaultBackgroundDim,
+                BackgroundImageBlur = Has("BackgroundImageBlur") ? loaded.BackgroundImageBlur : LyricsSettings.DefaultBackgroundBlur,
+                BackgroundImageFocusX = Has("BackgroundImageFocusX") ? loaded.BackgroundImageFocusX : 0.5,
+                BackgroundImageFocusY = Has("BackgroundImageFocusY") ? loaded.BackgroundImageFocusY : 0.5,
+                BackgroundImageZoom = Has("BackgroundImageZoom") ? loaded.BackgroundImageZoom : 1,
+                BackgroundColorArgb = Has("BackgroundColorArgb") ? loaded.BackgroundColorArgb : LyricsSettings.DefaultBackgroundColor,
+                BackgroundCustomColorArgb = Has("BackgroundCustomColorArgb") ? loaded.BackgroundCustomColorArgb : LyricsSettings.DefaultBackgroundColor,
+                BackgroundColorAuto = Has("BackgroundColorAuto") && loaded.BackgroundColorAuto,
+                MicaTintEnabled = Has("MicaTintEnabled") ? loaded.MicaTintEnabled : true,
             };
 
             return loaded.Normalized();

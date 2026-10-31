@@ -1,8 +1,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.InteropServices.WindowsRuntime;
+using Bowen.Core.Media;
 using Bowen.Core.Models;
+using Bowen.Core.Services;
 using Bowen.WinUI.Controls;
+using Bowen.WinUI.Media;
 using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -15,8 +19,12 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.Foundation;
+using Windows.Graphics.Imaging;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 using Windows.UI;
 using VirtualKey = Windows.System.VirtualKey;
 
@@ -33,6 +41,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly TrackActionsService _trackActions;
     private readonly IReadOnlyList<FontOption> _fontOptions;
     private readonly List<(Border Dot, uint Color)> _colorDots = [];
+    private readonly List<(Border Dot, uint Color)> _solidColorDots = [];
+    private Border? _customSolidColorDot;
+    private readonly CoverPaletteLoader _paletteLoader;
+    private Color? _autoSolidColor;
+    private int _autoColorRequest;
+    private readonly SolidColorBrush _solidBackgroundBrush = new(Color.FromArgb(0xFF, 0x0B, 0x12, 0x22));
     private bool _syncingAppearance;
     private bool _appearanceOpen;
     private FrameworkElement? _themeRoot;
@@ -47,6 +61,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private double _coverSize;
     private bool? _fullscreen;
     private readonly ILogger<LyricsPage> _logger;
+    private readonly BackgroundImageStore _backgroundImages;
     private readonly nint _windowHandle;
     private NativeMethods.NativePoint? _lastCursorPoint;
     private bool _keyboardInteractionActive;
@@ -57,6 +72,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly List<DispatcherQueueTimer> _entranceTimers = [];
     private int _entranceVersion;
     private bool _entranceActive;
+    /// <summary>沉浸入场动画结束前先保持封面模糊，避免透出外壳页面。</summary>
+    private bool _immersiveEntranceCompleted;
 
     /// <summary>
     /// 收起时长与内容层的上移距离。**宁少勿多**：参考实现整块滑走一屏，实测用力过猛。
@@ -69,6 +86,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private static readonly TimeSpan ExitBackdropDuration = TimeSpan.FromMilliseconds(600);
     private static readonly TimeSpan ExitContentDuration = TimeSpan.FromMilliseconds(400);
     private const float ExitContentRiseDip = 8;
+    private static readonly SolidColorBrush CoverBackdropBrush = new(Color.FromArgb(0xFF, 0x0B, 0x12, 0x22));
+    private static readonly SolidColorBrush TransparentBackdropBrush = new(Color.FromArgb(0, 0, 0, 0));
     private Brush? _coverFrameBackground;
     private float _reflectionOpacity;
     private bool _pointerOverChrome;
@@ -83,7 +102,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
         LyricsViewModel lyrics, SongCommentsViewModel comments,
         INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
-        FontSettingsViewModel font)
+        FontSettingsViewModel font, BackgroundImageStore backgroundImages)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -95,12 +114,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(mvFactory);
         ArgumentNullException.ThrowIfNull(trackActions);
         ArgumentNullException.ThrowIfNull(font);
+        ArgumentNullException.ThrowIfNull(backgroundImages);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
         _trackActions = trackActions;
         _logger = (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
+        _backgroundImages = backgroundImages;
         _canvas = canvas;
         _spectrum = spectrum;
         Player = player;
@@ -113,6 +134,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         LyricsFontPicker.RegisterPropertyChangedCallback(
             FontPicker.SelectedIndexProperty, OnLyricsFontPickerSelectionChanged);
         BuildColorPalette();
+        BuildSolidColorPalette();
+        _paletteLoader = new CoverPaletteLoader(
+            (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)?.CreateLogger<CoverPaletteLoader>());
         _commentsPanel = new SongCommentsPanel(comments);
         _commentsPanel.CloseRequested += (_, _) => CloseComments();
         CommentsHost.Content = _commentsPanel;
@@ -178,6 +202,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public void OnNavigatedTo()
     {
         // 上一次收起 / 被中途取消的入场会留下位移与透明度，先复位再入场。
+        _immersiveEntranceCompleted = false;
         AppMotion.Reset(BackdropLayer);
         AppMotion.Reset(ContentLayer);
         AppMotion.Reset(CommentsOverlay);
@@ -211,6 +236,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _lastCursorPoint = null;
         _window.EnterImmersive(LyricsTitleBar);
         Lyrics.IsOpen = true;
+        ApplyBackgroundMode();
+        if (Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor && Lyrics.BackgroundColorAuto)
+        {
+            _ = RefreshSolidColorAsync();
+        }
+
         UpdatePause();
         SyncFullscreen();
         SyncTranslation();
@@ -436,15 +467,98 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _canvas.IsPaused = !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended;
         _spectrum.IsPaused = _canvas.IsPaused;
         ReflectionView.IsPaused = _canvas.IsPaused;
-        BackdropView.IsPaused = _canvas.IsPaused;
+        var solid = Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor;
+        var mica = UsesMicaBackdrop && _immersiveEntranceCompleted;
+        var micaTint = mica && Lyrics.MicaTintEnabled;
+        var coverActive = !solid && !mica;
+        var ambientActive = !solid && (!mica || micaTint);
+        BackdropView.IsPaused = _canvas.IsPaused || !coverActive;
         // 过渡仅暂停绘制；真正进入后台才释放设备和纹理，避免全屏切换反复重建。
         var releaseResources = !Lyrics.IsOpen || !_windowVisible || !_window.IsWindowVisible || _window.IsMinimized;
         _canvas.IsResourceSuspended = releaseResources;
         _spectrum.IsResourceSuspended = releaseResources;
         ReflectionView.IsResourceSuspended = releaseResources;
-        BackdropView.IsResourceSuspended = releaseResources;
-        AmbientView.IsResourceSuspended = releaseResources;
+        BackdropView.IsResourceSuspended = releaseResources || !coverActive;
+        AmbientView.IsResourceSuspended = releaseResources || !ambientActive || UsesCustomImage;
     }
+
+    /// <summary>沉浸入场动画结束：此时外壳已收起，可以安全地亮出 Mica 背板。</summary>
+    public void OnImmersiveEntranceCompleted()
+    {
+        _immersiveEntranceCompleted = true;
+        ApplyBackgroundMode();
+    }
+
+    /// <summary>当前是否真的使用 Mica；系统不支持时保持封面模糊。</summary>
+    private bool UsesMicaBackdrop
+        => Lyrics.BackgroundMode == LyricsBackgroundMode.Mica && MainWindow.IsMicaSupported;
+
+    /// <summary>自定义背景图片的完整路径；未选择时为空串。</summary>
+    private string BackgroundImagePath
+        => string.IsNullOrEmpty(Lyrics.BackgroundImageFile)
+            ? string.Empty
+            : AppPaths.BackgroundFile(Lyrics.BackgroundImageFile);
+
+    /// <summary>当前背景层的宽高比，用于裁剪预览。</summary>
+    private double BackgroundAspect
+        => BackdropView.ActualWidth > 1 && BackdropView.ActualHeight > 1
+            ? BackdropView.ActualWidth / BackdropView.ActualHeight
+            : ActualWidth > 1 && ActualHeight > 1
+                ? ActualWidth / ActualHeight
+                : 16.0 / 9;
+
+    /// <summary>选了自定义图片且文件还在；文件丢失时退回封面模糊。</summary>
+    private bool UsesCustomImage
+        => Lyrics.BackgroundMode == LyricsBackgroundMode.CustomImage
+            && Lyrics.BackgroundImageFile.Length > 0
+            && File.Exists(BackgroundImagePath);
+
+    /// <summary>纯色背景当前实际使用的颜色：自动模式下取封面派生色。</summary>
+    private Color SolidDisplayColor
+        => Lyrics.BackgroundColorAuto && _autoSolidColor is { } auto
+            ? auto
+            : ToColor(Lyrics.BackgroundColorArgb);
+
+    /// <summary>
+    /// 按当前设置摆放背景层：Mica 收起封面层；自定义图片换成用户选的图并加暗度蒙版。
+    /// </summary>
+    private void ApplyBackgroundMode()
+    {
+        // 入场期间外壳还看得见；此时切 Mica 会把外壳页面透在歌词后面，等入场结束再切。
+        var mica = UsesMicaBackdrop && _immersiveEntranceCompleted;
+        var custom = UsesCustomImage;
+        var solid = Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor;
+        BackdropView.Visibility = mica || solid ? Visibility.Collapsed : Visibility.Visible;
+        // 只在真正会显示背景层时换源。切到 Mica / 纯色会挂起画布，
+        // 此时清空来源只会白白触发一次解码，来回切换就会反复分配纹理。
+        if (custom)
+        {
+            BackdropView.LocalPath = BackgroundImagePath;
+        }
+        else if (!solid && !UsesMicaBackdrop)
+        {
+            BackdropView.LocalPath = string.Empty;
+        }
+        BackdropView.BlurDip = custom ? Lyrics.BackgroundImageBlur : 52;
+        BackdropView.ImageOpacity = custom ? 1 : 0.72;
+        BackdropView.Saturation = custom ? 0.85f : 0.68f;
+        BackdropView.FocusX = custom ? Lyrics.BackgroundImageFocusX : 0.5;
+        BackdropView.FocusY = custom ? Lyrics.BackgroundImageFocusY : 0.5;
+        BackdropView.Zoom = custom ? Lyrics.BackgroundImageZoom : 1;
+        AmbientView.Visibility = (!mica && !custom && !solid) || (mica && Lyrics.MicaTintEnabled)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AmbientView.Opacity = mica && Lyrics.MicaTintEnabled ? 0.9 : 0.18;
+        BackgroundDimLayer.Opacity = custom ? Lyrics.BackgroundImageDim : 0;
+        if (solid) _solidBackgroundBrush.Color = SolidDisplayColor;
+
+        BackdropLayer.Background = mica
+            ? TransparentBackdropBrush
+            : solid ? _solidBackgroundBrush : CoverBackdropBrush;
+        _window.SetLyricsMaterialBackdrop(mica);
+        UpdatePause();
+    }
+
     private void OnRootSizeChanged(object sender, SizeChangedEventArgs args)
     {
         _layoutPending = true;
@@ -472,6 +586,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void OnPlayerChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (args.PropertyName is nameof(PlayerViewModel.CurrentTrackId) or nameof(PlayerViewModel.CurrentCoverUri))
+        {
+            _ = RefreshSolidColorAsync();
+        }
+
         if (args.PropertyName == nameof(PlayerViewModel.IsPlaying)) UpdateCoverScale();
         if (args.PropertyName == nameof(PlayerViewModel.CurrentTrackId))
         {
@@ -989,6 +1108,120 @@ public sealed partial class LyricsPage : Page, INavigationAware
         }
     }
 
+    /// <summary>纯色背景的预设色板，与高亮色板同一套圆点样式。</summary>
+    private void BuildSolidColorPalette()
+    {
+        foreach (var (argb, name) in LyricsSettings.BackgroundPalette)
+        {
+            var value = argb;
+            var dot = new Border
+            {
+                Width = 18,
+                Height = 18,
+                CornerRadius = new CornerRadius(9),
+                Background = new SolidColorBrush(ToColor(value)),
+                VerticalAlignment = VerticalAlignment.Center,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, 0x80, 0x80, 0x80)),
+                BorderThickness = new Thickness(1),
+            };
+
+            var button = new Button
+            {
+                Content = dot,
+                Width = 28,
+                Height = 28,
+                MinWidth = 0,
+                Padding = new Thickness(5),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
+            };
+            button.Click += (_, _) => Lyrics.SetBackgroundColor(value, auto: false);
+            ToolTipService.SetToolTip(button, name);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"背景颜色：{name}");
+            _solidColorDots.Add((dot, value));
+            SolidColorPalette.Children.Add(button);
+        }
+
+        // 最后一个圆点固定是「自定义颜色」：圆点本身应用上次保存的自定义色，
+        // 右下角的铅笔才是编辑入口；两者分开，避免点一下圆点就弹出色盘。
+        _customSolidColorDot = new Border
+        {
+            Width = 18,
+            Height = 18,
+            CornerRadius = new CornerRadius(9),
+            Background = new SolidColorBrush(ToColor(Lyrics.BackgroundCustomColorArgb)),
+            VerticalAlignment = VerticalAlignment.Center,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+        };
+
+        var applyButton = new Button
+        {
+            Content = _customSolidColorDot,
+            Width = 28,
+            Height = 28,
+            MinWidth = 0,
+            Padding = new Thickness(5),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(14),
+            Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
+        };
+        applyButton.Click += (_, _) => Lyrics.SetBackgroundColor(Lyrics.BackgroundCustomColorArgb, auto: false);
+        ToolTipService.SetToolTip(applyButton, "应用自定义颜色");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(applyButton, "应用自定义背景颜色");
+
+        var pencilButton = new Button
+        {
+            Width = 14,
+            Height = 14,
+            MinWidth = 0,
+            Padding = new Thickness(0),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(7),
+            Background = new SolidColorBrush(Color.FromArgb(0xC0, 0, 0, 0)),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Content = new Icon
+            {
+                Data = ResourceIcon("IconEdit"),
+                Size = 7,
+                Foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)),
+            },
+        };
+        pencilButton.Click += (_, _) => _ = OpenSolidColorDialogAsync();
+        ToolTipService.SetToolTip(pencilButton, "编辑自定义颜色");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pencilButton, "编辑自定义背景颜色");
+
+        var customCell = new Grid { Width = 28, Height = 28 };
+        customCell.Children.Add(applyButton);
+        customCell.Children.Add(pencilButton);
+        SolidColorPalette.Children.Add(customCell);
+    }
+
+    private void UpdateSolidColorSelection()
+    {
+        foreach (var (dot, argb) in _solidColorDots)
+        {
+            var selected = !Lyrics.BackgroundColorAuto && Lyrics.BackgroundColorArgb == argb;
+            dot.BorderBrush = new SolidColorBrush(selected
+                ? Color.FromArgb(0xFF, 0x00, 0xD9, 0xA0)
+                : Color.FromArgb(0x66, 0x80, 0x80, 0x80));
+            dot.BorderThickness = new Thickness(selected ? 2 : 1);
+        }
+
+        if (_customSolidColorDot is { } custom)
+        {
+            custom.Background = new SolidColorBrush(ToColor(Lyrics.BackgroundCustomColorArgb));
+            var selected = !Lyrics.BackgroundColorAuto
+                && Lyrics.BackgroundColorArgb == Lyrics.BackgroundCustomColorArgb;
+            custom.BorderBrush = new SolidColorBrush(selected
+                ? Color.FromArgb(0xFF, 0x00, 0xD9, 0xA0)
+                : Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
+            custom.BorderThickness = new Thickness(selected ? 2 : 1);
+        }
+    }
+
     /// <summary>把 ViewModel 的当前值回填到面板控件；回填期间不反向写设置。</summary>
     private void SyncAppearanceControls()
     {
@@ -996,10 +1229,49 @@ public sealed partial class LyricsPage : Page, INavigationAware
         try
         {
             LyricsFontPicker.SelectedIndex = FontIndexOf(Lyrics.FontFamily);
+            TranslationSettingsPanel.Visibility = Lyrics.HasTranslation
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            LyricsBackgroundMicaItem.IsEnabled = MainWindow.IsMicaSupported;
+            LyricsBackgroundMicaItem.Content = MainWindow.IsMicaSupported ? "Mica" : "Mica（需要 Windows 11）";
+            LyricsBackgroundCombo.SelectedIndex = Lyrics.BackgroundMode switch
+            {
+                LyricsBackgroundMode.Mica when MainWindow.IsMicaSupported => 1,
+                LyricsBackgroundMode.CustomImage => 2,
+                LyricsBackgroundMode.SolidColor => 3,
+                _ => 0,
+            };
+            var customBackground = Lyrics.BackgroundMode == LyricsBackgroundMode.CustomImage;
+            BackgroundImagePanel.Visibility = customBackground ? Visibility.Visible : Visibility.Collapsed;
+            BackgroundImageName.Text = Lyrics.BackgroundImageFile.Length == 0 ? "未选择" : Lyrics.BackgroundImageFile;
+            PickBackgroundImageButton.Content = Lyrics.BackgroundImageFile.Length == 0 ? "选择图片…" : "更换图片…";
+            BackgroundDimSlider.Value = Math.Round(Lyrics.BackgroundImageDim * 100);
+            BackgroundDimValue.Text = $"{(int)Math.Round(Lyrics.BackgroundImageDim * 100)}%";
+            BackgroundBlurSlider.Value = Lyrics.BackgroundImageBlur;
+            BackgroundBlurValue.Text = ((int)Math.Round(Lyrics.BackgroundImageBlur)).ToString();
+            ReCropBackgroundButton.IsEnabled = Lyrics.BackgroundImageFile.Length > 0;
+            var solidBackground = Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor;
+            SolidColorPanel.Visibility = solidBackground ? Visibility.Visible : Visibility.Collapsed;
+            var micaTint = Lyrics.BackgroundMode == LyricsBackgroundMode.Mica && MainWindow.IsMicaSupported;
+            MicaTintPanel.Visibility = micaTint ? Visibility.Visible : Visibility.Collapsed;
+            MicaTintToggle.IsOn = Lyrics.MicaTintEnabled;
+            SolidColorAutoToggle.IsOn = Lyrics.BackgroundColorAuto;
+            var displayColor = SolidDisplayColor;
+            SolidColorHex.Text = Lyrics.BackgroundColorAuto
+                ? $"跟随封面 · #{displayColor.R:X2}{displayColor.G:X2}{displayColor.B:X2}"
+                : $"#{displayColor.R:X2}{displayColor.G:X2}{displayColor.B:X2}";
+            UpdateSolidColorSelection();
             LyricsFontSizeSlider.Value = Lyrics.FontSize;
             LyricsFontSizeValue.Text = ((int)Math.Round(Lyrics.FontSize)).ToString();
             LyricsLineGapSlider.Value = Lyrics.LineGap;
             LyricsLineGapValue.Text = ((int)Math.Round(Lyrics.LineGap)).ToString();
+            LyricsTranslationSyncToggle.IsOn = Lyrics.SyncTranslationHighlight;
+            LyricsTranslationFontSizeSlider.Value = Math.Round(Lyrics.TranslationFontScale * 100);
+            LyricsTranslationFontSizeValue.Text = $"{(int)Math.Round(Lyrics.TranslationFontScale * 100)}%";
+            LyricsTranslationLineGapSlider.Value = Lyrics.TranslationLineGap;
+            LyricsTranslationLineGapValue.Text = ((int)Math.Round(Lyrics.TranslationLineGap)).ToString();
+            LyricsEdgeBlurSlider.Value = Math.Round(Lyrics.EdgeBlurRatio * 100);
+            LyricsEdgeBlurValue.Text = $"{(int)Math.Round(Lyrics.EdgeBlurRatio * 100)}%";
             SyncAlignmentButtons(Lyrics.Alignment);
             LyricsHorizontalOffsetSlider.Value = Lyrics.HorizontalOffsetPercent;
             LyricsHorizontalOffsetValue.Text = FormatOffsetPercent(Lyrics.HorizontalOffsetPercent);
@@ -1019,6 +1291,237 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics.SetFontFamily(FontNameAt(LyricsFontPicker.SelectedIndex));
     }
 
+    private async void OnLyricsBackgroundSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+
+        var mode = LyricsBackgroundCombo.SelectedIndex switch
+        {
+            1 => LyricsBackgroundMode.Mica,
+            2 => LyricsBackgroundMode.CustomImage,
+            3 => LyricsBackgroundMode.SolidColor,
+            _ => LyricsBackgroundMode.CoverBlur,
+        };
+        Lyrics.SetBackgroundMode(mode);
+
+        // 第一次选「自定义图片」时直接弹出选图；取消且没有旧图就退回封面模糊。
+        if (mode == LyricsBackgroundMode.CustomImage && Lyrics.BackgroundImageFile.Length == 0)
+        {
+            var picked = await PickBackgroundImageAsync();
+            if (!picked && Lyrics.BackgroundImageFile.Length == 0)
+            {
+                Lyrics.SetBackgroundMode(LyricsBackgroundMode.CoverBlur);
+            }
+        }
+
+        if (mode == LyricsBackgroundMode.SolidColor && Lyrics.BackgroundColorAuto)
+        {
+            _ = RefreshSolidColorAsync();
+        }
+    }
+
+    private async void OnPickBackgroundImageClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        await PickBackgroundImageAsync();
+    }
+
+    private void OnSolidColorAutoToggled(object sender, RoutedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetBackgroundColorAuto(SolidColorAutoToggle.IsOn);
+    }
+
+    private void OnMicaTintToggled(object sender, RoutedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetMicaTintEnabled(MicaTintToggle.IsOn);
+    }
+
+    private async Task OpenSolidColorDialogAsync()
+    {
+        if (!_appearanceOpen) return;
+
+        // 编辑的是「保存的自定义色」，不是当前生效的预设色；
+        // 否则每次打开都会被最近切换的颜色覆盖掉。
+        var current = ToColor(Lyrics.BackgroundCustomColorArgb);
+
+        var preview = new Border
+        {
+            Height = 170,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 10, 14, 10),
+            Background = new SolidColorBrush(current),
+        };
+        var previewLines = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+        previewLines.Children.Add(new TextBlock
+        {
+            Text = "蓝色的身影在街角摇曳",
+            FontSize = 16,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(ToColor(Lyrics.HighlightColorArgb)),
+        });
+        previewLines.Children.Add(new TextBlock
+        {
+            Text = "青い影が揺れる街角",
+            FontSize = 14,
+            Foreground = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+        });
+        preview.Child = previewLines;
+
+        var chosen = await ColorPickerDialog.ShowAsync(
+            current,
+            XamlRoot,
+            _themeRoot?.ActualTheme ?? ElementTheme.Default,
+            preview,
+            color => preview.Background = new SolidColorBrush(color),
+            color => ColorPickerDialog.RelativeLuminance(color) > 0.45
+                ? "颜色偏亮，白色歌词可能不够清晰"
+                : "对比度良好",
+            _logger);
+
+        if (chosen is { } argb)
+        {
+            Lyrics.SetBackgroundCustomColor(argb);
+        }
+    }
+
+    /// <summary>
+    /// 纯色背景自动取色：与外壳同一条多色取色管线，但歌词页固定取深色。
+    /// </summary>
+    /// <remarks>
+    /// 歌词页永远是白字深底，只需要深色变体；外壳有深色与浅色两种主题，
+    /// 由 <see cref="ColorPalette.SolidBackground"/> 按主题各自映射。
+    /// </remarks>
+    private async Task RefreshSolidColorAsync()
+    {
+        if (Lyrics.BackgroundMode != LyricsBackgroundMode.SolidColor || !Lyrics.BackgroundColorAuto)
+        {
+            return;
+        }
+
+        var request = ++_autoColorRequest;
+        var trackId = Player.CurrentTrackId ?? 0;
+        var cover = Player.CurrentCoverUri;
+        var seeds = await _paletteLoader.LoadAsync(trackId, cover);
+
+        if (request != _autoColorRequest
+            || Lyrics.BackgroundMode != LyricsBackgroundMode.SolidColor
+            || !Lyrics.BackgroundColorAuto)
+        {
+            return;
+        }
+
+        var dark = ColorPalette.SolidBackground(seeds, AmbientTheme.Dark);
+        _autoSolidColor = Color.FromArgb(255, dark.R, dark.G, dark.B);
+        ApplyBackgroundMode();
+        if (_appearanceOpen) SyncAppearanceControls();
+    }
+
+
+    private async Task<bool> PickBackgroundImageAsync()
+    {
+        try
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".jpg");
+            picker.FileTypeFilter.Add(".jpeg");
+            picker.FileTypeFilter.Add(".png");
+            picker.FileTypeFilter.Add(".bmp");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, _windowHandle);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file is null) return false;
+
+            var fileName = await _backgroundImages.ImportAsync(file, "lyrics-bg");
+            if (fileName is null) return false;
+
+            var dim = await _backgroundImages.EstimateDimAsync(
+                file, LyricsSettings.MaximumBackgroundDim, LyricsSettings.DefaultBackgroundDim);
+
+            var crop = await BackgroundCropDialog.ShowAsync(
+                AppPaths.BackgroundFile(fileName),
+                BackgroundAspect,
+                0.5,
+                0.5,
+                1,
+                XamlRoot,
+                _themeRoot?.ActualTheme ?? ElementTheme.Default,
+                _logger);
+
+            if (crop is not { } value)
+            {
+                // 取消裁剪就不使用这张图，别在背景目录里留下孤儿文件。
+                _backgroundImages.Delete(fileName);
+                return false;
+            }
+
+            var previous = Lyrics.BackgroundImageFile;
+            Lyrics.SetBackgroundImage(fileName, dim, value.FocusX, value.FocusY, value.Zoom);
+
+            if (previous.Length > 0 && !string.Equals(previous, fileName, StringComparison.Ordinal))
+            {
+                _backgroundImages.Delete(previous);
+            }
+
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "选择歌词背景图片失败");
+            return false;
+        }
+    }
+
+    private void OnBackgroundDimChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        BackgroundDimValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        Lyrics.SetBackgroundImageDim(args.NewValue / 100);
+    }
+
+    private void OnBackgroundBlurChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        BackgroundBlurValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        Lyrics.SetBackgroundImageBlur(args.NewValue);
+    }
+
+    private void OnResetBackgroundDimClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetBackgroundImageDim(LyricsSettings.DefaultBackgroundDim);
+    }
+
+    private void OnResetBackgroundBlurClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetBackgroundImageBlur(LyricsSettings.DefaultBackgroundBlur);
+    }
+
+    private async void OnReCropBackgroundClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen || Lyrics.BackgroundImageFile.Length == 0) return;
+        var path = BackgroundImagePath;
+        if (!File.Exists(path)) return;
+
+        var crop = await BackgroundCropDialog.ShowAsync(
+            path,
+            BackgroundAspect,
+            Lyrics.BackgroundImageFocusX,
+            Lyrics.BackgroundImageFocusY,
+            Lyrics.BackgroundImageZoom,
+            XamlRoot,
+            _themeRoot?.ActualTheme ?? ElementTheme.Default,
+            _logger);
+
+        if (crop is { } value)
+        {
+            Lyrics.SetBackgroundImageCrop(value.FocusX, value.FocusY, value.Zoom);
+        }
+    }
+
+
     private void OnLyricsFontSizeChanged(object sender, RangeBaseValueChangedEventArgs args)
     {
         if (_syncingAppearance || !_appearanceOpen) return;
@@ -1031,6 +1534,33 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (_syncingAppearance || !_appearanceOpen) return;
         LyricsLineGapValue.Text = ((int)Math.Round(args.NewValue)).ToString();
         Lyrics.SetLineGap(args.NewValue);
+    }
+
+    private void OnTranslationSyncToggled(object sender, RoutedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetSyncTranslationHighlight(LyricsTranslationSyncToggle.IsOn);
+    }
+
+    private void OnLyricsTranslationFontSizeChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsTranslationFontSizeValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        Lyrics.SetTranslationFontScale(args.NewValue / 100);
+    }
+
+    private void OnLyricsTranslationLineGapChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsTranslationLineGapValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        Lyrics.SetTranslationLineGap(args.NewValue);
+    }
+
+    private void OnLyricsEdgeBlurChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        LyricsEdgeBlurValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        Lyrics.SetEdgeBlurRatio(args.NewValue / 100);
     }
 
     private void OnAlignLeftClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Left);
@@ -1061,6 +1591,24 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         if (!_appearanceOpen) return;
         Lyrics.SetLineGap(LyricsSettings.DefaultLineGap);
+    }
+
+    private void OnResetTranslationFontScaleClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetTranslationFontScale(LyricsSettings.DefaultTranslationFontScale);
+    }
+
+    private void OnResetTranslationLineGapClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetTranslationLineGap(LyricsSettings.DefaultTranslationLineGap);
+    }
+
+    private void OnResetEdgeBlurClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetEdgeBlurRatio(LyricsSettings.DefaultEdgeBlurRatio);
     }
 
     private void OnLyricsHorizontalOffsetChanged(object sender, RangeBaseValueChangedEventArgs args)
@@ -1160,6 +1708,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _canvas.SetFontSize(Lyrics.FontSize);
         _canvas.SetFontFamily(Lyrics.FontFamily);
         _canvas.SetLineGap(Lyrics.LineGap);
+        _canvas.SetSyncTranslationHighlight(Lyrics.SyncTranslationHighlight);
+        _canvas.SetTranslationFontScale(Lyrics.TranslationFontScale);
+        _canvas.SetTranslationLineGap(Lyrics.TranslationLineGap);
+        _canvas.SetEdgeBlurRatio(Lyrics.EdgeBlurRatio);
         _canvas.SetAlignment(Lyrics.Alignment);
         _canvas.SetHorizontalOffsetPercent(Lyrics.HorizontalOffsetPercent);
         _canvas.SetVerticalOffsetPercent(Lyrics.VerticalOffsetPercent);
@@ -1172,6 +1724,36 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (args.PropertyName is nameof(LyricsViewModel.HasTranslation) or nameof(LyricsViewModel.ShowTranslation))
         {
             SyncTranslation();
+            // 当前歌曲没有译文时，外观面板里的「译文」分组直接收起来。
+            if (_appearanceOpen)
+            {
+                TranslationSettingsPanel.Visibility = Lyrics.HasTranslation
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+
+            return;
+        }
+
+        if (args.PropertyName is nameof(LyricsViewModel.BackgroundMode)
+            or nameof(LyricsViewModel.BackgroundImageFile)
+            or nameof(LyricsViewModel.BackgroundImageDim)
+            or nameof(LyricsViewModel.BackgroundImageBlur)
+            or nameof(LyricsViewModel.BackgroundImageFocusX)
+            or nameof(LyricsViewModel.BackgroundImageFocusY)
+            or nameof(LyricsViewModel.BackgroundImageZoom)
+            or nameof(LyricsViewModel.BackgroundColorArgb)
+            or nameof(LyricsViewModel.BackgroundCustomColorArgb)
+            or nameof(LyricsViewModel.BackgroundColorAuto)
+            or nameof(LyricsViewModel.MicaTintEnabled))
+        {
+            if (Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor && Lyrics.BackgroundColorAuto)
+            {
+                _ = RefreshSolidColorAsync();
+            }
+
+            ApplyBackgroundMode();
+            if (_appearanceOpen) SyncAppearanceControls();
             return;
         }
 
@@ -1180,6 +1762,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
             or nameof(LyricsViewModel.Alignment)
             or nameof(LyricsViewModel.HighlightColorArgb)
             or nameof(LyricsViewModel.LineGap)
+            or nameof(LyricsViewModel.SyncTranslationHighlight)
+            or nameof(LyricsViewModel.TranslationFontScale)
+            or nameof(LyricsViewModel.TranslationLineGap)
+            or nameof(LyricsViewModel.EdgeBlurRatio)
             or nameof(LyricsViewModel.HorizontalOffsetPercent)
             or nameof(LyricsViewModel.VerticalOffsetPercent))
         {

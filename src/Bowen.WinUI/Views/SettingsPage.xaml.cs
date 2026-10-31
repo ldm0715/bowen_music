@@ -1,10 +1,18 @@
 using System.ComponentModel;
+using Bowen.Core.Media;
 using Bowen.Core.Models;
+using Bowen.Core.Services;
 using Bowen.WinUI.Controls;
+using Bowen.WinUI.Media;
 using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
+using Windows.Storage.Pickers;
+using Windows.UI;
 
 namespace Bowen.WinUI.Views;
 
@@ -42,16 +50,45 @@ public sealed partial class SettingsPage : Page, INavigationAware
     private bool _subscribed;
 
     private readonly NotificationViewModel _notifications;
+    private readonly BackgroundImageStore _backgroundImages;
+    private readonly IWindowHandleProvider _window;
+    private readonly ILogger<SettingsPage> _logger;
+    private readonly List<ComboBox> _acrylicCombos = [];
+    private bool _syncingShellImage;
+    private bool _syncingShellColor;
+    private bool _openingShellCustomColor;
+    private bool _shellModeReady;
 
-    public SettingsPage(SettingsViewModel viewModel, NotificationViewModel notifications)
+    public SettingsPage(
+        SettingsViewModel viewModel,
+        NotificationViewModel notifications,
+        BackgroundImageStore backgroundImages,
+        IWindowHandleProvider window,
+        ILogger<SettingsPage> logger)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(notifications);
+        ArgumentNullException.ThrowIfNull(backgroundImages);
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentNullException.ThrowIfNull(logger);
 
         ViewModel = viewModel;
         _notifications = notifications;
+        _backgroundImages = backgroundImages;
+        _window = window;
+        _logger = logger;
 
         InitializeComponent();
+
+        ShellMicaItem.IsEnabled = MainWindow.IsMicaSupported;
+
+        if (!MainWindow.IsMicaSupported)
+        {
+            ShellMicaItem.Content = "Mica（需要 Windows 11）";
+        }
+
+        Loaded += (_, _) => AttachComboBoxAcrylic();
+        Unloaded += (_, _) => DetachComboBoxAcrylic();
     }
 
     public SettingsViewModel ViewModel { get; }
@@ -62,10 +99,367 @@ public sealed partial class SettingsPage : Page, INavigationAware
     public void OnNavigatedTo()
     {
         Subscribe();
+        SyncShellBackgroundTheme();
+        SyncShellImageControls();
+        _shellModeReady = true;
         _ = ViewModel.RefreshAsync();
     }
 
     public void OnNavigatedFrom() => Unsubscribe();
+
+    /// <summary>
+    /// 让纯色下拉框跟上设置页的实际主题。
+    /// </summary>
+    /// <remarks>
+    /// 外壳 ViewModel 在主窗口构造时可能还没解析出实际主题（尤其「跟随系统」），
+    /// 只靠那里的初始化会留下深色主题的预设列表。设置页自己的 <see cref="FrameworkElement.ActualTheme"/>
+    /// 在导航进来时已经确定，这里以它为准再同步一次。
+    /// </remarks>
+    private void SyncShellBackgroundTheme()
+        => ViewModel.ShellBackground.UpdateTheme(
+            ActualTheme == ElementTheme.Dark ? AmbientTheme.Dark : AmbientTheme.Light);
+
+    private void OnActualThemeChanged(FrameworkElement sender, object args)
+    {
+        SyncShellBackgroundTheme();
+        UpdateComboBoxAcrylic();
+    }
+
+    /// <summary>
+    /// 给设置页所有 ComboBox 的弹层挂应用亚克力刷。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能只改 Application.Resources。</b> ComboBox 模板会在自己的主题字典里
+    /// 先命中系统的 <c>ComboBoxDropDownBackground</c>，全局覆盖不一定生效。
+    /// 这里在弹层打开时直接找到 PopupBorder 改背景，优先级最高。
+    /// </remarks>
+    private void AttachComboBoxAcrylic()
+    {
+        if (_acrylicCombos.Count > 0)
+        {
+            return;
+        }
+
+        CollectComboBoxes(this);
+
+        var itemStyle = Application.Current.Resources["BowenDropdownItemStyle"] as Style;
+
+        foreach (var combo in _acrylicCombos)
+        {
+            // 下拉项与字体选择器的列表项共用同一套行高与内边距。
+            if (itemStyle is not null)
+            {
+                combo.ItemContainerStyle = itemStyle;
+            }
+
+            combo.DropDownOpened += OnComboBoxDropDownOpened;
+        }
+    }
+
+    private void DetachComboBoxAcrylic()
+    {
+        foreach (var combo in _acrylicCombos)
+        {
+            combo.DropDownOpened -= OnComboBoxDropDownOpened;
+        }
+
+        _acrylicCombos.Clear();
+    }
+
+    private void CollectComboBoxes(DependencyObject root)
+    {
+        var count = VisualTreeHelper.GetChildrenCount(root);
+
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+
+            if (child is ComboBox combo)
+            {
+                _acrylicCombos.Add(combo);
+            }
+
+            CollectComboBoxes(child);
+        }
+    }
+
+    private void OnComboBoxDropDownOpened(object? sender, object args)
+    {
+        if (sender is not ComboBox { XamlRoot: { } root }) return;
+
+        var brush = AcrylicMaterial.GetPopupBrush(ActualTheme);
+        var popups = VisualTreeHelper.GetOpenPopupsForXamlRoot(root);
+        if (popups.Count == 0) return;
+
+        ApplyPopupBrush(popups[popups.Count - 1].Child, brush);
+    }
+
+    /// <summary>把弹层根容器的背景改成半透明表面色。</summary>
+    private static void ApplyPopupBrush(DependencyObject? root, Brush brush)
+    {
+        if (root is null) return;
+
+        if (root is FlyoutPresenter presenter)
+        {
+            presenter.Background = brush;
+            return;
+        }
+
+        if (root is Border border)
+        {
+            border.Background = brush;
+
+            // 与字体选择器 Flyout 共用同一套弹层外观：边框、圆角、上下留白。
+            if (Application.Current.Resources["SurfaceStrokeColorFlyoutBrush"] is Brush borderBrush)
+            {
+                border.BorderBrush = borderBrush;
+            }
+
+            border.BorderThickness = new Thickness(1);
+            border.CornerRadius = Application.Current.Resources["RadiusMd"] is CornerRadius radius
+                ? radius
+                : new CornerRadius(8);
+            border.Padding = new Thickness(0, 4, 0, 4);
+            return;
+        }
+
+        if (root is Control control)
+        {
+            control.Background = brush;
+            return;
+        }
+
+        var count = VisualTreeHelper.GetChildrenCount(root);
+
+        for (var i = 0; i < count; i++)
+        {
+            ApplyPopupBrush(VisualTreeHelper.GetChild(root, i), brush);
+        }
+    }
+
+    /// <summary>主题变化时更新已经挂上的弹层刷；下次打开也会重新取。</summary>
+    private void UpdateComboBoxAcrylic()
+    {
+        var brush = AcrylicMaterial.GetPopupBrush(ActualTheme);
+
+        foreach (var combo in _acrylicCombos)
+        {
+            combo.Resources["ComboBoxDropDownBackground"] = brush;
+        }
+    }
+
+    private void OnShellBackgroundModeChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_shellModeReady && ShellBackgroundCombo.SelectedIndex == 2 && !ViewModel.ShellBackground.HasImage)
+        {
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                if (!await PickShellImageAsync())
+                {
+                    ViewModel.ShellBackground.ModeIndex = 0;
+                }
+            });
+        }
+
+        SyncShellImageControls();
+    }
+
+    private async void OnShellSolidCustomColorClick(object sender, RoutedEventArgs args)
+        => await OpenShellCustomColorAsync();
+
+    private void OnShellSolidColorSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_syncingShellColor) return;
+
+        var count = ViewModel.ShellBackground.SolidColorOptions.Count;
+        if (count == 0 || ShellSolidColorCombo.SelectedIndex != count - 1) return;
+
+        // 最后一项是保存的自定义色：直接应用，不弹色盘。编辑走旁边的按钮。
+        _syncingShellColor = true;
+        ViewModel.ShellBackground.ApplyCustomSolidColor();
+        _syncingShellColor = false;
+    }
+
+    private async Task OpenShellCustomColorAsync()
+    {
+        if (_openingShellCustomColor) return;
+        _openingShellCustomColor = true;
+
+        try
+        {
+            var theme = ActualTheme;
+            var argb = ViewModel.ShellBackground.CustomSolidColorArgb;
+            var current = Color.FromArgb(
+                (byte)(argb >> 24),
+                (byte)(argb >> 16),
+                (byte)(argb >> 8),
+                (byte)argb);
+
+            var (preview, applyPreview) = ShellColorPreview.Create(theme);
+
+            var chosen = await ColorPickerDialog.ShowAsync(
+                current,
+                XamlRoot,
+                theme,
+                preview,
+                applyPreview,
+                color => theme == ElementTheme.Dark
+                    ? (ColorPickerDialog.RelativeLuminance(color) > 0.45
+                        ? "颜色偏亮，界面浅色文字可能不够清晰"
+                        : "对比度良好")
+                    : (ColorPickerDialog.RelativeLuminance(color) < 0.45
+                        ? "颜色偏暗，界面深色文字可能不够清晰"
+                        : "对比度良好"),
+                _logger);
+
+            _syncingShellColor = true;
+
+            if (chosen is { } value)
+            {
+                ViewModel.ShellBackground.SetSolidColorCustom(value);
+            }
+
+            // 取消时把下拉框拨回当前实际颜色；确定时也会落到自定义项。
+            ShellSolidColorCombo.SelectedIndex = ViewModel.ShellBackground.SolidColorIndex;
+        }
+        finally
+        {
+            _syncingShellColor = false;
+            _openingShellCustomColor = false;
+        }
+    }
+
+    private async void OnPickShellImageClick(object sender, RoutedEventArgs args)
+        => await PickShellImageAsync();
+
+    private async void OnReCropShellImageClick(object sender, RoutedEventArgs args)
+    {
+        var path = ViewModel.ShellBackground.ImageFilePath;
+        if (path.Length == 0 || !File.Exists(path)) return;
+
+        try
+        {
+            var crop = await BackgroundCropDialog.ShowAsync(
+                path,
+                BackgroundAspect,
+                ViewModel.ShellBackground.ImageFocusX,
+                ViewModel.ShellBackground.ImageFocusY,
+                ViewModel.ShellBackground.ImageZoom,
+                XamlRoot,
+                ActualTheme,
+                _logger);
+
+            if (crop is { } value)
+            {
+                ViewModel.ShellBackground.SetImageCrop(value.FocusX, value.FocusY, value.Zoom);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "重新裁剪外壳背景图片失败");
+        }
+    }
+
+    private void OnShellImageDimChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingShellImage) return;
+
+        ShellImageDimValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        ViewModel.ShellBackground.SetImageDim(args.NewValue / 100);
+    }
+
+    private void OnShellImageBlurChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingShellImage) return;
+
+        ShellImageBlurValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        ViewModel.ShellBackground.SetImageBlur(args.NewValue);
+    }
+
+    /// <summary>选图、导入、裁剪并写回设置。返回假表示用户取消或导入失败。</summary>
+    private async Task<bool> PickShellImageAsync()
+    {
+        try
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".jpg");
+            picker.FileTypeFilter.Add(".jpeg");
+            picker.FileTypeFilter.Add(".png");
+            picker.FileTypeFilter.Add(".bmp");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, _window.WindowHandle);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file is null) return false;
+
+            var fileName = await _backgroundImages.ImportAsync(file, "shell-bg");
+            if (fileName is null) return false;
+
+            var dim = await _backgroundImages.EstimateDimAsync(
+                file, ShellBackgroundSettings.MaximumImageDim, ShellBackgroundSettings.DefaultImageDim);
+
+            var crop = await BackgroundCropDialog.ShowAsync(
+                AppPaths.BackgroundFile(fileName),
+                BackgroundAspect,
+                0.5,
+                0.5,
+                1,
+                XamlRoot,
+                ActualTheme,
+                _logger);
+
+            if (crop is not { } value)
+            {
+                // 取消裁剪就不使用这张图，别在背景目录里留下孤儿文件。
+                _backgroundImages.Delete(fileName);
+                return false;
+            }
+
+            var previous = ViewModel.ShellBackground.ImageFile;
+            ViewModel.ShellBackground.SetImage(
+                fileName,
+                dim,
+                ViewModel.ShellBackground.ImageBlur,
+                value.FocusX,
+                value.FocusY,
+                value.Zoom);
+
+            if (previous.Length > 0 && !string.Equals(previous, fileName, StringComparison.Ordinal))
+            {
+                _backgroundImages.Delete(previous);
+            }
+
+            SyncShellImageControls();
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "选择外壳背景图片失败");
+            return false;
+        }
+    }
+
+    private void SyncShellImageControls()
+    {
+        if (ShellImageDimSlider is null) return;
+
+        _syncingShellImage = true;
+        var percent = Math.Round(ViewModel.ShellBackground.ImageDim * 100);
+        ShellImageDimSlider.Value = percent;
+        ShellImageDimValue.Text = $"{(int)percent}%";
+        ShellImageBlurSlider.Value = Math.Round(ViewModel.ShellBackground.ImageBlur);
+        ShellImageBlurValue.Text = ((int)Math.Round(ViewModel.ShellBackground.ImageBlur)).ToString();
+        _syncingShellImage = false;
+    }
+
+    /// <summary>外壳背景的宽高比。窗口尺寸拿不到时退回 16:9。</summary>
+    private double BackgroundAspect
+    {
+        get
+        {
+            var size = XamlRoot?.Size ?? default;
+            return size.Width > 1 && size.Height > 1 ? size.Width / size.Height : 16.0 / 9;
+        }
+    }
 
     private static double Token(string key) =>
         Application.Current.Resources.TryGetValue(key, out var value) && value is double number ? number : 0d;
@@ -81,6 +475,7 @@ public sealed partial class SettingsPage : Page, INavigationAware
         ViewModel.Theme.PropertyChanged += OnThemeChanged;
         ViewModel.Player.PropertyChanged += OnPlayerChanged;
         ViewModel.DesktopLyrics.PropertyChanged += OnDesktopLyricsChanged;
+        ActualThemeChanged += OnActualThemeChanged;
     }
 
     private void Unsubscribe()
@@ -94,6 +489,7 @@ public sealed partial class SettingsPage : Page, INavigationAware
         ViewModel.Theme.PropertyChanged -= OnThemeChanged;
         ViewModel.Player.PropertyChanged -= OnPlayerChanged;
         ViewModel.DesktopLyrics.PropertyChanged -= OnDesktopLyricsChanged;
+        ActualThemeChanged -= OnActualThemeChanged;
     }
 
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs args)

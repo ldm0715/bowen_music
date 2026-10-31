@@ -206,7 +206,7 @@
                 <StackPanel Padding="0,0,16,16" Spacing="20">
 
                     <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
-                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="外观" />
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="界面外观" />
                         <Border Style="{StaticResource BowenSettingsCard}">
                             <StackPanel>
                                 <controls:SettingsRow Description="跟随系统、浅色或深色" Header="主题">
@@ -217,22 +217,142 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
-                                <controls:SettingsRow Description="搜索结果、收藏这些页的默认排布；在页面上切只影响当前这一次" Header="列表显示">
+                                <controls:SettingsRow Description="封面取色 / Mica / 自定义图片 / 纯色；Mica 需要 Windows 11" Header="窗口背景">
                                     <controls:SettingsRow.RightContent>
                                         <ComboBox
-                                            ItemsSource="{x:Bind ViewModel.ListDisplayOptions}"
-                                            SelectedIndex="{x:Bind ViewModel.ListDisplayIndex, Mode=TwoWay}" />
+                                            x:Name="ShellBackgroundCombo"
+                                            SelectedIndex="{x:Bind ViewModel.ShellBackground.ModeIndex, Mode=TwoWay}"
+                                            SelectionChanged="OnShellBackgroundModeChanged"
+                                            AutomationProperties.Name="窗口背景">
+                                            <ComboBoxItem Content="封面取色" />
+                                            <ComboBoxItem x:Name="ShellMicaItem" Content="Mica" />
+                                            <ComboBoxItem Content="自定义图片" />
+                                            <ComboBoxItem Content="纯色" />
+                                        </ComboBox>
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
-                                <controls:SettingsRow Description="启动后直接进入的页面；未登录时账号页回退到发现" Header="默认打开的页面">
-                                    <controls:SettingsRow.RightContent>
-                                        <ComboBox
-                                            ItemsSource="{x:Bind ViewModel.StartupPageOptions}"
-                                            SelectedIndex="{x:Bind ViewModel.StartupPageIndex, Mode=TwoWay}" />
-                                    </controls:SettingsRow.RightContent>
-                                </controls:SettingsRow>
-                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.ShellBackground.IsMicaSelected), Mode=OneWay}">
+                                    <controls:SettingsRow Description="在系统 Mica 上叠一层当前封面主色；灰阶或无封面时为默认蓝灰。关闭后回到系统 Mica 原色" Header="Mica 着色">
+                                        <controls:SettingsRow.RightContent>
+                                            <ToggleSwitch
+                                                IsOn="{x:Bind ViewModel.ShellBackground.MicaTintEnabled, Mode=TwoWay}"
+                                                MinWidth="0" OffContent="" OnContent=""
+                                                AutomationProperties.Name="Mica 着色" />
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                </StackPanel>
+                                <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.ShellBackground.IsCustomImage), Mode=OneWay}">
+                                    <controls:SettingsRow Description="按窗口比例铺满；可拖动与缩放取景" Header="自定义图片">
+                                        <controls:SettingsRow.RightContent>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button
+                                                    x:Name="PickShellImageButton"
+                                                    Content="选择图片…"
+                                                    Click="OnPickShellImageClick"
+                                                    AutomationProperties.Name="选择外壳背景图片" />
+                                                <Button
+                                                    x:Name="ReCropShellImageButton"
+                                                    Content="重新裁剪…"
+                                                    Click="OnReCropShellImageClick"
+                                                    IsEnabled="{x:Bind ViewModel.ShellBackground.HasImage, Mode=OneWay}"
+                                                    AutomationProperties.Name="重新裁剪外壳背景图片" />
+                                                <TextBlock
+                                                    Text="{x:Bind ViewModel.ShellBackground.ImageStatus, Mode=OneWay}"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="{StaticResource FontSizeCaption}"
+                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                            </StackPanel>
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                    <controls:SettingsRow Description="遮罩颜色跟随主题：深色用黑、浅色用白；默认 50%" Header="遮罩">
+                                        <controls:SettingsRow.RightContent>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Slider
+                                                    x:Name="ShellImageDimSlider"
+                                                    Width="160"
+                                                    Minimum="0"
+                                                    Maximum="80"
+                                                    StepFrequency="1"
+                                                    ValueChanged="OnShellImageDimChanged"
+                                                    AutomationProperties.Name="外壳背景遮罩强度" />
+                                                <TextBlock
+                                                    x:Name="ShellImageDimValue"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="{StaticResource FontSizeCaption}"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                    <controls:SettingsRow Description="0 最清晰，40 最柔和；默认 16" Header="模糊">
+                                        <controls:SettingsRow.RightContent>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Slider
+                                                    x:Name="ShellImageBlurSlider"
+                                                    Width="160"
+                                                    Minimum="0"
+                                                    Maximum="40"
+                                                    StepFrequency="1"
+                                                    ValueChanged="OnShellImageBlurChanged"
+                                                    AutomationProperties.Name="外壳背景模糊" />
+                                                <TextBlock
+                                                    x:Name="ShellImageBlurValue"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="{StaticResource FontSizeCaption}"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                </StackPanel>
+                                <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.ShellBackground.IsSolid), Mode=OneWay}">
+                                    <controls:SettingsRow Description="深色与浅色主题各有独立预设；切换主题会恢复各自的选择" Header="纯色背景">
+                                        <controls:SettingsRow.RightContent>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <ComboBox
+                                                    x:Name="ShellSolidColorCombo"
+                                                    ItemsSource="{x:Bind ViewModel.ShellBackground.SolidColorOptions, Mode=OneWay}"
+                                                    SelectedIndex="{x:Bind ViewModel.ShellBackground.SolidColorIndex, Mode=TwoWay}"
+                                                    SelectionChanged="OnShellSolidColorSelectionChanged"
+                                                    IsEnabled="{x:Bind ViewModel.ShellBackground.IsManualSolidColor, Mode=OneWay}"
+                                                    AutomationProperties.Name="纯色背景颜色">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:ShellColorOption">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <Border
+                                                                    Width="14"
+                                                                    Height="14"
+                                                                    CornerRadius="3"
+                                                                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                                                    BorderThickness="1"
+                                                                    Background="{x:Bind Brush}" />
+                                                                <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <Button
+                                                    Content="编辑自定义色…"
+                                                    Click="OnShellSolidCustomColorClick"
+                                                    IsEnabled="{x:Bind ViewModel.ShellBackground.IsManualSolidColor, Mode=OneWay}"
+                                                    AutomationProperties.Name="编辑自定义纯色背景" />
+                                            </StackPanel>
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                    <controls:SettingsRow Description="按当前封面取色，并按当前主题调整明暗；关掉后回到上面选的颜色" Header="跟随封面">
+                                        <controls:SettingsRow.RightContent>
+                                            <ToggleSwitch
+                                                IsOn="{x:Bind ViewModel.ShellBackground.SolidColorAuto, Mode=TwoWay}"
+                                                MinWidth="0" OffContent="" OnContent=""
+                                                AutomationProperties.Name="纯色背景跟随封面" />
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                </StackPanel>
                                 <controls:SettingsRow Description="关闭后应用内的磨砂表面改用实色底，减少显卡占用；系统下拉与托盘菜单仍跟随 Windows 的透明效果设置" Header="亚克力效果">
                                     <controls:SettingsRow.RightContent>
                                         <ToggleSwitch
@@ -247,6 +367,29 @@
                                         <controls:FontPicker
                                             ItemsSource="{x:Bind ViewModel.FontOptions}"
                                             SelectedIndex="{x:Bind ViewModel.AppFontIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="页面与输入" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="搜索结果、收藏这些页的默认排布；在页面上切只影响当前这一次" Header="列表显示">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ListDisplayOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.ListDisplayIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="启动后直接进入的页面；未登录时账号页回退到发现" Header="默认打开的页面">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.StartupPageOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.StartupPageIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />

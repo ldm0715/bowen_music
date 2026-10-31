@@ -13,6 +13,22 @@ public enum LyricsAlignment
     Right = 2,
 }
 
+/// <summary>全屏歌词页的背景来源。</summary>
+public enum LyricsBackgroundMode
+{
+    /// <summary>当前封面的模糊背景。</summary>
+    CoverBlur = 0,
+
+    /// <summary>系统 Mica 材质，仅 Windows 11 支持。</summary>
+    Mica = 1,
+
+    /// <summary>自定义图片。尚未实现，仅占位。</summary>
+    CustomImage = 2,
+
+    /// <summary>纯色。尚未实现，仅占位。</summary>
+    SolidColor = 3,
+}
+
 /// <summary>
 /// 歌词相关界面的偏好：全屏歌词页与小窗歌词。
 /// </summary>
@@ -74,6 +90,51 @@ public sealed record LyricsSettings
     /// <summary>默认行距（DIP）。</summary>
     public const double DefaultLineGap = 24;
 
+    /// <summary>译文相对歌词字号的缩放下限。</summary>
+    public const double MinimumTranslationFontScale = 0.5;
+
+    /// <summary>译文相对歌词字号的缩放上限。</summary>
+    public const double MaximumTranslationFontScale = 1;
+
+    /// <summary>译文默认按歌词字号的 72% 排版。</summary>
+    public const double DefaultTranslationFontScale = 0.72;
+
+    /// <summary>译文与原文之间的间距下限（DIP）。</summary>
+    public const double MinimumTranslationLineGap = 0;
+
+    /// <summary>译文与原文之间的间距上限（DIP）。</summary>
+    public const double MaximumTranslationLineGap = 32;
+
+    /// <summary>译文与原文之间的默认间距（DIP）。</summary>
+    public const double DefaultTranslationLineGap = 6;
+
+    /// <summary>视口边缘模糊范围下限，占视口高度的比例；0 表示关闭边缘模糊。</summary>
+    public const double MinimumEdgeBlurRatio = 0;
+
+    /// <summary>视口边缘模糊范围上限，占视口高度的比例。</summary>
+    public const double MaximumEdgeBlurRatio = 0.5;
+
+    /// <summary>默认让视口上下各 20% 的范围逐渐模糊。</summary>
+    public const double DefaultEdgeBlurRatio = 0.2;
+
+    /// <summary>自定义背景图片的暗度下限。</summary>
+    public const double MinimumBackgroundDim = 0;
+
+    /// <summary>自定义背景图片的暗度上限。</summary>
+    public const double MaximumBackgroundDim = 0.8;
+
+    /// <summary>自定义背景图片的默认暗度。</summary>
+    public const double DefaultBackgroundDim = 0.6;
+
+    /// <summary>自定义背景图片的模糊下限（DIP）。</summary>
+    public const double MinimumBackgroundBlur = 0;
+
+    /// <summary>自定义背景图片的模糊上限（DIP）。</summary>
+    public const double MaximumBackgroundBlur = 40;
+
+    /// <summary>自定义背景图片的默认模糊（DIP）。</summary>
+    public const double DefaultBackgroundBlur = 8;
+
     /// <summary>水平偏移下限，占歌词区域宽度的百分比。</summary>
     public const double MinimumHorizontalOffsetPercent = -30;
 
@@ -91,6 +152,18 @@ public sealed record LyricsSettings
 
     /// <summary>默认高亮色：不透明白色。</summary>
     public const uint DefaultHighlightColor = 0xFFFFFFFF;
+
+    /// <summary>默认纯色背景：深蓝，够暗且能看出颜色。</summary>
+    public const uint DefaultBackgroundColor = 0xFF24324A;
+
+    /// <summary>
+    /// 纯色背景的预设。压到低亮度保证白色歌词可读，但保留明显的色相差异。
+    /// </summary>
+    public static readonly (uint Argb, string Name)[] BackgroundPalette =
+    [
+        (0xFF24324A, "深蓝"), (0xFF2B2B31, "石墨"), (0xFF1F3B33, "墨绿"), (0xFF3A2E1C, "琥珀棕"),
+        (0xFF3A2230, "梅红"), (0xFF2C2542, "深紫"), (0xFF1E3A44, "青灰"), (0xFF33302A, "暖灰"),
+    ];
 
     /// <summary>
     /// 可选的高亮色。与桌面歌词一样只给基础色，不做色轮。
@@ -116,6 +189,64 @@ public sealed record LyricsSettings
 
     /// <summary>行与行之间的额外间距，DIP；0 表示只保留文本自身行高。</summary>
     public double LineGap { get; init; } = DefaultLineGap;
+
+    /// <summary>
+    /// 译文是否跟随原文同步扫色。默认开。
+    /// </summary>
+    /// <remarks>
+    /// 关掉后译文仍按原文下方显示，但不再跟随演唱进度染色，保持未播放行的暗色。
+    /// </remarks>
+    public bool SyncTranslationHighlight { get; init; } = true;
+
+    /// <summary>译文相对歌词字号的缩放，0.5–1；默认 0.72。</summary>
+    public double TranslationFontScale { get; init; } = DefaultTranslationFontScale;
+
+    /// <summary>译文与原文之间的间距，DIP；默认 6。</summary>
+    public double TranslationLineGap { get; init; } = DefaultTranslationLineGap;
+
+    /// <summary>
+    /// 视口边缘模糊范围，占视口高度的比例，0–0.5；默认 0.2。
+    /// </summary>
+    /// <remarks>
+    /// 歌词在视口中部保持清晰，越靠近上下边缘越模糊；0 表示不按边缘模糊。
+    /// </remarks>
+    public double EdgeBlurRatio { get; init; } = DefaultEdgeBlurRatio;
+
+    /// <summary>全屏歌词页的背景来源；默认封面模糊。</summary>
+    public LyricsBackgroundMode BackgroundMode { get; init; } = LyricsBackgroundMode.CoverBlur;
+
+    /// <summary>Mica 之上是否叠一层封面主色，避免暗色下纯黑。</summary>
+    public bool MicaTintEnabled { get; init; } = true;
+
+    /// <summary>
+    /// 自定义背景图片的文件名，位于应用数据目录的 <c>backgrounds</c> 下。
+    /// </summary>
+    /// <remarks>只存文件名，不存绝对路径；换机器或改目录时不会失效。</remarks>
+    public string BackgroundImageFile { get; init; } = string.Empty;
+
+    /// <summary>自定义背景图片上叠加的黑色暗度，0–0.8；默认 0.6。</summary>
+    public double BackgroundImageDim { get; init; } = DefaultBackgroundDim;
+
+    /// <summary>自定义背景图片的模糊量，DIP；默认 8。</summary>
+    public double BackgroundImageBlur { get; init; } = DefaultBackgroundBlur;
+
+    /// <summary>自定义背景图片的水平裁剪中心，0–1；0.5 为居中。</summary>
+    public double BackgroundImageFocusX { get; init; } = 0.5;
+
+    /// <summary>自定义背景图片的垂直裁剪中心，0–1；0.5 为居中。</summary>
+    public double BackgroundImageFocusY { get; init; } = 0.5;
+
+    /// <summary>自定义背景图片在 cover 基础上的缩放，1–3；1 表示刚好铺满。</summary>
+    public double BackgroundImageZoom { get; init; } = 1;
+
+    /// <summary>纯色背景的颜色，<c>0xAARRGGBB</c>。</summary>
+    public uint BackgroundColorArgb { get; init; } = DefaultBackgroundColor;
+
+    /// <summary>自定义取色最近一次选的颜色，供预设行末尾的「自定义」圆点使用。</summary>
+    public uint BackgroundCustomColorArgb { get; init; } = DefaultBackgroundColor;
+
+    /// <summary>纯色背景是否跟随当前封面自动取色。</summary>
+    public bool BackgroundColorAuto { get; init; }
 
     /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
@@ -149,6 +280,18 @@ public sealed record LyricsSettings
             ? Math.Clamp(LineGap, MinimumLineGap, MaximumLineGap)
             : DefaultLineGap,
 
+        TranslationFontScale = double.IsFinite(TranslationFontScale) && TranslationFontScale > 0
+            ? Math.Clamp(TranslationFontScale, MinimumTranslationFontScale, MaximumTranslationFontScale)
+            : DefaultTranslationFontScale,
+
+        TranslationLineGap = double.IsFinite(TranslationLineGap)
+            ? Math.Clamp(TranslationLineGap, MinimumTranslationLineGap, MaximumTranslationLineGap)
+            : DefaultTranslationLineGap,
+
+        EdgeBlurRatio = double.IsFinite(EdgeBlurRatio)
+            ? Math.Clamp(EdgeBlurRatio, MinimumEdgeBlurRatio, MaximumEdgeBlurRatio)
+            : DefaultEdgeBlurRatio,
+
         // 0 不是合法的高亮色；其余颜色把 alpha 顶回不透明（色板不提供透明度）。
         HighlightColorArgb = HighlightColorArgb == 0
             ? DefaultHighlightColor
@@ -163,5 +306,40 @@ public sealed record LyricsSettings
             : DefaultOffsetPercent,
 
         Alignment = Enum.IsDefined(Alignment) ? Alignment : LyricsAlignment.Left,
+        BackgroundMode = Enum.IsDefined(BackgroundMode) ? BackgroundMode : LyricsBackgroundMode.CoverBlur,
+
+        // 只保留文件名，拒绝目录穿越；空串表示还没选图片。
+        BackgroundImageFile = string.IsNullOrWhiteSpace(BackgroundImageFile)
+            ? string.Empty
+            : Path.GetFileName(BackgroundImageFile.Trim()),
+
+        BackgroundImageDim = double.IsFinite(BackgroundImageDim)
+            ? Math.Clamp(BackgroundImageDim, MinimumBackgroundDim, MaximumBackgroundDim)
+            : DefaultBackgroundDim,
+
+        BackgroundImageBlur = double.IsFinite(BackgroundImageBlur)
+            ? Math.Clamp(BackgroundImageBlur, MinimumBackgroundBlur, MaximumBackgroundBlur)
+            : DefaultBackgroundBlur,
+
+        BackgroundImageFocusX = double.IsFinite(BackgroundImageFocusX)
+            ? Math.Clamp(BackgroundImageFocusX, 0, 1)
+            : 0.5,
+
+        BackgroundImageFocusY = double.IsFinite(BackgroundImageFocusY)
+            ? Math.Clamp(BackgroundImageFocusY, 0, 1)
+            : 0.5,
+
+        BackgroundImageZoom = double.IsFinite(BackgroundImageZoom)
+            ? Math.Clamp(BackgroundImageZoom, 1, 3)
+            : 1,
+
+        // 0 不是合法颜色；纯色背景不提供透明度，统一顶回不透明。
+        BackgroundColorArgb = BackgroundColorArgb == 0
+            ? DefaultBackgroundColor
+            : BackgroundColorArgb | 0xFF000000,
+
+        BackgroundCustomColorArgb = BackgroundCustomColorArgb == 0
+            ? DefaultBackgroundColor
+            : BackgroundCustomColorArgb | 0xFF000000,
     };
 }

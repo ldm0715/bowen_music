@@ -88,6 +88,21 @@ public sealed partial class LyricsViewModel : ObservableObject
         Alignment = loaded.Alignment;
         HighlightColorArgb = loaded.HighlightColorArgb;
         LineGap = loaded.LineGap;
+        SyncTranslationHighlight = loaded.SyncTranslationHighlight;
+        TranslationFontScale = loaded.TranslationFontScale;
+        TranslationLineGap = loaded.TranslationLineGap;
+        EdgeBlurRatio = loaded.EdgeBlurRatio;
+        BackgroundMode = loaded.BackgroundMode;
+        MicaTintEnabled = loaded.MicaTintEnabled;
+        BackgroundImageFile = loaded.BackgroundImageFile;
+        BackgroundImageDim = loaded.BackgroundImageDim;
+        BackgroundImageBlur = loaded.BackgroundImageBlur;
+        BackgroundImageFocusX = loaded.BackgroundImageFocusX;
+        BackgroundImageFocusY = loaded.BackgroundImageFocusY;
+        BackgroundImageZoom = loaded.BackgroundImageZoom;
+        BackgroundColorArgb = loaded.BackgroundColorArgb;
+        BackgroundCustomColorArgb = loaded.BackgroundCustomColorArgb;
+        BackgroundColorAuto = loaded.BackgroundColorAuto;
         HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
         VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
@@ -161,6 +176,51 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>行与行之间的额外间距，DIP。</summary>
     public double LineGap { get; private set; } = LyricsSettings.DefaultLineGap;
+
+    /// <summary>译文是否跟随原文同步扫色。</summary>
+    public bool SyncTranslationHighlight { get; private set; } = true;
+
+    /// <summary>译文相对歌词字号的缩放，0.5–1。</summary>
+    public double TranslationFontScale { get; private set; } = LyricsSettings.DefaultTranslationFontScale;
+
+    /// <summary>译文与原文之间的间距，DIP。</summary>
+    public double TranslationLineGap { get; private set; } = LyricsSettings.DefaultTranslationLineGap;
+
+    /// <summary>视口上下边缘的模糊范围，占视口高度的比例。</summary>
+    public double EdgeBlurRatio { get; private set; } = LyricsSettings.DefaultEdgeBlurRatio;
+
+    /// <summary>全屏歌词页的背景来源。</summary>
+    public LyricsBackgroundMode BackgroundMode { get; private set; } = LyricsBackgroundMode.CoverBlur;
+
+    /// <summary>Mica 之上是否叠一层封面主色。</summary>
+    public bool MicaTintEnabled { get; private set; } = true;
+
+    /// <summary>自定义背景图片的文件名，位于应用数据目录的 backgrounds 下。</summary>
+    public string BackgroundImageFile { get; private set; } = string.Empty;
+
+    /// <summary>自定义背景图片的暗度，0–0.8。</summary>
+    public double BackgroundImageDim { get; private set; } = LyricsSettings.DefaultBackgroundDim;
+
+    /// <summary>自定义背景图片的模糊量，DIP。</summary>
+    public double BackgroundImageBlur { get; private set; } = LyricsSettings.DefaultBackgroundBlur;
+
+    /// <summary>自定义背景图片的水平裁剪中心，0–1。</summary>
+    public double BackgroundImageFocusX { get; private set; } = 0.5;
+
+    /// <summary>自定义背景图片的垂直裁剪中心，0–1。</summary>
+    public double BackgroundImageFocusY { get; private set; } = 0.5;
+
+    /// <summary>自定义背景图片在 cover 基础上的缩放，1–3。</summary>
+    public double BackgroundImageZoom { get; private set; } = 1;
+
+    /// <summary>纯色背景的颜色，<c>0xAARRGGBB</c>。</summary>
+    public uint BackgroundColorArgb { get; private set; } = LyricsSettings.DefaultBackgroundColor;
+
+    /// <summary>自定义取色最近一次选的颜色。</summary>
+    public uint BackgroundCustomColorArgb { get; private set; } = LyricsSettings.DefaultBackgroundColor;
+
+    /// <summary>纯色背景是否跟随封面自动取色。</summary>
+    public bool BackgroundColorAuto { get; private set; }
 
     /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
     public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
@@ -282,6 +342,201 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>歌词页改译文同步高亮：立即落盘，只影响绘制，不重排。</summary>
+    public void SetSyncTranslationHighlight(bool enabled)
+    {
+        if (SyncTranslationHighlight == enabled)
+        {
+            return;
+        }
+
+        SyncTranslationHighlight = enabled;
+        OnPropertyChanged(nameof(SyncTranslationHighlight));
+        Persist();
+    }
+
+    /// <summary>歌词页改译文大小：夹到 50%–100% 后落盘。</summary>
+    public void SetTranslationFontScale(double scale)
+    {
+        scale = double.IsFinite(scale) && scale > 0
+            ? Math.Clamp(scale, LyricsSettings.MinimumTranslationFontScale, LyricsSettings.MaximumTranslationFontScale)
+            : LyricsSettings.DefaultTranslationFontScale;
+        if (Math.Abs(TranslationFontScale - scale) < 0.001)
+        {
+            return;
+        }
+
+        TranslationFontScale = scale;
+        OnPropertyChanged(nameof(TranslationFontScale));
+        Persist();
+    }
+
+    /// <summary>歌词页改译文间距：夹到 0–32 DIP 后落盘。</summary>
+    public void SetTranslationLineGap(double gap)
+    {
+        gap = double.IsFinite(gap)
+            ? Math.Clamp(gap, LyricsSettings.MinimumTranslationLineGap, LyricsSettings.MaximumTranslationLineGap)
+            : LyricsSettings.DefaultTranslationLineGap;
+        if (Math.Abs(TranslationLineGap - gap) < 0.01)
+        {
+            return;
+        }
+
+        TranslationLineGap = gap;
+        OnPropertyChanged(nameof(TranslationLineGap));
+        Persist();
+    }
+
+    /// <summary>歌词页改边缘模糊范围：夹到 0%–50% 后落盘。</summary>
+    public void SetEdgeBlurRatio(double ratio)
+    {
+        ratio = double.IsFinite(ratio)
+            ? Math.Clamp(ratio, LyricsSettings.MinimumEdgeBlurRatio, LyricsSettings.MaximumEdgeBlurRatio)
+            : LyricsSettings.DefaultEdgeBlurRatio;
+        if (Math.Abs(EdgeBlurRatio - ratio) < 0.001)
+        {
+            return;
+        }
+
+        EdgeBlurRatio = ratio;
+        OnPropertyChanged(nameof(EdgeBlurRatio));
+        Persist();
+    }
+
+    /// <summary>歌词页改背景来源：无效值退回封面模糊后落盘。</summary>
+    public void SetBackgroundMode(LyricsBackgroundMode mode)
+    {
+        if (!Enum.IsDefined(mode)) mode = LyricsBackgroundMode.CoverBlur;
+        if (BackgroundMode == mode)
+        {
+            return;
+        }
+
+        BackgroundMode = mode;
+        OnPropertyChanged(nameof(BackgroundMode));
+        Persist();
+    }
+
+    /// <summary>Mica 着色开关。</summary>
+    public void SetMicaTintEnabled(bool enabled)
+    {
+        if (MicaTintEnabled == enabled)
+        {
+            return;
+        }
+
+        MicaTintEnabled = enabled;
+        OnPropertyChanged(nameof(MicaTintEnabled));
+        Persist();
+    }
+
+    /// <summary>歌词页选定背景图片：记录文件名、初始暗度与裁剪，一并落盘。</summary>
+    public void SetBackgroundImage(string fileName, double dim, double focusX, double focusY, double zoom)
+    {
+        fileName = string.IsNullOrWhiteSpace(fileName) ? string.Empty : Path.GetFileName(fileName.Trim());
+        dim = double.IsFinite(dim)
+            ? Math.Clamp(dim, LyricsSettings.MinimumBackgroundDim, LyricsSettings.MaximumBackgroundDim)
+            : LyricsSettings.DefaultBackgroundDim;
+
+        BackgroundImageFile = fileName;
+        BackgroundImageDim = dim;
+        SetCrop(focusX, focusY, zoom);
+        OnPropertyChanged(nameof(BackgroundImageFile));
+        OnPropertyChanged(nameof(BackgroundImageDim));
+        Persist();
+    }
+
+    /// <summary>选一个纯色背景：同时关闭「跟随封面」，一并落盘。</summary>
+    public void SetBackgroundColor(uint argb, bool auto)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultBackgroundColor : argb | 0xFF000000;
+        if (BackgroundColorArgb == argb && BackgroundColorAuto == auto)
+        {
+            return;
+        }
+
+        BackgroundColorArgb = argb;
+        BackgroundColorAuto = auto;
+        OnPropertyChanged(nameof(BackgroundColorArgb));
+        OnPropertyChanged(nameof(BackgroundColorAuto));
+        Persist();
+    }
+
+    /// <summary>纯色背景是否跟随封面自动取色。</summary>
+    public void SetBackgroundColorAuto(bool enabled)
+    {
+        if (BackgroundColorAuto == enabled)
+        {
+            return;
+        }
+
+        BackgroundColorAuto = enabled;
+        OnPropertyChanged(nameof(BackgroundColorAuto));
+        Persist();
+    }
+
+    /// <summary>应用自定义颜色：同时记为最近一次自定义色，并关闭「跟随封面」。</summary>
+    public void SetBackgroundCustomColor(uint argb)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultBackgroundColor : argb | 0xFF000000;
+        BackgroundColorArgb = argb;
+        BackgroundCustomColorArgb = argb;
+        BackgroundColorAuto = false;
+        OnPropertyChanged(nameof(BackgroundColorArgb));
+        OnPropertyChanged(nameof(BackgroundCustomColorArgb));
+        OnPropertyChanged(nameof(BackgroundColorAuto));
+        Persist();
+    }
+
+    /// <summary>重新裁剪已有背景图片：更新裁剪中心与缩放并落盘。</summary>
+    public void SetBackgroundImageCrop(double focusX, double focusY, double zoom)
+    {
+        SetCrop(focusX, focusY, zoom);
+        OnPropertyChanged(nameof(BackgroundImageFocusX));
+        OnPropertyChanged(nameof(BackgroundImageFocusY));
+        OnPropertyChanged(nameof(BackgroundImageZoom));
+        Persist();
+    }
+
+    private void SetCrop(double focusX, double focusY, double zoom)
+    {
+        BackgroundImageFocusX = double.IsFinite(focusX) ? Math.Clamp(focusX, 0, 1) : 0.5;
+        BackgroundImageFocusY = double.IsFinite(focusY) ? Math.Clamp(focusY, 0, 1) : 0.5;
+        BackgroundImageZoom = double.IsFinite(zoom) ? Math.Clamp(zoom, 1, 3) : 1;
+    }
+
+    /// <summary>歌词页改背景图片暗度：夹到 0–80% 后落盘。</summary>
+    public void SetBackgroundImageDim(double dim)
+    {
+        dim = double.IsFinite(dim)
+            ? Math.Clamp(dim, LyricsSettings.MinimumBackgroundDim, LyricsSettings.MaximumBackgroundDim)
+            : LyricsSettings.DefaultBackgroundDim;
+        if (Math.Abs(BackgroundImageDim - dim) < 0.001)
+        {
+            return;
+        }
+
+        BackgroundImageDim = dim;
+        OnPropertyChanged(nameof(BackgroundImageDim));
+        Persist();
+    }
+
+    /// <summary>歌词页改背景图片模糊：夹到 0–40 DIP 后落盘。</summary>
+    public void SetBackgroundImageBlur(double blur)
+    {
+        blur = double.IsFinite(blur)
+            ? Math.Clamp(blur, LyricsSettings.MinimumBackgroundBlur, LyricsSettings.MaximumBackgroundBlur)
+            : LyricsSettings.DefaultBackgroundBlur;
+        if (Math.Abs(BackgroundImageBlur - blur) < 0.01)
+        {
+            return;
+        }
+
+        BackgroundImageBlur = blur;
+        OnPropertyChanged(nameof(BackgroundImageBlur));
+        Persist();
+    }
+
     /// <summary>歌词页改水平偏移：夹到 -30%–30% 后落盘。</summary>
     public void SetHorizontalOffsetPercent(double percent)
     {
@@ -326,6 +581,21 @@ public sealed partial class LyricsViewModel : ObservableObject
         Alignment = Alignment,
         HighlightColorArgb = HighlightColorArgb,
         LineGap = LineGap,
+        SyncTranslationHighlight = SyncTranslationHighlight,
+        TranslationFontScale = TranslationFontScale,
+        TranslationLineGap = TranslationLineGap,
+        EdgeBlurRatio = EdgeBlurRatio,
+        BackgroundMode = BackgroundMode,
+        MicaTintEnabled = MicaTintEnabled,
+        BackgroundImageFile = BackgroundImageFile,
+        BackgroundImageDim = BackgroundImageDim,
+        BackgroundImageBlur = BackgroundImageBlur,
+        BackgroundImageFocusX = BackgroundImageFocusX,
+        BackgroundImageFocusY = BackgroundImageFocusY,
+        BackgroundImageZoom = BackgroundImageZoom,
+        BackgroundColorArgb = BackgroundColorArgb,
+        BackgroundCustomColorArgb = BackgroundCustomColorArgb,
+        BackgroundColorAuto = BackgroundColorAuto,
         HorizontalOffsetPercent = HorizontalOffsetPercent,
         VerticalOffsetPercent = VerticalOffsetPercent,
     });
@@ -490,19 +760,10 @@ public sealed partial class LyricsViewModel : ObservableObject
     }
 
     /// <remarks>
-    /// <b>每次打开歌词页都从默认值起步。</b> 「默认」的语义就是「打开时用哪个」——
-    /// 只在构造函数里读一次的话，应用启动那一刻的值会一直粘到进程结束，
-    /// 中途在设置页改了默认值，已经打开过的这次也不会重新按默认值来。
+    /// <b>会话内保持译文开关。</b> 从歌词页退出再进来不应把用户刚关掉的译文重新打开；
+    /// 只有应用重启（构造函数重新读设置）时，才从设置页的默认值起步。
     /// </remarks>
-    partial void OnIsOpenChanged(bool value)
-    {
-        if (value)
-        {
-            ShowTranslation = DefaultShowTranslation;
-        }
-
-        OnActivationChanged();
-    }
+    partial void OnIsOpenChanged(bool value) => OnActivationChanged();
 
     partial void OnIsDesktopLyricsOpenChanged(bool value) => OnActivationChanged();
 

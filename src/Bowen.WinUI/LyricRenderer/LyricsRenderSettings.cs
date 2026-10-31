@@ -34,6 +34,28 @@ public sealed record LyricsRenderSettings
     /// <see cref="LyricsRenderer.SetFontFamily"/> 更新并标记重排。
     /// </summary>
     public string FontFamily { get; set; } = "Segoe UI Variable Display";
+
+    /// <summary>
+    /// 译文行相对歌词字号的缩放。译文比原文小一档，避免喧宾夺主。
+    /// 可变：外观面板改译文大小后由渲染线程更新并标记重排。
+    /// </summary>
+    public double TranslationFontScale { get; set; } = LyricsSettings.DefaultTranslationFontScale;
+
+    /// <summary>
+    /// 原文与译文之间的间距，DIP。收紧成一组，避免译文被当成下一句。
+    /// 可变：外观面板改译文间距后由渲染线程更新并标记重排。
+    /// </summary>
+    public double TranslationLineGap { get; set; } = LyricsSettings.DefaultTranslationLineGap;
+
+    /// <summary>
+    /// 译文是否跟随原文同步扫色。关掉后译文保持未播放行的暗色。
+    /// </summary>
+    public bool SyncTranslationHighlight { get; set; } = true;
+
+    /// <summary>
+    /// 视口上下边缘的模糊范围，占视口高度的比例；0 表示不按边缘模糊。
+    /// </summary>
+    public double EdgeBlurRatio { get; set; } = LyricsSettings.DefaultEdgeBlurRatio;
     public double PlayingLineTopOffsetFactor { get; init; } = 0.42;
     public double FarBlurAmount { get; init; } = 5;
     public double CurrentLineScale { get; init; } = 1;
@@ -43,8 +65,8 @@ public sealed record LyricsRenderSettings
     public double ViewportMarginLines { get; init; } = 3;
     public double SweepFeatherRatio { get; init; } = 0.5;
     public TimeSpan LongSyllableThreshold { get; init; } = TimeSpan.FromMilliseconds(1000);
-    // 长音保持位置和字号，只保留扫色与发光，避免当前句逐字起伏。
-    public double LongSyllableScale { get; init; } = 1;
+    // 长音字随进度放大并上浮，唱完落回原位；只作用于长音，普通字不动。
+    public double LongSyllableScale { get; init; } = 1.08;
     public double LongSyllableGlowRatio { get; init; } = 0.14;
-    public double FloatRatio { get; init; } = 0;
+    public double FloatRatio { get; init; } = 0.055;
 }
