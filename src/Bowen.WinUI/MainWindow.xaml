@@ -238,6 +238,16 @@
             放在氛围层之上、内容之下，切换模式时不需要动底色层的 ThemeResource。
         -->
         <Border x:Name="ShellSolidLayer" Grid.RowSpan="3" IsHitTestVisible="False" Visibility="Collapsed" />
+        <!--
+            自定义图片层。一次性渲染成位图后由普通 Image 铺满：
+            不常驻 Win2D 合成表面，也不会出现手写布局的缝隙。
+        -->
+        <controls:ShellImageBackdrop x:Name="ShellImageLayer" Grid.RowSpan="3" Visibility="Collapsed" />
+        <!--
+            图片遮罩独立成整窗一层：颜色随主题（深色黑、浅色白），透明度由设置控制。
+            不放在图片控件内部，避免控件布局尺寸与窗口最终合成尺寸不一致时露出未遮罩的边。
+        -->
+        <Border x:Name="ShellImageDimLayer" Grid.RowSpan="3" IsHitTestVisible="False" Visibility="Collapsed" />
 
         <!--
             原生 TitleBar 负责拖动区与交互控件避让，系统 caption 按钮仍由 Windows 管理。

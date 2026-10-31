@@ -2688,12 +2688,13 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             : AmbientTheme.Light,
     };
 
-    /// <summary>按外壳背景模式摆放底色层、纯色层与氛围层；三者互斥。</summary>
+    /// <summary>按外壳背景模式摆放底色层、纯色层、图片层与氛围层；四者互斥。</summary>
     private void ApplyShellBackgroundLayers()
     {
         var mode = _shellBackground.EffectiveMode;
+        var custom = mode == ShellBackgroundMode.CustomImage && _shellBackground.HasImage;
 
-        ShellSurfaceBorder.Visibility = mode == ShellBackgroundMode.CoverAmbient
+        ShellSurfaceBorder.Visibility = mode is ShellBackgroundMode.CoverAmbient or ShellBackgroundMode.CustomImage
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -2705,11 +2706,39 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             ? Visibility.Visible
             : Visibility.Collapsed;
 
+        ShellImageLayer.Visibility = custom
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        ShellImageDimLayer.Visibility = custom
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
         if (mode == ShellBackgroundMode.SolidColor)
         {
             _shellSolidBrush ??= new SolidColorBrush();
             _shellSolidBrush.Color = ToColor(_shellBackground.SolidColorFor(CurrentAmbientTheme));
             ShellSolidLayer.Background = _shellSolidBrush;
+        }
+
+        if (custom)
+        {
+            ShellImageLayer.SetImage(
+                _shellBackground.ImageFilePath,
+                _shellBackground.ImageBlur,
+                _shellBackground.ImageFocusX,
+                _shellBackground.ImageFocusY,
+                _shellBackground.ImageZoom);
+
+            ShellImageDimLayer.Background = new SolidColorBrush(
+                CurrentAmbientTheme == AmbientTheme.Dark
+                    ? Color.FromArgb(0xFF, 0, 0, 0)
+                    : Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
+            ShellImageDimLayer.Opacity = _shellBackground.ImageDim;
+        }
+        else
+        {
+            ShellImageLayer.Clear();
         }
 
         UpdateShellResourceState();

@@ -61,6 +61,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private double _coverSize;
     private bool? _fullscreen;
     private readonly ILogger<LyricsPage> _logger;
+    private readonly BackgroundImageStore _backgroundImages;
     private readonly nint _windowHandle;
     private NativeMethods.NativePoint? _lastCursorPoint;
     private bool _keyboardInteractionActive;
@@ -101,7 +102,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
         LyricsViewModel lyrics, SongCommentsViewModel comments,
         INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
-        FontSettingsViewModel font)
+        FontSettingsViewModel font, BackgroundImageStore backgroundImages)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -113,12 +114,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(mvFactory);
         ArgumentNullException.ThrowIfNull(trackActions);
         ArgumentNullException.ThrowIfNull(font);
+        ArgumentNullException.ThrowIfNull(backgroundImages);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
         _trackActions = trackActions;
         _logger = (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
+        _backgroundImages = backgroundImages;
         _canvas = canvas;
         _spectrum = spectrum;
         Player = player;
@@ -491,7 +494,15 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private string BackgroundImagePath
         => string.IsNullOrEmpty(Lyrics.BackgroundImageFile)
             ? string.Empty
-            : AppPaths.LyricsBackgroundFile(Lyrics.BackgroundImageFile);
+            : AppPaths.BackgroundFile(Lyrics.BackgroundImageFile);
+
+    /// <summary>当前背景层的宽高比，用于裁剪预览。</summary>
+    private double BackgroundAspect
+        => BackdropView.ActualWidth > 1 && BackdropView.ActualHeight > 1
+            ? BackdropView.ActualWidth / BackdropView.ActualHeight
+            : ActualWidth > 1 && ActualHeight > 1
+                ? ActualWidth / ActualHeight
+                : 16.0 / 9;
 
     /// <summary>选了自定义图片且文件还在；文件丢失时退回封面模糊。</summary>
     private bool UsesCustomImage
@@ -1762,21 +1773,26 @@ public sealed partial class LyricsPage : Page, INavigationAware
             var file = await picker.PickSingleFileAsync();
             if (file is null) return false;
 
-            var fileName = $"lyrics-bg-{Guid.NewGuid():N}.png";
-            var destination = AppPaths.LyricsBackgroundFile(fileName);
-            Directory.CreateDirectory(AppPaths.BackgroundsDirectory);
+            var fileName = await _backgroundImages.ImportAsync(file, "lyrics-bg");
+            if (fileName is null) return false;
 
-            // 先按 EXIF 摆正并缩到最长边 1920，再编码成 PNG。
-            // 预览用 BitmapImage（会应用 EXIF），渲染用 CanvasBitmap（不应用）；
-            // 不统一的话手机会出现「预览正的、最终歪的」。
-            await WriteUprightBackgroundAsync(file, destination);
+            var dim = await _backgroundImages.EstimateDimAsync(
+                file, LyricsSettings.MaximumBackgroundDim, LyricsSettings.DefaultBackgroundDim);
 
-            var dim = await EstimateBackgroundDimAsync(file);
-            var crop = await ShowBackgroundCropDialogAsync(destination, 0.5, 0.5, 1);
+            var crop = await BackgroundCropDialog.ShowAsync(
+                AppPaths.BackgroundFile(fileName),
+                BackgroundAspect,
+                0.5,
+                0.5,
+                1,
+                XamlRoot,
+                _themeRoot?.ActualTheme ?? ElementTheme.Default,
+                _logger);
+
             if (crop is not { } value)
             {
                 // 取消裁剪就不使用这张图，别在背景目录里留下孤儿文件。
-                try { File.Delete(destination); } catch (IOException) { }
+                _backgroundImages.Delete(fileName);
                 return false;
             }
 
@@ -1785,15 +1801,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
             if (previous.Length > 0 && !string.Equals(previous, fileName, StringComparison.Ordinal))
             {
-                var oldPath = AppPaths.LyricsBackgroundFile(previous);
-                try
-                {
-                    if (File.Exists(oldPath)) File.Delete(oldPath);
-                }
-                catch (IOException)
-                {
-                    // 旧图删不掉只留下一个文件，不影响本次选择。
-                }
+                _backgroundImages.Delete(previous);
             }
 
             return true;
@@ -1802,75 +1810,6 @@ public sealed partial class LyricsPage : Page, INavigationAware
         {
             _logger.LogWarning(exception, "选择歌词背景图片失败");
             return false;
-        }
-    }
-
-    /// <summary>
-    /// 把选中的图片按 EXIF 摆正、缩到最长边 1920，再编码成 PNG。
-    /// </summary>
-    /// <remarks>
-    /// 预览用 <c>BitmapImage</c>，它会应用 EXIF 方向；最终渲染用 <c>CanvasBitmap</c>，不会。
-    /// 直接在导入时摆正并重新编码，两边读的是同一份像素，裁剪预览和最终背景才不会对不上。
-    /// </remarks>
-    private static async Task WriteUprightBackgroundAsync(StorageFile source, string destination)
-    {
-        using var input = await source.OpenReadAsync();
-        var decoder = await BitmapDecoder.CreateAsync(input);
-
-        var longest = Math.Max(decoder.PixelWidth, decoder.PixelHeight);
-        var scale = longest > 1920 ? 1920.0 / longest : 1;
-        var transform = new BitmapTransform
-        {
-            ScaledWidth = (uint)Math.Max(1, Math.Round(decoder.PixelWidth * scale)),
-            ScaledHeight = (uint)Math.Max(1, Math.Round(decoder.PixelHeight * scale)),
-        };
-
-        using var bitmap = await decoder.GetSoftwareBitmapAsync(
-            BitmapPixelFormat.Bgra8,
-            BitmapAlphaMode.Premultiplied,
-            transform,
-            ExifOrientationMode.RespectExifOrientation,
-            ColorManagementMode.ColorManageToSRgb);
-
-        using var output = File.Create(destination);
-        using var stream = output.AsRandomAccessStream();
-        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
-        encoder.SetSoftwareBitmap(bitmap);
-        await encoder.FlushAsync();
-    }
-
-    /// <summary>
-    /// 按图片平均亮度给一个初始暗度：把背景压到约 22% 亮度，亮图多压、暗图少压。
-    /// </summary>
-    private static async Task<double> EstimateBackgroundDimAsync(StorageFile file)
-    {
-        try
-        {
-            using var stream = await file.OpenReadAsync();
-            var decoder = await BitmapDecoder.CreateAsync(stream);
-            var data = await decoder.GetPixelDataAsync(
-                BitmapPixelFormat.Bgra8,
-                BitmapAlphaMode.Ignore,
-                new BitmapTransform { ScaledWidth = 32, ScaledHeight = 32 },
-                ExifOrientationMode.IgnoreExifOrientation,
-                ColorManagementMode.DoNotColorManage);
-
-            var pixels = data.DetachPixelData();
-            if (pixels.Length < 4) return LyricsSettings.DefaultBackgroundDim;
-
-            double sum = 0;
-            for (var i = 0; i + 3 < pixels.Length; i += 4)
-            {
-                sum += (0.0722 * pixels[i]) + (0.7152 * pixels[i + 1]) + (0.2126 * pixels[i + 2]);
-            }
-
-            var luminance = sum / (pixels.Length / 4.0) / 255;
-            var dim = luminance <= 0.22 ? 0.35 : 1 - (0.22 / luminance);
-            return Math.Round(Math.Clamp(dim, 0.35, LyricsSettings.MaximumBackgroundDim), 2);
-        }
-        catch
-        {
-            return LyricsSettings.DefaultBackgroundDim;
         }
     }
 
@@ -1906,246 +1845,22 @@ public sealed partial class LyricsPage : Page, INavigationAware
         var path = BackgroundImagePath;
         if (!File.Exists(path)) return;
 
-        var crop = await ShowBackgroundCropDialogAsync(
-            path, Lyrics.BackgroundImageFocusX, Lyrics.BackgroundImageFocusY, Lyrics.BackgroundImageZoom);
+        var crop = await BackgroundCropDialog.ShowAsync(
+            path,
+            BackgroundAspect,
+            Lyrics.BackgroundImageFocusX,
+            Lyrics.BackgroundImageFocusY,
+            Lyrics.BackgroundImageZoom,
+            XamlRoot,
+            _themeRoot?.ActualTheme ?? ElementTheme.Default,
+            _logger);
+
         if (crop is { } value)
         {
             Lyrics.SetBackgroundImageCrop(value.FocusX, value.FocusY, value.Zoom);
         }
     }
 
-    /// <summary>
-    /// 裁剪弹窗：拖动图片选择保留区域，缩放滑杆进一步裁切。
-    /// </summary>
-    /// <returns>确定时返回裁剪中心与缩放；取消或加载失败返回 null。</returns>
-    private async Task<(double FocusX, double FocusY, double Zoom)?> ShowBackgroundCropDialogAsync(
-        string path, double focusX, double focusY, double zoom)
-    {
-        double imageWidth;
-        double imageHeight;
-        BitmapImage bitmap;
-        try
-        {
-            var file = await StorageFile.GetFileFromPathAsync(path);
-            using var stream = await file.OpenReadAsync();
-            var decoder = await BitmapDecoder.CreateAsync(stream);
-            var decodeWidth = Math.Min(1600, decoder.PixelWidth);
-            imageWidth = decodeWidth;
-            imageHeight = decoder.PixelHeight * (decodeWidth / (double)decoder.PixelWidth);
-            bitmap = new BitmapImage
-            {
-                DecodePixelWidth = (int)decodeWidth,
-                UriSource = new Uri(path, UriKind.Absolute),
-            };
-        }
-        catch (Exception exception)
-        {
-            _logger.LogWarning(exception, "背景图片裁剪预览加载失败");
-            return null;
-        }
-
-        var aspect = BackdropView.ActualWidth > 1 && BackdropView.ActualHeight > 1
-            ? BackdropView.ActualHeight / BackdropView.ActualWidth
-            : ActualWidth > 1 && ActualHeight > 1 ? ActualHeight / ActualWidth : 9.0 / 16;
-        var previewWidth = 480.0;
-        var previewHeight = previewWidth * aspect;
-        if (previewHeight > 360)
-        {
-            previewHeight = 360;
-            previewWidth = previewHeight / aspect;
-        }
-        else if (previewHeight < 200)
-        {
-            previewHeight = 200;
-            previewWidth = previewHeight / aspect;
-        }
-
-        var image = new Image
-        {
-            Source = bitmap,
-            Width = imageWidth,
-            Height = imageHeight,
-            Stretch = Stretch.Fill,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Top,
-            RenderTransformOrigin = new Point(0, 0),
-        };
-        var transform = new CompositeTransform();
-        image.RenderTransform = transform;
-
-        var preview = new Canvas
-        {
-            Width = previewWidth,
-            Height = previewHeight,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Background = new SolidColorBrush(Color.FromArgb(0xFF, 0, 0, 0)),
-            Clip = new RectangleGeometry { Rect = new Rect(0, 0, previewWidth, previewHeight) },
-        };
-        // Canvas 不约束子元素尺寸；换成 Border 会把放大的图片压回预览大小，再缩放就只剩一小块。
-        preview.Children.Add(image);
-
-        var baseScale = Math.Max(previewWidth / imageWidth, previewHeight / imageHeight) * 1.1;
-        var currentZoom = Math.Clamp(zoom, 1, 3);
-        var scale = baseScale * currentZoom;
-        var fx = Math.Clamp(focusX, 0, 1);
-        var fy = Math.Clamp(focusY, 0, 1);
-        double offsetX = 0;
-        double offsetY = 0;
-
-        void ApplyOffsets()
-        {
-            offsetX = Math.Clamp(offsetX, previewWidth - (imageWidth * scale), 0);
-            offsetY = Math.Clamp(offsetY, previewHeight - (imageHeight * scale), 0);
-            transform.ScaleX = transform.ScaleY = scale;
-            transform.TranslateX = offsetX;
-            transform.TranslateY = offsetY;
-        }
-
-        void CenterOnFocus()
-        {
-            offsetX = (previewWidth / 2) - (fx * imageWidth * scale);
-            offsetY = (previewHeight / 2) - (fy * imageHeight * scale);
-            ApplyOffsets();
-        }
-
-        void FocusFromOffsets()
-        {
-            fx = Math.Clamp((previewWidth / 2 - offsetX) / (imageWidth * scale), 0, 1);
-            fy = Math.Clamp((previewHeight / 2 - offsetY) / (imageHeight * scale), 0, 1);
-        }
-
-        CenterOnFocus();
-
-        var dragging = false;
-        Point dragStart = default;
-        double dragOffsetX = 0;
-        double dragOffsetY = 0;
-        preview.PointerPressed += (_, e) =>
-        {
-            dragging = preview.CapturePointer(e.Pointer);
-            dragStart = e.GetCurrentPoint(preview).Position;
-            dragOffsetX = offsetX;
-            dragOffsetY = offsetY;
-        };
-        preview.PointerMoved += (_, e) =>
-        {
-            if (!dragging) return;
-            var point = e.GetCurrentPoint(preview).Position;
-            offsetX = dragOffsetX + (point.X - dragStart.X);
-            offsetY = dragOffsetY + (point.Y - dragStart.Y);
-            ApplyOffsets();
-            FocusFromOffsets();
-        };
-        preview.PointerReleased += (_, e) =>
-        {
-            if (!dragging) return;
-            preview.ReleasePointerCapture(e.Pointer);
-            dragging = false;
-        };
-        preview.PointerCanceled += (_, e) =>
-        {
-            if (!dragging) return;
-            preview.ReleasePointerCapture(e.Pointer);
-            dragging = false;
-        };
-
-        var syncingZoom = false;
-        var zoomSlider = new Slider
-        {
-            Minimum = 100,
-            Maximum = 300,
-            StepFrequency = 1,
-            Value = currentZoom * 100,
-            Width = 320,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        zoomSlider.ValueChanged += (_, e) =>
-        {
-            if (syncingZoom) return;
-            currentZoom = Math.Clamp(e.NewValue / 100, 1, 3);
-            scale = baseScale * currentZoom;
-            CenterOnFocus();
-        };
-
-        void ZoomAt(double target, double anchorX, double anchorY)
-        {
-            target = Math.Clamp(target, 1, 3);
-            if (Math.Abs(target - currentZoom) < 0.001) return;
-
-            // 以鼠标位置为锚点：缩放前后，指针下的同一个图像点保持不动。
-            var imageX = (anchorX - offsetX) / scale;
-            var imageY = (anchorY - offsetY) / scale;
-            currentZoom = target;
-            scale = baseScale * currentZoom;
-            offsetX = anchorX - (imageX * scale);
-            offsetY = anchorY - (imageY * scale);
-            ApplyOffsets();
-            FocusFromOffsets();
-
-            // 滚轮与滑杆共用同一份缩放值；同步滑杆时不要再次触发居中。
-            syncingZoom = true;
-            zoomSlider.Value = currentZoom * 100;
-            syncingZoom = false;
-        }
-
-        preview.PointerWheelChanged += (_, e) =>
-        {
-            var point = e.GetCurrentPoint(preview);
-            var delta = point.Properties.MouseWheelDelta;
-            if (delta == 0) return;
-
-            ZoomAt(currentZoom * Math.Pow(1.1, delta / 120.0), point.Position.X, point.Position.Y);
-            e.Handled = true;
-        };
-
-        var hint = new TextBlock
-        {
-            Text = "拖动图片选择保留区域，滚轮或缩放滑杆可以进一步裁切。",
-            FontSize = 12,
-            Opacity = 0.7,
-            TextWrapping = TextWrapping.Wrap,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-        var zoomRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-        zoomRow.Children.Add(new TextBlock { Text = "缩放", VerticalAlignment = VerticalAlignment.Center });
-        zoomRow.Children.Add(zoomSlider);
-
-        var content = new StackPanel { Spacing = 12 };
-        content.Children.Add(preview);
-        content.Children.Add(hint);
-        content.Children.Add(zoomRow);
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = "裁剪背景图片",
-            Content = content,
-            PrimaryButtonText = "确定",
-            CloseButtonText = "取消",
-            DefaultButton = ContentDialogButton.Primary,
-            // 弹窗挂在 XamlRoot 下，不在 ShellRoot 的 RequestedTheme 子树里，必须显式跟主题。
-            RequestedTheme = _themeRoot?.ActualTheme ?? ElementTheme.Default,
-        };
-        // ContentDialog 的模板用主题资源画底，直接设 Background 会被模板覆盖，改资源键。
-        if (Application.Current.Resources.TryGetValue("BowenAcrylicBrush", out var brush) && brush is Brush acrylic)
-        {
-            dialog.Resources["ContentDialogBackground"] = acrylic;
-        }
-
-        var result = await dialog.ShowAsync();
-        // 预览用的 BitmapImage 解码位图不小；弹窗关闭后立即断开引用，不等 GC。
-        image.Source = null;
-        preview.Children.Clear();
-        if (result != ContentDialogResult.Primary) return null;
-
-        FocusFromOffsets();
-        return (fx, fy, currentZoom);
-    }
 
     private void OnLyricsFontSizeChanged(object sender, RangeBaseValueChangedEventArgs args)
     {

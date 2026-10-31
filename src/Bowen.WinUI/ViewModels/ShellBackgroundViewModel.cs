@@ -46,6 +46,12 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
     private IReadOnlyList<RgbColor> _autoSeeds = [];
     private IReadOnlyList<ShellColorOption> _solidColorOptions;
     private AmbientTheme _currentTheme = AmbientTheme.Dark;
+    private string _imageFile = string.Empty;
+    private double _imageDim;
+    private double _imageBlur;
+    private double _imageFocusX;
+    private double _imageFocusY;
+    private double _imageZoom;
     private int _autoVersion;
 
     /// <summary>自动纯色或手动纯色变化。窗口据此重绘纯色层。</summary>
@@ -69,6 +75,12 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
         _manualDarkSolidColorArgb = settings.SolidColorArgb;
         _manualLightSolidColorArgb = settings.LightSolidColorArgb;
         _solidColorAuto = settings.SolidColorAuto;
+        _imageFile = settings.ImageFile;
+        _imageDim = settings.ImageDim;
+        _imageBlur = settings.ImageBlur;
+        _imageFocusX = settings.ImageFocusX;
+        _imageFocusY = settings.ImageFocusY;
+        _imageZoom = settings.ImageZoom;
         _solidColorOptions = BuildSolidColorOptions(_currentTheme);
 
         _player.PropertyChanged += OnPlayerChanged;
@@ -85,21 +97,22 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
     /// <summary>持久化的模式；可能包含当前系统不可用的值。</summary>
     public ShellBackgroundMode Mode => _mode;
 
-    /// <summary>实际生效的模式；不可用的 Mica、未实现的自定义图片回退封面取色。</summary>
+    /// <summary>实际生效的模式；不可用的 Mica、未选择图片的自定义图片回退封面取色。</summary>
     public ShellBackgroundMode EffectiveMode => _mode switch
     {
         ShellBackgroundMode.Mica when !IsMicaSupported => ShellBackgroundMode.CoverAmbient,
-        ShellBackgroundMode.CustomImage => ShellBackgroundMode.CoverAmbient,
+        ShellBackgroundMode.CustomImage when _imageFile.Length == 0 => ShellBackgroundMode.CoverAmbient,
         _ => _mode,
     };
 
-    /// <summary>给下拉框用的下标：0 封面取色，1 Mica，2 纯色。</summary>
+    /// <summary>给下拉框用的下标：0 封面取色，1 Mica，2 自定义图片，3 纯色。</summary>
     public int ModeIndex
     {
         get => _mode switch
         {
             ShellBackgroundMode.Mica => 1,
-            ShellBackgroundMode.SolidColor => 2,
+            ShellBackgroundMode.CustomImage => 2,
+            ShellBackgroundMode.SolidColor => 3,
             _ => 0,
         };
         set
@@ -107,7 +120,8 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
             var mode = value switch
             {
                 1 => ShellBackgroundMode.Mica,
-                2 => ShellBackgroundMode.SolidColor,
+                2 => ShellBackgroundMode.CustomImage,
+                3 => ShellBackgroundMode.SolidColor,
                 _ => ShellBackgroundMode.CoverAmbient,
             };
 
@@ -117,6 +131,37 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
 
     /// <summary>当前是否使用纯色背景。</summary>
     public bool IsSolid => _mode == ShellBackgroundMode.SolidColor;
+
+    /// <summary>当前是否使用自定义图片；没有图片时 <see cref="EffectiveMode"/> 仍回退封面取色。</summary>
+    public bool IsCustomImage => _mode == ShellBackgroundMode.CustomImage;
+
+    /// <summary>是否已经选过图片。</summary>
+    public bool HasImage => _imageFile.Length > 0;
+
+    /// <summary>已选图片的文件名。</summary>
+    public string ImageFile => _imageFile;
+
+    /// <summary>给设置页显示的选择状态。</summary>
+    public string ImageStatus => _imageFile.Length > 0 ? "已选择" : "未选择";
+
+    /// <summary>已选图片的完整路径；没有图片时为空串。</summary>
+    public string ImageFilePath
+        => _imageFile.Length == 0 ? string.Empty : Bowen.Core.Services.AppPaths.BackgroundFile(_imageFile);
+
+    /// <summary>遮罩强度，0–0.8。</summary>
+    public double ImageDim => _imageDim;
+
+    /// <summary>模糊量，0–40 DIP。</summary>
+    public double ImageBlur => _imageBlur;
+
+    /// <summary>图片的水平裁剪中心，0–1。</summary>
+    public double ImageFocusX => _imageFocusX;
+
+    /// <summary>图片的垂直裁剪中心，0–1。</summary>
+    public double ImageFocusY => _imageFocusY;
+
+    /// <summary>图片的缩放，1–3。</summary>
+    public double ImageZoom => _imageZoom;
 
     /// <summary>当前主题的纯色预设。浅色与深色是两套独立色板。</summary>
     public IReadOnlyList<ShellColorOption> SolidColorOptions => _solidColorOptions;
@@ -245,6 +290,7 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
         OnPropertyChanged(nameof(EffectiveMode));
         OnPropertyChanged(nameof(ModeIndex));
         OnPropertyChanged(nameof(IsSolid));
+        OnPropertyChanged(nameof(IsCustomImage));
 
         // 从别的模式切回纯色时补一次自动取色；跟随开关打开时构造期可能还没有歌。
         if (mode == ShellBackgroundMode.SolidColor && _solidColorAuto)
@@ -284,10 +330,107 @@ public sealed partial class ShellBackgroundViewModel : ObservableObject
         SolidColorChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// 记录一张新图片及其裁剪参数。调用方负责删除被替换的旧文件。
+    /// </summary>
+    public void SetImage(string fileName, double dim, double blur, double focusX, double focusY, double zoom)
+    {
+        _imageFile = string.IsNullOrWhiteSpace(fileName)
+            ? string.Empty
+            : Path.GetFileName(fileName.Trim());
+
+        _imageDim = double.IsFinite(dim)
+            ? Math.Clamp(dim, ShellBackgroundSettings.MinimumImageDim, ShellBackgroundSettings.MaximumImageDim)
+            : ShellBackgroundSettings.DefaultImageDim;
+
+        _imageBlur = double.IsFinite(blur)
+            ? Math.Clamp(blur, ShellBackgroundSettings.MinimumImageBlur, ShellBackgroundSettings.MaximumImageBlur)
+            : ShellBackgroundSettings.DefaultImageBlur;
+
+        _imageFocusX = double.IsFinite(focusX) ? Math.Clamp(focusX, 0, 1) : 0.5;
+        _imageFocusY = double.IsFinite(focusY) ? Math.Clamp(focusY, 0, 1) : 0.5;
+        _imageZoom = double.IsFinite(zoom)
+            ? Math.Clamp(zoom, ShellBackgroundSettings.MinimumImageZoom, ShellBackgroundSettings.MaximumImageZoom)
+            : 1;
+
+        Persist();
+        OnPropertyChanged(nameof(ImageFile));
+        OnPropertyChanged(nameof(ImageStatus));
+        OnPropertyChanged(nameof(ImageFilePath));
+        OnPropertyChanged(nameof(HasImage));
+        OnPropertyChanged(nameof(ImageDim));
+        OnPropertyChanged(nameof(ImageBlur));
+        OnPropertyChanged(nameof(ImageFocusX));
+        OnPropertyChanged(nameof(ImageFocusY));
+        OnPropertyChanged(nameof(ImageZoom));
+        OnPropertyChanged(nameof(EffectiveMode));
+    }
+
+    /// <summary>调整图片遮罩强度。</summary>
+    public void SetImageDim(double dim)
+    {
+        if (!double.IsFinite(dim))
+        {
+            return;
+        }
+
+        dim = Math.Clamp(dim, ShellBackgroundSettings.MinimumImageDim, ShellBackgroundSettings.MaximumImageDim);
+
+        if (Math.Abs(_imageDim - dim) < 0.001)
+        {
+            return;
+        }
+
+        _imageDim = dim;
+        Persist();
+        OnPropertyChanged(nameof(ImageDim));
+    }
+
+    /// <summary>更新模糊量。</summary>
+    public void SetImageBlur(double blur)
+    {
+        if (!double.IsFinite(blur))
+        {
+            return;
+        }
+
+        blur = Math.Clamp(blur, ShellBackgroundSettings.MinimumImageBlur, ShellBackgroundSettings.MaximumImageBlur);
+
+        if (Math.Abs(_imageBlur - blur) < 0.01)
+        {
+            return;
+        }
+
+        _imageBlur = blur;
+        Persist();
+        OnPropertyChanged(nameof(ImageBlur));
+    }
+
+    /// <summary>更新图片的裁剪中心与缩放。</summary>
+    public void SetImageCrop(double focusX, double focusY, double zoom)
+    {
+        _imageFocusX = double.IsFinite(focusX) ? Math.Clamp(focusX, 0, 1) : 0.5;
+        _imageFocusY = double.IsFinite(focusY) ? Math.Clamp(focusY, 0, 1) : 0.5;
+        _imageZoom = double.IsFinite(zoom)
+            ? Math.Clamp(zoom, ShellBackgroundSettings.MinimumImageZoom, ShellBackgroundSettings.MaximumImageZoom)
+            : 1;
+
+        Persist();
+        OnPropertyChanged(nameof(ImageFocusX));
+        OnPropertyChanged(nameof(ImageFocusY));
+        OnPropertyChanged(nameof(ImageZoom));
+    }
+
     private void Persist()
         => _store.Save(new ShellBackgroundSettings
         {
             Mode = _mode,
+            ImageFile = _imageFile,
+            ImageDim = _imageDim,
+            ImageBlur = _imageBlur,
+            ImageFocusX = _imageFocusX,
+            ImageFocusY = _imageFocusY,
+            ImageZoom = _imageZoom,
             SolidColorArgb = _manualDarkSolidColorArgb,
             LightSolidColorArgb = _manualLightSolidColorArgb,
             SolidColorAuto = _solidColorAuto,

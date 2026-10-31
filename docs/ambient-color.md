@@ -253,4 +253,4 @@ suitability = (0.35 + 0.65 * saturation)
 | `tests/Bowen.Core.Tests/CoverPaletteTests.cs` | 多色提取、灰阶分支、纯色封面、保留色相，以及原有白底/单像素/`Blend` 用例 |
 | `tests/Bowen.Core.Tests/AmbientBackgroundTests.cs` | 复用缓冲区渲染与缓冲区过小 |
 
-验证：`Bowen.Core.Tests` 1762 项通过，0 失败；WinUI 构建 0 警告 0 错误。
+验证：`Bowen.Core.Tests` 1763 项通过，0 失败；WinUI 构建 0 警告 0 错误。

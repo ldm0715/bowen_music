@@ -42,6 +42,12 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
         Assert.Equal(ShellBackgroundSettings.DefaultSolidColorArgb, loaded.SolidColorArgb);
         Assert.Equal(ShellBackgroundSettings.DefaultLightSolidColorArgb, loaded.LightSolidColorArgb);
         Assert.False(loaded.SolidColorAuto);
+        Assert.Equal(string.Empty, loaded.ImageFile);
+        Assert.Equal(ShellBackgroundSettings.DefaultImageDim, loaded.ImageDim);
+        Assert.Equal(ShellBackgroundSettings.DefaultImageBlur, loaded.ImageBlur);
+        Assert.Equal(0.5d, loaded.ImageFocusX);
+        Assert.Equal(0.5d, loaded.ImageFocusY);
+        Assert.Equal(1d, loaded.ImageZoom);
     }
 
     [Fact]
@@ -53,6 +59,12 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
             SolidColorArgb = 0xFF2C2542,
             LightSolidColorArgb = 0xFFF0EBF7,
             SolidColorAuto = true,
+            ImageFile = "shell-bg-test.png",
+            ImageDim = 0.3,
+            ImageBlur = 24,
+            ImageFocusX = 0.25,
+            ImageFocusY = 0.75,
+            ImageZoom = 2,
         });
 
         var loaded = NewStore().Load();
@@ -61,6 +73,12 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
         Assert.Equal(0xFF2C2542u, loaded.SolidColorArgb);
         Assert.Equal(0xFFF0EBF7u, loaded.LightSolidColorArgb);
         Assert.True(loaded.SolidColorAuto);
+        Assert.Equal("shell-bg-test.png", loaded.ImageFile);
+        Assert.Equal(0.3d, loaded.ImageDim);
+        Assert.Equal(24d, loaded.ImageBlur);
+        Assert.Equal(0.25d, loaded.ImageFocusX);
+        Assert.Equal(0.75d, loaded.ImageFocusY);
+        Assert.Equal(2d, loaded.ImageZoom);
     }
 
     /// <summary>数字枚举能反序列化成未定义值，必须被夹回封面取色。</summary>
@@ -96,6 +114,27 @@ public sealed class ShellBackgroundSettingsStoreTests : IDisposable
         // 0x0024324A / 0x00F2F5F9 没有 alpha，读回时必须顶成不透明。
         Assert.Equal(0xFF24324Au, opaque.SolidColorArgb);
         Assert.Equal(0xFFF2F5F9u, opaque.LightSolidColorArgb);
+    }
+
+    [Fact]
+    public void NormalizesImageSettings()
+    {
+        var loaded = new ShellBackgroundSettings
+        {
+            ImageFile = @"..\evil.png",
+            ImageDim = 2,
+            ImageBlur = 99,
+            ImageFocusX = -1,
+            ImageFocusY = 3,
+            ImageZoom = 9,
+        }.Normalized();
+
+        Assert.Equal("evil.png", loaded.ImageFile);
+        Assert.Equal(ShellBackgroundSettings.MaximumImageDim, loaded.ImageDim);
+        Assert.Equal(ShellBackgroundSettings.MaximumImageBlur, loaded.ImageBlur);
+        Assert.Equal(0d, loaded.ImageFocusX);
+        Assert.Equal(1d, loaded.ImageFocusY);
+        Assert.Equal(ShellBackgroundSettings.MaximumImageZoom, loaded.ImageZoom);
     }
 
     /// <summary>两套预设必须各自适合自己的主题：深色全暗、浅色全亮。</summary>

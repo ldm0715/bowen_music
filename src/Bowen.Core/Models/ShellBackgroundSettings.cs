@@ -42,8 +42,41 @@ public sealed record ShellBackgroundSettings
     /// <summary>浅色主题的默认纯色：雾蓝白，比卡片底色略深。</summary>
     public const uint DefaultLightSolidColorArgb = 0xFFF2F5F9;
 
+    /// <summary>自定义图片的默认遮罩强度。</summary>
+    public const double DefaultImageDim = 0.5;
+
+    public const double MinimumImageDim = 0;
+    public const double MaximumImageDim = 0.8;
+
+    /// <summary>自定义图片的默认模糊量（DIP）。</summary>
+    public const double DefaultImageBlur = 16;
+
+    public const double MinimumImageBlur = 0;
+    public const double MaximumImageBlur = 40;
+    public const double MinimumImageZoom = 1;
+    public const double MaximumImageZoom = 3;
+
     /// <summary>背景来源；默认封面取色。</summary>
     public ShellBackgroundMode Mode { get; init; } = ShellBackgroundMode.CoverAmbient;
+
+    /// <summary>自定义图片的文件名，位于 <see cref="Bowen.Core.Services.AppPaths.BackgroundsDirectory"/> 下。</summary>
+    /// <remarks>只存文件名，不存绝对路径；换机器或改目录时不会失效。</remarks>
+    public string ImageFile { get; init; } = string.Empty;
+
+    /// <summary>自定义图片上的遮罩强度，0–0.8；遮罩颜色跟随主题。</summary>
+    public double ImageDim { get; init; } = DefaultImageDim;
+
+    /// <summary>自定义图片的模糊量，0–40 DIP；默认 16。</summary>
+    public double ImageBlur { get; init; } = DefaultImageBlur;
+
+    /// <summary>自定义图片的水平裁剪中心，0–1。</summary>
+    public double ImageFocusX { get; init; } = 0.5;
+
+    /// <summary>自定义图片的垂直裁剪中心，0–1。</summary>
+    public double ImageFocusY { get; init; } = 0.5;
+
+    /// <summary>自定义图片的缩放，1–3。</summary>
+    public double ImageZoom { get; init; } = 1;
 
     /// <summary>深色主题的手动纯色，<c>0xAARRGGBB</c>。</summary>
     public uint SolidColorArgb { get; init; } = DefaultSolidColorArgb;
@@ -83,6 +116,26 @@ public sealed record ShellBackgroundSettings
     public ShellBackgroundSettings Normalized() => this with
     {
         Mode = Enum.IsDefined(Mode) ? Mode : ShellBackgroundMode.CoverAmbient,
+
+        // 只保留文件名，拒绝目录穿越；空串表示还没选图片。
+        ImageFile = string.IsNullOrWhiteSpace(ImageFile)
+            ? string.Empty
+            : Path.GetFileName(ImageFile.Trim()),
+
+        ImageDim = double.IsFinite(ImageDim)
+            ? Math.Clamp(ImageDim, MinimumImageDim, MaximumImageDim)
+            : DefaultImageDim,
+
+        ImageBlur = double.IsFinite(ImageBlur)
+            ? Math.Clamp(ImageBlur, MinimumImageBlur, MaximumImageBlur)
+            : DefaultImageBlur,
+
+        ImageFocusX = double.IsFinite(ImageFocusX) ? Math.Clamp(ImageFocusX, 0, 1) : 0.5,
+        ImageFocusY = double.IsFinite(ImageFocusY) ? Math.Clamp(ImageFocusY, 0, 1) : 0.5,
+
+        ImageZoom = double.IsFinite(ImageZoom)
+            ? Math.Clamp(ImageZoom, MinimumImageZoom, MaximumImageZoom)
+            : 1,
 
         // 0 不是合法的颜色；其余颜色把 alpha 顶回不透明（预设不提供透明度）。
         SolidColorArgb = NormalizeColor(SolidColorArgb, DefaultSolidColorArgb),

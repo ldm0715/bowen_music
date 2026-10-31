@@ -1,11 +1,16 @@
 using System.ComponentModel;
 using Bowen.Core.Media;
 using Bowen.Core.Models;
+using Bowen.Core.Services;
 using Bowen.WinUI.Controls;
+using Bowen.WinUI.Media;
 using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Windows.Storage.Pickers;
 
 namespace Bowen.WinUI.Views;
 
@@ -43,14 +48,30 @@ public sealed partial class SettingsPage : Page, INavigationAware
     private bool _subscribed;
 
     private readonly NotificationViewModel _notifications;
+    private readonly BackgroundImageStore _backgroundImages;
+    private readonly IWindowHandleProvider _window;
+    private readonly ILogger<SettingsPage> _logger;
+    private bool _syncingShellImage;
+    private bool _shellModeReady;
 
-    public SettingsPage(SettingsViewModel viewModel, NotificationViewModel notifications)
+    public SettingsPage(
+        SettingsViewModel viewModel,
+        NotificationViewModel notifications,
+        BackgroundImageStore backgroundImages,
+        IWindowHandleProvider window,
+        ILogger<SettingsPage> logger)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(notifications);
+        ArgumentNullException.ThrowIfNull(backgroundImages);
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentNullException.ThrowIfNull(logger);
 
         ViewModel = viewModel;
         _notifications = notifications;
+        _backgroundImages = backgroundImages;
+        _window = window;
+        _logger = logger;
 
         InitializeComponent();
 
@@ -71,6 +92,8 @@ public sealed partial class SettingsPage : Page, INavigationAware
     {
         Subscribe();
         SyncShellBackgroundTheme();
+        SyncShellImageControls();
+        _shellModeReady = true;
         _ = ViewModel.RefreshAsync();
     }
 
@@ -90,6 +113,154 @@ public sealed partial class SettingsPage : Page, INavigationAware
 
     private void OnActualThemeChanged(FrameworkElement sender, object args)
         => SyncShellBackgroundTheme();
+
+    private void OnShellBackgroundModeChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_shellModeReady && ShellBackgroundCombo.SelectedIndex == 2 && !ViewModel.ShellBackground.HasImage)
+        {
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                if (!await PickShellImageAsync())
+                {
+                    ViewModel.ShellBackground.ModeIndex = 0;
+                }
+            });
+        }
+
+        SyncShellImageControls();
+    }
+
+    private async void OnPickShellImageClick(object sender, RoutedEventArgs args)
+        => await PickShellImageAsync();
+
+    private async void OnReCropShellImageClick(object sender, RoutedEventArgs args)
+    {
+        var path = ViewModel.ShellBackground.ImageFilePath;
+        if (path.Length == 0 || !File.Exists(path)) return;
+
+        try
+        {
+            var crop = await BackgroundCropDialog.ShowAsync(
+                path,
+                BackgroundAspect,
+                ViewModel.ShellBackground.ImageFocusX,
+                ViewModel.ShellBackground.ImageFocusY,
+                ViewModel.ShellBackground.ImageZoom,
+                XamlRoot,
+                ActualTheme,
+                _logger);
+
+            if (crop is { } value)
+            {
+                ViewModel.ShellBackground.SetImageCrop(value.FocusX, value.FocusY, value.Zoom);
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "重新裁剪外壳背景图片失败");
+        }
+    }
+
+    private void OnShellImageDimChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingShellImage) return;
+
+        ShellImageDimValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        ViewModel.ShellBackground.SetImageDim(args.NewValue / 100);
+    }
+
+    private void OnShellImageBlurChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingShellImage) return;
+
+        ShellImageBlurValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        ViewModel.ShellBackground.SetImageBlur(args.NewValue);
+    }
+
+    /// <summary>选图、导入、裁剪并写回设置。返回假表示用户取消或导入失败。</summary>
+    private async Task<bool> PickShellImageAsync()
+    {
+        try
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".jpg");
+            picker.FileTypeFilter.Add(".jpeg");
+            picker.FileTypeFilter.Add(".png");
+            picker.FileTypeFilter.Add(".bmp");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, _window.WindowHandle);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file is null) return false;
+
+            var fileName = await _backgroundImages.ImportAsync(file, "shell-bg");
+            if (fileName is null) return false;
+
+            var dim = await _backgroundImages.EstimateDimAsync(
+                file, ShellBackgroundSettings.MaximumImageDim, ShellBackgroundSettings.DefaultImageDim);
+
+            var crop = await BackgroundCropDialog.ShowAsync(
+                AppPaths.BackgroundFile(fileName),
+                BackgroundAspect,
+                0.5,
+                0.5,
+                1,
+                XamlRoot,
+                ActualTheme,
+                _logger);
+
+            if (crop is not { } value)
+            {
+                // 取消裁剪就不使用这张图，别在背景目录里留下孤儿文件。
+                _backgroundImages.Delete(fileName);
+                return false;
+            }
+
+            var previous = ViewModel.ShellBackground.ImageFile;
+            ViewModel.ShellBackground.SetImage(
+                fileName,
+                dim,
+                ViewModel.ShellBackground.ImageBlur,
+                value.FocusX,
+                value.FocusY,
+                value.Zoom);
+
+            if (previous.Length > 0 && !string.Equals(previous, fileName, StringComparison.Ordinal))
+            {
+                _backgroundImages.Delete(previous);
+            }
+
+            SyncShellImageControls();
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "选择外壳背景图片失败");
+            return false;
+        }
+    }
+
+    private void SyncShellImageControls()
+    {
+        if (ShellImageDimSlider is null) return;
+
+        _syncingShellImage = true;
+        var percent = Math.Round(ViewModel.ShellBackground.ImageDim * 100);
+        ShellImageDimSlider.Value = percent;
+        ShellImageDimValue.Text = $"{(int)percent}%";
+        ShellImageBlurSlider.Value = Math.Round(ViewModel.ShellBackground.ImageBlur);
+        ShellImageBlurValue.Text = ((int)Math.Round(ViewModel.ShellBackground.ImageBlur)).ToString();
+        _syncingShellImage = false;
+    }
+
+    /// <summary>外壳背景的宽高比。窗口尺寸拿不到时退回 16:9。</summary>
+    private double BackgroundAspect
+    {
+        get
+        {
+            var size = XamlRoot?.Size ?? default;
+            return size.Width > 1 && size.Height > 1 ? size.Width / size.Height : 16.0 / 9;
+        }
+    }
 
     private static double Token(string key) =>
         Application.Current.Resources.TryGetValue(key, out var value) && value is double number ? number : 0d;

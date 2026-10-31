@@ -235,8 +235,8 @@ public static class AppPaths
     /// </remarks>
     public static string ShellBackgroundSettingsFile => Path.Combine(LocalAppData, "shell-background.json");
 
-    /// <summary>歌词页自定义背景图片的完整路径。</summary>
-    public static string LyricsBackgroundFile(string fileName) => Path.Combine(BackgroundsDirectory, fileName);
+    /// <summary>背景图片的完整路径。歌词页与外壳共用同一个目录。</summary>
+    public static string BackgroundFile(string fileName) => Path.Combine(BackgroundsDirectory, fileName);
 
     /// <summary>
     /// 界面字体偏好（明文 JSON）。

@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Bowen.Core.Media;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graphics.Canvas;
@@ -6,6 +7,8 @@ using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Foundation;
+using Windows.Graphics.Imaging;
+using Windows.Storage;
 using Windows.UI;
 
 namespace Bowen.WinUI.Controls;
@@ -28,10 +31,10 @@ public sealed class LyricsBackdrop : UserControl
         nameof(CoverUri), typeof(Uri), typeof(LyricsBackdrop), new PropertyMetadata(null, OnCoverChanged));
 
     private const double SurfaceSize = 384;
-    private const int MaxLocalEdge = 1920;
     private readonly CompositionCanvasHost _canvas;
     private Uri? _coverUri;
     private string _localPath = "";
+    private int _maxSourceEdge = 1920;
     private double _blurDip = 52;
     private double _imageOpacity = 0.72;
     private float _saturation = 0.68f;
@@ -67,6 +70,34 @@ public sealed class LyricsBackdrop : UserControl
             _localPath = value;
             _canvas.Invalidate();
         }
+    }
+
+    /// <summary>
+    /// 本地图片解码时的最长边上限；0 表示不限制。
+    /// </summary>
+    /// <remarks>
+    /// 外壳背景不需要 1920 全尺寸：压到 1280 后，源纹理与模糊中间表面都会小一截。
+    /// 歌词页保持默认 1920。
+    /// </remarks>
+    public int MaxSourceEdge
+    {
+        get => _maxSourceEdge;
+        set
+        {
+            value = Math.Max(0, value);
+            if (_maxSourceEdge == value) return;
+            _maxSourceEdge = value;
+            _canvas.Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// 合成表面的最大缩放倍率；见 <see cref="CompositionCanvasHost.MaxRenderScale"/>。
+    /// </summary>
+    public double MaxRenderScale
+    {
+        get => _canvas.MaxRenderScale;
+        set => _canvas.MaxRenderScale = value;
     }
 
     /// <summary>模糊量，DIP。封面默认 52，自定义图片由外观面板控制。</summary>
@@ -157,7 +188,7 @@ public sealed class LyricsBackdrop : UserControl
     }
 
     private BackdropState Snapshot()
-        => new(Volatile.Read(ref _coverUri), _localPath, _blurDip, _imageOpacity, _saturation,
+        => new(Volatile.Read(ref _coverUri), _localPath, _maxSourceEdge, _blurDip, _imageOpacity, _saturation,
             _focusX, _focusY, _zoom);
 
     private static void OnCoverChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
@@ -168,7 +199,7 @@ public sealed class LyricsBackdrop : UserControl
     }
 
     private sealed record BackdropState(
-        Uri? CoverUri, string LocalPath, double BlurDip, double Opacity, float Saturation,
+        Uri? CoverUri, string LocalPath, int MaxSourceEdge, double BlurDip, double Opacity, float Saturation,
         double FocusX, double FocusY, double Zoom)
     {
         public bool HasLocal => LocalPath.Length > 0;
@@ -178,6 +209,7 @@ public sealed class LyricsBackdrop : UserControl
                 && (HasLocal
                     ? string.Equals(LocalPath, other.LocalPath, StringComparison.Ordinal)
                     : CoverUri == other.CoverUri)
+                && MaxSourceEdge == other.MaxSourceEdge
                 && Math.Abs(Saturation - other.Saturation) < 0.001f;
     }
 
@@ -193,7 +225,7 @@ public sealed class LyricsBackdrop : UserControl
         private CoverSurface? _current;
         private CoverSurface? _previous;
         private CancellationTokenSource? _loadCancellation;
-        private BackdropState _requested = new(null, "", 52, 0.72, 0.68f, 0.5, 0.5, 1);
+        private BackdropState _requested = new(null, "", 0, 52, 0.72, 0.68f, 0.5, 0.5, 1);
         private bool _loading;
         private double _fade = 1;
         private TimeSpan _fadeStarted;
@@ -277,8 +309,7 @@ public sealed class LyricsBackdrop : UserControl
 
                 if (source.HasLocal)
                 {
-                    bitmap = await CanvasBitmap.LoadAsync(device, source.LocalPath).AsTask(token);
-                    bitmap = Downscale(bitmap);
+                    bitmap = await LoadLocalAsync(device, source.LocalPath, source.MaxSourceEdge, token);
                 }
                 else if (source.CoverUri is { } cover)
                 {
@@ -325,19 +356,41 @@ public sealed class LyricsBackdrop : UserControl
             }
         }
 
-        /// <summary>本地图片按最长边缩到 1920，避免 4K 原图长期占用大纹理。</summary>
-        private static CanvasBitmap Downscale(CanvasBitmap bitmap)
+        /// <summary>
+        /// 按最长边上限直接解码本地图片，避免先载入 4K 原图再缩小。
+        /// </summary>
+        private static async Task<CanvasBitmap> LoadLocalAsync(
+            CanvasDevice device,
+            string path,
+            int maxEdge,
+            CancellationToken token)
         {
-            var width = bitmap.Size.Width;
-            var height = bitmap.Size.Height;
-            var longest = Math.Max(width, height);
-            if (longest <= MaxLocalEdge) return bitmap;
+            if (maxEdge <= 0)
+            {
+                return await CanvasBitmap.LoadAsync(device, path).AsTask(token);
+            }
 
-            var scale = MaxLocalEdge / longest;
-            var target = new CanvasRenderTarget(bitmap.Device, (float)(width * scale), (float)(height * scale), 96);
-            using (var session = target.CreateDrawingSession()) session.DrawImage(bitmap);
-            bitmap.Dispose();
-            return target;
+            var file = await StorageFile.GetFileFromPathAsync(path).AsTask(token);
+            using var stream = await file.OpenReadAsync().AsTask(token);
+            var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(token);
+
+            var longest = Math.Max(decoder.PixelWidth, decoder.PixelHeight);
+            var scale = longest > maxEdge ? (double)maxEdge / longest : 1;
+
+            var transform = new BitmapTransform
+            {
+                ScaledWidth = (uint)Math.Max(1, Math.Round(decoder.PixelWidth * scale)),
+                ScaledHeight = (uint)Math.Max(1, Math.Round(decoder.PixelHeight * scale)),
+            };
+
+            using var software = await decoder.GetSoftwareBitmapAsync(
+                BitmapPixelFormat.Bgra8,
+                BitmapAlphaMode.Premultiplied,
+                transform,
+                ExifOrientationMode.RespectExifOrientation,
+                ColorManagementMode.ColorManageToSRgb).AsTask(token);
+
+            return CanvasBitmap.CreateFromSoftwareBitmap(device, software);
         }
 
         private void DrawSurface(CanvasDrawingSession session, CoverSurface surface, double width, double height,
@@ -347,9 +400,9 @@ public sealed class LyricsBackdrop : UserControl
             var size = surface.Bitmap.Size;
             if (size.Width <= 0 || size.Height <= 0) return;
 
-            // 与原来的 Viewbox UniformToFill 一致：铺满整页后放大 10%。
-            // 裁剪中心取用户选的位置，再把偏移夹回「整页仍被图片盖住」的范围内。
-            var scale = Math.Max(width / size.Width, height / size.Height) * 1.1 * _requested.Zoom;
+            // 100% 正好铺满整页。裁剪弹窗的预览用同一个基准；额外放大 10% 会让
+            // 用户框住的区域与最终背景对不上。
+            var scale = Math.Max(width / size.Width, height / size.Height) * _requested.Zoom;
             surface.Blur.BlurAmount = (float)(_requested.BlurDip / scale);
             var offsetX = (width / 2) - (_requested.FocusX * size.Width * scale);
             var offsetY = (height / 2) - (_requested.FocusY * size.Height * scale);

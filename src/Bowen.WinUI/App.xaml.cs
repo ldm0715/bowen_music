@@ -11,6 +11,7 @@ using Bowen.WinUI.Playback;
 using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
 using Bowen.WinUI.Controls;
+using Bowen.WinUI.Media;
 using Bowen.WinUI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -122,6 +123,9 @@ public partial class App : Application
         builder.Services.AddSingleton<IShellBackgroundSettingsStore>(sp => new JsonShellBackgroundSettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonShellBackgroundSettingsStore>>()));
         builder.Services.AddSingleton<ShellBackgroundViewModel>();
+
+        // 背景图片的导入、亮度估算与删除。歌词页与外壳共用同一个无状态服务。
+        builder.Services.AddSingleton<BackgroundImageStore>();
 
         // 窗口位置记忆。单独一个文件（window.json）—— 几何是「这台机器」的事，
         // 而外观偏好是「这个人」的事，不混在一起。
