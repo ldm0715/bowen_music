@@ -50,6 +50,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationFontScale, loaded.TranslationFontScale);
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
+        Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
@@ -70,6 +71,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
             TranslationFontScale = 0.9,
             TranslationLineGap = 12,
             EdgeBlurRatio = 0.35,
+            BackgroundMode = LyricsBackgroundMode.Mica,
             HorizontalOffsetPercent = 15,
             VerticalOffsetPercent = -10,
         });
@@ -86,6 +88,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(0.9d, loaded.TranslationFontScale);
         Assert.Equal(12d, loaded.TranslationLineGap);
         Assert.Equal(0.35d, loaded.EdgeBlurRatio);
+        Assert.Equal(LyricsBackgroundMode.Mica, loaded.BackgroundMode);
         Assert.Equal(15d, loaded.HorizontalOffsetPercent);
         Assert.Equal(-10d, loaded.VerticalOffsetPercent);
     }
@@ -107,6 +110,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Contains("\"TranslationFontScale\"", json, StringComparison.Ordinal);
         Assert.Contains("\"TranslationLineGap\"", json, StringComparison.Ordinal);
         Assert.Contains("\"EdgeBlurRatio\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundMode\"", json, StringComparison.Ordinal);
         Assert.Contains("\"HorizontalOffsetPercent\"", json, StringComparison.Ordinal);
         Assert.Contains("\"VerticalOffsetPercent\"", json, StringComparison.Ordinal);
     }
@@ -136,6 +140,7 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationFontScale, loaded.TranslationFontScale);
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
+        Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }

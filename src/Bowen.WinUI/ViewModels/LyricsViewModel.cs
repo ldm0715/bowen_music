@@ -92,6 +92,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationFontScale = loaded.TranslationFontScale;
         TranslationLineGap = loaded.TranslationLineGap;
         EdgeBlurRatio = loaded.EdgeBlurRatio;
+        BackgroundMode = loaded.BackgroundMode;
         HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
         VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
@@ -177,6 +178,9 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>视口上下边缘的模糊范围，占视口高度的比例。</summary>
     public double EdgeBlurRatio { get; private set; } = LyricsSettings.DefaultEdgeBlurRatio;
+
+    /// <summary>全屏歌词页的背景来源。</summary>
+    public LyricsBackgroundMode BackgroundMode { get; private set; } = LyricsBackgroundMode.CoverBlur;
 
     /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
     public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
@@ -359,6 +363,20 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>歌词页改背景来源：无效值退回封面模糊后落盘。</summary>
+    public void SetBackgroundMode(LyricsBackgroundMode mode)
+    {
+        if (!Enum.IsDefined(mode)) mode = LyricsBackgroundMode.CoverBlur;
+        if (BackgroundMode == mode)
+        {
+            return;
+        }
+
+        BackgroundMode = mode;
+        OnPropertyChanged(nameof(BackgroundMode));
+        Persist();
+    }
+
     /// <summary>歌词页改水平偏移：夹到 -30%–30% 后落盘。</summary>
     public void SetHorizontalOffsetPercent(double percent)
     {
@@ -407,6 +425,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationFontScale = TranslationFontScale,
         TranslationLineGap = TranslationLineGap,
         EdgeBlurRatio = EdgeBlurRatio,
+        BackgroundMode = BackgroundMode,
         HorizontalOffsetPercent = HorizontalOffsetPercent,
         VerticalOffsetPercent = VerticalOffsetPercent,
     });

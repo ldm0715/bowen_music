@@ -57,6 +57,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly List<DispatcherQueueTimer> _entranceTimers = [];
     private int _entranceVersion;
     private bool _entranceActive;
+    /// <summary>沉浸入场动画结束前先保持封面模糊，避免透出外壳页面。</summary>
+    private bool _immersiveEntranceCompleted;
 
     /// <summary>
     /// 收起时长与内容层的上移距离。**宁少勿多**：参考实现整块滑走一屏，实测用力过猛。
@@ -69,6 +71,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private static readonly TimeSpan ExitBackdropDuration = TimeSpan.FromMilliseconds(600);
     private static readonly TimeSpan ExitContentDuration = TimeSpan.FromMilliseconds(400);
     private const float ExitContentRiseDip = 8;
+    private static readonly SolidColorBrush CoverBackdropBrush = new(Color.FromArgb(0xFF, 0x0B, 0x12, 0x22));
+    private static readonly SolidColorBrush TransparentBackdropBrush = new(Color.FromArgb(0, 0, 0, 0));
     private Brush? _coverFrameBackground;
     private float _reflectionOpacity;
     private bool _pointerOverChrome;
@@ -178,6 +182,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public void OnNavigatedTo()
     {
         // 上一次收起 / 被中途取消的入场会留下位移与透明度，先复位再入场。
+        _immersiveEntranceCompleted = false;
         AppMotion.Reset(BackdropLayer);
         AppMotion.Reset(ContentLayer);
         AppMotion.Reset(CommentsOverlay);
@@ -211,6 +216,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _lastCursorPoint = null;
         _window.EnterImmersive(LyricsTitleBar);
         Lyrics.IsOpen = true;
+        ApplyBackgroundMode();
         UpdatePause();
         SyncFullscreen();
         SyncTranslation();
@@ -436,15 +442,42 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _canvas.IsPaused = !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended;
         _spectrum.IsPaused = _canvas.IsPaused;
         ReflectionView.IsPaused = _canvas.IsPaused;
-        BackdropView.IsPaused = _canvas.IsPaused;
+        var coverBackdrop = !(UsesMicaBackdrop && _immersiveEntranceCompleted);
+        BackdropView.IsPaused = _canvas.IsPaused || !coverBackdrop;
         // 过渡仅暂停绘制；真正进入后台才释放设备和纹理，避免全屏切换反复重建。
         var releaseResources = !Lyrics.IsOpen || !_windowVisible || !_window.IsWindowVisible || _window.IsMinimized;
         _canvas.IsResourceSuspended = releaseResources;
         _spectrum.IsResourceSuspended = releaseResources;
         ReflectionView.IsResourceSuspended = releaseResources;
-        BackdropView.IsResourceSuspended = releaseResources;
-        AmbientView.IsResourceSuspended = releaseResources;
+        BackdropView.IsResourceSuspended = releaseResources || !coverBackdrop;
+        AmbientView.IsResourceSuspended = releaseResources || !coverBackdrop;
     }
+
+    /// <summary>沉浸入场动画结束：此时外壳已收起，可以安全地亮出 Mica 背板。</summary>
+    public void OnImmersiveEntranceCompleted()
+    {
+        _immersiveEntranceCompleted = true;
+        ApplyBackgroundMode();
+    }
+
+    /// <summary>当前是否真的使用 Mica；系统不支持时保持封面模糊。</summary>
+    private bool UsesMicaBackdrop
+        => Lyrics.BackgroundMode == LyricsBackgroundMode.Mica && MainWindow.IsMicaSupported;
+
+    /// <summary>
+    /// 按当前设置摆放背景层：Mica 时收起封面模糊与氛围色，让窗口背板透出来。
+    /// </summary>
+    private void ApplyBackgroundMode()
+    {
+        // 入场期间外壳还看得见；此时切 Mica 会把外壳页面透在歌词后面，等入场结束再切。
+        var mica = UsesMicaBackdrop && _immersiveEntranceCompleted;
+        BackdropView.Visibility = mica ? Visibility.Collapsed : Visibility.Visible;
+        AmbientView.Visibility = mica ? Visibility.Collapsed : Visibility.Visible;
+        BackdropLayer.Background = mica ? TransparentBackdropBrush : CoverBackdropBrush;
+        _window.SetLyricsMaterialBackdrop(mica);
+        UpdatePause();
+    }
+
     private void OnRootSizeChanged(object sender, SizeChangedEventArgs args)
     {
         _layoutPending = true;
@@ -999,6 +1032,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         try
         {
             LyricsFontPicker.SelectedIndex = FontIndexOf(Lyrics.FontFamily);
+            LyricsBackgroundMicaItem.IsEnabled = MainWindow.IsMicaSupported;
+            LyricsBackgroundMicaItem.Content = MainWindow.IsMicaSupported ? "Mica" : "Mica（需要 Windows 11）";
+            LyricsBackgroundCombo.SelectedIndex = UsesMicaBackdrop ? 1 : 0;
             LyricsFontSizeSlider.Value = Lyrics.FontSize;
             LyricsFontSizeValue.Text = ((int)Math.Round(Lyrics.FontSize)).ToString();
             LyricsLineGapSlider.Value = Lyrics.LineGap;
@@ -1027,6 +1063,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         if (_syncingAppearance || !_appearanceOpen) return;
         Lyrics.SetFontFamily(FontNameAt(LyricsFontPicker.SelectedIndex));
+    }
+
+    private void OnLyricsBackgroundSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetBackgroundMode(LyricsBackgroundCombo.SelectedIndex == 1
+            ? LyricsBackgroundMode.Mica
+            : LyricsBackgroundMode.CoverBlur);
     }
 
     private void OnLyricsFontSizeChanged(object sender, RangeBaseValueChangedEventArgs args)
@@ -1231,6 +1275,13 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (args.PropertyName is nameof(LyricsViewModel.HasTranslation) or nameof(LyricsViewModel.ShowTranslation))
         {
             SyncTranslation();
+            return;
+        }
+
+        if (args.PropertyName is nameof(LyricsViewModel.BackgroundMode))
+        {
+            ApplyBackgroundMode();
+            if (_appearanceOpen) SyncAppearanceControls();
             return;
         }
 

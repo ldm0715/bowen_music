@@ -13,6 +13,22 @@ public enum LyricsAlignment
     Right = 2,
 }
 
+/// <summary>全屏歌词页的背景来源。</summary>
+public enum LyricsBackgroundMode
+{
+    /// <summary>当前封面的模糊背景。</summary>
+    CoverBlur = 0,
+
+    /// <summary>系统 Mica 材质，仅 Windows 11 支持。</summary>
+    Mica = 1,
+
+    /// <summary>自定义图片。尚未实现，仅占位。</summary>
+    CustomImage = 2,
+
+    /// <summary>纯色。尚未实现，仅占位。</summary>
+    SolidColor = 3,
+}
+
 /// <summary>
 /// 歌词相关界面的偏好：全屏歌词页与小窗歌词。
 /// </summary>
@@ -166,6 +182,9 @@ public sealed record LyricsSettings
     /// </remarks>
     public double EdgeBlurRatio { get; init; } = DefaultEdgeBlurRatio;
 
+    /// <summary>全屏歌词页的背景来源；默认封面模糊。</summary>
+    public LyricsBackgroundMode BackgroundMode { get; init; } = LyricsBackgroundMode.CoverBlur;
+
     /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
     /// </summary>
@@ -224,5 +243,6 @@ public sealed record LyricsSettings
             : DefaultOffsetPercent,
 
         Alignment = Enum.IsDefined(Alignment) ? Alignment : LyricsAlignment.Left,
+        BackgroundMode = Enum.IsDefined(BackgroundMode) ? BackgroundMode : LyricsBackgroundMode.CoverBlur,
     };
 }

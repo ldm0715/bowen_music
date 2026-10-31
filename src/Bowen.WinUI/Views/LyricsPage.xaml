@@ -517,6 +517,24 @@
                                 <controls:FontPicker x:Name="LyricsFontPicker" Grid.Column="1" />
                             </Grid>
 
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="背景" Style="{StaticResource LyricsSectionTitleStyle}"
+                                    VerticalAlignment="Center" />
+                                <ComboBox x:Name="LyricsBackgroundCombo" Grid.Column="1"
+                                    HorizontalAlignment="Stretch"
+                                    SelectionChanged="OnLyricsBackgroundSelectionChanged"
+                                    AutomationProperties.Name="歌词背景">
+                                    <ComboBoxItem Content="封面模糊" />
+                                    <ComboBoxItem x:Name="LyricsBackgroundMicaItem" Content="Mica" />
+                                    <ComboBoxItem Content="自定义图片（即将支持）" IsEnabled="False" />
+                                    <ComboBoxItem Content="纯色（即将支持）" IsEnabled="False" />
+                                </ComboBox>
+                            </Grid>
+
                             <StackPanel Spacing="8">
                                 <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="字号与间距" />
 

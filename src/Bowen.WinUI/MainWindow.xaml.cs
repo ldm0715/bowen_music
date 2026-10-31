@@ -11,6 +11,7 @@ using Bowen.WinUI.ViewModels;
 using Bowen.WinUI.Views;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
@@ -119,6 +120,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private bool _closed;
     private FrameworkElement? _lyricsTitleBar;
     private bool _immersiveVisible;
+    private MicaBackdrop? _lyricsMicaBackdrop;
     private bool _isChangingLyricsPresenter;
     private bool _isNavigatingBack;
     private bool _lyricsChromeVisible = true;
@@ -2582,6 +2584,49 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             throw new Win32Exception(Marshal.GetLastWin32Error(), "无法恢复全屏前的窗口位置");
     }
 
+    /// <summary>当前系统是否支持 Mica（Mica 只在 Windows 11 上可用）。</summary>
+    public static bool IsMicaSupported { get; } = CheckMicaSupport();
+
+    private static bool CheckMicaSupport()
+    {
+        try
+        {
+            return MicaController.IsSupported();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 歌词页背景切到 Mica 或恢复外壳底色。
+    /// </summary>
+    /// <remarks>
+    /// Mica 是窗口级系统背板。启用时还要收起外壳底色层：不透明的 AppSurfaceBrush
+    /// 会把背板完全挡住。歌词页自己的封面模糊层由 <c>LyricsPage</c> 负责隐藏。
+    /// 不支持 Mica 的系统上选项置灰，背景保持封面模糊。
+    /// </remarks>
+    public void SetLyricsMaterialBackdrop(bool enabled)
+    {
+        if (enabled && IsMicaSupported)
+        {
+            _lyricsMicaBackdrop ??= new MicaBackdrop { Kind = MicaKind.Base };
+            SystemBackdrop = _lyricsMicaBackdrop;
+            ShellSurfaceBorder.Visibility = Visibility.Collapsed;
+            ShellBackdrop.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        if (SystemBackdrop is MicaBackdrop)
+        {
+            SystemBackdrop = null;
+        }
+
+        ShellSurfaceBorder.Visibility = Visibility.Visible;
+        if (!_immersiveVisible) ShellBackdrop.Visibility = Visibility.Visible;
+    }
+
     /// <summary>退出沉浸态，恢复外壳。与 <see cref="EnterImmersive"/> 成对。</summary>
     public void ExitImmersive()
     {
@@ -2600,6 +2645,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _lyricsChromeVisible = true;
         _lyricsTitleBar = null;
         SetShellSurfaceVisible(true);
+        // 歌词页可能选了系统材质；离开沉浸态要把窗口背板和外层底色一起恢复。
+        SetLyricsMaterialBackdrop(false);
 
         // 播放条回来了，通知条也跟着回到「播放条上方」那个位置。
         NotificationBar.Margin = new Thickness(0, 0, 0, NotificationBottomGap);
@@ -2722,6 +2769,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (!finished || _closed || version != _immersiveMotionVersion
             || !ReferenceEquals(_navigation.Current, page)) return;
         SetShellSurfaceVisible(false);
+        // 外壳收好后再让歌词页切 Mica，否则入场过程中会透出后面的外壳页面。
+        if (page is LyricsPage lyrics) lyrics.OnImmersiveEntranceCompleted();
     }
 
     private void OnNavigated(object? sender, Page page)

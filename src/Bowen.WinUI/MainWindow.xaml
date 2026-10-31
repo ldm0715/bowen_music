@@ -231,7 +231,7 @@
             底色层与氛围渐变层都要**跨三行**：只铺内容区的话，播放条那一带会露出纯色，
             与上面的渐变之间出现一条硬边。
         -->
-        <Border Grid.RowSpan="3" Background="{ThemeResource AppSurfaceBrush}" />
+        <Border x:Name="ShellSurfaceBorder" Grid.RowSpan="3" Background="{ThemeResource AppSurfaceBrush}" />
         <controls:AmbientBackdrop x:Name="ShellBackdrop" Grid.RowSpan="3" />
 
         <!--
