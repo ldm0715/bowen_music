@@ -51,6 +51,12 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
         Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
+        Assert.Equal(string.Empty, loaded.BackgroundImageFile);
+        Assert.Equal(LyricsSettings.DefaultBackgroundDim, loaded.BackgroundImageDim);
+        Assert.Equal(LyricsSettings.DefaultBackgroundBlur, loaded.BackgroundImageBlur);
+        Assert.Equal(0.5d, loaded.BackgroundImageFocusX);
+        Assert.Equal(0.5d, loaded.BackgroundImageFocusY);
+        Assert.Equal(1d, loaded.BackgroundImageZoom);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
@@ -72,6 +78,12 @@ public sealed class LyricsSettingsStoreTests : IDisposable
             TranslationLineGap = 12,
             EdgeBlurRatio = 0.35,
             BackgroundMode = LyricsBackgroundMode.Mica,
+            BackgroundImageFile = "lyrics-bg-test.png",
+            BackgroundImageDim = 0.45,
+            BackgroundImageBlur = 12,
+            BackgroundImageFocusX = 0.2,
+            BackgroundImageFocusY = 0.8,
+            BackgroundImageZoom = 1.6,
             HorizontalOffsetPercent = 15,
             VerticalOffsetPercent = -10,
         });
@@ -89,6 +101,12 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(12d, loaded.TranslationLineGap);
         Assert.Equal(0.35d, loaded.EdgeBlurRatio);
         Assert.Equal(LyricsBackgroundMode.Mica, loaded.BackgroundMode);
+        Assert.Equal("lyrics-bg-test.png", loaded.BackgroundImageFile);
+        Assert.Equal(0.45d, loaded.BackgroundImageDim);
+        Assert.Equal(12d, loaded.BackgroundImageBlur);
+        Assert.Equal(0.2d, loaded.BackgroundImageFocusX);
+        Assert.Equal(0.8d, loaded.BackgroundImageFocusY);
+        Assert.Equal(1.6d, loaded.BackgroundImageZoom);
         Assert.Equal(15d, loaded.HorizontalOffsetPercent);
         Assert.Equal(-10d, loaded.VerticalOffsetPercent);
     }
@@ -111,6 +129,12 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Contains("\"TranslationLineGap\"", json, StringComparison.Ordinal);
         Assert.Contains("\"EdgeBlurRatio\"", json, StringComparison.Ordinal);
         Assert.Contains("\"BackgroundMode\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundImageFile\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundImageDim\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundImageBlur\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundImageFocusX\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundImageFocusY\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"BackgroundImageZoom\"", json, StringComparison.Ordinal);
         Assert.Contains("\"HorizontalOffsetPercent\"", json, StringComparison.Ordinal);
         Assert.Contains("\"VerticalOffsetPercent\"", json, StringComparison.Ordinal);
     }
@@ -141,6 +165,12 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
         Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
+        Assert.Equal(string.Empty, loaded.BackgroundImageFile);
+        Assert.Equal(LyricsSettings.DefaultBackgroundDim, loaded.BackgroundImageDim);
+        Assert.Equal(LyricsSettings.DefaultBackgroundBlur, loaded.BackgroundImageBlur);
+        Assert.Equal(0.5d, loaded.BackgroundImageFocusX);
+        Assert.Equal(0.5d, loaded.BackgroundImageFocusY);
+        Assert.Equal(1d, loaded.BackgroundImageZoom);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.HorizontalOffsetPercent);
         Assert.Equal(LyricsSettings.DefaultOffsetPercent, loaded.VerticalOffsetPercent);
     }
@@ -193,6 +223,61 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         NewStore().Save(new LyricsSettings { EdgeBlurRatio = stored });
 
         Assert.Equal(expected, NewStore().Load().EdgeBlurRatio);
+    }
+
+    [Theory]
+    [InlineData(-1, LyricsSettings.MinimumBackgroundDim)]
+    [InlineData(2, LyricsSettings.MaximumBackgroundDim)]
+    public void BackgroundImageDim_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { BackgroundImageDim = stored });
+
+        Assert.Equal(expected, NewStore().Load().BackgroundImageDim);
+    }
+
+    [Theory]
+    [InlineData(-5, LyricsSettings.MinimumBackgroundBlur)]
+    [InlineData(99, LyricsSettings.MaximumBackgroundBlur)]
+    public void BackgroundImageBlur_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { BackgroundImageBlur = stored });
+
+        Assert.Equal(expected, NewStore().Load().BackgroundImageBlur);
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(2, 1)]
+    public void BackgroundImageFocus_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings
+        {
+            BackgroundImageFocusX = stored,
+            BackgroundImageFocusY = stored,
+        });
+
+        var loaded = NewStore().Load();
+        Assert.Equal(expected, loaded.BackgroundImageFocusX);
+        Assert.Equal(expected, loaded.BackgroundImageFocusY);
+    }
+
+    [Theory]
+    [InlineData(0.2, 1)]
+    [InlineData(5, 3)]
+    public void BackgroundImageZoom_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { BackgroundImageZoom = stored });
+
+        Assert.Equal(expected, NewStore().Load().BackgroundImageZoom);
+    }
+
+    /// <summary>背景图只存文件名，带路径的旧值要剥成文件名。</summary>
+    [Fact]
+    public void BackgroundImageFile_IsStrippedToFileName()
+    {
+        NewStore().Save(new LyricsSettings { BackgroundImageFile = @"C:\somewhere\photo.png" });
+
+        Assert.Equal("photo.png", NewStore().Load().BackgroundImageFile);
     }
 
     [Theory]

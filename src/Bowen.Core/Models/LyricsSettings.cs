@@ -117,6 +117,24 @@ public sealed record LyricsSettings
     /// <summary>默认让视口上下各 20% 的范围逐渐模糊。</summary>
     public const double DefaultEdgeBlurRatio = 0.2;
 
+    /// <summary>自定义背景图片的暗度下限。</summary>
+    public const double MinimumBackgroundDim = 0;
+
+    /// <summary>自定义背景图片的暗度上限。</summary>
+    public const double MaximumBackgroundDim = 0.8;
+
+    /// <summary>自定义背景图片的默认暗度。</summary>
+    public const double DefaultBackgroundDim = 0.6;
+
+    /// <summary>自定义背景图片的模糊下限（DIP）。</summary>
+    public const double MinimumBackgroundBlur = 0;
+
+    /// <summary>自定义背景图片的模糊上限（DIP）。</summary>
+    public const double MaximumBackgroundBlur = 40;
+
+    /// <summary>自定义背景图片的默认模糊（DIP）。</summary>
+    public const double DefaultBackgroundBlur = 8;
+
     /// <summary>水平偏移下限，占歌词区域宽度的百分比。</summary>
     public const double MinimumHorizontalOffsetPercent = -30;
 
@@ -186,6 +204,27 @@ public sealed record LyricsSettings
     public LyricsBackgroundMode BackgroundMode { get; init; } = LyricsBackgroundMode.CoverBlur;
 
     /// <summary>
+    /// 自定义背景图片的文件名，位于应用数据目录的 <c>backgrounds</c> 下。
+    /// </summary>
+    /// <remarks>只存文件名，不存绝对路径；换机器或改目录时不会失效。</remarks>
+    public string BackgroundImageFile { get; init; } = string.Empty;
+
+    /// <summary>自定义背景图片上叠加的黑色暗度，0–0.8；默认 0.6。</summary>
+    public double BackgroundImageDim { get; init; } = DefaultBackgroundDim;
+
+    /// <summary>自定义背景图片的模糊量，DIP；默认 8。</summary>
+    public double BackgroundImageBlur { get; init; } = DefaultBackgroundBlur;
+
+    /// <summary>自定义背景图片的水平裁剪中心，0–1；0.5 为居中。</summary>
+    public double BackgroundImageFocusX { get; init; } = 0.5;
+
+    /// <summary>自定义背景图片的垂直裁剪中心，0–1；0.5 为居中。</summary>
+    public double BackgroundImageFocusY { get; init; } = 0.5;
+
+    /// <summary>自定义背景图片在 cover 基础上的缩放，1–3；1 表示刚好铺满。</summary>
+    public double BackgroundImageZoom { get; init; } = 1;
+
+    /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
     /// </summary>
     public double HorizontalOffsetPercent { get; init; } = DefaultOffsetPercent;
@@ -244,5 +283,30 @@ public sealed record LyricsSettings
 
         Alignment = Enum.IsDefined(Alignment) ? Alignment : LyricsAlignment.Left,
         BackgroundMode = Enum.IsDefined(BackgroundMode) ? BackgroundMode : LyricsBackgroundMode.CoverBlur,
+
+        // 只保留文件名，拒绝目录穿越；空串表示还没选图片。
+        BackgroundImageFile = string.IsNullOrWhiteSpace(BackgroundImageFile)
+            ? string.Empty
+            : Path.GetFileName(BackgroundImageFile.Trim()),
+
+        BackgroundImageDim = double.IsFinite(BackgroundImageDim)
+            ? Math.Clamp(BackgroundImageDim, MinimumBackgroundDim, MaximumBackgroundDim)
+            : DefaultBackgroundDim,
+
+        BackgroundImageBlur = double.IsFinite(BackgroundImageBlur)
+            ? Math.Clamp(BackgroundImageBlur, MinimumBackgroundBlur, MaximumBackgroundBlur)
+            : DefaultBackgroundBlur,
+
+        BackgroundImageFocusX = double.IsFinite(BackgroundImageFocusX)
+            ? Math.Clamp(BackgroundImageFocusX, 0, 1)
+            : 0.5,
+
+        BackgroundImageFocusY = double.IsFinite(BackgroundImageFocusY)
+            ? Math.Clamp(BackgroundImageFocusY, 0, 1)
+            : 0.5,
+
+        BackgroundImageZoom = double.IsFinite(BackgroundImageZoom)
+            ? Math.Clamp(BackgroundImageZoom, 1, 3)
+            : 1,
     };
 }

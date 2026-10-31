@@ -64,6 +64,12 @@ public sealed class JsonLyricsSettingsStore : ILyricsSettingsStore
                 TranslationLineGap = Has("TranslationLineGap") ? loaded.TranslationLineGap : LyricsSettings.DefaultTranslationLineGap,
                 EdgeBlurRatio = Has("EdgeBlurRatio") ? loaded.EdgeBlurRatio : LyricsSettings.DefaultEdgeBlurRatio,
                 BackgroundMode = Has("BackgroundMode") ? loaded.BackgroundMode : LyricsBackgroundMode.CoverBlur,
+                BackgroundImageFile = Has("BackgroundImageFile") ? loaded.BackgroundImageFile : string.Empty,
+                BackgroundImageDim = Has("BackgroundImageDim") ? loaded.BackgroundImageDim : LyricsSettings.DefaultBackgroundDim,
+                BackgroundImageBlur = Has("BackgroundImageBlur") ? loaded.BackgroundImageBlur : LyricsSettings.DefaultBackgroundBlur,
+                BackgroundImageFocusX = Has("BackgroundImageFocusX") ? loaded.BackgroundImageFocusX : 0.5,
+                BackgroundImageFocusY = Has("BackgroundImageFocusY") ? loaded.BackgroundImageFocusY : 0.5,
+                BackgroundImageZoom = Has("BackgroundImageZoom") ? loaded.BackgroundImageZoom : 1,
             };
 
             return loaded.Normalized();
