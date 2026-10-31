@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Bowen.Core.Media;
 using Bowen.Core.Models;
 using Bowen.WinUI.Controls;
 using Bowen.WinUI.Services;
@@ -52,6 +53,13 @@ public sealed partial class SettingsPage : Page, INavigationAware
         _notifications = notifications;
 
         InitializeComponent();
+
+        ShellMicaItem.IsEnabled = MainWindow.IsMicaSupported;
+
+        if (!MainWindow.IsMicaSupported)
+        {
+            ShellMicaItem.Content = "Mica（需要 Windows 11）";
+        }
     }
 
     public SettingsViewModel ViewModel { get; }
@@ -62,10 +70,26 @@ public sealed partial class SettingsPage : Page, INavigationAware
     public void OnNavigatedTo()
     {
         Subscribe();
+        SyncShellBackgroundTheme();
         _ = ViewModel.RefreshAsync();
     }
 
     public void OnNavigatedFrom() => Unsubscribe();
+
+    /// <summary>
+    /// 让纯色下拉框跟上设置页的实际主题。
+    /// </summary>
+    /// <remarks>
+    /// 外壳 ViewModel 在主窗口构造时可能还没解析出实际主题（尤其「跟随系统」），
+    /// 只靠那里的初始化会留下深色主题的预设列表。设置页自己的 <see cref="FrameworkElement.ActualTheme"/>
+    /// 在导航进来时已经确定，这里以它为准再同步一次。
+    /// </remarks>
+    private void SyncShellBackgroundTheme()
+        => ViewModel.ShellBackground.UpdateTheme(
+            ActualTheme == ElementTheme.Dark ? AmbientTheme.Dark : AmbientTheme.Light);
+
+    private void OnActualThemeChanged(FrameworkElement sender, object args)
+        => SyncShellBackgroundTheme();
 
     private static double Token(string key) =>
         Application.Current.Resources.TryGetValue(key, out var value) && value is double number ? number : 0d;
@@ -81,6 +105,7 @@ public sealed partial class SettingsPage : Page, INavigationAware
         ViewModel.Theme.PropertyChanged += OnThemeChanged;
         ViewModel.Player.PropertyChanged += OnPlayerChanged;
         ViewModel.DesktopLyrics.PropertyChanged += OnDesktopLyricsChanged;
+        ActualThemeChanged += OnActualThemeChanged;
     }
 
     private void Unsubscribe()
@@ -94,6 +119,7 @@ public sealed partial class SettingsPage : Page, INavigationAware
         ViewModel.Theme.PropertyChanged -= OnThemeChanged;
         ViewModel.Player.PropertyChanged -= OnPlayerChanged;
         ViewModel.DesktopLyrics.PropertyChanged -= OnDesktopLyricsChanged;
+        ActualThemeChanged -= OnActualThemeChanged;
     }
 
     private void OnThemeChanged(object? sender, PropertyChangedEventArgs args)

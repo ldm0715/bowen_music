@@ -118,6 +118,11 @@ public partial class App : Application
         builder.Services.AddSingleton<IThemeSettingsStore>(sp => new JsonThemeSettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonThemeSettingsStore>>()));
 
+        // 主窗口外壳背景（shell-background.json）。与主题分开一份，见 AppPaths 的说明。
+        builder.Services.AddSingleton<IShellBackgroundSettingsStore>(sp => new JsonShellBackgroundSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonShellBackgroundSettingsStore>>()));
+        builder.Services.AddSingleton<ShellBackgroundViewModel>();
+
         // 窗口位置记忆。单独一个文件（window.json）—— 几何是「这台机器」的事，
         // 而外观偏好是「这个人」的事，不混在一起。
         builder.Services.AddSingleton<IWindowPlacementStore>(sp => new JsonWindowPlacementStore(

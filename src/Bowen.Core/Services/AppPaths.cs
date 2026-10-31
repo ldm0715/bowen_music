@@ -226,6 +226,15 @@ public static class AppPaths
     /// <summary>歌词页自定义背景图片目录。</summary>
     public static string BackgroundsDirectory => Path.Combine(LocalAppData, "backgrounds");
 
+    /// <summary>
+    /// 主窗口外壳背景偏好（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="SettingsFile"/> 刻意分开</b>：那份管浅色 / 深色，这份管背景材质与纯色。
+    /// 两者改动时机不同，混在一起会让一个坏字段连带重置另一个。
+    /// </remarks>
+    public static string ShellBackgroundSettingsFile => Path.Combine(LocalAppData, "shell-background.json");
+
     /// <summary>歌词页自定义背景图片的完整路径。</summary>
     public static string LyricsBackgroundFile(string fileName) => Path.Combine(BackgroundsDirectory, fileName);
 

@@ -206,7 +206,7 @@
                 <StackPanel Padding="0,0,16,16" Spacing="20">
 
                     <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
-                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="外观" />
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="界面外观" />
                         <Border Style="{StaticResource BowenSettingsCard}">
                             <StackPanel>
                                 <controls:SettingsRow Description="跟随系统、浅色或深色" Header="主题">
@@ -217,22 +217,55 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
-                                <controls:SettingsRow Description="搜索结果、收藏这些页的默认排布；在页面上切只影响当前这一次" Header="列表显示">
+                                <controls:SettingsRow Description="封面取色跟随当前封面；Mica 需要 Windows 11" Header="窗口背景">
                                     <controls:SettingsRow.RightContent>
                                         <ComboBox
-                                            ItemsSource="{x:Bind ViewModel.ListDisplayOptions}"
-                                            SelectedIndex="{x:Bind ViewModel.ListDisplayIndex, Mode=TwoWay}" />
+                                            x:Name="ShellBackgroundCombo"
+                                            SelectedIndex="{x:Bind ViewModel.ShellBackground.ModeIndex, Mode=TwoWay}"
+                                            AutomationProperties.Name="窗口背景">
+                                            <ComboBoxItem Content="封面取色" />
+                                            <ComboBoxItem x:Name="ShellMicaItem" Content="Mica" />
+                                            <ComboBoxItem Content="纯色" />
+                                        </ComboBox>
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
-                                <controls:SettingsRow Description="启动后直接进入的页面；未登录时账号页回退到发现" Header="默认打开的页面">
-                                    <controls:SettingsRow.RightContent>
-                                        <ComboBox
-                                            ItemsSource="{x:Bind ViewModel.StartupPageOptions}"
-                                            SelectedIndex="{x:Bind ViewModel.StartupPageIndex, Mode=TwoWay}" />
-                                    </controls:SettingsRow.RightContent>
-                                </controls:SettingsRow>
-                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <StackPanel Visibility="{x:Bind local:Formats.Visible(ViewModel.ShellBackground.IsSolid), Mode=OneWay}">
+                                    <controls:SettingsRow Description="深色与浅色主题各有独立预设；切换主题会恢复各自的选择" Header="纯色背景">
+                                        <controls:SettingsRow.RightContent>
+                                            <ComboBox
+                                                ItemsSource="{x:Bind ViewModel.ShellBackground.SolidColorOptions}"
+                                                SelectedIndex="{x:Bind ViewModel.ShellBackground.SolidColorIndex, Mode=TwoWay}"
+                                                IsEnabled="{x:Bind ViewModel.ShellBackground.IsManualSolidColor, Mode=OneWay}"
+                                                AutomationProperties.Name="纯色背景颜色">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:ShellColorOption">
+                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                            <Border
+                                                                Width="14"
+                                                                Height="14"
+                                                                CornerRadius="3"
+                                                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                                                BorderThickness="1"
+                                                                Background="{x:Bind Brush}" />
+                                                            <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                    <controls:SettingsRow Description="按当前封面取色，并按当前主题调整明暗；关掉后回到上面选的颜色" Header="跟随封面">
+                                        <controls:SettingsRow.RightContent>
+                                            <ToggleSwitch
+                                                IsOn="{x:Bind ViewModel.ShellBackground.SolidColorAuto, Mode=TwoWay}"
+                                                MinWidth="0" OffContent="" OnContent=""
+                                                AutomationProperties.Name="纯色背景跟随封面" />
+                                        </controls:SettingsRow.RightContent>
+                                    </controls:SettingsRow>
+                                    <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                </StackPanel>
                                 <controls:SettingsRow Description="关闭后应用内的磨砂表面改用实色底，减少显卡占用；系统下拉与托盘菜单仍跟随 Windows 的透明效果设置" Header="亚克力效果">
                                     <controls:SettingsRow.RightContent>
                                         <ToggleSwitch
@@ -247,6 +280,29 @@
                                         <controls:FontPicker
                                             ItemsSource="{x:Bind ViewModel.FontOptions}"
                                             SelectedIndex="{x:Bind ViewModel.AppFontIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel controls:Motion.TabContent="True" Spacing="8" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAppearanceSelected), Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BowenSettingsGroupTitle}" Text="页面与输入" />
+                        <Border Style="{StaticResource BowenSettingsCard}">
+                            <StackPanel>
+                                <controls:SettingsRow Description="搜索结果、收藏这些页的默认排布；在页面上切只影响当前这一次" Header="列表显示">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.ListDisplayOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.ListDisplayIndex, Mode=TwoWay}" />
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="启动后直接进入的页面；未登录时账号页回退到发现" Header="默认打开的页面">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            ItemsSource="{x:Bind ViewModel.StartupPageOptions}"
+                                            SelectedIndex="{x:Bind ViewModel.StartupPageIndex, Mode=TwoWay}" />
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />

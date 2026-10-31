@@ -119,18 +119,51 @@ public static class ColorPalette
     }
 
     /// <summary>
-    /// 把封面主色压成适合做纯色背景的暗色：保留色相，明度压到约 0.16。
+    /// 由封面种子派生单个纯色表面，按主题取不同的明度与彩度。
     /// </summary>
     /// <remarks>
-    /// 氛围色为了发光效果保持在较高明度，直接拿来当背景会把白色歌词吃掉；
-    /// 这里只取色相，饱和度与明度都重新收口到深色区间。灰阶封面退回默认的深夜蓝。
+    /// <para>
+    /// <b>纯色背景铺满整窗，必须和当前主题的文字、卡片对比。</b> 深色主题用低明度色，
+    /// 浅色主题用高明度色；色相来自封面第一个种子。取第一个种子是因为它已经是
+    /// <see cref="ColorQuantizer.Palette"/> 按得分排在最前的颜色。
+    /// </para>
+    /// <para>
+    /// <b>歌词页也走这里，但固定传 <see cref="AmbientTheme.Dark"/>。</b>
+    /// 歌词页永远是白字深底，不需要浅色变体；外壳则有深色与浅色两种主题。
+    /// </para>
     /// </remarks>
-    public static RgbColor DarkBackground(RgbColor seed)
+    public static RgbColor SolidBackground(IReadOnlyList<RgbColor> seeds, AmbientTheme theme)
     {
-        var (hue, saturation, _) = ColorMath.ToHsv(seed);
-        return saturation < 0.15
-            ? new RgbColor(36, 50, 74)
-            : ColorMath.FromHsv(hue, Math.Clamp(saturation, 0.40, 0.70), 0.20);
+        ArgumentNullException.ThrowIfNull(seeds);
+
+        if (seeds.Count == 0)
+        {
+            return theme == AmbientTheme.Dark
+                ? new RgbColor(24, 32, 48)
+                : new RgbColor(244, 244, 244);
+        }
+
+        var (lightness, chroma, hue) = ColorMath.ToOklch(seeds[0]);
+        var neutral = chroma < NeutralChromaThreshold;
+
+        if (theme == AmbientTheme.Dark)
+        {
+            // 深色底：约 #121212–#1C1C1C 的明度，留一点点封面色相。
+            var targetLightness = Math.Clamp(0.20 + (0.10 * lightness), 0.20, 0.30);
+            var targetChroma = neutral
+                ? Math.Min(chroma, 0.008)
+                : Math.Clamp((chroma * 0.55) + 0.005, 0.012, 0.070);
+
+            return ColorMath.FromOklch(targetLightness, targetChroma, hue);
+        }
+
+        // 浅色底：比卡片底色略深一点，保证卡片边界仍可见。
+        var lightLightness = Math.Clamp(0.94 - (0.04 * lightness), 0.90, 0.96);
+        var lightChroma = neutral
+            ? Math.Min(chroma, 0.006)
+            : Math.Clamp(chroma * 0.30, 0.006, 0.035);
+
+        return ColorMath.FromOklch(lightLightness, lightChroma, hue);
     }
 
     /// <summary>

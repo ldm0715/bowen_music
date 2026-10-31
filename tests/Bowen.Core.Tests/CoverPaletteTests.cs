@@ -499,21 +499,50 @@ public sealed class CoverPaletteTests
     // ── 纯色背景 ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void DarkBackground_KeepsHueAndStaysDark()
+    public void SolidBackground_DarkTheme_StaysDarkAndKeepsHue()
     {
-        var color = ColorPalette.DarkBackground(new RgbColor(255, 80, 120));
-        var luminance = ((0.2126 * color.R) + (0.7152 * color.G) + (0.0722 * color.B)) / 255;
+        var color = ColorPalette.SolidBackground([new RgbColor(255, 80, 120)], AmbientTheme.Dark);
 
-        Assert.InRange(luminance, 0.03, 0.25);
-
-        // 红色分量的主色仍应偏红，不能把色相丢掉变成灰。
-        Assert.True(color.R > color.G);
-        Assert.True(color.R > color.B);
+        Assert.InRange(Luminance(color), 0.03, 0.20);
+        Assert.True(color.R > color.G, $"深色纯色丢了色相：{color}");
+        Assert.True(color.R > color.B, $"深色纯色丢了色相：{color}");
     }
 
     [Fact]
-    public void DarkBackground_GraySeedFallsBackToDeepBlue()
+    public void SolidBackground_LightTheme_IsLightAndKeepsHue()
     {
-        Assert.Equal(new RgbColor(36, 50, 74), ColorPalette.DarkBackground(new RgbColor(128, 128, 128)));
+        var seed = new RgbColor(255, 80, 120);
+
+        var dark = ColorPalette.SolidBackground([seed], AmbientTheme.Dark);
+        var light = ColorPalette.SolidBackground([seed], AmbientTheme.Light);
+
+        Assert.InRange(Luminance(light), 0.80, 0.99);
+        Assert.True(Luminance(light) > Luminance(dark) + 0.50);
+        Assert.True(light.R > light.B, $"浅色纯色丢了色相：{light}");
+    }
+
+    /// <summary>灰阶封面在两个主题下都保持中性，不凭空染色。</summary>
+    [Theory]
+    [InlineData(AmbientTheme.Dark)]
+    [InlineData(AmbientTheme.Light)]
+    public void SolidBackground_GraySeed_StaysNeutral(AmbientTheme theme)
+    {
+        var color = ColorPalette.SolidBackground([new RgbColor(128, 128, 128)], theme);
+
+        var maximum = Math.Max(color.R, Math.Max(color.G, color.B));
+        var minimum = Math.Min(color.R, Math.Min(color.G, color.B));
+
+        Assert.True(maximum - minimum <= 12, $"{theme} 下 {color} 不应凭空染色");
+    }
+
+    [Fact]
+    public void SolidBackground_MultipleSeeds_UsesTheFirstSeed()
+    {
+        var red = new RgbColor(220, 40, 60);
+        var blue = new RgbColor(40, 80, 220);
+
+        var color = ColorPalette.SolidBackground([red, blue], AmbientTheme.Dark);
+
+        Assert.True(color.R > color.B, $"应取第一个种子的色相：{color}");
     }
 }

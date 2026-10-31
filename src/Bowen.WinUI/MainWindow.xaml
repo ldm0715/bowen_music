@@ -233,6 +233,11 @@
         -->
         <Border x:Name="ShellSurfaceBorder" Grid.RowSpan="3" Background="{ThemeResource AppSurfaceBrush}" />
         <controls:AmbientBackdrop x:Name="ShellBackdrop" Grid.RowSpan="3" />
+        <!--
+            纯色背景层。与底色层、氛围层互斥，由 MainWindow.ApplyShellBackgroundLayers 控制。
+            放在氛围层之上、内容之下，切换模式时不需要动底色层的 ThemeResource。
+        -->
+        <Border x:Name="ShellSolidLayer" Grid.RowSpan="3" IsHitTestVisible="False" Visibility="Collapsed" />
 
         <!--
             原生 TitleBar 负责拖动区与交互控件避让，系统 caption 按钮仍由 Windows 管理。

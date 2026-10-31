@@ -33,6 +33,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(
         ThemeViewModel theme,
+        ShellBackgroundViewModel shellBackground,
         PlayerViewModel player,
         LyricsViewModel lyrics,
         DesktopLyricsViewModel desktopLyrics,
@@ -48,6 +49,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         RestoreQueueSettingsViewModel restoreQueue)
     {
         ArgumentNullException.ThrowIfNull(theme);
+        ArgumentNullException.ThrowIfNull(shellBackground);
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
         ArgumentNullException.ThrowIfNull(desktopLyrics);
@@ -63,6 +65,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(restoreQueue);
 
         Theme = theme;
+        ShellBackground = shellBackground;
         Player = player;
         Lyrics = lyrics;
         DesktopLyrics = desktopLyrics;
@@ -152,6 +155,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<FontOption> FontOptions { get; }
 
     public ThemeViewModel Theme { get; }
+
+    /// <summary>主窗口外壳背景。改模式、纯色或跟随封面都立刻生效并落盘。</summary>
+    public ShellBackgroundViewModel ShellBackground { get; }
 
     public PlayerViewModel Player { get; }
 

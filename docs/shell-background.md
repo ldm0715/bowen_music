@@ -4,8 +4,8 @@
 播放页背景他已满意；同时他指出首页背景颜色和封面“看不出关系”。本文给出背景模式下沉到外壳、
 取色算法改进、以及 Mica 与亚克力联动三部分方案。
 
-**实施状态（2026-10-31）：阶段 A（多色提取、OKLCH 主题映射、灰阶分支、诊断日志）已完成；
-阶段 B–E 未开始。**
+**实施状态（2026-10-31）：阶段 A（多色提取、OKLCH 主题映射）与阶段 B（外壳背景模式、
+背板协调器、Mica、纯色）已完成；阶段 C–E 未开始。**
 
 相关：[`ambient-color.md`](ambient-color.md)（现有取色规则与实测）、
 [`ui-refresh.md`](ui-refresh.md) §8（封面取色与层级分离）、
@@ -115,7 +115,7 @@ PlayerViewModel.CurrentCoverUri / CurrentTrackId
 | 色盘 | `LyricsPage.xaml.cs` 内的 HSV 色盘弹窗 | 可抽取为共享弹窗 |
 | 图片渲染 + 暗度 + 模糊 | `Controls/LyricsBackdrop`（Win2D） | 渲染器可参考，但外壳不应常驻 60fps 合成表面 |
 | Mica 切换 | `MainWindow.SetLyricsMaterialBackdrop` | 需要提升为统一背板协调器 |
-| 纯色跟随封面 | `ColorPalette.DarkBackground` | 是 |
+| 纯色跟随封面 | `ColorPalette.SolidBackground(seeds, theme)` | 是，按主题取深色/浅色 |
 
 ---
 
@@ -210,8 +210,9 @@ Mica 是窗口级属性，现在由 `MainWindow.SetLyricsMaterialBackdrop` 独�
 **Mica**：`MicaBackdrop { Kind = MicaKind.Base }`。进入 Mica 前先等沉浸入场动画结束的逻辑
 只属于歌词页；外壳模式可以立即切换。Win10 上保证 `IsMicaSupported` 为假时永不设置。
 
-**纯色**：一层 `SolidColorBrush`。跟随封面时复用 `ColorPalette.DarkBackground`，
-切歌时重新计算；手动色沿用歌词页的 8 个暗色预设与色盘。
+**纯色**：一层 `SolidColorBrush`。深色与浅色主题各有一组独立预设，手动色也分别保存；
+跟随封面时用 `ColorPalette.SolidBackground(seeds, theme)` 按主题映射表面色。
+歌词页的纯色取色同样改用这条管线，但固定传 `AmbientTheme.Dark`。
 
 **自定义图片**：见 §8。
 
@@ -482,3 +483,25 @@ OKLCH 的明度与彩度解耦，可以单独抬高明度而保住颜色。这�
 1. **Mica 与亚克力的调整幅度**：需要 Win11 真机调，本文给的是起步值。
 2. **自定义图片默认模糊与裁剪比例**：需要真机看效果后微调。
 3. **阶段 B 的具体入口文案**：设置页「窗口背景」的分组说明是否足够，等界面做出来再定。
+
+---
+
+## 15. 阶段 B 实施记录（2026-10-31）
+
+| 位置 | 内容 |
+| --- | --- |
+| `ShellBackgroundSettings` / `JsonShellBackgroundSettingsStore` | 独立文件 `shell-background.json`；模式、纯色、跟随封面 |
+| `ShellBackgroundViewModel` | 模式切换、8 个暗色预设、跟随封面取色；自动色不落盘 |
+| `MainWindow.ApplyWindowBackdrop` | 唯一的 `SystemBackdrop` 写入点；歌词页 Mica 改为请求 |
+| `MainWindow.ApplyShellBackgroundLayers` | 底色层 / 纯色层 / 氛围层互斥 |
+| `ShellSolidLayer` | 新增纯色层，避免改动底色层的 `ThemeResource` |
+| 设置页「外观 → 窗口背景」 | 模式下拉；纯色模式下显示当前主题的预设与跟随开关 |
+| 设置页分组 | 「外观」类别拆成「界面外观」与「页面与输入」两张卡片 |
+| 设置页主题同步 | 进入设置页及页面主题变化时，按页面实际主题重建纯色预设 |
+| 纯色预设 | 深色 / 浅色各一套，选中的手动色分别保存；色块显示实际颜色 |
+| 歌词页纯色跟随封面 | 改用 `Palette` 多色提取 + `SolidBackground(seeds, Dark)`，只取一种深色 |
+| Win10 | Mica 选项置灰并回退封面取色 |
+| 验证 | Core 测试 1762 项通过；Release 构建 0 警告 0 错误 |
+
+自定义图片仍是阶段 C；枚举值 `CustomImage` 已保留，当前按封面取色回退。
+纯色暂提供 8 个暗色预设与「跟随封面」；自定义色盘随阶段 E 的公共色盘一起接入。

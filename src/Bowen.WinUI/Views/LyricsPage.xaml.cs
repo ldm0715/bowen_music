@@ -1328,8 +1328,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     }
 
     /// <summary>
-    /// 纯色背景自动取色：与氛围色同一条取色管线，再把主色压成暗色背景。
+    /// 纯色背景自动取色：与外壳同一条多色取色管线，但歌词页固定取深色。
     /// </summary>
+    /// <remarks>
+    /// 歌词页永远是白字深底，只需要深色变体；外壳有深色与浅色两种主题，
+    /// 由 <see cref="ColorPalette.SolidBackground"/> 按主题各自映射。
+    /// </remarks>
     private async Task RefreshSolidColorAsync()
     {
         if (Lyrics.BackgroundMode != LyricsBackgroundMode.SolidColor || !Lyrics.BackgroundColorAuto)
@@ -1340,7 +1344,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         var request = ++_autoColorRequest;
         var trackId = Player.CurrentTrackId ?? 0;
         var cover = Player.CurrentCoverUri;
-        var palette = await _paletteLoader.LoadAsync(trackId, cover);
+        var seeds = await _paletteLoader.LoadAsync(trackId, cover);
 
         if (request != _autoColorRequest
             || Lyrics.BackgroundMode != LyricsBackgroundMode.SolidColor
@@ -1349,8 +1353,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             return;
         }
 
-        var seed = palette.Count > 1 ? palette[1] : palette.Count > 0 ? palette[0] : default;
-        var dark = ColorPalette.DarkBackground(seed);
+        var dark = ColorPalette.SolidBackground(seeds, AmbientTheme.Dark);
         _autoSolidColor = Color.FromArgb(255, dark.R, dark.G, dark.B);
         ApplyBackgroundMode();
         if (_appearanceOpen) SyncAppearanceControls();

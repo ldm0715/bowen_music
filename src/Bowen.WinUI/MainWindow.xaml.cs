@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.Input;
 using Bowen.Core.Api;
+using Bowen.Core.Media;
 using Bowen.Core.Models;
 using Bowen.Core.Services.Abstractions;
 using Bowen.WinUI.Controls;
@@ -101,6 +102,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private readonly LoginViewModel _loginViewModel;
 
     private readonly SidebarViewModel _sidebar;
+    private readonly ShellBackgroundViewModel _shellBackground;
     private readonly IWindowPlacementStore _placement;
     private readonly WindowRenderActivity _renderActivity;
     private readonly Func<Playlist, int, PlaylistDetailPage> _playlistDetailFactory;
@@ -120,7 +122,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private bool _closed;
     private FrameworkElement? _lyricsTitleBar;
     private bool _immersiveVisible;
-    private MicaBackdrop? _lyricsMicaBackdrop;
+    private MicaBackdrop? _micaBackdrop;
+    private bool _lyricsMicaRequested;
+    private SolidColorBrush? _shellSolidBrush;
     private bool _isChangingLyricsPresenter;
     private bool _isNavigatingBack;
     private bool _lyricsChromeVisible = true;
@@ -218,6 +222,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         SidebarViewModel sidebar,
         SearchViewModel search,
         ThemeViewModel theme,
+        ShellBackgroundViewModel shellBackground,
         IShortcutService shortcuts,
         IWindowPlacementStore placement,
         Func<Playlist, int, PlaylistDetailPage> playlistDetailFactory,
@@ -239,6 +244,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ArgumentNullException.ThrowIfNull(sidebar);
         ArgumentNullException.ThrowIfNull(search);
         ArgumentNullException.ThrowIfNull(theme);
+        ArgumentNullException.ThrowIfNull(shellBackground);
         ArgumentNullException.ThrowIfNull(placement);
         ArgumentNullException.ThrowIfNull(playlistDetailFactory);
         ArgumentNullException.ThrowIfNull(trackActions);
@@ -263,6 +269,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Account = account;
         Search = search;
         Theme = theme;
+        _shellBackground = shellBackground;
 
         InitializeComponent();
 
@@ -332,6 +339,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
                     if (!IsMinimized && !_immersiveVisible) AppTitleBar.RecomputeDragRegions();
                 });
         };
+        _shellBackground.PropertyChanged += OnShellBackgroundChanged;
+        _shellBackground.UpdateTheme(CurrentAmbientTheme);
+        _shellBackground.SolidColorChanged += (_, _) => ApplyWindowBackdrop();
+        ApplyWindowBackdrop();
         Closed += (_, _) =>
         {
             _closed = true;
@@ -464,7 +475,14 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             Tray.TrayIcon.MessageWindow.TaskbarCreated += (_, _) => DispatcherQueue.TryEnqueue(OnTaskbarCreated);
         }
 
-        ShellRoot.ActualThemeChanged += (_, _) => QueueThemeChromeUpdate();
+        ShellRoot.ActualThemeChanged += (_, _) =>
+        {
+            QueueThemeChromeUpdate();
+
+            // 纯色背景的明暗与预设色块跟随主题；外壳层按新主题重绘一次。
+            _shellBackground.UpdateTheme(CurrentAmbientTheme);
+            ApplyWindowBackdrop();
+        };
         AppTitleBar.RegisterPropertyChangedCallback(Control.ForegroundProperty, (_, _) => QueueThemeChromeUpdate());
         UpdateCaptionButtonColors();
 
@@ -2487,6 +2505,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         _immersiveVisible = true;
         _lyricsChromeVisible = true;
         _lyricsTitleBar = titleBar;
+
+        // 换页时上一页的 Mica 请求不能带给下一页；外壳选了 Mica 时仍保留窗口背板。
+        _lyricsMicaRequested = false;
+        ApplyWindowBackdrop();
         DismissSearchUi();
         // 展开时保留外壳作背景，动画结束后再收起，行高在过渡中保持稳定。
         SetShellSurfaceVisible(true);
@@ -2600,32 +2622,105 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     }
 
     /// <summary>
-    /// 歌词页背景切到 Mica 或恢复外壳底色。
+    /// 歌词页请求切换 Mica 背板。
     /// </summary>
     /// <remarks>
-    /// Mica 是窗口级系统背板。启用时还要收起外壳底色层：不透明的 AppSurfaceBrush
-    /// 会把背板完全挡住。歌词页自己的封面模糊层由 <c>LyricsPage</c> 负责隐藏。
-    /// 不支持 Mica 的系统上选项置灰，背景保持封面模糊。
+    /// <para>
+    /// <b>这里只提交请求，不直接写 <see cref="Window.SystemBackdrop"/>。</b>
+    /// 外壳背景也可能选 Mica；两边都直接写会互相覆盖，进出沉浸态时尤其明显。
+    /// 由 <see cref="ApplyWindowBackdrop"/> 统一解析当前该用哪种背板。
+    /// </para>
+    /// <para>
+    /// 外壳底色层与氛围层的显隐由当前背景模式决定；歌词页自己的封面层由 <c>LyricsPage</c> 负责。
+    /// </para>
     /// </remarks>
     public void SetLyricsMaterialBackdrop(bool enabled)
     {
-        if (enabled && IsMicaSupported)
-        {
-            _lyricsMicaBackdrop ??= new MicaBackdrop { Kind = MicaKind.Base };
-            SystemBackdrop = _lyricsMicaBackdrop;
-            ShellSurfaceBorder.Visibility = Visibility.Collapsed;
-            ShellBackdrop.Visibility = Visibility.Collapsed;
-            return;
-        }
+        _lyricsMicaRequested = enabled && IsMicaSupported;
+        ApplyWindowBackdrop();
+    }
 
-        if (SystemBackdrop is MicaBackdrop)
+    /// <summary>
+    /// 解析并应用窗口背板与外壳背景层。
+    /// </summary>
+    /// <remarks>
+    /// <b>唯一的 <see cref="Window.SystemBackdrop"/> 写入点。</b> Mica 是窗口级属性，
+    /// 外壳与歌词页都可能要求它；这里按「沉浸态优先看歌词页请求，否则看外壳模式」合并。
+    /// 沉浸入场期间外壳还可见，因此外壳选了 Mica 时即使歌词页没请求也保留。
+    /// </remarks>
+    private void ApplyWindowBackdrop()
+    {
+        var shellMica = _shellBackground.EffectiveMode == ShellBackgroundMode.Mica;
+        var mica = IsMicaSupported
+            && ((_immersiveVisible && (_lyricsMicaRequested || shellMica))
+                || (!_immersiveVisible && shellMica));
+
+        if (mica)
+        {
+            _micaBackdrop ??= new MicaBackdrop { Kind = MicaKind.Base };
+
+            if (!ReferenceEquals(SystemBackdrop, _micaBackdrop))
+            {
+                SystemBackdrop = _micaBackdrop;
+            }
+        }
+        else if (SystemBackdrop is MicaBackdrop)
         {
             SystemBackdrop = null;
         }
 
-        ShellSurfaceBorder.Visibility = Visibility.Visible;
-        if (!_immersiveVisible) ShellBackdrop.Visibility = Visibility.Visible;
+        if (!_immersiveVisible)
+        {
+            ApplyShellBackgroundLayers();
+        }
     }
+
+    private void OnShellBackgroundChanged(object? sender, PropertyChangedEventArgs args)
+        => ApplyWindowBackdrop();
+
+    /// <summary>外壳当前的实际主题。未加载时退回应用请求的主题。</summary>
+    private AmbientTheme CurrentAmbientTheme => ShellRoot.ActualTheme switch
+    {
+        ElementTheme.Dark => AmbientTheme.Dark,
+        ElementTheme.Light => AmbientTheme.Light,
+        _ => Application.Current.RequestedTheme == ApplicationTheme.Dark
+            ? AmbientTheme.Dark
+            : AmbientTheme.Light,
+    };
+
+    /// <summary>按外壳背景模式摆放底色层、纯色层与氛围层；三者互斥。</summary>
+    private void ApplyShellBackgroundLayers()
+    {
+        var mode = _shellBackground.EffectiveMode;
+
+        ShellSurfaceBorder.Visibility = mode == ShellBackgroundMode.CoverAmbient
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        ShellSolidLayer.Visibility = mode == ShellBackgroundMode.SolidColor
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        ShellBackdrop.Visibility = mode == ShellBackgroundMode.CoverAmbient
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        if (mode == ShellBackgroundMode.SolidColor)
+        {
+            _shellSolidBrush ??= new SolidColorBrush();
+            _shellSolidBrush.Color = ToColor(_shellBackground.SolidColorFor(CurrentAmbientTheme));
+            ShellSolidLayer.Background = _shellSolidBrush;
+        }
+
+        UpdateShellResourceState();
+    }
+
+    private static Color ToColor(uint argb)
+        => Color.FromArgb(
+            (byte)(argb >> 24),
+            (byte)(argb >> 16),
+            (byte)(argb >> 8),
+            (byte)argb);
 
     /// <summary>退出沉浸态，恢复外壳。与 <see cref="EnterImmersive"/> 成对。</summary>
     public void ExitImmersive()
@@ -2720,11 +2815,22 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private void SetShellSurfaceVisible(bool visible)
     {
         var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        ShellBackdrop.Visibility = visibility;
         AppTitleBar.Visibility = visibility;
         Nav.Visibility = visibility;
         SidebarIndicatorLayer.Visibility = visibility; // 高亮块画在 Nav 底下，跟着外壳一起藏
         PlayerHost.Visibility = visibility;
+
+        if (visible)
+        {
+            // 外壳回来时按当前背景模式恢复底色 / 纯色 / 氛围层，不能一律显示。
+            ApplyShellBackgroundLayers();
+        }
+        else
+        {
+            ShellSolidLayer.Visibility = Visibility.Collapsed;
+            ShellBackdrop.Visibility = Visibility.Collapsed;
+        }
+
         UpdateShellResourceState();
     }
 
