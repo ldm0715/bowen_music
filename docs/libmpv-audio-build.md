@@ -1,6 +1,6 @@
 # libmpv 音频精简构建与维护
 
-**当前 `libmpv-2.dll` 已从 115.22 MiB 精简到 7.97 MiB，减少 93.1%，并替换到客户端输出目录。**
+**当前 `libmpv-2.dll` 已从 115.22 MiB 精简到 8.07 MiB，减少 93.0%，并替换到客户端输出目录。**
 本文是此构建的完整维护说明：查结果、找文件、重新编译、验证、替换、回退和排障都从这里开始。
 主 README 的文档索引与 `libmpv/README.md` 均指向本文。
 
@@ -17,17 +17,18 @@
 - [维护时更新哪些记录](#维护时更新哪些记录)
 - [许可与项目红线](#许可与项目红线)
 
-二进制与构建产物不入版本控制。源码版本与 SHA256 校验和保存在
+构建产物不入版本控制；运行时必需的 `libmpv/libmpv-2.dll` 入库（约 8.07 MiB）。
+源码版本与 SHA256 校验和保存在
 [`sources.lock.json`](../tools/mpv/sources.lock.json)，构建与验证脚本也随项目维护。
 
 ## 当前产物
 
 | 项 | 值 |
 | --- | --- |
-| 大小 | **8,360,960 字节（7.97 MiB）** |
-| SHA256 | `5c9005b0ba3f8b52322d36360c920d82c090c6115cd7ca378d1a409dbc7fbe62` |
+| 大小 | **8,457,728 字节（8.07 MiB）** |
+| SHA256 | `ef27c3f0700bf29a09adf5a04343f4d5a9a3a5e7e64b2303ab196a1652be3c9f` |
 | 原社区完整版 | 120,816,640 字节（115.22 MiB） |
-| 体积减少 | **93.1%** |
+| 体积减少 | **93.0%** |
 | 架构 | Windows x64，`x86-64` / SSE2 基线，不要求 AVX2 |
 | mpv 源码 | `mpv-player/mpv`，commit `e470f8986e`，0.41.0 系列 |
 | FFmpeg 源码 | `FFmpeg/FFmpeg`，commit `939c2c733` |
@@ -62,6 +63,10 @@ LTO、section GC 和最终符号剥离进一步减小新产物。最终 DLL 的�
 - 本地文件、HTTP/HTTPS、代理、TCP/TLS、音频重采样和常用音频滤镜。
   HTTPS 使用 Windows Schannel，免于携带独立 TLS 库。
 - WASAPI、音量、暂停/恢复、准确跳转、播放结束事件、缓冲和 gapless-audio。
+- 音效滤镜：`equalizer`、`highpass`、`lowpass`、`bass`、`treble`、`virtualbass`、
+  `asubboost`、`acompressor`、`adynamicequalizer`、`dynaudnorm`、`stereotools`、
+  `stereowiden`、`haas`、`crossfeed`、`aecho`、`afir`、`amix`、`asplit`、`amovie`、
+  `alimiter`。完整用途见 [`audio-effects.md`](audio-effects.md)。
 
 关闭的能力：
 
@@ -84,8 +89,9 @@ MV 使用 WinUI 的 `MediaPlayer`，不依赖这个 DLL 的视频解码能力。
 | 查找内容 | 路径 | 是否入 Git |
 | --- | --- | --- |
 | 本维护文档 | `docs/libmpv-audio-build.md` | 是 |
-| 当前实际使用的 DLL | `libmpv/libmpv-2.dll` | 否 |
+| 当前实际使用的 DLL | `libmpv/libmpv-2.dll` | 是 |
 | 可复现构建脚本 | `tools/mpv/build_audio_mpv.py` | 是 |
+| 手动 CI 构建 | `.github/workflows/build-libmpv.yml` | 是 |
 | 原生播放与无损对照脚本 | `tools/mpv/verify_audio_mpv.py` | 是 |
 | 固定源码版本与归档校验和 | `tools/mpv/sources.lock.json` | 是 |
 | 播放初始化兼容调整 | `src/Bowen.WinUI/Playback/LibMpvPlaybackService.cs` | 是 |
@@ -108,6 +114,10 @@ MV 使用 WinUI 的 `MediaPlayer`，不依赖这个 DLL 的视频解码能力。
 要求 Windows x64、Python 3.12+、Git for Windows。使用英文且没有空格的工作目录。
 所有下载、私有 Python 环境、临时文件和构建结果默认放在仓库的 `artifacts/native-mpv/`，
 不需要修改系统 PATH 或安装到系统目录。
+
+也可以手动触发 [`.github/workflows/build-libmpv.yml`](../.github/workflows/build-libmpv.yml)：
+在 `windows-latest` 上构建，产物从 Actions 的 `libmpv-audio-effects` artifact 下载。
+CI 用短工作目录 `C:\mpvbuild`，避免 FFmpeg 安装头文件的命令行超过 Windows 限制。
 
 在仓库根目录执行：
 
@@ -222,10 +232,10 @@ if ($outputHash -ne $candidateHash) {
 
 ### 本次构建验收记录
 
-本次 `dotnet build` 成功，0 个错误，1 条已有的 `AiPlaylistPage.xaml` / `WMC1506` 绑定警告。
-实际使用目录和 Debug 输出目录中的 DLL 均为 8,360,960 字节，SHA256 均与当前产物表一致。
-C# 验证使用 `HanumanInstitute.LibMpv` 0.10.1，实测 Client API 为 `0x20005`，完成 FLAC 加载、
-属性读写、跳转、播放事件和停止操作。
+本次 `dotnet build` 成功，0 个错误。实际使用目录和 Debug 输出目录中的 DLL 均为
+8,457,728 字节，SHA256 均为 `ef27c3f0...`，与当前产物表一致。
+音效滤镜已由 `audio-profile.json` 确认启用；完整的播放 / PCM 对照仍需用
+`verify_audio_mpv.py` 对候选 DLL 重跑（本次未执行，音效由实际试听验收）。
 
 ## 回退到完整版
 

@@ -164,7 +164,7 @@ error : The MSIX build tools use the 'CustomBeforeMicrosoftCommonTargets' MSBuil
 | 挡掉 WebView2 托管 DLL（源码零使用）+ `System.Numerics.Tensors`（AI 链残留） | −1.8 MB | ❌ 收益太小，不值得多两条特判 |
 | `Microsoft.Extensions.Hosting` 体系换成裸 DI + Serilog | −2~3 MB | ❌ 要动代码，Hosting 担着 DI 与生命周期，风险和收益不成比例 |
 | **WinAppSDK 改框架依赖**（`WindowsAppSDKSelfContained=false`） | **−62.5 MB，落到约 55 MiB** | ⏸ 唯一的大头。代价：用户须先装 Windows App Runtime 2.5，且推翻 `tech-stack.md` §2 / `transport.md` §1.8 已定案的「不需要系统级安装」。待定 |
-| `libmpv-2.dll` 再裁 | 已经 115.22 → 7.97 MiB（见 `libmpv-audio-build.md`） | ❌ 没空间了 |
+| `libmpv-2.dll` 再裁 | 已经 115.22 → 8.07 MiB（见 `libmpv-audio-build.md`） | ❌ 没空间了 |
 
 **明确不可行，别在这上面花时间：**
 

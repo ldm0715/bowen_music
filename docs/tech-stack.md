@@ -142,7 +142,7 @@
 3. `vo=null` / `vid=no` / `audio-display=no` / `keep-open=no` / `idle=yes` 这组 headless 选项在
    **构造之后**用 `SetPropertyString` 设置有效（构造时已经 `mpv_initialize` 过，所以走 property 而非 option）。
 
-**关于 DLL 体积**：当前使用音频精简构建，**7.97 MiB，比原版减少 93.1%**，Client API 仍为
+**关于 DLL 体积**：当前使用音频精简构建，**8.07 MiB，比原版减少 93.0%**，Client API 仍为
 `0x20005`。构建、校验和、裁剪范围、播放验收、替换与回退及 Lua/ytdl 兼容调整统一见
 [`libmpv 音频精简构建与维护`](libmpv-audio-build.md)。
 
