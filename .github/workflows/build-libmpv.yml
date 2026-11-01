@@ -1,0 +1,66 @@
+name: Build libmpv (audio effects)
+
+# 手动触发，不挂 push/tag，避免和 release.yml 抢时间。
+# 产物是带音效滤镜白名单的 Windows x64 libmpv-2.dll，下载后替换仓库
+# libmpv/libmpv-2.dll，再重新构建客户端。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: '1'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build libmpv
+        shell: pwsh
+        run: |
+          $bash = 'C:\Program Files\Git\usr\bin\bash.exe'
+          if (-not (Test-Path -LiteralPath $bash)) {
+            throw "Git Bash not found: $bash"
+          }
+          python tools/mpv/build_audio_mpv.py --jobs 4 --bash $bash
+
+      - name: Show result
+        if: always()
+        shell: pwsh
+        run: |
+          $out = 'artifacts/native-mpv/output'
+          if (Test-Path -LiteralPath $out) {
+            Get-ChildItem -LiteralPath $out | Format-Table Name, Length
+            $manifest = Join-Path $out 'build-manifest.json'
+            if (Test-Path -LiteralPath $manifest) {
+              Get-Content -LiteralPath $manifest -Raw
+            }
+          }
+
+      - name: Upload libmpv
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-audio-effects
+          path: |
+            artifacts/native-mpv/output/libmpv-2.dll
+            artifacts/native-mpv/output/audio-profile.json
+            artifacts/native-mpv/output/build-manifest.json
+            artifacts/native-mpv/logs/ffmpeg-configure.log
+            artifacts/native-mpv/logs/ffmpeg-compile.log
+            artifacts/native-mpv/logs/mpv-configure.log
+            artifacts/native-mpv/logs/mpv-compile.log
+            artifacts/native-mpv/logs/imports.log
+          if-no-files-found: warn
+          retention-days: 14

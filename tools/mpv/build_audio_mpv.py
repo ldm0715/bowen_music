@@ -44,7 +44,14 @@ TOOL_HASHES = {
 PYTHON_PACKAGES = ["meson==1.8.3", "ninja==1.11.1.4", "jinja2==3.1.6", "MarkupSafe==3.0.3"]
 DEMUXERS = "aac,ac3,aiff,ape,asf,au,caf,concat,dsf,dsdiff,dts,eac3,flac,hls,matroska,mov,mp3,mpegts,ogg,pcm_alaw,pcm_mulaw,pcm_f32le,pcm_f64le,pcm_s16le,pcm_s24le,pcm_s32le,pcm_u8,spdif,tta,wav,wv"
 PARSERS = "aac,aac_latm,ac3,adts_header,dca,flac,mpegaudio,opus,vorbis"
-FILTERS = "abuffer,abuffersink,anull,aformat,aresample,asetpts,atempo,atrim,volume,pan,equalizer,alimiter,loudnorm,replaygain,buffer,buffersink,null,format,scale"
+FILTERS = (
+    "abuffer,abuffersink,anull,aformat,aresample,asetpts,atempo,atrim,volume,pan,"
+    "equalizer,alimiter,loudnorm,replaygain,"
+    "highpass,lowpass,bass,treble,virtualbass,asubboost,acompressor,adynamicequalizer,dynaudnorm,"
+    "stereotools,stereowiden,haas,crossfeed,"
+    "aecho,afir,amix,asplit,amovie,"
+    "buffer,buffersink,null,format,scale"
+)
 PROTOCOLS = "file,pipe,fd,http,https,httpproxy,tcp,tls,crypto,data,concat,subfile"
 
 
@@ -119,8 +126,20 @@ class Builder:
         if not (self.work / "venv/.bowen-packages").exists():
             self.run("pip", [str(python), "-m", "pip", "install", "--disable-pip-version-check", *PYTHON_PACKAGES])
             (self.work / "venv/.bowen-packages").write_text("\n".join(PYTHON_PACKAGES), encoding="utf-8")
-        self.meson = self.work / "venv/Scripts/meson.exe"
+        # ★ 用当前解释器跑 `-m mesonbuild.mesonmain`，不要用 venv/Scripts/meson.exe。
+        #   那是个 274 KB 的 venv 重定向器；它拉起的子进程在 MSYS 的 patch.exe 里会
+        #   NtCreateDirectoryObject 0xC0000022（patch --version 直接跑却正常）。
+        #   用系统 Python 的 -m 入口可以绕开这个 manifest/激活上下文问题。
+        self.meson = Path(sys.executable)
+        self.meson_module = ["-m", "mesonbuild.mesonmain"]
         self.ninja = self.work / "venv/Scripts/ninja.exe"
+        # 让系统 Python 从 venv 的 site-packages 里 import meson/jinja2，
+        # 不用把包装到系统 Python，也不走 venv 的 python.exe 重定向器。
+        site_packages = self.work / "venv/Lib/site-packages"
+        existing_pythonpath = self.env.get("PYTHONPATH")
+        self.env["PYTHONPATH"] = str(site_packages) + (
+            ";" + existing_pythonpath if existing_pythonpath else ""
+        )
         self.env["PATH"] = ";".join(map(str, [self.toolchain, self.nasm, python.parent, self.prefix / "bin", self.bash.parent])) + ";" + self.env["PATH"]
         self.env.update(CC="clang", CXX="clang++", AR="llvm-ar", NM="llvm-nm", RANLIB="llvm-ranlib", STRIP="llvm-strip")
         self.env["PKG_CONFIG_LIBDIR"] = str(self.prefix / "lib/pkgconfig")
@@ -152,12 +171,12 @@ class Builder:
 
     def meson_build(self, name: str, options: list[str], *, shared: bool = False) -> None:
         source, build = self.work / "src" / name, self.work / "build" / name
-        base = [str(self.meson), "setup", str(build), str(source), "--prefix=" + str(self.prefix), "--libdir=lib", "--buildtype=minsize", "--wrap-mode=nofallback", "-Dauto_features=disabled", "-Dprefer_static=true", "-Ddefault_library=" + ("shared" if shared else "static"), "-Db_lto=true", "-Db_ndebug=true", "-Dc_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -I" + (self.prefix / "include").as_posix(), "-Dcpp_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections", "-Dc_link_args=" + ("--driver-mode=g++ -static-libstdc++ " if name == "mpv" else "") + "-static-libgcc -Wl,--gc-sections", "-Dcpp_link_args=-static-libgcc -static-libstdc++ -Wl,--gc-sections", *options]
+        base = [str(self.meson), *self.meson_module, "setup", str(build), str(source), "--prefix=" + str(self.prefix), "--libdir=lib", "--buildtype=minsize", "--wrap-mode=nofallback", "-Dauto_features=disabled", "-Dprefer_static=true", "-Ddefault_library=" + ("shared" if shared else "static"), "-Db_lto=true", "-Db_ndebug=true", "-Dc_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -I" + (self.prefix / "include").as_posix(), "-Dcpp_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections", "-Dc_link_args=" + ("--driver-mode=g++ -static-libstdc++ " if name == "mpv" else "") + "-static-libgcc -Wl,--gc-sections", "-Dcpp_link_args=-static-libgcc -static-libstdc++ -Wl,--gc-sections", *options]
         if (build / "build.ninja").exists():
             base.insert(2, "--reconfigure")
         self.run(name + "-configure", base)
         self.run(name + "-compile", [str(self.ninja), "-C", str(build), "-j", str(self.jobs)])
-        self.run(name + "-install", [str(self.meson), "install", "-C", str(build), "--no-rebuild"])
+        self.run(name + "-install", [str(self.meson), *self.meson_module, "install", "-C", str(build), "--no-rebuild"])
 
     def ffmpeg(self) -> None:
         source = self.work / "src/ffmpeg"
@@ -171,6 +190,17 @@ class Builder:
         build.mkdir(exist_ok=True)
         flags = [(source / "configure").as_posix(), "--prefix=" + self.prefix.as_posix(), "--target-os=mingw32", "--arch=x86_64", "--cc=clang", "--cxx=clang++", "--ar=llvm-ar", "--nm=llvm-nm", "--ranlib=llvm-ranlib", "--strip=llvm-strip", "--pkg-config=" + (self.prefix / "bin/pkgconf.exe").as_posix(), "--disable-autodetect", "--disable-everything", "--disable-programs", "--disable-doc", "--disable-debug", "--disable-shared", "--enable-static", "--enable-small", "--enable-network", "--enable-w32threads", "--enable-schannel", "--enable-avcodec", "--enable-avformat", "--enable-avfilter", "--enable-swresample", "--enable-swscale", "--disable-avdevice", "--disable-encoders", "--disable-muxers", "--disable-hwaccels", "--enable-decoder=" + ",".join(decoders), "--enable-demuxer=" + DEMUXERS, "--enable-parser=" + PARSERS, "--enable-filter=" + FILTERS, "--enable-protocol=" + PROTOCOLS, "--extra-cflags=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections", "--extra-ldflags=-static-libgcc -Wl,--gc-sections"]
         self.run("ffmpeg-configure", [str(self.bash), *flags], build)
+        # ★ configure 在 MSYS bash 里把源目录写成 /f/...；LLVM MinGW 的
+        #   mingw32-make 是原生 Windows 程序，不认这个路径，会在 include 第一行
+        #   就报 "No such file or directory"。把这两处换成 Windows 盘符路径。
+        source_path = source.as_posix()
+        config_mak = build / "ffbuild/config.mak"
+        lines = config_mak.read_text(encoding="utf-8").splitlines()
+        for index, line in enumerate(lines):
+            if line.startswith("SRC_PATH="):
+                lines[index] = "SRC_PATH=" + source_path
+        config_mak.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        (build / "Makefile").write_text(f"include {source_path}/Makefile\n", encoding="utf-8")
         # FFmpeg requires GNU make. LLVM MinGW ships a native mingw32-make.
         make = self.toolchain / "mingw32-make.exe"
         if not make.exists():
