@@ -63,4 +63,23 @@ public interface IPlaybackService : IAsyncDisposable
 
     /// <summary>设置音量，0 到 100。</summary>
     void SetVolume(double volume);
+
+    /// <summary>
+    /// 设置 mpv 的 <c>af</c> 滤镜链；<c>null</c> 或空串表示清空。
+    /// </summary>
+    /// <remarks>
+    /// <b>这是整条链，不是追加。</b> 调用方每次都要给完整值；写不存在的滤镜会让 mpv
+    /// 拒绝整串，所以构建方必须保证当前 libmpv 真的编进了那些滤镜。
+    /// </remarks>
+    void SetAudioFilter(string? filter);
+
+    /// <summary>
+    /// 向带标签的音频滤镜发 <c>af-command</c>，用于不重建整条链地调参数。
+    /// </summary>
+    /// <param name="label"><c>af</c> 里的 <c>@label</c>。</param>
+    /// <param name="command">滤镜命令，例如 <c>amix</c> 的 <c>weights</c>。</param>
+    /// <param name="argument">命令参数。</param>
+    /// <param name="target">lavfi 图里的目标滤镜名，例如 <c>amix</c>。</param>
+    /// <remarks>引擎未初始化或滤镜不在链上时静默忽略，不打断播放。</remarks>
+    void SendAudioFilterCommand(string label, string command, string argument, string? target = null);
 }

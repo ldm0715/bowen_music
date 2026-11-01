@@ -31,16 +31,19 @@ public sealed partial class PlayerBar : UserControl
         PlayerViewModel viewModel,
         LyricsViewModel lyrics,
         DesktopLyricsViewModel desktopLyrics,
+        AudioEffectsViewModel effects,
         INavigationService navigation)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(lyrics);
         ArgumentNullException.ThrowIfNull(desktopLyrics);
+        ArgumentNullException.ThrowIfNull(effects);
         ArgumentNullException.ThrowIfNull(navigation);
 
         ViewModel = viewModel;
         Lyrics = lyrics;
         DesktopLyrics = desktopLyrics;
+        Effects = effects;
         _navigation = navigation;
 
         InitializeComponent();
@@ -76,6 +79,9 @@ public sealed partial class PlayerBar : UserControl
 
     /// <summary>桌面歌词条的开关与偏好。那颗按钮直接绑它的命令。</summary>
     public DesktopLyricsViewModel DesktopLyrics { get; }
+
+    /// <summary>音效面板的状态。播放条与歌词页共用同一个单例。</summary>
+    public AudioEffectsViewModel Effects { get; }
 
     /// <summary>
     /// 点了「播放列表」。

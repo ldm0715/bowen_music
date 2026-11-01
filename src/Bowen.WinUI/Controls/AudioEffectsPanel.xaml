@@ -1,0 +1,239 @@
+<UserControl
+    x:Class="Bowen.WinUI.Controls.AudioEffectsPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bowen.WinUI.Controls"
+    xmlns:local="using:Bowen.WinUI"
+    xmlns:vm="using:Bowen.WinUI.ViewModels">
+
+    <UserControl.Resources>
+        <Style x:Key="EffectCardContainer" TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel Width="344" Spacing="10">
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center" Spacing="2">
+                <TextBlock FontSize="15" FontWeight="SemiBold" Text="音效" />
+                <TextBlock
+                    FontSize="11"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.ActivePresetName, Mode=OneWay}" />
+            </StackPanel>
+            <ToggleSwitch
+                Grid.Column="1"
+                MinWidth="0"
+                AutomationProperties.Name="音效总开关"
+                IsOn="{x:Bind ViewModel.IsEnabled, Mode=TwoWay}" />
+        </Grid>
+
+        <controls:PillTabBar
+            ItemsSource="{x:Bind ViewModel.Tabs}"
+            SelectedIndex="{x:Bind ViewModel.SelectedTabIndex, Mode=TwoWay}" />
+
+        <!-- 银河 / 蝰蛇共用一套卡片，靠 VisiblePresets 换内容。 -->
+        <StackPanel Spacing="6" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsGalaxyTab), Mode=OneWay}">
+            <GridView
+                MaxHeight="360"
+                Padding="0"
+                IsItemClickEnabled="True"
+                ItemClick="OnPresetClick"
+                ItemContainerStyle="{StaticResource EffectCardContainer}"
+                ItemsSource="{x:Bind ViewModel.VisiblePresets}"
+                SelectionMode="None">
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid ItemHeight="82" ItemWidth="164" Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AudioEffectPresetItem">
+                        <Grid>
+                            <Border
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="8" />
+                            <Border
+                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Visibility="{x:Bind local:Formats.Visible(IsSelected), Mode=OneWay}" />
+                            <StackPanel Margin="12,10" Spacing="4">
+                                <Grid>
+                                    <TextBlock
+                                        FontSize="13"
+                                        FontWeight="SemiBold"
+                                        Text="{x:Bind Name}" />
+                                    <controls:Icon
+                                        HorizontalAlignment="Right"
+                                        Data="{StaticResource IconSelect}"
+                                        Size="14"
+                                        Visibility="{x:Bind local:Formats.Visible(IsSelected), Mode=OneWay}" />
+                                </Grid>
+                                <TextBlock
+                                    FontSize="10"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind Description}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+            <Button
+                HorizontalAlignment="Right"
+                AutomationProperties.Name="关闭当前预设"
+                Command="{x:Bind ViewModel.ClearPresetCommand}"
+                Content="关闭当前预设"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.HasActivePreset), Mode=OneWay}" />
+        </StackPanel>
+
+        <StackPanel Spacing="6" Visibility="{x:Bind local:Formats.Visible(ViewModel.IsViperTab), Mode=OneWay}">
+            <GridView
+                MaxHeight="360"
+                Padding="0"
+                IsItemClickEnabled="True"
+                ItemClick="OnPresetClick"
+                ItemContainerStyle="{StaticResource EffectCardContainer}"
+                ItemsSource="{x:Bind ViewModel.VisiblePresets}"
+                SelectionMode="None">
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid ItemHeight="82" ItemWidth="164" Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AudioEffectPresetItem">
+                        <Grid>
+                            <Border
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                CornerRadius="8" />
+                            <Border
+                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Visibility="{x:Bind local:Formats.Visible(IsSelected), Mode=OneWay}" />
+                            <StackPanel Margin="12,10" Spacing="4">
+                                <Grid>
+                                    <TextBlock
+                                        FontSize="13"
+                                        FontWeight="SemiBold"
+                                        Text="{x:Bind Name}" />
+                                    <controls:Icon
+                                        HorizontalAlignment="Right"
+                                        Data="{StaticResource IconSelect}"
+                                        Size="14"
+                                        Visibility="{x:Bind local:Formats.Visible(IsSelected), Mode=OneWay}" />
+                                </Grid>
+                                <TextBlock
+                                    FontSize="10"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind Description}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+            <Button
+                HorizontalAlignment="Right"
+                AutomationProperties.Name="关闭当前预设"
+                Command="{x:Bind ViewModel.ClearPresetCommand}"
+                Content="关闭当前预设"
+                Visibility="{x:Bind local:Formats.Visible(ViewModel.HasActivePreset), Mode=OneWay}" />
+        </StackPanel>
+
+        <Grid Visibility="{x:Bind local:Formats.Visible(ViewModel.IsAmbientTab), Mode=OneWay}">
+            <StackPanel Spacing="8">
+                <ListView
+                    MaxHeight="260"
+                    Padding="0"
+                    IsItemClickEnabled="True"
+                    ItemClick="OnAmbientClick"
+                    ItemsSource="{x:Bind ViewModel.AmbientSounds}"
+                    SelectionMode="None">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="MinHeight" Value="42" />
+                            <Setter Property="Padding" Value="10,6" />
+                            <Setter Property="Margin" Value="0,1" />
+                            <Setter Property="CornerRadius" Value="6" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AmbientSoundItem">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="1">
+                                    <TextBlock Text="{x:Bind Name}" />
+                                    <TextBlock
+                                        FontSize="10"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind Description}" />
+                                </StackPanel>
+                                <controls:Icon
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Data="{StaticResource IconSelect}"
+                                    Size="14"
+                                    Visibility="{x:Bind local:Formats.Visible(IsSelected), Mode=OneWay}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <Button
+                    HorizontalAlignment="Right"
+                    AutomationProperties.Name="关闭环境音"
+                    Command="{x:Bind ViewModel.ClearAmbientCommand}"
+                    Content="关闭环境音"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.HasActiveAmbient), Mode=OneWay}" />
+
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Text="环境音音量" />
+                    <Slider
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Maximum="100"
+                        Minimum="0"
+                        Value="{x:Bind ViewModel.AmbientVolume, Mode=TwoWay}" />
+                    <TextBlock
+                        Grid.Column="2"
+                        MinWidth="32"
+                        VerticalAlignment="Center"
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind local:Formats.Percent(ViewModel.AmbientVolume), Mode=OneWay}" />
+                </Grid>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock
+            FontSize="11"
+            Foreground="{ThemeResource SystemFillColorCautionBrush}"
+            Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+            TextWrapping="Wrap"
+            Visibility="{x:Bind local:Formats.Visible(ViewModel.HasStatus), Mode=OneWay}" />
+    </StackPanel>
+</UserControl>

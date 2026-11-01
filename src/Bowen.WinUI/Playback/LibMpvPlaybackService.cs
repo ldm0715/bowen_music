@@ -60,6 +60,7 @@ public sealed class LibMpvPlaybackService : IPlaybackService
     /// </remarks>
     private TimeSpan? _lastReported;
     private double _volume = 100;
+    private string? _audioFilter;
     private bool _disposed;
     private TaskCompletionSource? _pendingLoad;
 
@@ -158,6 +159,9 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         try
         {
             mpv.SetPropertyFlag("pause", source.InitiallyPaused);
+            // `af` 在换文件时不会自动丢，但这条链可能是在引擎初始化前设好的；
+            // 每次 loadfile 前重写一次，保证第一首就带上音效。
+            ApplyAudioFilter(mpv);
             mpv.RunCommand(null, args.ToArray());
             await completion.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(true);
         }
@@ -246,6 +250,58 @@ public sealed class LibMpvPlaybackService : IPlaybackService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "设置音量失败");
+        }
+    }
+
+    public void SetAudioFilter(string? filter)
+    {
+        _audioFilter = string.IsNullOrWhiteSpace(filter) ? null : filter;
+
+        if (_mpv is not { } mpv)
+        {
+            return;
+        }
+
+        ApplyAudioFilter(mpv);
+    }
+
+    public void SendAudioFilterCommand(string label, string command, string argument, string? target = null)
+    {
+        if (_mpv is not { } mpv)
+        {
+            return;
+        }
+
+        try
+        {
+            mpv.RunCommand(null, "af-command", label, command, argument, target ?? "all");
+        }
+        catch (Exception ex)
+        {
+            // 滤镜不在链上时 mpv 会拒绝；音效滑杆不该因此打断播放。
+            _logger.LogDebug(ex, "音频滤镜命令被拒绝：{Label}/{Command} {Argument}", label, command, argument);
+        }
+    }
+
+    private void ApplyAudioFilter(MpvContext mpv)
+    {
+        try
+        {
+            mpv.SetPropertyString("af", _audioFilter ?? "");
+        }
+        catch (Exception ex)
+        {
+            // 当前 libmpv 没编进链里的某个滤镜时，mpv 会拒绝整串。
+            // 这里只记日志，不把播放打停；界面上的开关仍保持用户选择。
+            _logger.LogWarning(ex, "设置音效滤镜链失败，已保留主音频");
+            try
+            {
+                mpv.SetPropertyString("af", "");
+            }
+            catch (Exception clearException)
+            {
+                _logger.LogDebug(clearException, "清空音效滤镜链也失败了");
+            }
         }
     }
 

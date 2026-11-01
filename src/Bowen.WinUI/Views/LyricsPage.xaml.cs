@@ -100,7 +100,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private double _progressPointerX;
 
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
-        LyricsViewModel lyrics, SongCommentsViewModel comments,
+        LyricsViewModel lyrics, SongCommentsViewModel comments, AudioEffectsViewModel effects,
         INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
         FontSettingsViewModel font, BackgroundImageStore backgroundImages)
     {
@@ -109,6 +109,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(spectrum);
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(lyrics);
+        ArgumentNullException.ThrowIfNull(effects);
         ArgumentNullException.ThrowIfNull(comments);
         ArgumentNullException.ThrowIfNull(navigation);
         ArgumentNullException.ThrowIfNull(mvFactory);
@@ -127,6 +128,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Player = player;
         Lyrics = lyrics;
         Comments = comments;
+        Effects = effects;
         InitializeComponent();
         _fontOptions = BuildFontOptions(font);
         LyricsFontPicker.ItemsSource = _fontOptions;
@@ -181,6 +183,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public PlayerViewModel Player { get; }
     public LyricsViewModel Lyrics { get; }
     public SongCommentsViewModel Comments { get; }
+    public AudioEffectsViewModel Effects { get; }
     public string SongHeading(string title, string artist)
         => string.IsNullOrWhiteSpace(artist) ? title : $"{title} - {artist}";
 

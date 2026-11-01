@@ -20,7 +20,7 @@
 | `tools/Measure-PlayerResources.ps1` | 按进程采样播放期间 CPU 与资源占用 |
 | `tools/Verify-WinUIResources.ps1` | 检查 WinUI 输出目录中的 PRI / 资源完整性 |
 | `tools/mpv/` | libmpv 音频精简构建的工具链锁定与构建脚本 |
-| `libmpv/` | 音频精简版原生库（7.97 MiB）。**已随仓库提供**，克隆后无需额外下载 |
+| `libmpv/` | 音频精简版原生库（8.07 MiB）。**已随仓库提供**，克隆后无需额外下载 |
 | `installer/` | NSIS 安装脚本。设计与构建方式见 [`release.md`](release.md) |
 | `fixtures/` | 已脱敏的真实响应样本，单测的输入 |
 | `apk/` | 逆向用的原始安装包，**不入版本控制**（283 MB 第三方二进制，需自行放置） |
@@ -88,7 +88,8 @@
 | [`phone-login.md`](phone-login.md) | 手机号登录 |
 | [`performance.md`](performance.md) | 120 fps 目标的优化范围与验证限制 |
 | [`browse-memory.md`](browse-memory.md) | 浏览时内存增长的排查：诊断工具、实测数据、已排除方向与未验证的根页缓存假设 |
-| [`libmpv-audio-build.md`](libmpv-audio-build.md) | **libmpv 精简构建维护主文档**：115.22 → 7.97 MiB、裁剪范围、构建、验证、替换、回退与排障 |
+| [`libmpv-audio-build.md`](libmpv-audio-build.md) | **libmpv 精简构建维护主文档**：115.22 → 8.07 MiB、裁剪范围、构建、验证、替换、回退与排障 |
+| [`audio-effects.md`](audio-effects.md) | **音效**：银河/蝰蛇/环境音、mpv `af` 图、环境音程序化生成、libmpv 滤镜白名单与限制 |
 
 ## 归档
 

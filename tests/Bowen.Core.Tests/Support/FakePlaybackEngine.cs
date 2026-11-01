@@ -116,5 +116,16 @@ internal sealed class FakePlaybackEngine : IPlaybackService
 
     public void SetVolume(double volume) => LastVolume = volume;
 
+    /// <summary>最后一次设置过来的整条 <c>af</c>；清空过就是 <c>null</c>。</summary>
+    public string? LastAudioFilter { get; private set; }
+
+    /// <summary>收到的 <c>af-command</c>，按到达顺序。</summary>
+    public List<(string Label, string Command, string Argument, string? Target)> AudioFilterCommands { get; } = [];
+
+    public void SetAudioFilter(string? filter) => LastAudioFilter = filter;
+
+    public void SendAudioFilterCommand(string label, string command, string argument, string? target = null)
+        => AudioFilterCommands.Add((label, command, argument, target));
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

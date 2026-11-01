@@ -218,6 +218,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         PlayerViewModel playerViewModel,
         LyricsViewModel lyricsViewModel,
         DesktopLyricsViewModel desktopLyrics,
+        AudioEffectsViewModel audioEffects,
         MiniPlayerViewModel miniPlayer,
         PlayQueueViewModel queueViewModel,
         AccountViewModel account,
@@ -240,6 +241,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ArgumentNullException.ThrowIfNull(playerViewModel);
         ArgumentNullException.ThrowIfNull(lyricsViewModel);
         ArgumentNullException.ThrowIfNull(desktopLyrics);
+        ArgumentNullException.ThrowIfNull(audioEffects);
         ArgumentNullException.ThrowIfNull(miniPlayer);
         ArgumentNullException.ThrowIfNull(queueViewModel);
         ArgumentNullException.ThrowIfNull(account);
@@ -268,6 +270,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         Queue = queueViewModel;
         MiniPlayer = miniPlayer;
         DesktopLyrics = desktopLyrics;
+        Effects = audioEffects;
         Account = account;
         Search = search;
         Theme = theme;
@@ -382,7 +385,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             AnimateBeforeNavigationAsync);
         _navigation.Navigated += OnNavigated;
 
-        var playerBar = new PlayerBar(playerViewModel, lyricsViewModel, desktopLyrics, navigation);
+        var playerBar = new PlayerBar(playerViewModel, lyricsViewModel, desktopLyrics, audioEffects, navigation);
         playerBar.PlaylistRequested += (_, _) => ToggleQueue();
 
         // MV 页要带曲目构造，工厂只有这里拿得到 —— 播放条只抛事件。
@@ -440,6 +443,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <c>IsEnabled</c> 与 <c>ToggleCommand</c>，所以必须暴露成公开属性给 <c>x:Bind</c>。
     /// </remarks>
     public DesktopLyricsViewModel DesktopLyrics { get; }
+
+    /// <summary>音效面板的数据源。播放条与歌词页共用同一个单例。</summary>
+    public AudioEffectsViewModel Effects { get; }
 
     /// <summary>标题栏账号入口的数据源。</summary>
     public AccountViewModel Account { get; }

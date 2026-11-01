@@ -401,6 +401,28 @@
                         Label="{x:Bind Comments.BadgeAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind Comments.BadgeText, Mode=OneWay}"
                         HasBadgeCount="{x:Bind Comments.HasBadgeCount, Mode=OneWay}" />
+                    <!-- 音效入口。与播放条同一颗图标按钮、同一块面板。 -->
+                    <Button Style="{StaticResource PlayerRoundIconButtonStyle}"
+                        AutomationProperties.Name="音效" ToolTipService.ToolTip="音效">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
+                        <controls:Icon Data="{StaticResource IconEqualizer}" Size="16" />
+                        <Button.Flyout>
+                            <Flyout Placement="Top">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="MinWidth" Value="0" />
+                                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
+                                        <Setter Property="Padding" Value="12" />
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <controls:AudioEffectsPanel ViewModel="{x:Bind Effects}" />
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
                     <!-- 音质按钮回到扁平药丸那一版：36 宽、圆角 8，胶囊横向撑满、纵向居中。 -->
                     <Button x:Name="QualityButton" Width="36" Height="36" CornerRadius="8" Padding="0"
                         Style="{StaticResource PlayerRoundIconButtonStyle}"

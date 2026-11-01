@@ -304,4 +304,22 @@ public static class AppPaths
 
     /// <summary>日志目录。</summary>
     public static string LogDirectory => Path.Combine(LocalAppData, "logs");
+
+    /// <summary>
+    /// 音频效果偏好（明文 JSON）：启停、预设、环境音与音量。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="VolumeFile"/> 分开</b>：那份是主音量，这份是音效。音效里既有高频写的
+    /// 环境音滑杆，也有低频写的预设选择，和音量混在一个文件只会让读写互相牵制。
+    /// </remarks>
+    public static string AudioEffectSettingsFile => Path.Combine(LocalAppData, "audio-effects.json");
+
+    /// <summary>
+    /// 程序生成的环境音循环缓存。
+    /// </summary>
+    /// <remarks>
+    /// <b>不在仓库里带音频素材</b>：手机端的环境音 MP3 有版权，不能随 GPL 客户端分发。
+    /// 这里由 <c>AmbientSoundGenerator</c> 首次选中时生成，删掉会自动重建。
+    /// </remarks>
+    public static string AmbientSoundsDirectory => Path.Combine(LocalAppData, "ambient");
 }

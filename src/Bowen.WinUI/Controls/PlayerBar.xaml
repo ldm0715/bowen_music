@@ -236,6 +236,30 @@
                     ★ Spacing 16：音质标签是撑满按钮的方块，另外两颗是外圈留白的图标按钮。
                       数值取 8 时方块那侧的视觉空隙只有一半，看着挤；16 才和左区那颗图标按钮的间距等效。
                 -->
+                <!-- 音效入口。与音质、MV、桌面歌词共用同一颗图标按钮样式。 -->
+                <Button
+                    AutomationProperties.Name="音效"
+                    Style="{StaticResource PlayerRoundIconButtonStyle}"
+                    ToolTipService.ToolTip="音效">
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                    </Button.Resources>
+                    <controls:Icon Data="{StaticResource IconEqualizer}" Size="16" />
+                    <Button.Flyout>
+                        <Flyout Placement="Top">
+                            <Flyout.FlyoutPresenterStyle>
+                                <Style TargetType="FlyoutPresenter">
+                                    <Setter Property="MinWidth" Value="0" />
+                                    <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
+                                    <Setter Property="Padding" Value="12" />
+                                    <Setter Property="CornerRadius" Value="8" />
+                                </Style>
+                            </Flyout.FlyoutPresenterStyle>
+                            <controls:AudioEffectsPanel ViewModel="{x:Bind Effects}" />
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
                 <Button
                     x:Name="QualityButton"
                     Width="36"

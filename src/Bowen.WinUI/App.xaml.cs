@@ -165,6 +165,9 @@ public partial class App : Application
             logger: sp.GetRequiredService<ILogger<JsonPlayQueueSnapshotStore>>()));
         builder.Services.AddSingleton<IVolumeSettingsStore>(sp => new JsonVolumeSettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonVolumeSettingsStore>>()));
+        builder.Services.AddSingleton<IAudioEffectSettingsStore>(sp => new JsonAudioEffectSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonAudioEffectSettingsStore>>()));
+        builder.Services.AddSingleton<AudioEffectsViewModel>();
         builder.Services.AddSingleton<PlaybackCoordinator>();
 
         // 系统媒体控件。构造时只订阅事件，会话在首次播放时才建 —— 所以必须在这里解析一次，
