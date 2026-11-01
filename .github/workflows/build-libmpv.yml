@@ -33,13 +33,17 @@ jobs:
           if (-not (Test-Path -LiteralPath $bash)) {
             throw "Git Bash not found: $bash"
           }
-          python tools/mpv/build_audio_mpv.py --jobs 4 --bash $bash
+          # ★ 构建目录必须短。GitHub 的默认仓库路径是
+          #   D:\a\bowen_music\bowen_music\artifacts\native-mpv，
+          #   FFmpeg install 头文件那条命令会超过 Windows 命令行长度，
+          #   被截断成 D:/a/bowen_music/bowen_mus 并报 "target ... is not a directory"。
+          python tools/mpv/build_audio_mpv.py --work-dir C:\mpvbuild --jobs 4 --bash $bash
 
       - name: Show result
         if: always()
         shell: pwsh
         run: |
-          $out = 'artifacts/native-mpv/output'
+          $out = 'C:\mpvbuild\output'
           if (Test-Path -LiteralPath $out) {
             Get-ChildItem -LiteralPath $out | Format-Table Name, Length
             $manifest = Join-Path $out 'build-manifest.json'
@@ -54,13 +58,13 @@ jobs:
         with:
           name: libmpv-audio-effects
           path: |
-            artifacts/native-mpv/output/libmpv-2.dll
-            artifacts/native-mpv/output/audio-profile.json
-            artifacts/native-mpv/output/build-manifest.json
-            artifacts/native-mpv/logs/ffmpeg-configure.log
-            artifacts/native-mpv/logs/ffmpeg-compile.log
-            artifacts/native-mpv/logs/mpv-configure.log
-            artifacts/native-mpv/logs/mpv-compile.log
-            artifacts/native-mpv/logs/imports.log
+            C:/mpvbuild/output/libmpv-2.dll
+            C:/mpvbuild/output/audio-profile.json
+            C:/mpvbuild/output/build-manifest.json
+            C:/mpvbuild/logs/ffmpeg-configure.log
+            C:/mpvbuild/logs/ffmpeg-compile.log
+            C:/mpvbuild/logs/mpv-configure.log
+            C:/mpvbuild/logs/mpv-compile.log
+            C:/mpvbuild/logs/imports.log
           if-no-files-found: warn
           retention-days: 14
