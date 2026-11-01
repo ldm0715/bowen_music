@@ -171,7 +171,18 @@ class Builder:
 
     def meson_build(self, name: str, options: list[str], *, shared: bool = False) -> None:
         source, build = self.work / "src" / name, self.work / "build" / name
-        base = [str(self.meson), *self.meson_module, "setup", str(build), str(source), "--prefix=" + str(self.prefix), "--libdir=lib", "--buildtype=minsize", "--wrap-mode=nofallback", "-Dauto_features=disabled", "-Dprefer_static=true", "-Ddefault_library=" + ("shared" if shared else "static"), "-Db_lto=true", "-Db_ndebug=true", "-Dc_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -I" + (self.prefix / "include").as_posix(), "-Dcpp_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections", "-Dc_link_args=" + ("--driver-mode=g++ -static-libstdc++ " if name == "mpv" else "") + "-static-libgcc -Wl,--gc-sections", "-Dcpp_link_args=-static-libgcc -static-libstdc++ -Wl,--gc-sections", *options]
+        # ★ 不要用 `--driver-mode=g++` 让 C 链接拉 libc++：Meson 1.8.3 的 C
+        #   编译器自检会把它带进 `clang sanitycheckc.c ...`，C 源码被当成 C++
+        #   编译，报 "Compiler clang cannot compile programs"。
+        #   直接链工具链里的静态 libc++ 三个归档，效果一样且不污染 C 自检。
+        cpp_runtime = ""
+        if name == "mpv":
+            lib_dir = self.toolchain.parent / "x86_64-w64-mingw32/lib"
+            cpp_runtime = " ".join(
+                (lib_dir / library).as_posix()
+                for library in ("libc++.a", "libc++abi.a", "libunwind.a")
+            ) + " "
+        base = [str(self.meson), *self.meson_module, "setup", str(build), str(source), "--prefix=" + str(self.prefix), "--libdir=lib", "--buildtype=minsize", "--wrap-mode=nofallback", "-Dauto_features=disabled", "-Dprefer_static=true", "-Ddefault_library=" + ("shared" if shared else "static"), "-Db_lto=true", "-Db_ndebug=true", "-Dc_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections -I" + (self.prefix / "include").as_posix(), "-Dcpp_args=-march=x86-64 -mtune=generic -ffunction-sections -fdata-sections", "-Dc_link_args=" + cpp_runtime + "-static-libgcc -Wl,--gc-sections", "-Dcpp_link_args=-static-libgcc -static-libstdc++ -Wl,--gc-sections", *options]
         if (build / "build.ninja").exists():
             base.insert(2, "--reconfigure")
         self.run(name + "-configure", base)
