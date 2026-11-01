@@ -1,4 +1,3 @@
-using System.Text;
 using Bowen.Core.Audio;
 using Xunit;
 
@@ -7,52 +6,24 @@ namespace Bowen.Core.Tests;
 public sealed class AmbientSoundGeneratorTests
 {
     [Fact]
-    public void EveryAmbientSound_GeneratesAValidSeamlessWaveFile()
+    public void EveryAmbientSound_ExtractsAValidMp3()
     {
         var folder = Path.Combine(Path.GetTempPath(), "bowen-ambient-tests", Guid.NewGuid().ToString("N"));
         try
         {
+            Span<byte> header = stackalloc byte[3];
             foreach (var sound in AudioEffectCatalog.AmbientSounds)
             {
                 var path = AmbientSoundGenerator.Ensure(sound, folder);
 
-                Assert.True(File.Exists(path));
+                Assert.True(File.Exists(path), $"{sound.Id} 没有解压出来");
+                Assert.True(new FileInfo(path).Length > 20_000, $"{sound.Id} 文件过小");
+
                 using var stream = File.OpenRead(path);
-                using var reader = new BinaryReader(stream);
-
-                Assert.Equal("RIFF", Encoding.ASCII.GetString(reader.ReadBytes(4)));
-                reader.ReadInt32();
-                Assert.Equal("WAVE", Encoding.ASCII.GetString(reader.ReadBytes(4)));
-                Assert.Equal("fmt ", Encoding.ASCII.GetString(reader.ReadBytes(4)));
-                Assert.Equal(16, reader.ReadInt32());
-                Assert.Equal(1, reader.ReadInt16());
-                Assert.Equal(AmbientSoundGenerator.Channels, reader.ReadInt16());
-                Assert.Equal(AmbientSoundGenerator.SampleRate, reader.ReadInt32());
-                reader.ReadInt32();
-                reader.ReadInt16();
-                Assert.Equal(16, reader.ReadInt16());
-                Assert.Equal("data", Encoding.ASCII.GetString(reader.ReadBytes(4)));
-                var dataBytes = reader.ReadInt32();
-
-                Assert.Equal(
-                    AmbientSoundGenerator.SampleRate * AmbientSoundGenerator.DurationSeconds
-                    * AmbientSoundGenerator.Channels * sizeof(short),
-                    dataBytes);
-                Assert.Equal(stream.Length, stream.Position + dataBytes);
-
-                var peak = 0;
-                var energy = 0d;
-                var samples = dataBytes / sizeof(short);
-                for (var i = 0; i < samples; i++)
-                {
-                    var value = reader.ReadInt16();
-                    peak = Math.Max(peak, Math.Abs((int)value));
-                    energy += value * (double)value;
-                }
-
-                Assert.True(peak > 1000, $"{sound.Id} 几乎没有声音");
-                Assert.True(peak <= short.MaxValue * 0.6, $"{sound.Id} 峰值过高：{peak}");
-                Assert.True(Math.Sqrt(energy / samples) > 100, $"{sound.Id} 能量过低");
+                Assert.Equal(3, stream.Read(header));
+                var isId3 = header[0] == (byte)'I' && header[1] == (byte)'D' && header[2] == (byte)'3';
+                var isFrame = header[0] == 0xFF && (header[1] & 0xE0) == 0xE0;
+                Assert.True(isId3 || isFrame, $"{sound.Id} 不是有效的 MP3");
             }
         }
         finally

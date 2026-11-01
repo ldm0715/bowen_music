@@ -76,8 +76,8 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
         QueueApply();
     }
 
-    /// <summary>页签名，顺序与手机端一致。</summary>
-    public IReadOnlyList<string> Tabs { get; } = ["银河音效", "蝰蛇音效", "环境音"];
+    /// <summary>页签名。环境音是独立叠加层，不占页签，固定显示在下方共享行。</summary>
+    public IReadOnlyList<string> Tabs { get; } = ["银河音效", "蝰蛇音效"];
 
     /// <summary>当前页签里的预设卡。</summary>
     public ObservableCollection<AudioEffectPresetItem> VisiblePresets { get; } = [];
@@ -91,7 +91,6 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGalaxyTab))]
     [NotifyPropertyChangedFor(nameof(IsViperTab))]
-    [NotifyPropertyChangedFor(nameof(IsAmbientTab))]
     public partial int SelectedTabIndex { get; set; }
 
     [ObservableProperty]
@@ -105,9 +104,13 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
 
     public bool IsViperTab => SelectedTabIndex == 1;
 
-    public bool IsAmbientTab => SelectedTabIndex == 2;
-
     public bool HasStatus => StatusText.Length > 0;
+
+    /// <summary>环境音是否已选；音量条据此启用。</summary>
+    public bool HasAmbientSelected => ActiveAmbientName.Length > 0;
+
+    /// <summary>共享行里环境音按钮的文字。</summary>
+    public string AmbientButtonText => ActiveAmbientName.Length > 0 ? ActiveAmbientName : "无";
 
     /// <summary>当前选中的预设名；没选时为空串。</summary>
     public string ActivePresetName => AudioEffectCatalog.FindPreset(_settings.PresetId)?.Name ?? "";
@@ -115,11 +118,8 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
     /// <summary>当前选中的环境音名；没选时为空串。</summary>
     public string ActiveAmbientName => AudioEffectCatalog.FindAmbient(_settings.AmbientId)?.Name ?? "";
 
-    /// <summary>当前是否有预设生效。</summary>
-    public bool HasActivePreset => ActivePresetName.Length > 0;
-
-    /// <summary>当前是否有环境音生效。</summary>
-    public bool HasActiveAmbient => ActiveAmbientName.Length > 0;
+    /// <summary>头部显示的名字：预设优先，其次环境音；都没选时为空串。</summary>
+    public string ActiveEffectName => ActivePresetName.Length > 0 ? ActivePresetName : ActiveAmbientName;
 
     [RelayCommand]
     private void SelectPreset(AudioEffectPresetItem? item)
@@ -129,17 +129,11 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
             return;
         }
 
-        _settings = _settings with { PresetId = item.Id, Enabled = true };
-        SetEnabledWithoutApply();
-        RefreshSelection();
-        QueueApply();
-        ScheduleSave();
-    }
-
-    [RelayCommand]
-    private void ClearPreset()
-    {
-        _settings = _settings with { PresetId = "" };
+        var next = string.Equals(_settings.PresetId, item.Id, StringComparison.OrdinalIgnoreCase)
+            ? ""
+            : item.Id;
+        _settings = _settings with { PresetId = next };
+        SetEnabledFromEffects();
         RefreshSelection();
         QueueApply();
         ScheduleSave();
@@ -156,17 +150,8 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
         var next = string.Equals(_settings.AmbientId, item.Id, StringComparison.OrdinalIgnoreCase)
             ? ""
             : item.Id;
-        _settings = _settings with { AmbientId = next, Enabled = true };
-        SetEnabledWithoutApply();
-        RefreshSelection();
-        QueueApply();
-        ScheduleSave();
-    }
-
-    [RelayCommand]
-    private void ClearAmbient()
-    {
-        _settings = _settings with { AmbientId = "" };
+        _settings = _settings with { AmbientId = next };
+        SetEnabledFromEffects();
         RefreshSelection();
         QueueApply();
         ScheduleSave();
@@ -214,10 +199,12 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
         ScheduleSave();
     }
 
-    private void SetEnabledWithoutApply()
+    private void SetEnabledFromEffects()
     {
+        var enabled = _settings.PresetId.Length > 0 || _settings.AmbientId.Length > 0;
+        _settings = _settings with { Enabled = enabled };
         _loading = true;
-        IsEnabled = true;
+        IsEnabled = enabled;
         _loading = false;
     }
 
@@ -306,8 +293,9 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
 
         OnPropertyChanged(nameof(ActivePresetName));
         OnPropertyChanged(nameof(ActiveAmbientName));
-        OnPropertyChanged(nameof(HasActivePreset));
-        OnPropertyChanged(nameof(HasActiveAmbient));
+        OnPropertyChanged(nameof(ActiveEffectName));
+        OnPropertyChanged(nameof(HasAmbientSelected));
+        OnPropertyChanged(nameof(AmbientButtonText));
     }
 
     private void ScheduleSave()
@@ -329,13 +317,6 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
 
     private void Persist() => _store?.Save(_settings);
 
-    private static int ResolveInitialTab(AudioEffectSettings settings)
-    {
-        if (settings.PresetId.StartsWith("viper.", StringComparison.OrdinalIgnoreCase))
-        {
-            return 1;
-        }
-
-        return settings.PresetId.Length == 0 && settings.AmbientId.Length > 0 ? 2 : 0;
-    }
+    private static int ResolveInitialTab(AudioEffectSettings settings) =>
+        settings.PresetId.StartsWith("viper.", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
 }

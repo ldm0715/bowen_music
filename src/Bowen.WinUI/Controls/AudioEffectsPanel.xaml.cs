@@ -33,6 +33,7 @@ public sealed partial class AudioEffectsPanel : UserControl
         if (e.ClickedItem is AmbientSoundItem item)
         {
             ViewModel?.SelectAmbientCommand.Execute(item);
+            AmbientFlyout.Hide();
         }
     }
 }

@@ -36,7 +36,7 @@ public sealed class AudioEffectCatalogTests
     {
         Assert.Equal(7, AudioEffectCatalog.ViperPresets.Count);
         Assert.Equal(8, AudioEffectCatalog.GalaxyPresets.Count);
-        Assert.Equal(11, AudioEffectCatalog.AmbientSounds.Count);
+        Assert.Equal(12, AudioEffectCatalog.AmbientSounds.Count);
     }
 
     [Fact]

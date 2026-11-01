@@ -33,6 +33,7 @@ public enum AmbientSoundKind
     Second,
     Heartbeat,
     Fireworks,
+    Rain,
 }
 
 /// <summary>一种环境音的展示信息。</summary>
@@ -118,6 +119,7 @@ public static class AudioEffectCatalog
         new("ambient.second", "秒针", "清晰的钟表秒针", AmbientSoundKind.Second),
         new("ambient.heartbeat", "心跳", "缓慢的双拍心跳", AmbientSoundKind.Heartbeat),
         new("ambient.fireworks", "烟火", "远处的爆裂与回响", AmbientSoundKind.Fireworks),
+        new("ambient.rain", "雨声", "雨点落在屋顶和地面", AmbientSoundKind.Rain),
     ];
 
     /// <summary>全部预设，页签顺序为银河在前、蝰蛇在后。</summary>

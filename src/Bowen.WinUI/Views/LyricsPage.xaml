@@ -52,6 +52,24 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
     </Page.Resources>
+
+    <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="AudioEffectsStates">
+            <VisualState x:Name="AudioEffectsInactive">
+                <VisualState.Setters>
+                    <Setter Target="EffectsHalo.Visibility" Value="Collapsed" />
+                    <Setter Target="EffectsIcon.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                </VisualState.Setters>
+            </VisualState>
+            <VisualState x:Name="AudioEffectsActive">
+                <VisualState.Setters>
+                    <Setter Target="EffectsHalo.Visibility" Value="Visible" />
+                    <Setter Target="EffectsIcon.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                </VisualState.Setters>
+            </VisualState>
+        </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+
     <!--
         KeyboardAcceleratorPlacementMode="Hidden" 是必须的，不是可选装饰。
 
@@ -401,21 +419,37 @@
                         Label="{x:Bind Comments.BadgeAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind Comments.BadgeText, Mode=OneWay}"
                         HasBadgeCount="{x:Bind Comments.HasBadgeCount, Mode=OneWay}" />
-                    <!-- 音效入口。与播放条同一颗图标按钮、同一块面板。 -->
-                    <Button Style="{StaticResource PlayerRoundIconButtonStyle}"
+                    <!-- 音效入口。开启时换强调色并加一层光圈，图标本身不变。 -->
+                    <Button x:Name="EffectsButton" Style="{StaticResource PlayerRoundIconButtonStyle}"
                         AutomationProperties.Name="音效" ToolTipService.ToolTip="音效">
                         <Button.Resources>
                             <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
                             <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
                         </Button.Resources>
-                        <controls:Icon Data="{StaticResource IconEqualizer}" Size="16" />
+                        <Grid Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Border
+                                x:Name="EffectsHalo"
+                                Width="30"
+                                Height="30"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                                CornerRadius="15"
+                                Visibility="Collapsed" />
+                            <controls:Icon
+                                x:Name="EffectsIcon"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource IconEqualizer}"
+                                Size="16" />
+                        </Grid>
                         <Button.Flyout>
                             <Flyout Placement="Top">
                                 <Flyout.FlyoutPresenterStyle>
                                     <Style TargetType="FlyoutPresenter">
                                         <Setter Property="MinWidth" Value="0" />
                                         <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
-                                        <Setter Property="Padding" Value="12" />
+                                        <Setter Property="Padding" Value="10" />
                                         <Setter Property="CornerRadius" Value="8" />
                                     </Style>
                                 </Flyout.FlyoutPresenterStyle>

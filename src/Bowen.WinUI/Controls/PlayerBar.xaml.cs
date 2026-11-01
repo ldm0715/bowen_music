@@ -197,7 +197,9 @@ public sealed partial class PlayerBar : UserControl
     {
         ViewModel.PropertyChanged += OnPlayerPropertyChanged;
         DesktopLyrics.PropertyChanged += OnDesktopLyricsPropertyChanged;
+        Effects.PropertyChanged += OnEffectsPropertyChanged;
         UpdateDesktopLyricsButton();
+        UpdateEffectsButton();
         UpdateTitleWidth();
         UpdateArtistLine();
     }
@@ -212,6 +214,18 @@ public sealed partial class PlayerBar : UserControl
         if (e.PropertyName == nameof(DesktopLyricsViewModel.IsEnabled))
         {
             UpdateDesktopLyricsButton();
+        }
+    }
+
+    private void UpdateEffectsButton()
+        => VisualStateManager.GoToState(this,
+            Effects.IsEnabled ? "AudioEffectsActive" : "AudioEffectsInactive", useTransitions: false);
+
+    private void OnEffectsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AudioEffectsViewModel.IsEnabled))
+        {
+            UpdateEffectsButton();
         }
     }
 
@@ -249,6 +263,7 @@ public sealed partial class PlayerBar : UserControl
     {
         ViewModel.PropertyChanged -= OnPlayerPropertyChanged;
         DesktopLyrics.PropertyChanged -= OnDesktopLyricsPropertyChanged;
+        Effects.PropertyChanged -= OnEffectsPropertyChanged;
         ViewModel.IsSeeking = false;
         _isProgressPointerOver = false;
         ClosePopups();

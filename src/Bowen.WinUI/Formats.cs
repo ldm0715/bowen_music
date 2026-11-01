@@ -19,6 +19,9 @@ public static class Formats
     public static string Percent(double value) =>
         string.Create(CultureInfo.InvariantCulture, $"{Math.Round(value):0}%");
 
+    /// <summary>音效总开关左侧的状态字。</summary>
+    public static string OnOff(bool value) => value ? "开" : "关";
+
     /// <summary>
     /// 播放条上曲名的最大宽度：信息块总宽减去右侧会占位的徽标。
     /// </summary>

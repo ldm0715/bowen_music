@@ -33,6 +33,18 @@ namespace Bowen.WinUI.Views;
 public sealed partial class LyricsPage : Page, INavigationAware
 {
     private void OnQualitySelected(object? sender, EventArgs e) => QualityFlyout.Hide();
+
+    private void UpdateEffectsButton()
+        => VisualStateManager.GoToState(this,
+            Effects.IsEnabled ? "AudioEffectsActive" : "AudioEffectsInactive", useTransitions: false);
+
+    private void OnEffectsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AudioEffectsViewModel.IsEnabled))
+        {
+            UpdateEffectsButton();
+        }
+    }
     private readonly MainWindow _window;
     private readonly INavigationService _navigation;
     private readonly Func<Track, MvPage> _mvFactory;
@@ -130,6 +142,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Comments = comments;
         Effects = effects;
         InitializeComponent();
+        Effects.PropertyChanged += OnEffectsPropertyChanged;
+        UpdateEffectsButton();
         _fontOptions = BuildFontOptions(font);
         LyricsFontPicker.ItemsSource = _fontOptions;
         LyricsFontPicker.StretchToAvailableWidth();
