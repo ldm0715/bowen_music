@@ -54,7 +54,7 @@
             ItemsSource="{x:Bind ViewModel.Tabs}"
             SelectedIndex="{x:Bind ViewModel.SelectedTabIndex, Mode=TwoWay}" />
 
-        <!-- 银河 / 蝰蛇共用一套卡片，再次点击当前卡即取消。 -->
+        <!-- 经典 / 增强共用一套卡片，再次点击当前卡即取消。 -->
         <Grid Visibility="{x:Bind local:Formats.Visible(ViewModel.IsGalaxyTab), Mode=OneWay}">
             <GridView
                 MaxHeight="324"

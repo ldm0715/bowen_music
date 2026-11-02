@@ -12,12 +12,14 @@ public enum AudioEffectCategory
 /// <summary>一条命名音效预设。</summary>
 /// <param name="Id">持久化用的稳定 id，不要改。</param>
 /// <param name="FilterChain">mpv <c>af=lavfi=[...]</c> 里的滤镜片段，逗号分隔。</param>
+/// <param name="TextureId">随预设循环叠加的纹理素材 id；没有纹理时为 <c>null</c>。</param>
 public sealed record AudioEffectPreset(
     string Id,
     AudioEffectCategory Category,
     string Name,
     string Description,
-    string FilterChain);
+    string FilterChain,
+    string? TextureId = null);
 
 /// <summary>环境音的自然类型，生成器按它选合成方式。</summary>
 public enum AmbientSoundKind
@@ -49,15 +51,26 @@ public sealed record AmbientSoundDefinition(
 /// <remarks>
 /// <para>
 /// <b>这些曲线是本项目自己写的，不是从手机端预设或闭源引擎里抄的。</b>
-/// 手机端的银河/蝰蛇预设由原生 DSP 包处理，没有可移植的参数文件；这里用 FFmpeg
-/// 滤镜做听感近似，名字只用来帮用户认出「大概是那一类」。
+/// 手机端的两组预设由原生 DSP 包处理，没有可移植的参数文件；桌面端的「经典」「增强」两页
+/// 是按其效果方向自己调的，名字和曲线都归本项目所有，与手机端不再一一对应。
 /// </para>
 /// <para>
 /// 滤镜片段不能带 <c>lavfi=[]</c> 外壳，由 <see cref="AudioEffectGraphBuilder"/> 统一包。
 /// </para>
+/// <para>
+/// 调链条时注意三个会掉电平的坑：<c>aecho</c> 的 <c>out_gain</c> 连干声一起乘，
+/// 要固定 <c>in_gain=1:out_gain=1</c>，只靠 <c>decays</c> 控制回声量；
+/// <c>asubboost</c> 实测会掉 7–9 LU，需要次低频时改用 <c>virtualbass</c>；
+/// <c>acompressor</c> 的阈值是线性的，<c>threshold=0.08</c> 等于 -22 dBFS，会压掉整首歌，
+/// 阈值不低于 0.35 并用 <c>makeup</c> 补偿。抬增益的链条末尾统一加
+/// <c>alimiter=limit=0.9:level=0</c>，避免削波，也不要开自动电平。
+/// </para>
 /// </remarks>
 public static class AudioEffectCatalog
 {
+    /// <summary>黑胶底噪素材 id，随黑胶预设循环叠加。</summary>
+    public const string VinylTextureId = "texture.vinyl";
+
     /// <summary>均衡器段数。</summary>
     public const int EqBandCount = 10;
 
@@ -65,44 +78,45 @@ public static class AudioEffectCatalog
     public static readonly IReadOnlyList<int> EqBandFrequencies =
         [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
-    /// <summary>蝰蛇页签的预设。</summary>
+    /// <summary>增强页签的预设。</summary>
     public static IReadOnlyList<AudioEffectPreset> ViperPresets { get; } =
     [
-        new("viper.3d", AudioEffectCategory.Viper, "3D环绕", "拉开左右声场，人声仍留在中间",
-            "stereotools=slev=1.6:mlev=0.92,haas=side_gain=0.18"),
-        new("viper.bass", AudioEffectCategory.Viper, "超重低音", "低频增强，节奏更有冲击力",
-            "virtualbass=cutoff=130:strength=2.2,asubboost=dry=0.9:wet=0.35:decay=0.4:feedback=0.6:cutoff=100"),
-        new("viper.vocal", AudioEffectCategory.Viper, "纯净人声", "压低低频，人声干净靠前",
-            "highpass=f=90,equalizer=f=250:t=q:w=1.2:g=-3,equalizer=f=2600:t=q:w=1.1:g=4,equalizer=f=5600:t=q:w=1:g=2,acompressor=threshold=0.08:ratio=3:attack=8:release=180"),
-        new("viper.live", AudioEffectCategory.Viper, "虚拟现场", "短混响加声场展宽，像在小型现场",
-            "aecho=0.8:0.7:40|70:0.3|0.2,stereotools=slev=1.3:mlev=0.95"),
+        new("viper.3d", AudioEffectCategory.Viper, "3D环绕", "相位展宽加长反射，声像推到耳机外",
+            "stereotools=slev=2.1:mlev=0.82,haas=side_gain=0.8,aecho=1:1:71|127|191:0.12|0.09|0.06,volume=0.5dB,alimiter=limit=0.9:level=0"),
+        new("viper.bass", AudioEffectCategory.Viper, "超重低音", "下潜与谐波低音叠加，节奏更重",
+            "virtualbass=cutoff=180:strength=2.4,bass=g=7:f=70:w=0.5,equalizer=f=110:t=q:w=1:g=2,alimiter=limit=0.9:level=0"),
+        new("viper.vocal", AudioEffectCategory.Viper, "纯净人声", "抬高中频并轻压动态，人声靠前",
+            "highpass=f=70,equalizer=f=280:t=q:w=1.2:g=-3,equalizer=f=2600:t=q:w=1.1:g=4,equalizer=f=6000:t=q:w=1:g=2,acompressor=threshold=0.35:ratio=2.5:attack=10:release=200:makeup=1.1"),
+        new("viper.live", AudioEffectCategory.Viper, "虚拟现场", "多抽头短反射加声场展宽，像在小型现场",
+            "aecho=1:1:25|45|70:0.32|0.22|0.14,stereotools=slev=1.35:mlev=1,volume=1.5dB,alimiter=limit=0.92:level=0"),
         new("viper.eq", AudioEffectCategory.Viper, "均衡器音效", "温和的 V 形曲线，低频和高频略抬",
             BuildEqChain([3, 2, 1, 0, -1, -1, 0, 1, 2, 3], preampDb: -3)),
-        new("viper.ai", AudioEffectCategory.Viper, "AI智能音效", "动态响度与中频增强（近似，不是模型）",
-            "dynaudnorm=f=150,acompressor=threshold=0.1:ratio=2.5:attack=15:release=250,equalizer=f=2500:t=q:w=1:g=1.5"),
+        new("viper.ai", AudioEffectCategory.Viper, "响度均衡", "动态响度归一，拉平不同歌曲的音量",
+            "dynaudnorm=framelen=500:maxgain=3:targetrms=0.35:compress=2:threshold=0.05,equalizer=f=2500:t=q:w=1:g=1.5,alimiter=limit=0.92:level=0"),
         new("viper.hifi", AudioEffectCategory.Viper, "一键HiFi", "两端轻抬并加限幅，整体更饱满",
             "equalizer=f=60:t=q:w=1:g=2,equalizer=f=12000:t=q:w=1:g=2,alimiter=limit=0.95"),
     ];
 
-    /// <summary>银河页签的预设。</summary>
+    /// <summary>经典页签的预设。</summary>
     public static IReadOnlyList<AudioEffectPreset> GalaxyPresets { get; } =
     [
-        new("galaxy.clear", AudioEffectCategory.Galaxy, "清澈人声", "中频清晰，齿音不刺",
-            "highpass=f=80,equalizer=f=300:t=q:w=1.2:g=-2,equalizer=f=3000:t=q:w=1.1:g=3,equalizer=f=7000:t=q:w=1:g=1.5"),
-        new("galaxy.bass", AudioEffectCategory.Galaxy, "重低音", "低频托底，高频同步收一点",
-            "bass=g=9:f=90:w=0.7,asubboost=dry=0.85:wet=0.4:decay=0.35:feedback=0.55:cutoff=90"),
-        new("galaxy.3d", AudioEffectCategory.Galaxy, "3D环绕", "更宽的声场，适合耳机",
-            "stereotools=slev=1.8:mlev=0.86,haas=side_gain=0.22"),
-        new("galaxy.vinyl", AudioEffectCategory.Galaxy, "黑胶", "收高频并加一点短反射，模拟唱片感",
-            "highpass=f=60,lowpass=f=11000,equalizer=f=300:t=q:w=1:g=-1,aecho=0.85:0.6:18:0.12"),
-        new("galaxy.live", AudioEffectCategory.Galaxy, "LiveHouse", "中等混响，人声和乐器有厅堂感",
-            "aecho=0.8:0.7:50|90:0.25|0.18,stereotools=slev=1.4:mlev=0.9"),
-        new("galaxy.night", AudioEffectCategory.Galaxy, "夜晚", "压高频，长时间听不累",
-            "lowpass=f=12000,equalizer=f=250:t=q:w=1:g=1,equalizer=f=8000:t=q:w=1:g=-2"),
+        new("galaxy.clear", AudioEffectCategory.Galaxy, "清澈人声", "保留低频，只抬中高频的通透感",
+            "equalizer=f=300:t=q:w=1.2:g=-2,equalizer=f=3000:t=q:w=1.1:g=3,equalizer=f=9000:t=q:w=1:g=2.5,alimiter=limit=0.95:level=0"),
+        new("galaxy.bass", AudioEffectCategory.Galaxy, "重低音", "低频托底并补谐波低音，响度不掉",
+            "bass=g=6:f=80:w=0.6,equalizer=f=160:t=q:w=1:g=2,virtualbass=cutoff=140:strength=2.2,alimiter=limit=0.9:level=0"),
+        new("galaxy.3d", AudioEffectCategory.Galaxy, "3D环绕", "相位展宽加长反射，声场开阔",
+            "stereotools=slev=1.9:mlev=0.88,haas=side_gain=0.55,aecho=1:1:83|141|219:0.16|0.11|0.07,alimiter=limit=0.9:level=0"),
+        new("galaxy.vinyl", AudioEffectCategory.Galaxy, "黑胶", "温暖偏暗的模拟味，叠一层炒豆底噪",
+            "highpass=f=50,equalizer=f=120:t=q:w=0.7:g=3,equalizer=f=700:t=q:w=1.2:g=-1.5,lowpass=f=8500,acompressor=threshold=0.4:ratio=1.8:attack=25:release=180:makeup=1.2,stereotools=slev=0.9",
+            TextureId: VinylTextureId),
+        new("galaxy.live", AudioEffectCategory.Galaxy, "LiveHouse", "多抽头混响，人声和乐器有厅堂感",
+            "aecho=1:1:35|60|90:0.22|0.16|0.1,stereotools=slev=1.4:mlev=0.95,volume=0.5dB,alimiter=limit=0.92:level=0"),
+        new("galaxy.night", AudioEffectCategory.Galaxy, "夜晚", "压暗高频并轻压动态，小音量也耐听",
+            "lowpass=f=7500,equalizer=f=120:t=q:w=1:g=2,equalizer=f=350:t=q:w=1:g=0.5,equalizer=f=6000:t=q:w=1.2:g=-3,acompressor=threshold=0.35:ratio=2:attack=20:release=250:makeup=1.15,stereotools=slev=0.85"),
         new("galaxy.wide", AudioEffectCategory.Galaxy, "开阔宽音", "左右展宽，声像更靠外",
             "stereowiden=delay=22:feedback=0.25:crossfeed=0.2:drymix=0.85"),
-        new("galaxy.car", AudioEffectCategory.Galaxy, "车载", "低频和中频略抬，适合车内环境",
-            "equalizer=f=100:t=q:w=1:g=2,equalizer=f=3000:t=q:w=1:g=1,stereotools=slev=1.2:mlev=1"),
+        new("galaxy.car", AudioEffectCategory.Galaxy, "车载", "补低频、提清晰度，抵消车内噪声遮蔽",
+            "bass=g=6:f=110:w=0.7,equalizer=f=400:t=q:w=1.1:g=-2,equalizer=f=2800:t=q:w=1:g=3.5,equalizer=f=9000:t=q:w=1:g=2,stereotools=slev=1.25,alimiter=limit=0.95:level=0"),
     ];
 
     /// <summary>环境音目录，顺序与手机端一致。</summary>
@@ -122,7 +136,7 @@ public static class AudioEffectCatalog
         new("ambient.rain", "雨声", "雨点落在屋顶和地面", AmbientSoundKind.Rain),
     ];
 
-    /// <summary>全部预设，页签顺序为银河在前、蝰蛇在后。</summary>
+    /// <summary>全部预设，页签顺序为经典在前、增强在后。</summary>
     public static IReadOnlyList<AudioEffectPreset> AllPresets { get; } =
         [.. GalaxyPresets, .. ViperPresets];
 

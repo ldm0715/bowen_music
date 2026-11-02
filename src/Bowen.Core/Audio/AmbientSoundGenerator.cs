@@ -7,9 +7,9 @@ namespace Bowen.Core.Audio;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 12 个环境音循环以 <c>EmbeddedResource</c> 编译进 <c>Bowen.Core.dll</c>，安装目录里没有散文件。
-/// 首次选中时解压到 <c>%LOCALAPPDATA%\Bowen\ambient\v9\</c>，之后直接复用；
-/// 用户误删缓存时下次选中会自动重建。
+/// 12 个环境音循环和黑胶底噪以 <c>EmbeddedResource</c> 编译进 <c>Bowen.Core.dll</c>，
+/// 安装目录里没有散文件。首次选中时解压到 <c>%LOCALAPPDATA%\Bowen\ambient\v9\</c>，
+/// 之后直接复用；用户误删缓存时下次选中会自动重建。
 /// </para>
 /// <para>
 /// 格式：OGG Vorbis（多数）或 FLAC（心跳），保留源采样率与声道。素材来源见
@@ -35,6 +35,20 @@ public static class AmbientSoundGenerator
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sound);
+        return EnsureLoop(sound.Id, directory, cancellationToken);
+    }
+
+    /// <summary>
+    /// 按资源 id 解压任意循环素材（环境音、预设纹理都走这里）。
+    /// </summary>
+    /// <param name="id">素材 id，须与 <c>AmbientAssets</c> 下的文件名一致。</param>
+    /// <param name="directory">缓存目录；测试可显式指定。</param>
+    public static string EnsureLoop(
+        string id,
+        string? directory = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
         cancellationToken.ThrowIfCancellationRequested();
 
         var assembly = typeof(AmbientSoundGenerator).Assembly;
@@ -44,7 +58,7 @@ public static class AmbientSoundGenerator
         foreach (var suffix in Extensions)
         {
             resourceName = resourceNames.FirstOrDefault(
-                name => name.EndsWith("." + sound.Id + suffix, StringComparison.OrdinalIgnoreCase));
+                name => name.EndsWith("." + id + suffix, StringComparison.OrdinalIgnoreCase));
             if (resourceName is not null)
             {
                 break;
@@ -53,7 +67,7 @@ public static class AmbientSoundGenerator
 
         if (resourceName is null)
         {
-            throw new FileNotFoundException($"程序集里没有环境音资源：{sound.Id}", sound.Id);
+            throw new FileNotFoundException($"程序集里没有循环素材：{id}", id);
         }
 
         var extension = resourceName.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase)
@@ -63,14 +77,14 @@ public static class AmbientSoundGenerator
         var folder = directory ?? Path.Combine(AppPaths.AmbientSoundsDirectory, CacheVersion);
         Directory.CreateDirectory(folder);
 
-        var path = Path.Combine(folder, sound.Id + extension);
+        var path = Path.Combine(folder, id + extension);
         if (File.Exists(path) && new FileInfo(path).Length > 1024)
         {
             return path;
         }
 
         using var source = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new FileNotFoundException($"无法打开环境音资源：{resourceName}", resourceName);
+            ?? throw new FileNotFoundException($"无法打开循环素材：{resourceName}", resourceName);
 
         var temporary = path + ".tmp";
         using (var destination = File.Create(temporary))

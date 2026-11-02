@@ -34,6 +34,7 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
 
     private AudioEffectSettings _settings;
     private bool _loading = true;
+    private bool _graphHasTexture;
     private int _applyVersion;
 
     public AudioEffectsViewModel(
@@ -77,7 +78,7 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
     }
 
     /// <summary>页签名。环境音是独立叠加层，不占页签，固定显示在下方共享行。</summary>
-    public IReadOnlyList<string> Tabs { get; } = ["银河音效", "蝰蛇音效"];
+    public IReadOnlyList<string> Tabs { get; } = ["经典音效", "增强音效"];
 
     /// <summary>当前页签里的预设卡。</summary>
     public ObservableCollection<AudioEffectPresetItem> VisiblePresets { get; } = [];
@@ -189,10 +190,11 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
         _settings = _settings with { AmbientVolume = value };
         if (_settings.Enabled && _settings.AmbientId.Length > 0)
         {
+            // 纹理（黑胶底噪）也在同一张 amix 里，权重的个数必须和当前图的输入数一致。
             _engine.SendAudioFilterCommand(
                 AudioEffectGraphBuilder.FilterLabel,
                 "weights",
-                AudioEffectGraphBuilder.AmbientWeights(value),
+                AudioEffectGraphBuilder.MixWeights(_settings, _graphHasTexture, hasAmbient: true),
                 "amix");
         }
 
@@ -231,25 +233,46 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
         _settings = _settings.Normalized();
 
         string? ambientPath = null;
-        if (_settings.Enabled && _settings.AmbientId.Length > 0)
+        string? texturePath = null;
+        if (_settings.Enabled)
         {
-            var sound = AudioEffectCatalog.FindAmbient(_settings.AmbientId);
-            if (sound is not null)
+            var preset = AudioEffectCatalog.FindPreset(_settings.PresetId);
+            var sound = _settings.AmbientId.Length > 0
+                ? AudioEffectCatalog.FindAmbient(_settings.AmbientId)
+                : null;
+
+            // 纹理和环境音写同一个缓存目录，共用一把锁避免并发解压撞临时文件。
+            await _generateGate.WaitAsync();
+            try
             {
-                await _generateGate.WaitAsync();
-                try
+                if (preset?.TextureId is { Length: > 0 } textureId)
                 {
-                    ambientPath = await Task.Run(() => AmbientSoundGenerator.Ensure(sound));
+                    try
+                    {
+                        texturePath = await Task.Run(() => AmbientSoundGenerator.EnsureLoop(textureId));
+                    }
+                    catch (Exception exception)
+                    {
+                        _logger.LogWarning(exception, "音效纹理生成失败：{Id}", textureId);
+                    }
                 }
-                catch (Exception exception)
+
+                if (sound is not null)
                 {
-                    _logger.LogWarning(exception, "环境音生成失败：{Id}", sound.Id);
-                    StatusText = $"环境音“{sound.Name}”生成失败";
+                    try
+                    {
+                        ambientPath = await Task.Run(() => AmbientSoundGenerator.Ensure(sound));
+                    }
+                    catch (Exception exception)
+                    {
+                        _logger.LogWarning(exception, "环境音生成失败：{Id}", sound.Id);
+                        StatusText = $"环境音“{sound.Name}”生成失败";
+                    }
                 }
-                finally
-                {
-                    _generateGate.Release();
-                }
+            }
+            finally
+            {
+                _generateGate.Release();
             }
         }
 
@@ -258,7 +281,8 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
             return;
         }
 
-        var filter = AudioEffectGraphBuilder.Build(_settings, ambientPath);
+        _graphHasTexture = texturePath is not null;
+        var filter = AudioEffectGraphBuilder.Build(_settings, ambientPath, texturePath);
         _engine.SetAudioFilter(filter);
         if (ambientPath is not null || _settings.AmbientId.Length == 0)
         {

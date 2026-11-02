@@ -89,7 +89,7 @@
 | [`performance.md`](performance.md) | 120 fps 目标的优化范围与验证限制 |
 | [`browse-memory.md`](browse-memory.md) | 浏览时内存增长的排查：诊断工具、实测数据、已排除方向与未验证的根页缓存假设 |
 | [`libmpv-audio-build.md`](libmpv-audio-build.md) | **libmpv 精简构建维护主文档**：115.22 → 8.07 MiB、裁剪范围、构建、验证、替换、回退与排障 |
-| [`audio-effects.md`](audio-effects.md) | **音效**：银河/蝰蛇/环境音、mpv `af` 图、环境音程序化生成、libmpv 滤镜白名单与限制 |
+| [`audio-effects.md`](audio-effects.md) | **音效**：经典/增强/环境音、mpv `af` 图、环境音程序化生成、libmpv 滤镜白名单与限制 |
 
 ## 归档
 

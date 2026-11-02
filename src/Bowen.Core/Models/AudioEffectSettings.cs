@@ -7,7 +7,7 @@ namespace Bowen.Core.Models;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>预设与环境音是两层。</b> <see cref="PresetId"/> 管银河/蝰蛇那一组 EQ + 空间效果，
+/// <b>预设与环境音是两层。</b> <see cref="PresetId"/> 管经典/增强那一组 EQ + 空间效果，
 /// <see cref="AmbientId"/> 管叠加在音乐上的环境音；两者可以同时选中，也可以只开其中一个。
 /// </para>
 /// <para>

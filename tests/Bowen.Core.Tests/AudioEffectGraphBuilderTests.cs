@@ -21,7 +21,7 @@ public sealed class AudioEffectGraphBuilderTests
 
         Assert.NotNull(value);
         Assert.StartsWith("@bowenFx:lavfi=[", value);
-        Assert.Contains("stereotools=slev=1.6", value);
+        Assert.Contains("stereotools=slev=", value);
         Assert.DoesNotContain("amovie", value);
     }
 
@@ -43,7 +43,7 @@ public sealed class AudioEffectGraphBuilderTests
         Assert.Contains("anull[main]", value);
         Assert.Contains("amovie=C\\\\:/Users/a b/ambient.wav:loop=0", value);
         Assert.Contains("asetpts=N/SR/TB[amb]", value);
-        Assert.Contains("[main][amb]amix=inputs=2:weights=1 0.3:normalize=0", value);
+        Assert.Contains("[main][amb]amix=inputs=2:weights=1 0.3:normalize=0:duration=shortest", value);
     }
 
     [Fact]
@@ -60,7 +60,58 @@ public sealed class AudioEffectGraphBuilderTests
         Assert.NotNull(value);
         Assert.Contains("anull[main];[main]virtualbass=", value);
         Assert.Contains("[fx];amovie=", value);
-        Assert.Contains("[fx][amb]amix=inputs=2:weights=1 0.5:normalize=0", value);
+        Assert.Contains("[fx][amb]amix=inputs=2:weights=1 0.5:normalize=0:duration=shortest", value);
+    }
+
+    [Fact]
+    public void Vinyl_MixesTheCrackleTextureWithThePreset()
+    {
+        var value = AudioEffectGraphBuilder.Build(
+            new AudioEffectSettings(Enabled: true, PresetId: "galaxy.vinyl"),
+            ambientFilePath: null,
+            textureFilePath: @"C:\texture.vinyl.ogg");
+
+        Assert.NotNull(value);
+        Assert.Contains(@"amovie=C\\:/texture.vinyl.ogg:loop=0,asetpts=N/SR/TB[tx]", value);
+        Assert.Contains("[fx][tx]amix=inputs=2:weights=1 0.5:normalize=0:duration=shortest", value);
+    }
+
+    [Fact]
+    public void VinylAndAmbient_MixTextureAndAmbientInAStableOrder()
+    {
+        var value = AudioEffectGraphBuilder.Build(
+            new AudioEffectSettings(
+                Enabled: true,
+                PresetId: "galaxy.vinyl",
+                AmbientId: "ambient.rain",
+                AmbientVolume: 40),
+            @"C:\ambient.ogg",
+            @"C:\texture.vinyl.ogg");
+
+        Assert.NotNull(value);
+        Assert.Contains("[fx][tx][amb]amix=inputs=3:weights=1 0.5 0.4:normalize=0:duration=shortest", value);
+    }
+
+    [Fact]
+    public void Texture_IsIgnoredWhenThePresetDoesNotDeclareOne()
+    {
+        var value = AudioEffectGraphBuilder.Build(
+            new AudioEffectSettings(Enabled: true, PresetId: "viper.3d"),
+            ambientFilePath: null,
+            textureFilePath: @"C:\texture.vinyl.ogg");
+
+        Assert.NotNull(value);
+        Assert.DoesNotContain("amovie", value);
+    }
+
+    [Fact]
+    public void MixWeights_FollowsTheInputCount()
+    {
+        var settings = new AudioEffectSettings(Enabled: true, AmbientVolume: 40);
+
+        Assert.Equal("1 0.4", AudioEffectGraphBuilder.MixWeights(settings, hasTexture: false, hasAmbient: true));
+        Assert.Equal("1 0.5 0.4", AudioEffectGraphBuilder.MixWeights(settings, hasTexture: true, hasAmbient: true));
+        Assert.Equal("1 0.5", AudioEffectGraphBuilder.MixWeights(settings, hasTexture: true, hasAmbient: false));
     }
 
     [Theory]

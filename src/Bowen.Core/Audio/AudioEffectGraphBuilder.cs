@@ -23,12 +23,19 @@ public static class AudioEffectGraphBuilder
     /// <summary><c>af-command</c> 用来定位环境音混音器的标签。</summary>
     public const string FilterLabel = "bowenFx";
 
+    /// <summary>预设纹理（黑胶底噪）的固定混音权重。</summary>
+    public const double TextureWeight = 0.5;
+
     /// <summary>
     /// 构建 <c>af</c> 值；没有任何可生效的效果时返回 <c>null</c>（调用方应清空 <c>af</c>）。
     /// </summary>
     /// <param name="settings">已归一化的设置。</param>
     /// <param name="ambientFilePath">已存在的环境音文件；没有环境音时传 <c>null</c>。</param>
-    public static string? Build(AudioEffectSettings settings, string? ambientFilePath)
+    /// <param name="textureFilePath">已存在的预设纹理文件；预设不带纹理时传 <c>null</c>。</param>
+    public static string? Build(
+        AudioEffectSettings settings,
+        string? ambientFilePath,
+        string? textureFilePath = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         if (!settings.Enabled)
@@ -39,6 +46,7 @@ public static class AudioEffectGraphBuilder
         var preset = AudioEffectCatalog.FindPreset(settings.PresetId);
         var ambient = AudioEffectCatalog.FindAmbient(settings.AmbientId);
         var hasAmbient = ambient is not null && !string.IsNullOrWhiteSpace(ambientFilePath);
+        var hasTexture = preset?.TextureId is not null && !string.IsNullOrWhiteSpace(textureFilePath);
 
         if (preset is null && !hasAmbient)
         {
@@ -46,7 +54,7 @@ public static class AudioEffectGraphBuilder
         }
 
         var chain = preset?.FilterChain;
-        if (!hasAmbient)
+        if (!hasAmbient && !hasTexture)
         {
             return string.IsNullOrWhiteSpace(chain) ? null : $"@{FilterLabel}:lavfi=[{chain}]";
         }
@@ -55,27 +63,67 @@ public static class AudioEffectGraphBuilder
             ? "anull[main]"
             : $"anull[main];[main]{chain}[fx]";
         var mainOutput = string.IsNullOrWhiteSpace(chain) ? "[main]" : "[fx]";
+
+        var sources = new List<string>(2);
+        var inputs = new List<string>(3) { mainOutput };
+        if (hasTexture)
+        {
+            sources.Add($"amovie={EscapeFilterPath(textureFilePath!)}:loop=0,asetpts=N/SR/TB[tx]");
+            inputs.Add("[tx]");
+        }
+
+        if (hasAmbient)
+        {
+            sources.Add($"amovie={EscapeFilterPath(ambientFilePath!)}:loop=0,asetpts=N/SR/TB[amb]");
+            inputs.Add("[amb]");
+        }
+
+        // amix 默认 duration=longest：amovie 是无限循环源，会让整条链永不 EOF，
+        // mpv 等不到 end-file，表现为「播完不自动下一首」。
         var graph =
             $"{main};" +
-            $"amovie={EscapeFilterPath(ambientFilePath!)}:loop=0,asetpts=N/SR/TB[amb];" +
-            $"{mainOutput}[amb]amix=inputs=2:weights={AmbientWeights(settings.AmbientVolume)}:normalize=0";
+            string.Join(';', sources) + ";" +
+            $"{string.Concat(inputs)}amix=inputs={inputs.Count}" +
+            $":weights={MixWeights(settings, hasTexture, hasAmbient)}:normalize=0:duration=shortest";
 
         return $"@{FilterLabel}:lavfi=[{graph}]";
     }
 
     /// <summary>
-    /// <c>amix</c> 的 weights 值：主音频恒为 1，环境音按 0–100 映射到 0–1。
+    /// <c>amix</c> 的 weights 值，顺序与输入一致：主音频、纹理、环境音。
     /// </summary>
     /// <remarks>
     /// 同一个格式同时给初始图和 <c>af-command</c> 用，滑杆变化时只改权重、不重建滤镜图。
+    /// 调用方必须知道当前图里有没有纹理、有没有环境音，否则权重个数会和 <c>inputs</c> 对不上，
+    /// mpv 会拒绝整条 <c>af-command</c>。
     /// </remarks>
-    public static string AmbientWeights(double ambientVolume)
+    public static string MixWeights(AudioEffectSettings settings, bool hasTexture, bool hasAmbient)
     {
-        var wet = double.IsFinite(ambientVolume)
+        ArgumentNullException.ThrowIfNull(settings);
+        var parts = new List<string>(3) { "1" };
+        if (hasTexture)
+        {
+            parts.Add(AudioEffectCatalog.Number(TextureWeight));
+        }
+
+        if (hasAmbient)
+        {
+            parts.Add(AudioEffectCatalog.Number(AmbientLevel(settings.AmbientVolume)));
+        }
+
+        return string.Join(' ', parts);
+    }
+
+    /// <summary>
+    /// 只有主音频和环境音时的 weights 值：主音频恒为 1，环境音按 0–100 映射到 0–1。
+    /// </summary>
+    public static string AmbientWeights(double ambientVolume) =>
+        $"1 {AudioEffectCatalog.Number(AmbientLevel(ambientVolume))}";
+
+    private static double AmbientLevel(double ambientVolume) =>
+        double.IsFinite(ambientVolume)
             ? Math.Clamp(ambientVolume / 100d, 0, 1)
             : AudioEffectSettings.DefaultAmbientVolume / 100d;
-        return $"1 {AudioEffectCatalog.Number(wet)}";
-    }
 
     /// <summary>
     /// 转义 <c>amovie</c> 的路径。
