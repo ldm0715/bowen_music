@@ -128,6 +128,16 @@ public interface INavigationService : INotifyPropertyChanged
     void GoBackTo(Func<Page, bool> destination);
 
     /// <summary>
+    /// 沉浸页入场动画结束、外壳已经整块藏起之后调用：把外壳宿主换成退出沉浸时会落回的那一页。
+    /// </summary>
+    /// <remarks>
+    /// <b>从沉浸页里点进常规详情页，再退回沉浸页时，外壳宿主里留下的是那张详情页。</b>
+    /// 不换掉的话，退出沉浸时外壳先带着它露出来，动画结束才被换成真正的落点 —— 看起来就是闪一下。
+    /// 入场结束时外壳不可见，这时换页用户看不到；退出沉浸也就回到常规路径。
+    /// </remarks>
+    void SettleShellUnderImmersive();
+
+    /// <summary>
     /// 每次当前页真的变了之后触发，参数是新的当前页。
     /// </summary>
     /// <remarks>

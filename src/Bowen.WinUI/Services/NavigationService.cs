@@ -97,6 +97,22 @@ public sealed class NavigationService : INavigationService
         _rootRecency.Clear();
     }
 
+    public void SettleShellUnderImmersive()
+    {
+        if (_host is null || _shown is null || ReferenceEquals(_shownHost, _host)) return;
+
+        // 退出沉浸时落回的是栈里最近的一张常规页。外壳宿主里现在放着的可能不是它：
+        // 「歌词页 → 专辑页 → 返回歌词页」之后，留下的仍是那张专辑页。
+        var landing = _stack.History.LastOrDefault(
+            page => ReferenceEquals(_selectHost?.Invoke(page) ?? _host, _host));
+        if (landing is null || ReferenceEquals(_host.Content, landing)) return;
+
+        RetireHostContent(_host, _shown, landing);
+        _host.Content = landing;
+        Notify(landing, leaving: false);
+        _ = ScrollMemory.RestoreAsync(landing);
+    }
+
     public void Navigate<TPage>() where TPage : Page =>
         Show(_stack.Push(_stack.Current is TPage current && current is not INavigationIdentity
             ? current : _services.GetRequiredService<TPage>()));
@@ -277,7 +293,11 @@ public sealed class NavigationService : INavigationService
             && ReferenceEquals(nextHost.Content, next);
 
         _shownHost = nextHost;
-        if (!ReferenceEquals(_shownHost.Content, next)) _shownHost.Content = next;
+        if (!ReferenceEquals(_shownHost.Content, next))
+        {
+            RetireHostContent(_shownHost, _shown, next);
+            _shownHost.Content = next;
+        }
         _shown = next;
         PageLifetimeDiagnostics.Track(next);
         // 换页会让列表从顶上重来；把上一轮的滚动位置放回去，返回才有「原位置」。
@@ -304,6 +324,21 @@ public sealed class NavigationService : INavigationService
     {
         await scrollRestore;
         if (CoverTransitionAnimator.Current is { } animator) await animator.PlayNavigationAsync(cover);
+    }
+
+    /// <summary>宿主里原有的页被换下来时，把它当作一次真正的离场。</summary>
+    /// <remarks>
+    /// 正常换页只通知 <see cref="_shown"/>，另一个宿主里被顶掉的页没人管。
+    /// 典型是「歌词页 → 专辑页」：常规宿主里的发现页被专辑页替换，既没收到
+    /// <see cref="INavigationAware.OnNavigatedFrom"/>，滚动位置也没记录 —— 之后再回到它时
+    /// 状态会对不上（重新进场却从未离场），位置也丢了。
+    /// </remarks>
+    private static void RetireHostContent(ContentControl host, Page? shown, Page next)
+    {
+        if (host.Content is not Page outgoing || ReferenceEquals(outgoing, next)
+            || ReferenceEquals(outgoing, shown)) return;
+        ScrollMemory.Capture(outgoing);
+        Notify(outgoing, leaving: true);
     }
 
     private static void Notify(Page? page, bool leaving)

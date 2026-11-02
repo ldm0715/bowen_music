@@ -3002,6 +3002,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (!finished || _closed || version != _immersiveMotionVersion
             || !ReferenceEquals(_navigation.Current, page)) return;
         SetShellSurfaceVisible(false);
+        // 外壳已经整块藏起：把常规宿主换成退出沉浸时的落点，用户看不见这次换页。
+        // 少了这一步，从歌词页点进专辑再退回歌词后，退出歌词会先露出那张专辑页。
+        _navigation.SettleShellUnderImmersive();
         // 外壳收好后再让歌词页切 Mica，否则入场过程中会透出后面的外壳页面。
         if (page is LyricsPage lyrics) lyrics.OnImmersiveEntranceCompleted();
     }
