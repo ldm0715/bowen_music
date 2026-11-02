@@ -187,11 +187,12 @@ public partial class App : Application
         // 关注歌手状态同理：歌手详情各处共享同一份本地列表（详情接口没有 follow 字段）。
         builder.Services.AddSingleton<IFollowedArtistsService, FollowedArtistsService>();
 
-        // 曲目行「更多」菜单的装配点。两个接口指向同一个实例：
-        // 行内控件从 App 资源拿它，而动作 ViewModel 只认那两个接口（这样才能进离线测试）。
+        // 曲目行「更多」菜单的装配点。这几个接口指向同一个实例：
+        // 行内控件从 App 资源拿它，而动作 ViewModel / 发现页只认接口（这样才能进离线测试）。
         builder.Services.AddSingleton<TrackActionsService>();
         builder.Services.AddSingleton<ITrackNavigator>(sp => sp.GetRequiredService<TrackActionsService>());
         builder.Services.AddSingleton<INoticeSink>(sp => sp.GetRequiredService<TrackActionsService>());
+        builder.Services.AddSingleton<ITrackBatchActions>(sp => sp.GetRequiredService<TrackActionsService>());
 
         builder.Services.AddSingleton<MainWindow>();
 

@@ -17,6 +17,14 @@ public sealed class ListSectionHeader
     /// </remarks>
     public IAsyncRelayCommand? RefreshCommand { get; set; }
 
+    /// <summary>标题右侧的「全部加入播放列表」按钮。<b>为 null 的标题不显示按钮。</b></summary>
+    /// <remarks>与 <see cref="RefreshCommand"/> 同一批模块：整组都是可播的曲目推荐。</remarks>
+    public IAsyncRelayCommand? QueueAllCommand { get; set; }
+
+    /// <summary>「全部加入播放列表」按钮显不显示。</summary>
+    public Visibility QueueAllVisibility =>
+        QueueAllCommand is null ? Visibility.Collapsed : Visibility.Visible;
+
     /// <summary>刷新按钮显不显示。</summary>
     /// <remarks>
     /// 必须是 <see cref="Visibility"/> 而不是 bool：x:Bind 不做 bool 到 Visibility 的隐式转换，

@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using Bowen.Core.Api;
+using Bowen.Core.Models;
 using Bowen.Core.Models.Home;
+using Bowen.WinUI.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -35,6 +37,8 @@ public sealed partial class DiscoverViewModel : ObservableObject
     private const int BatchSize = 3;
 
     private readonly IBodianApi _api;
+    private readonly ITrackBatchActions _trackActions;
+    private readonly INoticeSink _notices;
     private readonly ILogger<DiscoverViewModel> _logger;
 
     /// <summary>布局里本项目支持渲染的模块，按服务端给的顺序。</summary>
@@ -53,6 +57,9 @@ public sealed partial class DiscoverViewModel : ObservableObject
     /// <summary>正在刷新的标题。按钮的可用性看它。</summary>
     private readonly HashSet<ListSectionHeader> _refreshing = [];
 
+    /// <summary>正在整组加入播放队列的标题。</summary>
+    private readonly HashSet<ListSectionHeader> _queueing = [];
+
     /// <summary>
     /// 一个标题已经取到的东西。
     /// </summary>
@@ -63,11 +70,19 @@ public sealed partial class DiscoverViewModel : ObservableObject
     /// </remarks>
     private sealed record LoadedModule(HomeModule Module, HomeFeed Feed);
 
-    public DiscoverViewModel(IBodianApi api, ILogger<DiscoverViewModel>? logger = null)
+    public DiscoverViewModel(
+        IBodianApi api,
+        ITrackBatchActions trackActions,
+        INoticeSink notices,
+        ILogger<DiscoverViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
+        ArgumentNullException.ThrowIfNull(trackActions);
+        ArgumentNullException.ThrowIfNull(notices);
 
         _api = api;
+        _trackActions = trackActions;
+        _notices = notices;
         _logger = logger ?? NullLogger<DiscoverViewModel>.Instance;
     }
 
@@ -234,6 +249,11 @@ public sealed partial class DiscoverViewModel : ObservableObject
                             header.RefreshCommand = new AsyncRelayCommand(
                                 () => RefreshModuleAsync(header),
                                 () => !_refreshing.Contains(header));
+                            // 整组都是可播曲目，给出一个「全部加入播放列表」的入口。
+                            // 刷新期间禁用：这一组马上会被整批换掉，此时加入拿到的可能是旧数据。
+                            header.QueueAllCommand = new AsyncRelayCommand(
+                                () => QueueModuleAsync(header),
+                                () => !_queueing.Contains(header) && !_refreshing.Contains(header));
                         }
 
                         _loaded[header] = new LoadedModule(module, feed);
@@ -278,6 +298,7 @@ public sealed partial class DiscoverViewModel : ObservableObject
         }
 
         header.RefreshCommand?.NotifyCanExecuteChanged();
+        header.QueueAllCommand?.NotifyCanExecuteChanged();
         StatusText = $"正在刷新「{header.Title}」…";
 
         try
@@ -299,8 +320,58 @@ public sealed partial class DiscoverViewModel : ObservableObject
         {
             _refreshing.Remove(header);
             header.RefreshCommand?.NotifyCanExecuteChanged();
+            header.QueueAllCommand?.NotifyCanExecuteChanged();
         }
     }
+
+    /// <summary>把这一组的曲目整批加入播放队列。</summary>
+    /// <remarks>
+    /// <b>加的是当前界面上的这一组</b>：这两个模块的内容一次取完、没有翻页，
+    /// 所以就是模块的全部曲目。队列原本为空时由底层直接开播。
+    /// 刷新过之后命令读到的也是新的一组。
+    /// </remarks>
+    private async Task QueueModuleAsync(ListSectionHeader header)
+    {
+        // 刷新期间不做加入：这一组下半程会被整批换掉。
+        if (_refreshing.Contains(header) || !_loaded.TryGetValue(header, out var loaded)
+            || !_queueing.Add(header))
+        {
+            return;
+        }
+
+        header.QueueAllCommand?.NotifyCanExecuteChanged();
+
+        try
+        {
+            var tracks = TracksOf(loaded.Feed);
+            if (tracks.Count == 0)
+            {
+                _notices.Show("这个模块暂时没有可加入的曲目");
+                return;
+            }
+
+            var added = await _trackActions.AddToQueueAsync(tracks).ConfigureAwait(true);
+            _notices.Show(
+                added > 0 ? $"已加入 {added} 首到播放队列" : "这些歌都已在播放队列里",
+                added > 0 ? NoticeSeverity.Success : NoticeSeverity.Informational);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "发现页模块 {Id}（{Name}）加入播放队列失败", loaded.Module.Id, loaded.Module.Name);
+            _notices.Show("加入播放队列失败，请稍后再试", NoticeSeverity.Error);
+        }
+        finally
+        {
+            _queueing.Remove(header);
+            header.QueueAllCommand?.NotifyCanExecuteChanged();
+        }
+    }
+
+    /// <summary>一组内容里的全部可播曲目，按显示顺序。</summary>
+    private static IReadOnlyList<Track> TracksOf(HomeFeed feed) =>
+        [.. feed.Sections.SelectMany(section => section.Cards)
+            .Select(card => card.Track)
+            .OfType<Track>()];
 
     /// <summary>把标题后面那一组内容换成新的。<b>标题对象本身不换</b> —— 命令挂在它身上。</summary>
     private void ReplaceModule(ListSectionHeader header, LoadedModule old, HomeFeed feed)

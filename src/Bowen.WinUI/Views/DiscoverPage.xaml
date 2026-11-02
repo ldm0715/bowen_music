@@ -19,14 +19,24 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Style="{StaticResource BowenModuleTitle}" Text="{x:Bind Title}" />
-                <Button Grid.Column="1"
-                    AutomationProperties.Name="刷新"
-                    Command="{x:Bind RefreshCommand}"
-                    Style="{StaticResource BowenIconButton}"
-                    ToolTipService.ToolTip="刷新"
-                    Visibility="{x:Bind RefreshVisibility}">
-                    <controls:Icon Size="12" Data="{StaticResource IconRefresh}" />
-                </Button>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                    <Button
+                        AutomationProperties.Name="全部加入播放列表"
+                        Command="{x:Bind QueueAllCommand}"
+                        Style="{StaticResource BowenIconButton}"
+                        ToolTipService.ToolTip="全部加入播放列表"
+                        Visibility="{x:Bind QueueAllVisibility}">
+                        <controls:Icon Size="12" Data="{StaticResource IconPlaylistAdd}" />
+                    </Button>
+                    <Button
+                        AutomationProperties.Name="刷新"
+                        Command="{x:Bind RefreshCommand}"
+                        Style="{StaticResource BowenIconButton}"
+                        ToolTipService.ToolTip="刷新"
+                        Visibility="{x:Bind RefreshVisibility}">
+                        <controls:Icon Size="12" Data="{StaticResource IconRefresh}" />
+                    </Button>
+                </StackPanel>
             </Grid>
         </DataTemplate>
         <DataTemplate x:Key="DiscoverSectionTemplate" x:DataType="home:HomeSection">
