@@ -24,7 +24,7 @@
 | 设置模型 | `src/Bowen.Core/Models/AudioEffectSettings.cs` | 启停、预设 id、环境音 id、环境音音量、十段 EQ；只做归一化 |
 | 目录 | `src/Bowen.Core/Audio/AudioEffectCatalog.cs` | 预设名、描述、滤镜片段、环境音定义 |
 | 图构建 | `src/Bowen.Core/Audio/AudioEffectGraphBuilder.cs` | 纯函数：设置 + 环境音路径 → mpv `af` 字符串 |
-| 环境音素材 | `src/Bowen.Core/Audio/AmbientSoundGenerator.cs` | 从程序集解压嵌入的 12 秒 MP3 循环到本地缓存 |
+| 环境音素材 | `src/Bowen.Core/Audio/AmbientSoundGenerator.cs` | 从程序集解压嵌入的 OGG/FLAC 循环到本地缓存 |
 | 持久化 | `JsonAudioEffectSettingsStore` | `%LOCALAPPDATA%/audio-effects.json`，临时文件 + Move |
 | 播放层 | `IPlaybackService.SetAudioFilter` / `SendAudioFilterCommand` | 只碰 mpv；失败时清空链，不打断播放 |
 | 面板 | `AudioEffectsViewModel` + `AudioEffectsPanel.xaml` | 页签、卡片、总开关、音量滑杆、错误提示 |
@@ -90,29 +90,39 @@ aecho,afir,amix,asplit,amovie
 ## 环境音素材
 
 12 个循环录音作为 `EmbeddedResource` 编译进 `Bowen.Core.dll`，安装目录里没有散文件。
-首次选中时解压到 `%LOCALAPPDATA%\Bowen\ambient\v2\`，之后复用；缓存被删会自动重建。
+首次选中时解压到 `%LOCALAPPDATA%\Bowen\ambient\v9\`，之后复用；缓存被删会自动重建。
 
-统一规格：**12 秒、44.1 kHz、立体声、160 kbps MP3**。只从原始录音截取 12 秒，
-应用固定峰值增益和 10 ms 首尾淡化；**不做降噪、EQ、压缩、响度归一或交叉淡化**。
-全部素材为 **CC0 1.0**，可随 GPL 客户端分发：
+格式：**OGG Vorbis**（11 条）和 **FLAC**（心跳），保留源素材的原始采样率与声道。
+素材不做转码、响度归一或降噪；OGG 用流复制（`-c copy`）截取约 30 秒，音频数据未改动。
+秒针源文件只有 16 秒，保持原长。12 个成品合计约 6.8 MB。
 
-| 环境音 | 来源 | 许可 |
+| 环境音 | 来源文件 | 上游声明 |
 | --- | --- | --- |
-| 壁炉 | [Ambie](https://github.com/jenius-apps/ambie) / 16FThumaF，freesound 499032 | CC0 |
-| 海浪 | [Ambie](https://github.com/jenius-apps/ambie) / jordir，freesound 360578 | CC0 |
-| 鸟鸣 | Ambie / hargissssound，freesound 345851 | CC0 |
-| 人潮 | Ambie / o_ciz，freesound 475513 | CC0 |
-| 森林 | Leminno · nature-forest-day（Sadiquecat，freesound 799439） | CC0 |
-| 水滴 | Freesound / Lydmakeren，511488 | CC0 |
-| 风铃 | Freesound / Anthousai，398496 | CC0 |
-| 流水 | Ambie / hargissssound，freesound 324591 | CC0 |
-| 秒针 | Freesound / giddster，434841（截取 46–58 秒，保持 1 秒一响） | CC0 |
+| 壁炉 | XMSLEEP `audio/nature/campfire.ogg` | 第三方许可，未逐条标注 |
+| 海浪 | XMSLEEP `audio/nature/waves.ogg` | 同上 |
+| 鸟鸣 | XMSLEEP `audio/animals/birds.ogg` | 同上 |
+| 人潮 | XMSLEEP `audio/urban/crowd.ogg` | 同上 |
+| 森林 | XMSLEEP `audio/nature/wind-in-trees.ogg` | 同上 |
+| 水滴 | XMSLEEP `audio/nature/droplets.ogg` | 同上 |
+| 风铃 | XMSLEEP `audio/things/wind-chimes.ogg` | 同上 |
+| 流水 | XMSLEEP `audio/nature/river.ogg` | 同上 |
+| 秒针 | XMSLEEP `audio/things/clock.ogg` | 同上 |
 | 心跳 | Freesound / Cloud-10，688735 | CC0 |
-| 烟火 | Freesound / Posples，861406 | CC0 |
-| 雨声 | Ambie / jmbphilmes，freesound 200270 | CC0 |
+| 烟火 | XMSLEEP `audio/urban/fireworks.ogg` | 第三方许可，未逐条标注 |
+| 雨声 | XMSLEEP `audio/rain/light-rain.ogg` | 同上 |
 
-素材处理脚本是一次性的，不入仓库；成品统一放在
-`src/Bowen.Core/Audio/AmbientAssets/`。
+XMSLEEP 的 README 对声音来源的原文说明：
+
+> **网络声音**：来自 [moodist](https://github.com/remvze/moodist) 项目，遵循 MIT 开源许可协议
+>
+> **第三方资源**：部分声音来自第三方提供商，遵循相应的许可协议
+> - 遵循 **Pixabay Content License** 的声音
+> - 遵循 **CC0** 的声音
+
+moodist 的 README 同时说明其音效属于第三方资源，许可为 Pixabay Content License 或 CC0，
+但没有逐文件标注。除心跳外的 11 条素材均未逐条确认许可，公开分发前需要自行核实。
+
+成品统一放在 `src/Bowen.Core/Audio/AmbientAssets/`。
 
 ## 已知限制
 

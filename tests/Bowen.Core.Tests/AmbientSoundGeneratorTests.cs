@@ -6,12 +6,12 @@ namespace Bowen.Core.Tests;
 public sealed class AmbientSoundGeneratorTests
 {
     [Fact]
-    public void EveryAmbientSound_ExtractsAValidMp3()
+    public void EveryAmbientSound_ExtractsAValidFile()
     {
         var folder = Path.Combine(Path.GetTempPath(), "bowen-ambient-tests", Guid.NewGuid().ToString("N"));
         try
         {
-            Span<byte> header = stackalloc byte[3];
+            Span<byte> header = stackalloc byte[4];
             foreach (var sound in AudioEffectCatalog.AmbientSounds)
             {
                 var path = AmbientSoundGenerator.Ensure(sound, folder);
@@ -20,10 +20,10 @@ public sealed class AmbientSoundGeneratorTests
                 Assert.True(new FileInfo(path).Length > 20_000, $"{sound.Id} 文件过小");
 
                 using var stream = File.OpenRead(path);
-                Assert.Equal(3, stream.Read(header));
-                var isId3 = header[0] == (byte)'I' && header[1] == (byte)'D' && header[2] == (byte)'3';
-                var isFrame = header[0] == 0xFF && (header[1] & 0xE0) == 0xE0;
-                Assert.True(isId3 || isFrame, $"{sound.Id} 不是有效的 MP3");
+                Assert.Equal(4, stream.Read(header));
+
+                var expected = Path.GetExtension(path) == ".ogg" ? "OggS"u8.ToArray() : "fLaC"u8.ToArray();
+                Assert.True(header.SequenceEqual(expected), $"{sound.Id} 文件头无效");
             }
         }
         finally

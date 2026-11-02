@@ -25,7 +25,8 @@
 
   <ItemGroup>
     <!-- 环境音循环录音：编译进程序集，运行时解压到本地缓存，安装目录不落散文件。 -->
-    <EmbeddedResource Include="Audio\AmbientAssets\*.mp3" />
+    <EmbeddedResource Include="Audio\AmbientAssets\*.ogg" />
+    <EmbeddedResource Include="Audio\AmbientAssets\*.flac" />
   </ItemGroup>
 
   <!-- 加密音源依赖官方移动端。保留历史研究源码，客户端不编译或分发解密器/代理。 -->
