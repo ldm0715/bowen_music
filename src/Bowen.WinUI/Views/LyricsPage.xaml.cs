@@ -51,6 +51,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     /// <summary>底部「更多」菜单要用它现造菜单状态（与曲目行那颗同一个装配点）。</summary>
     private readonly TrackActionsService _trackActions;
+    private readonly IClipboardService _clipboard;
+    private readonly HashSet<int> _selectedLyricLines = [];
     private readonly IReadOnlyList<FontOption> _fontOptions;
     private readonly List<(Border Dot, uint Color)> _colorDots = [];
     private readonly List<(Border Dot, uint Color)> _solidColorDots = [];
@@ -114,7 +116,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
         LyricsViewModel lyrics, SongCommentsViewModel comments, AudioEffectsViewModel effects,
         INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
-        FontSettingsViewModel font, BackgroundImageStore backgroundImages)
+        FontSettingsViewModel font, BackgroundImageStore backgroundImages, IClipboardService clipboard)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -128,10 +130,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(trackActions);
         ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(backgroundImages);
+        ArgumentNullException.ThrowIfNull(clipboard);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
         _trackActions = trackActions;
+        _clipboard = clipboard;
         _logger = (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
         _backgroundImages = backgroundImages;
@@ -161,6 +165,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         CanvasHost.Content = canvas;
         SpectrumHost.Content = spectrum;
         canvas.BrowsingChanged += (_, _) => FollowButton.Visibility = canvas.IsBrowsing ? Visibility.Visible : Visibility.Collapsed;
+        canvas.SelectionModeRequested += (_, _) => EnterSelectionMode();
+        canvas.SelectionLineTapped += (_, line) => ToggleLyricLineSelection(line);
         _chromeTimer = DispatcherQueue.CreateTimer();
         _chromeTimer.Interval = TimeSpan.FromSeconds(3);
         _chromeTimer.IsRepeating = false;
@@ -419,6 +425,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         MoreFlyout.Hide();
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
+        ExitSelectionMode();
         Lyrics.IsOpen = false;
         // 只降档位、不重取图：重取时缓存未命中会让播放条封面空一截（见 PlayerViewModel 的说明）。
         Player.ResetCoverDecodePixels();
@@ -970,6 +977,64 @@ public sealed partial class LyricsPage : Page, INavigationAware
     /// <summary>菜单里某个动作要求关窗。它是内容控件，拿不到这个 Flyout，只能往上抛。</summary>
     private void OnMoreMenuCloseRequested(object? sender, EventArgs e) => MoreFlyout.Hide();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
+
+    private bool IsSelectionMode => SelectionBar.Visibility == Visibility.Visible;
+
+    private void EnterSelectionMode()
+    {
+        if (Lyrics.Document.IsEmpty || IsSelectionMode) return;
+        _selectedLyricLines.Clear();
+        _canvas.SetSelectionMode(true);
+        _canvas.SetSelectedLines(_selectedLyricLines);
+        SelectionBar.Visibility = Visibility.Visible;
+        UpdateSelectionCount();
+    }
+
+    private void ExitSelectionMode()
+    {
+        if (!IsSelectionMode) return;
+        SelectionBar.Visibility = Visibility.Collapsed;
+        _selectedLyricLines.Clear();
+        _canvas.SetSelectionMode(false);
+    }
+
+    private void ToggleLyricLineSelection(int line)
+    {
+        if (line < 0 || line >= Lyrics.Document.Lines.Count) return;
+        if (!_selectedLyricLines.Remove(line)) _selectedLyricLines.Add(line);
+        _canvas.SetSelectedLines(_selectedLyricLines);
+        UpdateSelectionCount();
+    }
+
+    private void UpdateSelectionCount()
+        => SelectionCountText.Text = $"已选 {_selectedLyricLines.Count} 行";
+
+    private void OnSelectAllLyricsClick(object sender, RoutedEventArgs args)
+    {
+        var allSelected = _selectedLyricLines.Count == Lyrics.Document.Lines.Count;
+        _selectedLyricLines.Clear();
+        if (!allSelected)
+        {
+            for (var i = 0; i < Lyrics.Document.Lines.Count; i++) _selectedLyricLines.Add(i);
+        }
+        _canvas.SetSelectedLines(_selectedLyricLines);
+        UpdateSelectionCount();
+    }
+
+    private void OnCopySelectedLyricsClick(object sender, RoutedEventArgs args)
+    {
+        if (_selectedLyricLines.Count > 0)
+        {
+            var lines = Lyrics.Document.Lines;
+            _clipboard.SetText(string.Join('\n',
+                _selectedLyricLines.Order().Where(i => i < lines.Count).Select(i => lines[i].Text)));
+        }
+
+        ExitSelectionMode();
+    }
+
+    private void OnCancelSelectionClick(object sender, RoutedEventArgs args) => ExitSelectionMode();
+
     private async Task ToggleFullscreenAsync()
     {
         if (_window.IsChangingLyricsPresenter) return;
@@ -1738,6 +1803,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
     /// <summary>译文按钮与歌词外观都由 ViewModel 驱动，任一变化都要重画。</summary>
     private void OnLyricsChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (args.PropertyName == nameof(LyricsViewModel.Document) && IsSelectionMode)
+        {
+            ExitSelectionMode();
+        }
+
         if (args.PropertyName is nameof(LyricsViewModel.HasTranslation) or nameof(LyricsViewModel.ShowTranslation))
         {
             SyncTranslation();
@@ -1797,6 +1867,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private async void OnEscapeInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
+        if (IsSelectionMode) { ExitSelectionMode(); return; }
         if (_appearanceOpen) { CloseAppearance(); return; }
         if (Comments.IsImageOpen) { Comments.CloseImage(); _commentsPanel.FocusCloseButton(); return; }
         if (Comments.IsThreadOpen) { Comments.CloseThread(); _commentsPanel.FocusCloseButton(); return; }

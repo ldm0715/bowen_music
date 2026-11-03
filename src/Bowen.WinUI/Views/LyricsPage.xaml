@@ -241,6 +241,17 @@
                         <Button Content="重试" Command="{x:Bind Lyrics.RetryCommand}" HorizontalAlignment="Center"
                             Visibility="{x:Bind local:Formats.Visible(Lyrics.LoadFailed), Mode=OneWay}" />
                     </StackPanel>
+                    <Border x:Name="SelectionBar" Visibility="Collapsed" VerticalAlignment="Top">
+                        <Grid Margin="20,8,12,8">
+                            <TextBlock x:Name="SelectionCountText" Text="已选 0 行" VerticalAlignment="Center"
+                                FontSize="13" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                                <Button Content="全选" Click="OnSelectAllLyricsClick" />
+                                <Button Content="复制" Click="OnCopySelectedLyricsClick" />
+                                <Button Content="取消" Click="OnCancelSelectionClick" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Grid>
             <ContentControl x:Name="SpectrumHost" Grid.Row="1" Height="64" Margin="20,0,20,12"

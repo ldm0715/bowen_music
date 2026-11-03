@@ -52,8 +52,30 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     // 歌词页固定 RequestedTheme="Dark"，所以只用深色那一档。
     private static readonly Color SelectionPillColor = Color.FromArgb(0x1A, 255, 255, 255);
     private const float SelectionPillCornerRadius = 6;
+
+    private const double SelectionGutter = 28;
+    private bool _selectionMode;
+    private HashSet<int> _selectedLines = [];
     public int CurrentIndex { get; private set; } = -1;
     public bool IsBrowsing => _browseTarget.HasValue;
+
+    public void SetSelectionMode(bool enabled)
+    {
+        if (_selectionMode == enabled) return;
+        _selectionMode = enabled;
+        _layoutDirty = true;
+        if (enabled)
+        {
+            _browseTarget = null;
+            _browseUntil = TimeSpan.Zero;
+        }
+        else
+        {
+            _selectedLines.Clear();
+        }
+    }
+
+    public void SetSelectedLines(IReadOnlySet<int> selected) => _selectedLines = new HashSet<int>(selected);
 
     public void SetDpi(float dpi)
     {
@@ -70,9 +92,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         var verticalOffset = VerticalOffsetPixels;
         var minimum = snapshot.UnitCenters[0] - focusY - verticalOffset;
         var maximum = snapshot.UnitCenters[^1] - focusY - verticalOffset;
-        _browseTarget = Math.Clamp((_browseTarget ?? _scroll.OffsetAt(anchor)) + delta, minimum, Math.Max(minimum, maximum));
+        var target = Math.Clamp((_browseTarget ?? _scroll.OffsetAt(anchor)) + delta, minimum, Math.Max(minimum, maximum));
+        if (_selectionMode)
+        {
+            _scroll.Retarget(target, anchor, stagger: false);
+            return;
+        }
+        _browseTarget = target;
         _browseUntil = now + TimeSpan.FromSeconds(4);
-        _scroll.Retarget(_browseTarget.Value, anchor, stagger: false);
+        _scroll.Retarget(target, anchor, stagger: false);
     }
 
     public void ResumeFollowing() => _browseUntil = TimeSpan.Zero;
@@ -244,7 +272,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     {
         if (IsMotionAnimating) return true;
         var snapshot = _device?.Snapshot;
-        if (!playing || IsBrowsing || _document.Kind != LyricKind.WordByWord
+        if (!playing || _selectionMode || IsBrowsing || _document.Kind != LyricKind.WordByWord
             || snapshot is not { Count: > 0 } || CurrentIndex < 0 || CurrentIndex >= snapshot.Count) return false;
         var line = _document.Lines[CurrentIndex];
         // 译文没有自己的逐字时间，整段演唱窗口内都要连续出帧，否则扫色会在音节间隙里冻住。
@@ -291,6 +319,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
             _scroll.Reset(snapshot.UnitOfLine, snapshot.UnitTops, snapshot.UnitHeights, target);
             _lastJump = jumpCount;
         }
+        else if (_selectionMode)
+        {
+        }
         else if (_browseTarget.HasValue && now >= _browseUntil)
         {
             _browseTarget = null;
@@ -312,8 +343,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _scaleAnimating = false;
         for (var i = 0; i < snapshot.Count; i++)
         {
-            // 浏览时不放大任何行：焦点只归鼠标，行本身不再承担强调。
-            var active = !IsBrowsing && i == current && _position >= snapshot.Document.Lines[i].Start;
+            // 浏览 / 选取时不放大任何行：焦点只归鼠标或复选框，行本身不再承担强调。
+            var active = !IsBrowsing && !_selectionMode && i == current && _position >= snapshot.Document.Lines[i].Start;
             var scaleTarget = active ? settings.CurrentLineScale : settings.InactiveLineScale;
             var previousScale = _scales[i];
             (_scales[i], _scaleVelocities[i]) = LyricMotionMath.AdvanceSpring(
@@ -336,7 +367,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         // 译文跟读原文的整句进度：进度每帧变化都要提交，否则行内没有音节可触发重绘。
         var hadTranslation = _hasTranslation;
         var previousTranslationProgress = _translationProgress;
-        _hasTranslation = !IsBrowsing && current >= 0
+        _hasTranslation = !IsBrowsing && !_selectionMode && current >= 0
             && snapshot.UnitHasTranslation[snapshot.UnitOfLine[current]];
         _translationProgress = _hasTranslation
             ? TranslationProgress(snapshot.Document.Lines[current], _position)
@@ -358,7 +389,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         if (hovered >= 0)
         {
             selectedUnit = snapshot.UnitOfLine[hovered];
-            var activeUnit = !IsBrowsing && CurrentIndex >= 0 && CurrentIndex < snapshot.Count
+            var activeUnit = !IsBrowsing && !_selectionMode && CurrentIndex >= 0 && CurrentIndex < snapshot.Count
                 && _position >= snapshot.Document.Lines[CurrentIndex].Start
                 ? snapshot.UnitOfLine[CurrentIndex]
                 : -1;
@@ -381,9 +412,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                     else line.ReleaseActiveResources();
                     continue;
                 }
-                if (index != CurrentIndex || IsBrowsing) line.ReleaseActiveResources();
+                if (index != CurrentIndex || IsBrowsing || _selectionMode) line.ReleaseActiveResources();
                 EnsurePlainImage(line);
-                var active = index == CurrentIndex && _position >= snapshot.Document.Lines[index].Start;
+                var active = !_selectionMode && index == CurrentIndex && _position >= snapshot.Document.Lines[index].Start;
                 // 译文紧跟在原文后面，跟着当前句一起扫色，避免被误认成下一句。
                 // 不能要求位置已到译文行行首：译文的时间戳借的是下一句原文的行首，
                 // 原文演唱期间它自己的 Start 还没到。
@@ -391,6 +422,11 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
                     && settings.SyncTranslationHighlight
                     && snapshot.Document.Lines[index].IsTranslation
                     && snapshot.SourceOfLine[index] == CurrentIndex;
+                if (_selectionMode)
+                {
+                    session.Transform = previousTransform;
+                    DrawSelectionCheck(session, top + line.Height / 2, _selectedLines.Contains(index));
+                }
                 var center = new Vector2(0, (float)(top + line.Height / 2));
                 session.Transform = Matrix3x2.CreateTranslation(originX, (float)top)
                     * Matrix3x2.CreateScale((float)_scales[index], center) * previousTransform;
@@ -451,8 +487,25 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         _ => 8f,
     };
 
-    /// <summary>实际绘制原点：对齐原点之后再加水平偏移。</summary>
-    private float TextOriginX => BaseTextOriginX + (float)HorizontalOffsetPixels;
+    /// <summary>实际绘制原点：对齐原点之后再加水平偏移；选取模式再右移一个复选框。</summary>
+    private float TextOriginX => BaseTextOriginX + (float)HorizontalOffsetPixels
+        + (_selectionMode ? (float)SelectionGutter : 0);
+
+    /// <summary>选取模式行首的复选框：未选画白圈，选中填白底加深色勾（配色与歌词页底色一致）。</summary>
+    private static void DrawSelectionCheck(CanvasDrawingSession session, double centerY, bool selected)
+    {
+        var center = new Vector2((float)(SelectionGutter / 2), (float)centerY);
+        const float radius = 8;
+        if (!selected)
+        {
+            session.DrawCircle(center, radius, Color.FromArgb(0x66, 255, 255, 255), 1.5f);
+            return;
+        }
+        session.FillCircle(center, radius, Color.FromArgb(0xF2, 255, 255, 255));
+        var ink = Color.FromArgb(0xFF, 0x0B, 0x12, 0x22);
+        session.DrawLine(new Vector2(center.X - 3.6f, center.Y + 0.2f), new Vector2(center.X - 1.2f, center.Y + 2.8f), ink, 1.8f);
+        session.DrawLine(new Vector2(center.X - 1.2f, center.Y + 2.8f), new Vector2(center.X + 4.0f, center.Y - 2.8f), ink, 1.8f);
+    }
 
     private double HorizontalOffsetPixels => _width * settings.HorizontalOffsetPercent / 100.0;
 
@@ -465,8 +518,8 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         var unit = snapshot.UnitOfLine[lineIndex];
         var unitTop = snapshot.UnitTops[unit] - snapshot.Tops[lineIndex];
         session.FillRoundedRectangle(
-            new Rect(-BaseTextOriginX, unitTop - settings.LineGap / 2, (float)_width,
-                snapshot.UnitHeights[unit] + settings.LineGap),
+            new Rect(-BaseTextOriginX - (_selectionMode ? SelectionGutter : 0), unitTop - settings.LineGap / 2,
+                (float)_width, snapshot.UnitHeights[unit] + settings.LineGap),
             SelectionPillCornerRadius, SelectionPillCornerRadius, SelectionPillColor);
     }
 
@@ -564,9 +617,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private bool EnsureLayout()
     {
         if (!_layoutDirty || _creator is null || _device is null || _width <= 0) return false;
-        var key = new LayoutKey(_document, Math.Max(1, _width - 28), settings.BaseFontSize,
-            settings.FontFamily, settings.Alignment, settings.LineGap,
-            settings.TranslationFontScale, settings.TranslationLineGap);
+        var key = new LayoutKey(_document, Math.Max(1, _width - 28 - (_selectionMode ? SelectionGutter : 0)),
+            settings.BaseFontSize, settings.FontFamily, settings.Alignment, settings.LineGap,
+            settings.TranslationFontScale, settings.TranslationLineGap, _selectionMode);
         if (_device.Snapshot is { } previous)
             foreach (var line in previous.Lines) line.ReleaseDrawingResources();
         _device.Snapshot = null;
@@ -649,7 +702,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
 
     private sealed record LayoutKey(LyricDocument Document, double Width, double FontSize,
         string FontFamily, LyricsAlignment Alignment, double LineGap,
-        double TranslationFontScale, double TranslationLineGap);
+        double TranslationFontScale, double TranslationLineGap, bool SelectionMode);
     private sealed record CachedLayout(LayoutKey Key, LyricsLayoutSnapshot Snapshot);
 
     private static Color WithOpacity(Color color, double opacity)

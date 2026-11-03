@@ -72,6 +72,8 @@ public sealed partial class LyricsCanvasView : UserControl
     private CompositionSurfaceBrush? _surfaceBrush;
     private SpriteVisual? _surfaceVisual;
     private bool _browsing;
+    private bool _selectionMode;
+    private IReadOnlySet<int>? _selectedLines;
     private uint? _pressedPointer;
     private double _pressY;
     private double _lastPointerY;
@@ -100,12 +102,32 @@ public sealed partial class LyricsCanvasView : UserControl
         Canvas.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnPointerCaptureLost), true);
         Canvas.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnPointerCanceled), true);
         Canvas.AddHandler(TappedEvent, new TappedEventHandler(OnTapped), true);
+        Canvas.AddHandler(RightTappedEvent, new RightTappedEventHandler(OnRightTapped), true);
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
 
     public event EventHandler? BrowsingChanged;
+
+    public event EventHandler? SelectionModeRequested;
+
+    public event EventHandler<int>? SelectionLineTapped;
+
     public bool IsBrowsing => _browsing;
+
+    public void SetSelectionMode(bool enabled)
+    {
+        if (_selectionMode == enabled) return;
+        _selectionMode = enabled;
+        _renderLoop?.Send(renderer => renderer.SetSelectionMode(enabled));
+    }
+
+    public void SetSelectedLines(IReadOnlySet<int> selected)
+    {
+        _selectedLines = selected;
+        _renderLoop?.Send(renderer => renderer.SetSelectedLines(selected));
+    }
+
     public bool IsPaused
     {
         get => _paused;
@@ -330,6 +352,8 @@ public sealed partial class LyricsCanvasView : UserControl
         loop.Send(renderer => renderer.SetHorizontalOffsetPercent(_horizontalOffsetPercent));
         loop.Send(renderer => renderer.SetVerticalOffsetPercent(_verticalOffsetPercent));
         loop.Send(renderer => renderer.SetPlayedColor(_highlightColor));
+        if (_selectionMode) loop.Send(renderer => renderer.SetSelectionMode(true));
+        if (_selectedLines is not null) loop.Send(renderer => renderer.SetSelectedLines(_selectedLines));
         ResizeSurface();
         loop.Start();
     }
@@ -444,12 +468,28 @@ public sealed partial class LyricsCanvasView : UserControl
         var line = _renderLoop?.LineIndexAt(args.GetPosition(Canvas).Y) ?? -1;
         if (line < 0 || line >= _viewModel.Document.Lines.Count) return;
         args.Handled = true;
+        if (_selectionMode)
+        {
+            SelectionLineTapped?.Invoke(this, line);
+            return;
+        }
         // 点译文行时回到它上方的原文行：译文的时间戳属于下一句。
         var position = _viewModel.StartForLine(line);
         await _viewModel.SeekToLineCommand.ExecuteAsync(line);
         _clock.Sync(position, force: true);
         ResumeFollowing();
         _logger.LogInformation("歌词点击跳转：行 {Line}，时间 {Position:F2} 秒", line, position.TotalSeconds);
+    }
+
+    private void OnRightTapped(object sender, RightTappedRoutedEventArgs args)
+    {
+        if (_viewModel.Document.IsEmpty) return;
+        var flyout = new MenuFlyout();
+        var item = new MenuFlyoutItem { Text = "选择歌词" };
+        item.Click += (_, _) => SelectionModeRequested?.Invoke(this, EventArgs.Empty);
+        flyout.Items.Add(item);
+        flyout.ShowAt(Canvas, args.GetPosition(Canvas));
+        args.Handled = true;
     }
 
     private void OnPointerCaptureLost(object sender, PointerRoutedEventArgs args) => ResetPointerGesture();
