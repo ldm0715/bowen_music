@@ -1,7 +1,7 @@
 name: Bug 反馈
 description: 功能异常、崩溃、播放出错
 title: "[Bug] "
-labels: ["bug反馈"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:

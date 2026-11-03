@@ -1,7 +1,7 @@
 name: 改进反馈
 description: 已有功能用着别扭、慢、不顺手
 title: "[改进] "
-labels: ["改进反馈"]
+labels: ["improvement"]
 body:
   - type: input
     id: area

@@ -1,7 +1,7 @@
 name: 功能许愿
 description: 希望新增的功能
 title: "[许愿] "
-labels: ["功能许愿"]
+labels: ["feature"]
 body:
   - type: textarea
     id: idea
