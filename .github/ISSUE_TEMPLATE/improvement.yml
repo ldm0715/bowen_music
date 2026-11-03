@@ -1,0 +1,35 @@
+name: 改进反馈
+description: 已有功能用着别扭、慢、不顺手
+title: "[改进] "
+labels: ["改进反馈"]
+body:
+  - type: input
+    id: area
+    attributes:
+      label: 涉及功能
+      placeholder: 例如:搜索页、歌词显示、播放队列
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: 目前的问题
+      description: 是操作繁琐、响应慢,还是界面杂乱
+      placeholder: 例如:切歌后歌词要等两秒才刷新
+    validations:
+      required: true
+  - type: textarea
+    id: expect
+    attributes:
+      label: 期望的改进
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索过现有 issue,没有重复
+          required: true
+        - label: 这是体验问题,不是功能异常
+          required: true
