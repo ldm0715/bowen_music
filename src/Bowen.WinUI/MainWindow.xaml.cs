@@ -1309,6 +1309,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         CenterAtDefaultSize();
     }
 
+    private bool _applyingMinimumWindowSize;
+
     /// <summary>
     /// 按当前窗口 DPI 设最小尺寸。
     /// </summary>
@@ -1318,7 +1320,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// </remarks>
     private void ApplyMinimumWindowSize()
     {
-        if (AppWindow.Presenter is not OverlappedPresenter presenter)
+        if (_applyingMinimumWindowSize || AppWindow.Presenter is not OverlappedPresenter presenter)
         {
             return;
         }
@@ -1326,8 +1328,18 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         var scale = NativeMethods.GetDpiForWindow(
             Win32Interop.GetWindowFromWindowId(AppWindow.Id)) / 96.0;
 
-        presenter.PreferredMinimumWidth = (int)Math.Round(DefaultWidthDip * scale);
-        presenter.PreferredMinimumHeight = (int)Math.Round(DefaultHeightDip * scale);
+        var width = (int)Math.Round(DefaultWidthDip * scale);
+        var height = (int)Math.Round(DefaultHeightDip * scale);
+        _applyingMinimumWindowSize = true;
+        try
+        {
+            if (presenter.PreferredMinimumWidth != width) presenter.PreferredMinimumWidth = width;
+            if (presenter.PreferredMinimumHeight != height) presenter.PreferredMinimumHeight = height;
+        }
+        finally
+        {
+            _applyingMinimumWindowSize = false;
+        }
     }
 
     /// <summary>窗口在显示器之间移动或缩放变化后，最小尺寸要按新的 DPI 重设。</summary>
