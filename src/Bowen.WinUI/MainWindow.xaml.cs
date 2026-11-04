@@ -1275,16 +1275,26 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private const int DefaultHeightDip = 793;
 
+    /// <summary>布局需要的最小宽度，逻辑像素。播放条三栏再压就要裁按钮。</summary>
+    private const int MinWidthDip = 957;
+
+    /// <summary>
+    /// 最小高度，逻辑像素。沿用 0.6.x 的 560：793 是默认窗口高度，不是布局下限，
+    /// 拿它当最小值会让 1080p@150%、2560×1600@200% 这类工作区较小的屏幕出现
+    /// 「最小尺寸大于工作区」，最大化时两个约束互斥。
+    /// </summary>
+    private const int MinHeightDip = 560;
+
     /// <summary>
     /// 摆窗口：有记录就还原，没有就默认尺寸 + 居中。顺带设最小尺寸。
     /// </summary>
     /// <remarks>
     /// <b>最小尺寸不是可选的润色。</b> 播放条是三栏布局，窗口窄到一定程度后中间那栏会被压得
     /// 比按钮还窄，表现是「播放按钮的图标显示不全」——控件没坏，是被裁了。
-    /// 下限直接取默认窗口尺寸（957×793 逻辑像素）。
+    /// 下限见 <see cref="MinWidthDip"/> / <see cref="MinHeightDip"/>，实际取值还会被工作区夹住。
     /// <para>
     /// <b><c>PreferredMinimumWidth/Height</c> 收的是物理像素</b>（Win32 屏幕坐标），
-    /// 与 <see cref="DefaultWidthDip"/> 差一个 DPI 比例 —— 直接传逻辑值，125% 下最小值会小一圈，
+    /// 与逻辑像素差一个 DPI 比例 —— 直接传逻辑值，125% 下最小值会小一圈，
     /// 表现为「窗口还能继续缩」。所以这里按窗口 DPI 换算。
     /// 换显示器导致 DPI 变化时由 <see cref="OnAppWindowChanged"/> 重设。
     /// </para>
@@ -1317,6 +1327,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <remarks>
     /// API 收物理像素，所以逻辑尺寸要乘 <c>GetDpiForWindow / 96</c>。
     /// 窗口被拖到另一块 DPI 不同的显示器后必须重算，否则最小值会跟新的缩放对不上。
+    /// <para>
+    /// <b>结果还要按工作区夹一次。</b> 设计下限在小屏或高缩放下可能超过工作区；不夹取的话，
+    /// 最大化要求窗口等于工作区、最小尺寸又要求不小于设计值，两个约束互斥 —— 每次写最小尺寸
+    /// 都会引起一次尺寸变化，<see cref="OnAppWindowChanged"/> 同步回调进来再写一次，形成无限递归。
+    /// </para>
     /// </remarks>
     private void ApplyMinimumWindowSize()
     {
@@ -1328,8 +1343,11 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         var scale = NativeMethods.GetDpiForWindow(
             Win32Interop.GetWindowFromWindowId(AppWindow.Id)) / 96.0;
 
-        var width = (int)Math.Round(DefaultWidthDip * scale);
-        var height = (int)Math.Round(DefaultHeightDip * scale);
+        // 工作区是物理像素，与 PreferredMinimum* 同单位。
+        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+        var width = Math.Min((int)Math.Round(MinWidthDip * scale), work.Width);
+        var height = Math.Min((int)Math.Round(MinHeightDip * scale), work.Height);
+
         _applyingMinimumWindowSize = true;
         try
         {
