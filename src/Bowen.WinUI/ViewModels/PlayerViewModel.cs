@@ -472,6 +472,18 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         }
     }
 
+    /// <summary>
+    /// 当前曲目的分享链接；没有可分享的曲目时为 <c>null</c>。
+    /// </summary>
+    /// <remarks>
+    /// 歌词海报的二维码与「复制分享链接」必须指向同一个地址，所以链接只在这里拼一次。
+    /// 链接里带分享者 uid，未登录时是匿名 uid。
+    /// </remarks>
+    public string? CreateShareLink()
+        => CurrentTrackId is { } musicId && musicId > 0
+            ? ShareLinks.BuildTrackLink(musicId, _session.Uid)
+            : null;
+
     /// <remarks>
     /// <b>两条路都在这一个方法里，顺序不能反。</b> 用户显式改了音量（拖滑条、或 Ctrl+↑/↓ 走
     /// <c>ShortcutService</c>）就说明他要听见声音，静音标记要在这一刻解除；而真正送引擎的是

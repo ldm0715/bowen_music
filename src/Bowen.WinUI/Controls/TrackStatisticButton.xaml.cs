@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace Bowen.WinUI.Controls;
 
@@ -36,6 +37,8 @@ public sealed partial class TrackStatisticButton : UserControl
         nameof(Command), typeof(ICommand), typeof(TrackStatisticButton), new PropertyMetadata(null, OnDisplayChanged));
     public static readonly DependencyProperty CommandParameterProperty = DependencyProperty.Register(
         nameof(CommandParameter), typeof(object), typeof(TrackStatisticButton), new PropertyMetadata(null, OnDisplayChanged));
+    public static readonly DependencyProperty FlyoutProperty = DependencyProperty.Register(
+        nameof(Flyout), typeof(FlyoutBase), typeof(TrackStatisticButton), new PropertyMetadata(null, OnFlyoutChanged));
 
     /// <summary>未激活时的图标路径文本：<c>Data="{StaticResource IconHeart}"</c>。</summary>
     public string Data { get => (string)GetValue(DataProperty); set => SetValue(DataProperty, value); }
@@ -51,6 +54,21 @@ public sealed partial class TrackStatisticButton : UserControl
 
     public ICommand? Command { get => (ICommand?)GetValue(CommandProperty); set => SetValue(CommandProperty, value); }
     public object? CommandParameter { get => GetValue(CommandParameterProperty); set => SetValue(CommandParameterProperty, value); }
+
+    /// <summary>
+    /// 挂到内部按钮上的浮层。分享入口用它换成「复制链接 / 制作歌词海报」面板。
+    /// </summary>
+    /// <remarks>
+    /// 这是个 UserControl，外部拿不到 <c>InnerButton</c>；没有这个属性时，
+    /// 调用方只能绕过控件自己再盖一层按钮，点击区与角标会跟着错位。
+    /// </remarks>
+    public FlyoutBase? Flyout { get => (FlyoutBase?)GetValue(FlyoutProperty); set => SetValue(FlyoutProperty, value); }
+
+    private static void OnFlyoutChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+    {
+        var control = (TrackStatisticButton)sender;
+        control.InnerButton.Flyout = args.NewValue as FlyoutBase;
+    }
 
     /// <summary>
     /// 内部按钮的点按事件。走命令的用法不需要它；评论入口没有命令，靠它接页面处理器。

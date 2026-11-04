@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bowen.WinUI.Controls.LyricPosterDialogContent"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Bowen.WinUI.Controls"
+    Width="520">
+
+    <Grid>
+        <!-- 第一步：选句 -->
+        <Grid x:Name="SelectionStage" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Spacing="2">
+                <TextBlock
+                    x:Name="TrackTitleText"
+                    FontSize="18"
+                    FontWeight="SemiBold"
+                    TextTrimming="CharacterEllipsis" />
+                <TextBlock
+                    x:Name="TrackArtistText"
+                    FontSize="12"
+                    Opacity="0.65"
+                    TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <Grid Grid.Row="1">
+                <TextBlock Text="选择歌词" FontSize="13" Opacity="0.75" />
+                <TextBlock
+                    x:Name="CounterText"
+                    HorizontalAlignment="Right"
+                    FontSize="13"
+                    Opacity="0.75" />
+            </Grid>
+
+            <ListView
+                x:Name="LineList"
+                Grid.Row="2"
+                MaxHeight="360"
+                SelectionMode="None">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="MinHeight" Value="0" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:LyricPosterLineItem">
+                        <Grid Padding="4,7" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <CheckBox
+                                MinWidth="0"
+                                MinHeight="0"
+                                Height="20"
+                                Padding="0"
+                                VerticalAlignment="Top"
+                                IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                                Checked="OnLineCheckChanged"
+                                Unchecked="OnLineCheckChanged" />
+
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock
+                                    Margin="{x:Bind TextMargin}"
+                                    FontSize="14"
+                                    Opacity="{x:Bind DisplayOpacity}"
+                                    Text="{x:Bind Text}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <TextBlock
+                x:Name="EmptyText"
+                Grid.Row="2"
+                Margin="0,24"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Opacity="0.65"
+                Text="当前歌曲没有歌词"
+                Visibility="Collapsed" />
+
+            <Grid Grid.Row="3" ColumnSpacing="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <HyperlinkButton x:Name="SelectAllButton" Content="全选" Click="OnSelectAllClick" />
+                <HyperlinkButton x:Name="ClearButton" Grid.Column="1" Content="清空" Click="OnClearClick" />
+                <TextBlock
+                    x:Name="HintText"
+                    Grid.Column="2"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextWrapping="Wrap" />
+            </Grid>
+        </Grid>
+
+        <!-- 第二步：预览 -->
+        <Grid x:Name="PreviewStage" RowSpacing="8" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border
+                Padding="16"
+                HorizontalAlignment="Center"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                CornerRadius="8">
+                <Grid>
+                    <Image
+                        x:Name="PreviewImage"
+                        MaxWidth="252"
+                        MaxHeight="448"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Stretch="Uniform" />
+                    <ProgressRing
+                        x:Name="PreviewProgress"
+                        Width="40"
+                        Height="40"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsActive="False"
+                        Visibility="Collapsed" />
+                </Grid>
+            </Border>
+
+            <TextBlock
+                x:Name="PreviewMessage"
+                Grid.Row="1"
+                HorizontalAlignment="Center"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                TextWrapping="Wrap" />
+        </Grid>
+    </Grid>
+</UserControl>

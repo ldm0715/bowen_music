@@ -696,6 +696,17 @@ public sealed partial class LyricsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool HasTranslation { get; set; }
 
+    /// <summary>
+    /// 海报选择面板的数据源。
+    /// </summary>
+    /// <remarks>
+    /// <b>给的是未按译文开关过滤的完整文档。</b> 海报要不要输出译文由「生成时」的开关决定，
+    /// 选择面板必须能看到原文与译文的配对关系；用 <see cref="Document"/> 的话，
+    /// 用户关掉译文后连译文都看不见，返回修改时配对信息也没了。
+    /// 空行在这里一并剔掉，与界面上的行号无关。
+    /// </remarks>
+    public LyricDocument PosterSource => _fullDocument.WithoutBlankLines();
+
     /// <summary>当前行的下标；不在任何行里时为 <c>-1</c>。</summary>
     [ObservableProperty]
     public partial int CurrentIndex { get; set; } = -1;

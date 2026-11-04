@@ -36,6 +36,16 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
+        <!-- 分享面板的整行入口：图标 + 标题 + 一行说明。 -->
+        <Style x:Key="ShareMenuRowStyle" TargetType="Button">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+
         <!--
             对齐分段：与评论面板的「推荐 / 最新」同一套 ToggleButton 形态。
             选中态由 AccentFillColorDefaultBrush 提供，只亮当前一颗。
@@ -332,10 +342,77 @@
                         HasBadgeCount="{x:Bind Player.Statistics.HasFavoriteCount, Mode=OneWay}" />
                     <controls:TrackStatisticButton x:Name="ShareButton" Data="{StaticResource IconShare}" Foreground="#CCFFFFFF"
                         IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
-                        Command="{x:Bind Player.ShareCommand}"
                         Label="{x:Bind Player.Statistics.ShareAutomationName, Mode=OneWay}"
                         BadgeText="{x:Bind Player.Statistics.ShareBadgeText, Mode=OneWay}"
-                        HasBadgeCount="{x:Bind Player.Statistics.HasShareCount, Mode=OneWay}" />
+                        HasBadgeCount="{x:Bind Player.Statistics.HasShareCount, Mode=OneWay}">
+                        <controls:TrackStatisticButton.Flyout>
+                            <Flyout
+                                x:Name="ShareFlyout"
+                                Closed="OnShareFlyoutClosed"
+                                Opened="OnShareFlyoutOpened"
+                                Opening="OnShareFlyoutOpening"
+                                Placement="Top">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="MinWidth" Value="0" />
+                                        <Setter Property="Background" Value="{ThemeResource BowenAcrylicBrush}" />
+                                        <Setter Property="Padding" Value="6" />
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+
+                                <StackPanel x:Name="ShareMenu" MaxWidth="280">
+                                    <Button Click="OnCopyShareLinkClick" Style="{StaticResource ShareMenuRowStyle}">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <controls:Icon
+                                                Size="18"
+                                                VerticalAlignment="Center"
+                                                Data="{StaticResource IconShare}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="复制分享链接" />
+                                                <TextBlock
+                                                    FontSize="12"
+                                                    Opacity="0.6"
+                                                    Text="链接包含你的 uid"
+                                                    TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+
+                                    <Button
+                                        x:Name="MakePosterButton"
+                                        Click="OnMakePosterClick"
+                                        Style="{StaticResource ShareMenuRowStyle}">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <controls:Icon
+                                                Size="18"
+                                                VerticalAlignment="Center"
+                                                Data="{StaticResource IconNote}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="制作歌词海报" />
+                                                <TextBlock
+                                                    x:Name="MakePosterSubtitle"
+                                                    FontSize="12"
+                                                    Opacity="0.6"
+                                                    Text="把歌词做成一张图片"
+                                                    TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </StackPanel>
+                            </Flyout>
+                        </controls:TrackStatisticButton.Flyout>
+                    </controls:TrackStatisticButton>
                     <TextBlock Text="试听" Foreground="#70FFFFFF" FontSize="12" VerticalAlignment="Center"
                         Visibility="{x:Bind local:Formats.Visible(Player.IsAudition), Mode=OneWay}" />
                 </StackPanel>

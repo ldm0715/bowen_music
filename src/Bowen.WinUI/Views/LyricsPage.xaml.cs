@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Bowen.Core.Media;
 using Bowen.Core.Models;
+using Bowen.Core.Models.Lyrics;
 using Bowen.Core.Services;
 using Bowen.WinUI.Controls;
 using Bowen.WinUI.Media;
@@ -74,6 +75,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private bool? _fullscreen;
     private readonly ILogger<LyricsPage> _logger;
     private readonly BackgroundImageStore _backgroundImages;
+    private readonly IClipboardService _clipboard;
     private readonly nint _windowHandle;
     private NativeMethods.NativePoint? _lastCursorPoint;
     private bool _keyboardInteractionActive;
@@ -105,6 +107,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private bool _pointerOverChrome;
     private bool _volumePopupOpen;
     private bool _moreFlyoutOpen;
+    private bool _shareFlyoutOpen;
     private FrameworkElement? _progressThumb;
     private Rectangle? _progressTrack;
     private Rectangle? _progressFill;
@@ -114,7 +117,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
         LyricsViewModel lyrics, SongCommentsViewModel comments, AudioEffectsViewModel effects,
         INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
-        FontSettingsViewModel font, BackgroundImageStore backgroundImages)
+        FontSettingsViewModel font, BackgroundImageStore backgroundImages, IClipboardService clipboard)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -128,6 +131,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(trackActions);
         ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(backgroundImages);
+        ArgumentNullException.ThrowIfNull(clipboard);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
@@ -135,6 +139,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _logger = (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
         _backgroundImages = backgroundImages;
+        _clipboard = clipboard;
         _canvas = canvas;
         _spectrum = spectrum;
         Player = player;
@@ -415,8 +420,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics.PropertyChanged -= OnLyricsChanged;
         _volumePopupOpen = false;
         _moreFlyoutOpen = false;
+        _shareFlyoutOpen = false;
         CloseAppearance(restoreFocus: false);
         MoreFlyout.Hide();
+        ShareFlyout.Hide();
         _progressSeeking = _keyboardSeeking = false;
         Player.IsSeeking = false;
         Lyrics.IsOpen = false;
@@ -770,7 +777,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         _chromeTimer.Stop();
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || !_chromeVisible || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen || _shareFlyoutOpen
             || _appearanceOpen || HasChromeKeyboardFocus()) return;
         _chromeTimer.Start();
     }
@@ -785,7 +792,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void HideChrome()
     {
         if (Comments.IsOpen || !Lyrics.IsOpen || !_windowVisible || _window.IsRenderingSuspended || _pointerOverChrome
-            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen
+            || _progressSeeking || _keyboardSeeking || _volumePopupOpen || _moreFlyoutOpen || _shareFlyoutOpen
             || _appearanceOpen || HasChromeKeyboardFocus())
             return;
         SetChromeVisibility(false);
@@ -967,6 +974,89 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ScheduleChromeHide();
     }
 
+    /// <remarks>
+    /// 与「更多」同一套 popup 守卫：面板开着时控制台不能自己淡出，
+    /// 否则会剩一个悬空的菜单挂在那儿。见 <see cref="ScheduleChromeHide"/>。
+    /// </remarks>
+    private void OnShareFlyoutOpening(object? sender, object e)
+    {
+        _shareFlyoutOpen = true;
+        ShowChrome();
+        ApplyFlyoutTheme(ShareMenu);
+
+        var hasLyrics = !Lyrics.Document.IsEmpty && !Lyrics.IsLoading;
+        MakePosterButton.IsEnabled = hasLyrics;
+        MakePosterSubtitle.Text = hasLyrics
+            ? "把歌词做成一张图片"
+            : Lyrics.IsLoading ? "歌词加载中" : "当前歌曲没有歌词";
+    }
+
+    private void OnShareFlyoutOpened(object? sender, object e) => ApplyFlyoutTheme(ShareMenu);
+
+    private void OnShareFlyoutClosed(object? sender, object e)
+    {
+        _shareFlyoutOpen = false;
+        ScheduleChromeHide();
+    }
+
+    private void OnCopyShareLinkClick(object sender, RoutedEventArgs args)
+    {
+        ShareFlyout.Hide();
+
+        // 沿用原来的分享命令：上报 + 复制链接 + 提示都在里面。
+        Player.ShareCommand.Execute(null);
+    }
+
+    /// <summary>打开歌词海报：选句 → 预览 → 保存 / 复制。</summary>
+    private async void OnMakePosterClick(object sender, RoutedEventArgs args)
+    {
+        ShareFlyout.Hide();
+
+        if (Player.CurrentTrack is not { } track || Player.CreateShareLink() is not { } shareLink)
+        {
+            return;
+        }
+
+        var lines = LyricPosterComposer.Compose(Lyrics.PosterSource);
+        if (lines.Count == 0)
+        {
+            ((INoticeSink)_trackActions).Show("当前歌曲没有歌词", NoticeSeverity.Error);
+            return;
+        }
+
+        // 默认勾选当前播放句；开场前（还没到第一句）退回第一句，保证一进来就能生成。
+        var defaultIndex = Math.Max(0, LyricPosterComposer.IndexAt(lines, Lyrics.TimelinePosition));
+
+        var context = new LyricPosterDialogContext(
+            track,
+            shareLink,
+            lines,
+            defaultIndex,
+            XamlRoot,
+            _window.ThemeRoot.ActualTheme,
+            _windowHandle,
+            _clipboard,
+            async () =>
+            {
+                // 对话框开着时自动切歌也照常发生；切走了就不上报，避免把分享数记到别的曲目上。
+                if (Player.CurrentTrackId == track.Id)
+                {
+                    await Player.Statistics.ReportShareAsync();
+                }
+            },
+            _trackActions,
+            _logger);
+
+        try
+        {
+            await LyricPosterDialog.ShowAsync(context);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "打开歌词海报失败：{Title}", track.Title);
+            ((INoticeSink)_trackActions).Show("海报生成失败，请稍后再试。", NoticeSeverity.Error);
+        }
+    }
     /// <summary>菜单里某个动作要求关窗。它是内容控件，拿不到这个 Flyout，只能往上抛。</summary>
     private void OnMoreMenuCloseRequested(object? sender, EventArgs e) => MoreFlyout.Hide();
     private void OnFollowClick(object sender, RoutedEventArgs args) => _canvas.ResumeFollowing();
