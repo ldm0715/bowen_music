@@ -50,7 +50,10 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationFontScale, loaded.TranslationFontScale);
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
+        Assert.Equal(LyricsSettings.DefaultInactiveLineOpacity, loaded.InactiveLineOpacity);
         Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
+        Assert.Equal(LyricsSettings.DefaultCoverBlurDim, loaded.CoverBlurDim);
+        Assert.Equal(LyricsSettings.DefaultCoverBlurAmount, loaded.CoverBlurAmount);
         Assert.True(loaded.MicaTintEnabled);
         Assert.Equal(string.Empty, loaded.BackgroundImageFile);
         Assert.Equal(LyricsSettings.DefaultBackgroundDim, loaded.BackgroundImageDim);
@@ -81,7 +84,10 @@ public sealed class LyricsSettingsStoreTests : IDisposable
             TranslationFontScale = 0.9,
             TranslationLineGap = 12,
             EdgeBlurRatio = 0.35,
+            InactiveLineOpacity = 0.62,
             BackgroundMode = LyricsBackgroundMode.Mica,
+            CoverBlurDim = 0.25,
+            CoverBlurAmount = 34,
             MicaTintEnabled = false,
             BackgroundImageFile = "lyrics-bg-test.png",
             BackgroundImageDim = 0.45,
@@ -108,7 +114,10 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(0.9d, loaded.TranslationFontScale);
         Assert.Equal(12d, loaded.TranslationLineGap);
         Assert.Equal(0.35d, loaded.EdgeBlurRatio);
+        Assert.Equal(0.62d, loaded.InactiveLineOpacity);
         Assert.Equal(LyricsBackgroundMode.Mica, loaded.BackgroundMode);
+        Assert.Equal(0.25d, loaded.CoverBlurDim);
+        Assert.Equal(34d, loaded.CoverBlurAmount);
         Assert.False(loaded.MicaTintEnabled);
         Assert.Equal("lyrics-bg-test.png", loaded.BackgroundImageFile);
         Assert.Equal(0.45d, loaded.BackgroundImageDim);
@@ -140,7 +149,10 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Contains("\"TranslationFontScale\"", json, StringComparison.Ordinal);
         Assert.Contains("\"TranslationLineGap\"", json, StringComparison.Ordinal);
         Assert.Contains("\"EdgeBlurRatio\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"InactiveLineOpacity\"", json, StringComparison.Ordinal);
         Assert.Contains("\"BackgroundMode\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"CoverBlurDim\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"CoverBlurAmount\"", json, StringComparison.Ordinal);
         Assert.Contains("\"BackgroundImageFile\"", json, StringComparison.Ordinal);
         Assert.Contains("\"BackgroundImageDim\"", json, StringComparison.Ordinal);
         Assert.Contains("\"BackgroundImageBlur\"", json, StringComparison.Ordinal);
@@ -179,7 +191,10 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         Assert.Equal(LyricsSettings.DefaultTranslationFontScale, loaded.TranslationFontScale);
         Assert.Equal(LyricsSettings.DefaultTranslationLineGap, loaded.TranslationLineGap);
         Assert.Equal(LyricsSettings.DefaultEdgeBlurRatio, loaded.EdgeBlurRatio);
+        Assert.Equal(LyricsSettings.DefaultInactiveLineOpacity, loaded.InactiveLineOpacity);
         Assert.Equal(LyricsBackgroundMode.CoverBlur, loaded.BackgroundMode);
+        Assert.Equal(LyricsSettings.DefaultCoverBlurDim, loaded.CoverBlurDim);
+        Assert.Equal(LyricsSettings.DefaultCoverBlurAmount, loaded.CoverBlurAmount);
         Assert.True(loaded.MicaTintEnabled);
         Assert.Equal(string.Empty, loaded.BackgroundImageFile);
         Assert.Equal(LyricsSettings.DefaultBackgroundDim, loaded.BackgroundImageDim);
@@ -242,6 +257,36 @@ public sealed class LyricsSettingsStoreTests : IDisposable
         NewStore().Save(new LyricsSettings { EdgeBlurRatio = stored });
 
         Assert.Equal(expected, NewStore().Load().EdgeBlurRatio);
+    }
+
+    [Theory]
+    [InlineData(0.05, LyricsSettings.MinimumInactiveLineOpacity)]
+    [InlineData(5, LyricsSettings.MaximumInactiveLineOpacity)]
+    public void InactiveLineOpacity_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { InactiveLineOpacity = stored });
+
+        Assert.Equal(expected, NewStore().Load().InactiveLineOpacity);
+    }
+
+    [Theory]
+    [InlineData(-1, LyricsSettings.MinimumCoverBlurDim)]
+    [InlineData(2, LyricsSettings.MaximumCoverBlurDim)]
+    public void CoverBlurDim_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { CoverBlurDim = stored });
+
+        Assert.Equal(expected, NewStore().Load().CoverBlurDim);
+    }
+
+    [Theory]
+    [InlineData(-5, LyricsSettings.MinimumCoverBlurAmount)]
+    [InlineData(99, LyricsSettings.MaximumCoverBlurAmount)]
+    public void CoverBlurAmount_IsClamped(double stored, double expected)
+    {
+        NewStore().Save(new LyricsSettings { CoverBlurAmount = stored });
+
+        Assert.Equal(expected, NewStore().Load().CoverBlurAmount);
     }
 
     [Theory]

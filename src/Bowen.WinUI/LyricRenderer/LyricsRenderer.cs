@@ -43,7 +43,9 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private bool _hasTranslation;
     private double _translationProgress;
     private Color _played = Color.FromArgb(242, 255, 255, 255);
-    private Color _unplayed = Color.FromArgb(80, 255, 255, 255);
+    // 当前行未唱文字的基准白；实际透明度在绘制时乘 InactiveLineOpacity，
+    // 与未播放行保持一致，避免一行变成当前行时反而变暗。
+    private Color _unplayed = Color.FromArgb(242, 255, 255, 255);
 
     // 未播放行固定用白色。高亮色只作用于当前行，不能让整首歌词跟着染色。
     private static readonly Color InactiveTextColor = Color.FromArgb(242, 255, 255, 255);
@@ -165,6 +167,36 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
             : LyricsSettings.DefaultEdgeBlurRatio;
         if (Math.Abs(settings.EdgeBlurRatio - ratio) < 0.001) return;
         settings.EdgeBlurRatio = ratio;
+    }
+
+    /// <summary>改未高亮歌词不透明度。只重画未播放行，不重排。</summary>
+    /// <remarks>
+    /// 未播放行的像素按旧不透明度烤进了 <c>PlainImage</c> / <c>BlurredImage</c>，
+    /// 必须丢弃它们让下一帧按新值重画；字形遮罩与排版不受影响。
+    /// </remarks>
+    public void SetInactiveLineOpacity(double opacity)
+    {
+        opacity = double.IsFinite(opacity) && opacity > 0
+            ? Math.Clamp(opacity, LyricsSettings.MinimumInactiveLineOpacity, LyricsSettings.MaximumInactiveLineOpacity)
+            : LyricsSettings.DefaultInactiveLineOpacity;
+        if (Math.Abs(settings.InactiveLineOpacity - opacity) < 0.001) return;
+        settings.InactiveLineOpacity = opacity;
+
+        if (_device?.Snapshot is { } snapshot)
+        {
+            foreach (var line in snapshot.Lines)
+            {
+                line.PlainImage?.Dispose();
+                line.PlainImage = null;
+                line.BlurredImage?.Dispose();
+                line.BlurredImage = null;
+                line.BlurredAmount = -1;
+
+                // 当前行未唱部分的颜色也烤进了 ActiveImage，一起丢弃让下一帧按新透明度重建。
+                line.ActiveImage?.Dispose();
+                line.ActiveImage = null;
+            }
+        }
     }
 
     /// <summary>改横向对齐。文字排版与绘制原点都要跟着变，整份文档重排。</summary>
@@ -473,8 +505,15 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
     private void EnsurePlainImage(LyricsLineLayout line)
     {
         if (line.PlainImage is not null && line.GlyphMask?.Dpi == _dpi) return;
-        line.ReleaseDrawingResources();
-        line.GlyphMask = new LyricsLineGlyphMask(_creator!, line, _dpi);
+
+        // 只有 DPI 变了才重建字形遮罩；改不透明度时遮罩可复用，只重画一次像素。
+        if (line.GlyphMask?.Dpi != _dpi)
+        {
+            line.GlyphMask?.Dispose();
+            line.GlyphMask = new LyricsLineGlyphMask(_creator!, line, _dpi);
+        }
+
+        line.PlainImage?.Dispose();
         line.PlainImage = line.GlyphMask.Paint(WithOpacity(InactiveTextColor, settings.InactiveLineOpacity));
     }
 
@@ -545,7 +584,7 @@ internal sealed class LyricsRenderer(LyricsRenderSettings settings, ILogger<Lyri
         {
             rendered.ActiveImage?.Dispose();
             rendered.ActiveImage = new LyricsActiveLineImage(_creator!, rendered, settings,
-                _played, _unplayed, _dpi, wordByWord);
+                _played, WithOpacity(_unplayed, settings.InactiveLineOpacity), _dpi, wordByWord);
         }
         rendered.ActiveImage.Draw(session, text, rendered, _position, wordByWord, lineProgress);
     }

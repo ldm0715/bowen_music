@@ -61,7 +61,8 @@ public sealed record LyricsRenderSettings
     public double CurrentLineScale { get; init; } = 1;
     // 活动/未活动状态只改变亮度与模糊，不通过整行缩放移动文字基线。
     public double InactiveLineScale { get; init; } = 1;
-    public double InactiveLineOpacity { get; init; } = 0.38;
+    /// <summary>未高亮歌词的不透明度。可变：外观面板调整后只重画未播放行。</summary>
+    public double InactiveLineOpacity { get; set; } = LyricsSettings.DefaultInactiveLineOpacity;
     public double ViewportMarginLines { get; init; } = 3;
     public double SweepFeatherRatio { get; init; } = 0.5;
     public TimeSpan LongSyllableThreshold { get; init; } = TimeSpan.FromMilliseconds(1000);

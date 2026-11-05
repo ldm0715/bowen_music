@@ -40,6 +40,7 @@ public sealed partial class LyricsCanvasView : UserControl
     private double _translationFontScale = LyricsSettings.DefaultTranslationFontScale;
     private double _translationLineGap = LyricsSettings.DefaultTranslationLineGap;
     private double _edgeBlurRatio = LyricsSettings.DefaultEdgeBlurRatio;
+    private double _inactiveLineOpacity = LyricsSettings.DefaultInactiveLineOpacity;
     private LyricsAlignment _alignment = LyricsAlignment.Left;
     private double _horizontalOffsetPercent;
     private double _verticalOffsetPercent;
@@ -187,6 +188,14 @@ public sealed partial class LyricsCanvasView : UserControl
         _renderLoop?.Send(renderer => renderer.SetEdgeBlurRatio(ratio));
     }
 
+    /// <summary>切换未高亮歌词不透明度。只重画未播放行，不重排。</summary>
+    public void SetInactiveLineOpacity(double opacity)
+    {
+        if (Math.Abs(_inactiveLineOpacity - opacity) < 0.001) return;
+        _inactiveLineOpacity = opacity;
+        _renderLoop?.Send(renderer => renderer.SetInactiveLineOpacity(opacity));
+    }
+
     /// <summary>切换横向对齐。渲染线程收到后整份文档重排。</summary>
     public void SetAlignment(LyricsAlignment alignment)
     {
@@ -326,6 +335,7 @@ public sealed partial class LyricsCanvasView : UserControl
         loop.Send(renderer => renderer.SetTranslationFontScale(_translationFontScale));
         loop.Send(renderer => renderer.SetTranslationLineGap(_translationLineGap));
         loop.Send(renderer => renderer.SetEdgeBlurRatio(_edgeBlurRatio));
+        loop.Send(renderer => renderer.SetInactiveLineOpacity(_inactiveLineOpacity));
         loop.Send(renderer => renderer.SetAlignment(_alignment));
         loop.Send(renderer => renderer.SetHorizontalOffsetPercent(_horizontalOffsetPercent));
         loop.Send(renderer => renderer.SetVerticalOffsetPercent(_verticalOffsetPercent));

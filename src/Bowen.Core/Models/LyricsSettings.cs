@@ -127,6 +127,35 @@ public sealed record LyricsSettings
     /// <summary>默认让视口上下各 20% 的范围逐渐模糊。</summary>
     public const double DefaultEdgeBlurRatio = 0.2;
 
+    /// <summary>封面模糊背景的黑色暗度下限。</summary>
+    public const double MinimumCoverBlurDim = 0;
+
+    /// <summary>封面模糊背景的黑色暗度上限。</summary>
+    public const double MaximumCoverBlurDim = 0.8;
+
+    /// <summary>
+    /// 封面模糊背景的默认暗度：只轻微压暗，保留封面颜色；白封面下用户可自行调高。
+    /// </summary>
+    public const double DefaultCoverBlurDim = 0.2;
+
+    /// <summary>封面模糊强度的下限（DIP）。</summary>
+    public const double MinimumCoverBlurAmount = 0;
+
+    /// <summary>封面模糊强度的上限（DIP）。</summary>
+    public const double MaximumCoverBlurAmount = 80;
+
+    /// <summary>封面模糊的默认强度（DIP），与旧实现的固定值一致。</summary>
+    public const double DefaultCoverBlurAmount = 52;
+
+    /// <summary>未高亮歌词不透明度的下限。</summary>
+    public const double MinimumInactiveLineOpacity = 0.2;
+
+    /// <summary>未高亮歌词不透明度的上限。</summary>
+    public const double MaximumInactiveLineOpacity = 1;
+
+    /// <summary>未高亮歌词的默认不透明度，与旧实现的固定值一致。</summary>
+    public const double DefaultInactiveLineOpacity = 0.38;
+
     /// <summary>自定义背景图片的暗度下限。</summary>
     public const double MinimumBackgroundDim = 0;
 
@@ -197,6 +226,10 @@ public sealed record LyricsSettings
     /// <summary>已唱部分的高亮色，<c>0xAARRGGBB</c>；未唱部分固定白色半透明。</summary>
     public uint HighlightColorArgb { get; init; } = DefaultHighlightColor;
 
+    /// <summary>未高亮歌词的不透明度，0.2–1；默认 0.38。</summary>
+    /// <remarks>不跟随背景模式；亮背景上可调高，保证非当前行可读。</remarks>
+    public double InactiveLineOpacity { get; init; } = DefaultInactiveLineOpacity;
+
     /// <summary>行与行之间的额外间距，DIP；0 表示只保留文本自身行高。</summary>
     public double LineGap { get; init; } = DefaultLineGap;
 
@@ -227,6 +260,12 @@ public sealed record LyricsSettings
 
     /// <summary>全屏歌词页的背景来源；默认封面模糊。</summary>
     public LyricsBackgroundMode BackgroundMode { get; init; } = LyricsBackgroundMode.CoverBlur;
+
+    /// <summary>封面模糊背景上叠加的黑色暗度，0–0.8；默认 0.4。</summary>
+    public double CoverBlurDim { get; init; } = DefaultCoverBlurDim;
+
+    /// <summary>封面模糊强度，DIP；默认 52。</summary>
+    public double CoverBlurAmount { get; init; } = DefaultCoverBlurAmount;
 
     /// <summary>Mica 之上是否叠一层封面主色，避免暗色下纯黑。</summary>
     public bool MicaTintEnabled { get; init; } = true;
@@ -305,6 +344,11 @@ public sealed record LyricsSettings
             ? Math.Clamp(EdgeBlurRatio, MinimumEdgeBlurRatio, MaximumEdgeBlurRatio)
             : DefaultEdgeBlurRatio,
 
+        // 0 不是合法的未高亮不透明度，只可能来自旧文件缺字段。
+        InactiveLineOpacity = double.IsFinite(InactiveLineOpacity) && InactiveLineOpacity > 0
+            ? Math.Clamp(InactiveLineOpacity, MinimumInactiveLineOpacity, MaximumInactiveLineOpacity)
+            : DefaultInactiveLineOpacity,
+
         // 0 不是合法的高亮色；其余颜色把 alpha 顶回不透明（色板不提供透明度）。
         HighlightColorArgb = HighlightColorArgb == 0
             ? DefaultHighlightColor
@@ -321,6 +365,14 @@ public sealed record LyricsSettings
         Alignment = Enum.IsDefined(Alignment) ? Alignment : LyricsAlignment.Left,
         CoverStyle = Enum.IsDefined(CoverStyle) ? CoverStyle : LyricsCoverStyle.Cover,
         BackgroundMode = Enum.IsDefined(BackgroundMode) ? BackgroundMode : LyricsBackgroundMode.CoverBlur,
+
+        CoverBlurDim = double.IsFinite(CoverBlurDim)
+            ? Math.Clamp(CoverBlurDim, MinimumCoverBlurDim, MaximumCoverBlurDim)
+            : DefaultCoverBlurDim,
+
+        CoverBlurAmount = double.IsFinite(CoverBlurAmount)
+            ? Math.Clamp(CoverBlurAmount, MinimumCoverBlurAmount, MaximumCoverBlurAmount)
+            : DefaultCoverBlurAmount,
 
         // 只保留文件名，拒绝目录穿越；空串表示还没选图片。
         BackgroundImageFile = string.IsNullOrWhiteSpace(BackgroundImageFile)

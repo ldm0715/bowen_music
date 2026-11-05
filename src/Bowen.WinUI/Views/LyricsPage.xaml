@@ -741,6 +741,67 @@
                                 </ComboBox>
                             </Grid>
 
+                            <StackPanel x:Name="CoverBlurPanel" Spacing="8" Visibility="Collapsed">
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="暗度" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetCoverBlurDimClick"
+                                                AutomationProperties.Name="恢复默认封面模糊暗度" ToolTipService.ToolTip="恢复默认暗度">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="CoverBlurDimValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="CoverBlurDimSlider" Grid.Column="1" Minimum="0" Maximum="80"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnCoverBlurDimChanged" AutomationProperties.Name="封面模糊暗度" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="模糊" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetCoverBlurAmountClick"
+                                                AutomationProperties.Name="恢复默认封面模糊强度" ToolTipService.ToolTip="恢复默认模糊">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="CoverBlurAmountValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="−" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="CoverBlurAmountSlider" Grid.Column="1" Minimum="0" Maximum="80"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnCoverBlurAmountChanged" AutomationProperties.Name="封面模糊强度" />
+                                        <TextBlock Grid.Column="2" Text="+" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <TextBlock Text="压暗封面亮部，亮色封面下歌词更清楚"
+                                    FontSize="{StaticResource FontSizeCaption}"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+
                             <StackPanel x:Name="MicaTintPanel" Spacing="6" Visibility="Collapsed">
                                 <Grid ColumnSpacing="12">
                                     <Grid.ColumnDefinitions>
@@ -1098,9 +1159,36 @@
                             </StackPanel>
 
                             <StackPanel Spacing="8">
-                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="高亮颜色" />
+                                <TextBlock Style="{StaticResource LyricsSectionTitleStyle}" Text="歌词颜色" />
                                 <StackPanel x:Name="LyricsColorPalette" Orientation="Horizontal" Spacing="6"
                                     HorizontalAlignment="Center" Margin="0,4,0,0" />
+
+                                <StackPanel Spacing="6">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="未高亮歌词" FontSize="{StaticResource FontSizeBody}"
+                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <Button Style="{StaticResource LyricsResetButtonStyle}" Click="OnResetInactiveLineOpacityClick"
+                                                AutomationProperties.Name="恢复默认未高亮歌词" ToolTipService.ToolTip="恢复默认">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="{StaticResource SizeIconSm}" />
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock x:Name="InactiveLineOpacityValue" HorizontalAlignment="Right"
+                                            Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="淡" Style="{StaticResource LyricsValueTextStyle}" />
+                                        <Slider x:Name="InactiveLineOpacitySlider" Grid.Column="1" Minimum="20" Maximum="100"
+                                            StepFrequency="1" Style="{StaticResource LyricsSliderStyle}"
+                                            ValueChanged="OnInactiveLineOpacityChanged" AutomationProperties.Name="未高亮歌词不透明度" />
+                                        <TextBlock Grid.Column="2" Text="亮" Style="{StaticResource LyricsValueTextStyle}" />
+                                    </Grid>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>

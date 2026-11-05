@@ -625,7 +625,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         {
             BackdropView.LocalPath = string.Empty;
         }
-        BackdropView.BlurDip = custom ? Lyrics.BackgroundImageBlur : 52;
+        BackdropView.BlurDip = custom ? Lyrics.BackgroundImageBlur : Lyrics.CoverBlurAmount;
         BackdropView.ImageOpacity = custom ? 1 : 0.72;
         BackdropView.Saturation = custom ? 0.85f : 0.68f;
         BackdropView.FocusX = custom ? Lyrics.BackgroundImageFocusX : 0.5;
@@ -635,7 +635,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
             ? Visibility.Visible
             : Visibility.Collapsed;
         AmbientView.Opacity = mica && Lyrics.MicaTintEnabled ? 0.9 : 0.18;
-        BackgroundDimLayer.Opacity = custom ? Lyrics.BackgroundImageDim : 0;
+        BackgroundDimLayer.Opacity = custom
+            ? Lyrics.BackgroundImageDim
+            : Lyrics.BackgroundMode == LyricsBackgroundMode.CoverBlur ? Lyrics.CoverBlurDim : 0;
         if (solid) _solidBackgroundBrush.Color = SolidDisplayColor;
 
         BackdropLayer.Background = mica
@@ -1695,6 +1697,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
             BackgroundBlurSlider.Value = Lyrics.BackgroundImageBlur;
             BackgroundBlurValue.Text = ((int)Math.Round(Lyrics.BackgroundImageBlur)).ToString();
             ReCropBackgroundButton.IsEnabled = Lyrics.BackgroundImageFile.Length > 0;
+            var coverBlur = Lyrics.BackgroundMode == LyricsBackgroundMode.CoverBlur;
+            CoverBlurPanel.Visibility = coverBlur ? Visibility.Visible : Visibility.Collapsed;
+            CoverBlurDimSlider.Value = Math.Round(Lyrics.CoverBlurDim * 100);
+            CoverBlurDimValue.Text = $"{(int)Math.Round(Lyrics.CoverBlurDim * 100)}%";
+            CoverBlurAmountSlider.Value = Lyrics.CoverBlurAmount;
+            CoverBlurAmountValue.Text = ((int)Math.Round(Lyrics.CoverBlurAmount)).ToString();
             var solidBackground = Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor;
             SolidColorPanel.Visibility = solidBackground ? Visibility.Visible : Visibility.Collapsed;
             var micaTint = Lyrics.BackgroundMode == LyricsBackgroundMode.Mica && MainWindow.IsMicaSupported;
@@ -1717,6 +1725,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
             LyricsTranslationLineGapValue.Text = ((int)Math.Round(Lyrics.TranslationLineGap)).ToString();
             LyricsEdgeBlurSlider.Value = Math.Round(Lyrics.EdgeBlurRatio * 100);
             LyricsEdgeBlurValue.Text = $"{(int)Math.Round(Lyrics.EdgeBlurRatio * 100)}%";
+            InactiveLineOpacitySlider.Value = Math.Round(Lyrics.InactiveLineOpacity * 100);
+            InactiveLineOpacityValue.Text = $"{(int)Math.Round(Lyrics.InactiveLineOpacity * 100)}%";
             SyncAlignmentButtons(Lyrics.Alignment);
             LyricsHorizontalOffsetSlider.Value = Lyrics.HorizontalOffsetPercent;
             LyricsHorizontalOffsetValue.Text = FormatOffsetPercent(Lyrics.HorizontalOffsetPercent);
@@ -2016,6 +2026,27 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Lyrics.SetEdgeBlurRatio(args.NewValue / 100);
     }
 
+    private void OnCoverBlurDimChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        CoverBlurDimValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        Lyrics.SetCoverBlurDim(args.NewValue / 100);
+    }
+
+    private void OnCoverBlurAmountChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        CoverBlurAmountValue.Text = ((int)Math.Round(args.NewValue)).ToString();
+        Lyrics.SetCoverBlurAmount(args.NewValue);
+    }
+
+    private void OnInactiveLineOpacityChanged(object sender, RangeBaseValueChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        InactiveLineOpacityValue.Text = $"{(int)Math.Round(args.NewValue)}%";
+        Lyrics.SetInactiveLineOpacity(args.NewValue / 100);
+    }
+
     private void OnAlignLeftClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Left);
     private void OnAlignCenterClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Center);
     private void OnAlignRightClick(object sender, RoutedEventArgs args) => SetAlignment(LyricsAlignment.Right);
@@ -2062,6 +2093,24 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         if (!_appearanceOpen) return;
         Lyrics.SetEdgeBlurRatio(LyricsSettings.DefaultEdgeBlurRatio);
+    }
+
+    private void OnResetCoverBlurDimClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetCoverBlurDim(LyricsSettings.DefaultCoverBlurDim);
+    }
+
+    private void OnResetCoverBlurAmountClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetCoverBlurAmount(LyricsSettings.DefaultCoverBlurAmount);
+    }
+
+    private void OnResetInactiveLineOpacityClick(object sender, RoutedEventArgs args)
+    {
+        if (!_appearanceOpen) return;
+        Lyrics.SetInactiveLineOpacity(LyricsSettings.DefaultInactiveLineOpacity);
     }
 
     private void OnLyricsHorizontalOffsetChanged(object sender, RangeBaseValueChangedEventArgs args)
@@ -2165,6 +2214,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _canvas.SetTranslationFontScale(Lyrics.TranslationFontScale);
         _canvas.SetTranslationLineGap(Lyrics.TranslationLineGap);
         _canvas.SetEdgeBlurRatio(Lyrics.EdgeBlurRatio);
+        _canvas.SetInactiveLineOpacity(Lyrics.InactiveLineOpacity);
         _canvas.SetAlignment(Lyrics.Alignment);
         _canvas.SetHorizontalOffsetPercent(Lyrics.HorizontalOffsetPercent);
         _canvas.SetVerticalOffsetPercent(Lyrics.VerticalOffsetPercent);
@@ -2196,6 +2246,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         }
 
         if (args.PropertyName is nameof(LyricsViewModel.BackgroundMode)
+            or nameof(LyricsViewModel.CoverBlurDim)
+            or nameof(LyricsViewModel.CoverBlurAmount)
             or nameof(LyricsViewModel.BackgroundImageFile)
             or nameof(LyricsViewModel.BackgroundImageDim)
             or nameof(LyricsViewModel.BackgroundImageBlur)
@@ -2226,6 +2278,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             or nameof(LyricsViewModel.TranslationFontScale)
             or nameof(LyricsViewModel.TranslationLineGap)
             or nameof(LyricsViewModel.EdgeBlurRatio)
+            or nameof(LyricsViewModel.InactiveLineOpacity)
             or nameof(LyricsViewModel.HorizontalOffsetPercent)
             or nameof(LyricsViewModel.VerticalOffsetPercent))
         {

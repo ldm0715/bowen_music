@@ -92,8 +92,11 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationFontScale = loaded.TranslationFontScale;
         TranslationLineGap = loaded.TranslationLineGap;
         EdgeBlurRatio = loaded.EdgeBlurRatio;
+        InactiveLineOpacity = loaded.InactiveLineOpacity;
         CoverStyle = loaded.CoverStyle;
         BackgroundMode = loaded.BackgroundMode;
+        CoverBlurDim = loaded.CoverBlurDim;
+        CoverBlurAmount = loaded.CoverBlurAmount;
         MicaTintEnabled = loaded.MicaTintEnabled;
         BackgroundImageFile = loaded.BackgroundImageFile;
         BackgroundImageDim = loaded.BackgroundImageDim;
@@ -190,11 +193,20 @@ public sealed partial class LyricsViewModel : ObservableObject
     /// <summary>视口上下边缘的模糊范围，占视口高度的比例。</summary>
     public double EdgeBlurRatio { get; private set; } = LyricsSettings.DefaultEdgeBlurRatio;
 
+    /// <summary>未高亮歌词的不透明度，对所有背景模式生效。</summary>
+    public double InactiveLineOpacity { get; private set; } = LyricsSettings.DefaultInactiveLineOpacity;
+
     /// <summary>全屏歌词页左侧封面的样式。</summary>
     public LyricsCoverStyle CoverStyle { get; private set; } = LyricsCoverStyle.Cover;
 
     /// <summary>全屏歌词页的背景来源。</summary>
     public LyricsBackgroundMode BackgroundMode { get; private set; } = LyricsBackgroundMode.CoverBlur;
+
+    /// <summary>封面模糊背景上的黑色暗度。</summary>
+    public double CoverBlurDim { get; private set; } = LyricsSettings.DefaultCoverBlurDim;
+
+    /// <summary>封面模糊强度，DIP。</summary>
+    public double CoverBlurAmount { get; private set; } = LyricsSettings.DefaultCoverBlurAmount;
 
     /// <summary>Mica 之上是否叠一层封面主色。</summary>
     public bool MicaTintEnabled { get; private set; } = true;
@@ -407,6 +419,54 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>歌词页改未高亮歌词不透明度：夹到 20%–100% 后落盘。</summary>
+    public void SetInactiveLineOpacity(double opacity)
+    {
+        opacity = double.IsFinite(opacity) && opacity > 0
+            ? Math.Clamp(opacity, LyricsSettings.MinimumInactiveLineOpacity, LyricsSettings.MaximumInactiveLineOpacity)
+            : LyricsSettings.DefaultInactiveLineOpacity;
+        if (Math.Abs(InactiveLineOpacity - opacity) < 0.001)
+        {
+            return;
+        }
+
+        InactiveLineOpacity = opacity;
+        OnPropertyChanged(nameof(InactiveLineOpacity));
+        Persist();
+    }
+
+    /// <summary>歌词页改封面模糊暗度：夹到 0–80% 后落盘。</summary>
+    public void SetCoverBlurDim(double dim)
+    {
+        dim = double.IsFinite(dim)
+            ? Math.Clamp(dim, LyricsSettings.MinimumCoverBlurDim, LyricsSettings.MaximumCoverBlurDim)
+            : LyricsSettings.DefaultCoverBlurDim;
+        if (Math.Abs(CoverBlurDim - dim) < 0.001)
+        {
+            return;
+        }
+
+        CoverBlurDim = dim;
+        OnPropertyChanged(nameof(CoverBlurDim));
+        Persist();
+    }
+
+    /// <summary>歌词页改封面模糊强度：夹到 0–80 DIP 后落盘。</summary>
+    public void SetCoverBlurAmount(double blur)
+    {
+        blur = double.IsFinite(blur)
+            ? Math.Clamp(blur, LyricsSettings.MinimumCoverBlurAmount, LyricsSettings.MaximumCoverBlurAmount)
+            : LyricsSettings.DefaultCoverBlurAmount;
+        if (Math.Abs(CoverBlurAmount - blur) < 0.01)
+        {
+            return;
+        }
+
+        CoverBlurAmount = blur;
+        OnPropertyChanged(nameof(CoverBlurAmount));
+        Persist();
+    }
+
     /// <summary>歌词页改封面样式：无效值退回方形封面后落盘。</summary>
     public void SetCoverStyle(LyricsCoverStyle style)
     {
@@ -603,8 +663,11 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationFontScale = TranslationFontScale,
         TranslationLineGap = TranslationLineGap,
         EdgeBlurRatio = EdgeBlurRatio,
+        InactiveLineOpacity = InactiveLineOpacity,
         CoverStyle = CoverStyle,
         BackgroundMode = BackgroundMode,
+        CoverBlurDim = CoverBlurDim,
+        CoverBlurAmount = CoverBlurAmount,
         MicaTintEnabled = MicaTintEnabled,
         BackgroundImageFile = BackgroundImageFile,
         BackgroundImageDim = BackgroundImageDim,
