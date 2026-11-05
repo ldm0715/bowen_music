@@ -250,18 +250,23 @@
                             Angle 与枢轴、各段长度一样按封面槽尺寸在 code-behind 里重算。
                         -->
                         <Canvas x:Name="TonearmRotor" Width="30" Height="150">
-                            <Rectangle x:Name="TonearmWeight" Width="12" Height="15" RadiusX="4" RadiusY="4" Fill="#DADADA" />
+                            <Rectangle x:Name="TonearmWeight" Width="12" Height="15" RadiusX="4" RadiusY="4" Fill="#DADADA"
+                                Tapped="OnTonearmTapped" />
                             <!-- 整根杆是一笔 Path：折点用圆角过渡，不画成两根直杆硬拼。 -->
                             <Path x:Name="TonearmRod" Stroke="#EDEDED"
                                 StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            <!-- 命中区：沿臂杆铺一条透明粗线，杆本身太细，点不准。 -->
+                            <Path x:Name="TonearmHitPath" Stroke="Transparent"
+                                StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                Tapped="OnTonearmTapped" AutomationProperties.Name="播放或暂停" />
                             <Rectangle x:Name="TonearmHead" Width="14" Height="24" RadiusX="4" RadiusY="4"
-                                Fill="#F5F5F5" RenderTransformOrigin="0.5,0.5">
+                                Fill="#F5F5F5" RenderTransformOrigin="0.5,0.5" Tapped="OnTonearmTapped">
                                 <Rectangle.RenderTransform>
                                     <RotateTransform x:Name="TonearmHeadTilt" Angle="78" />
                                 </Rectangle.RenderTransform>
                             </Rectangle>
                         </Canvas>
-                        <Ellipse x:Name="TonearmPivot" Width="18" Height="18" Fill="#F0F0F0" />
+                        <Ellipse x:Name="TonearmPivot" Width="18" Height="18" Fill="#F0F0F0" Tapped="OnTonearmTapped" />
                     </Canvas>
                 </Canvas>
                 <Grid Grid.Column="1" Margin="0,0,0,4">

@@ -852,21 +852,31 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
         // 折点用二次贝塞尔过渡：先把直杆画到折点前 curve 处，再弯过折点接到下段。
         var curve = Math.Min(upper, lower) * 0.28;
-        var figure = new PathFigure
+
+        // 视觉臂杆和命中区各要一份几何：WinUI 的 Geometry 不能同时挂到两个 Path 上。
+        PathFigure CreateFigure()
         {
-            StartPoint = new Point(pivotLocalX, pivotLocalY),
-            IsClosed = false,
-            IsFilled = false,
-        };
-        figure.Segments.Add(new LineSegment { Point = new Point(bendX, bendY - curve) });
-        figure.Segments.Add(new QuadraticBezierSegment
-        {
-            Point1 = new Point(bendX, bendY),
-            Point2 = new Point(bendX - curve * Math.Sin(bend), bendY + curve * Math.Cos(bend)),
-        });
-        figure.Segments.Add(new LineSegment { Point = new Point(endX, endY) });
-        TonearmRod.Data = new PathGeometry { Figures = { figure } };
+            var figure = new PathFigure
+            {
+                StartPoint = new Point(pivotLocalX, pivotLocalY),
+                IsClosed = false,
+                IsFilled = false,
+            };
+            figure.Segments.Add(new LineSegment { Point = new Point(bendX, bendY - curve) });
+            figure.Segments.Add(new QuadraticBezierSegment
+            {
+                Point1 = new Point(bendX, bendY),
+                Point2 = new Point(bendX - curve * Math.Sin(bend), bendY + curve * Math.Cos(bend)),
+            });
+            figure.Segments.Add(new LineSegment { Point = new Point(endX, endY) });
+            return figure;
+        }
+
+        TonearmRod.Data = new PathGeometry { Figures = { CreateFigure() } };
         TonearmRod.StrokeThickness = armWidth;
+        // 命中区只把线加粗；杆宽只有几像素，直接点很难命中。
+        TonearmHitPath.Data = new PathGeometry { Figures = { CreateFigure() } };
+        TonearmHitPath.StrokeThickness = Math.Max(24, size * 0.08);
         TonearmHeadTilt.Angle = TonearmBendDegrees;
 
         TonearmHead.Width = Math.Max(8, size * 0.045);
@@ -940,6 +950,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
         var elapsed = Stopwatch.GetElapsedTime(_vinylSpinStarted).TotalSeconds;
         var angle = (_vinylAngle + elapsed * VinylDegreesPerSecond) % 360;
         ElementCompositionPreview.GetElementVisual(VinylSpinLayer).RotationAngleInDegrees = (float)angle;
+    }
+
+    /// <summary>点唱臂切换播放：与播放条按键走同一条命令，不在这里另判引擎状态。</summary>
+    private void OnTonearmTapped(object sender, TappedRoutedEventArgs args)
+    {
+        if (!Player.HasTrack) return;
+        args.Handled = true;
+        Player.TogglePlayPauseCommand.Execute(null);
     }
 
     /// <summary>播放时唱臂落到盘面，暂停时抬回待机位；切换样式时直接摆到位，不做过渡。</summary>
