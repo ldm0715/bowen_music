@@ -107,6 +107,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         BackgroundColorArgb = loaded.BackgroundColorArgb;
         BackgroundCustomColorArgb = loaded.BackgroundCustomColorArgb;
         BackgroundColorAuto = loaded.BackgroundColorAuto;
+        Mp3ShellColorArgb = loaded.Mp3ShellColorArgb;
+        Mp3ShellCustomColorArgb = loaded.Mp3ShellCustomColorArgb;
+        Mp3ShellColorAuto = loaded.Mp3ShellColorAuto;
         HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
         VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
@@ -237,6 +240,15 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>纯色背景是否跟随封面自动取色。</summary>
     public bool BackgroundColorAuto { get; private set; }
+
+    /// <summary>播放器外壳的颜色，<c>0xAARRGGBB</c>。</summary>
+    public uint Mp3ShellColorArgb { get; private set; } = LyricsSettings.DefaultMp3ShellColor;
+
+    /// <summary>自定义外壳色最近一次选的颜色。</summary>
+    public uint Mp3ShellCustomColorArgb { get; private set; } = LyricsSettings.DefaultMp3ShellColor;
+
+    /// <summary>播放器外壳是否跟随当前封面自动取色。</summary>
+    public bool Mp3ShellColorAuto { get; private set; }
 
     /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
     public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
@@ -566,6 +578,48 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>选一个外壳颜色：同时关闭「跟随封面」，一并落盘。</summary>
+    public void SetMp3ShellColor(uint argb, bool auto)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultMp3ShellColor : argb | 0xFF000000;
+        if (Mp3ShellColorArgb == argb && Mp3ShellColorAuto == auto)
+        {
+            return;
+        }
+
+        Mp3ShellColorArgb = argb;
+        Mp3ShellColorAuto = auto;
+        OnPropertyChanged(nameof(Mp3ShellColorArgb));
+        OnPropertyChanged(nameof(Mp3ShellColorAuto));
+        Persist();
+    }
+
+    /// <summary>外壳颜色是否跟随封面自动取色。</summary>
+    public void SetMp3ShellColorAuto(bool enabled)
+    {
+        if (Mp3ShellColorAuto == enabled)
+        {
+            return;
+        }
+
+        Mp3ShellColorAuto = enabled;
+        OnPropertyChanged(nameof(Mp3ShellColorAuto));
+        Persist();
+    }
+
+    /// <summary>应用自定义外壳色：同时记为最近一次自定义色，并关闭「跟随封面」。</summary>
+    public void SetMp3ShellCustomColor(uint argb)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultMp3ShellColor : argb | 0xFF000000;
+        Mp3ShellColorArgb = argb;
+        Mp3ShellCustomColorArgb = argb;
+        Mp3ShellColorAuto = false;
+        OnPropertyChanged(nameof(Mp3ShellColorArgb));
+        OnPropertyChanged(nameof(Mp3ShellCustomColorArgb));
+        OnPropertyChanged(nameof(Mp3ShellColorAuto));
+        Persist();
+    }
+
     /// <summary>重新裁剪已有背景图片：更新裁剪中心与缩放并落盘。</summary>
     public void SetBackgroundImageCrop(double focusX, double focusY, double zoom)
     {
@@ -678,6 +732,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         BackgroundColorArgb = BackgroundColorArgb,
         BackgroundCustomColorArgb = BackgroundCustomColorArgb,
         BackgroundColorAuto = BackgroundColorAuto,
+        Mp3ShellColorArgb = Mp3ShellColorArgb,
+        Mp3ShellCustomColorArgb = Mp3ShellCustomColorArgb,
+        Mp3ShellColorAuto = Mp3ShellColorAuto,
         HorizontalOffsetPercent = HorizontalOffsetPercent,
         VerticalOffsetPercent = VerticalOffsetPercent,
     });

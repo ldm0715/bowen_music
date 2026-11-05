@@ -343,6 +343,10 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     [ObservableProperty]
     public partial bool CanGoPrevious { get; set; }
 
+    /// <summary>队列里的下一首曲名；没有下一首或队列为空时是空串。</summary>
+    /// <remarks>给歌词页播放器的屏幕用。模式（列表循环 / 随机）由 <see cref="PlayQueue.PeekNext"/> 自己处理。</remarks>
+    public string NextTrackTitle => _coordinator.Queue.PeekNext()?.Title ?? "";
+
     /// <summary>
     /// 当前播放模式。
     /// </summary>
@@ -785,6 +789,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     {
         CanGoNext = _coordinator.Queue.HasNext;
         CanGoPrevious = _coordinator.Queue.HasPrevious;
+        OnPropertyChanged(nameof(NextTrackTitle));
     }
 
     /// <summary>

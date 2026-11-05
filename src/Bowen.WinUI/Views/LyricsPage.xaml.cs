@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Bowen.Core.Media;
@@ -13,6 +14,7 @@ using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -27,6 +29,7 @@ using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using Windows.System.Power;
 using Windows.UI;
 using VirtualKey = Windows.System.VirtualKey;
 
@@ -57,7 +60,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly List<(Border Dot, uint Color)> _colorDots = [];
     private readonly List<(Border Dot, uint Color)> _solidColorDots = [];
     private Border? _customSolidColorDot;
+    private readonly List<(Border Dot, uint Color)> _mp3ShellDots = [];
+    private Border? _customMp3ShellDot;
+    private Color? _autoMp3ShellColor;
+    private int _autoMp3ShellRequest;
     private readonly CoverPaletteLoader _paletteLoader;
+    private readonly CoverPaletteLoader _mp3PaletteLoader;
     private Color? _autoSolidColor;
     private int _autoColorRequest;
     private readonly SolidColorBrush _solidBackgroundBrush = new(Color.FromArgb(0xFF, 0x0B, 0x12, 0x22));
@@ -72,8 +80,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly DispatcherQueueTimer _layoutTimer;
     private bool _layoutPending;
     private bool? _coverPlaying;
-    private bool? _coverVinyl;
+    private bool? _coverAnchored;
     private double _coverSize;
+    private Brush? _coverFrameBaseBackground;
+    private readonly SolidColorBrush _mp3SectorBrush = new(Color.FromArgb(0xFF, 0x1C, 0x21, 0x26));
+    private readonly SolidColorBrush _mp3SectorHoverBrush = new(Color.FromArgb(0xFF, 0x2A, 0x31, 0x38));
 
     /// <summary>换碟动画：上一次的封面图、当前图，以及连切时作废旧一轮的版本号。</summary>
     private ImageSource? _lastCoverImage;
@@ -85,6 +96,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private bool _vinylSpinning;
     private long _vinylSpinStarted;
     private readonly DispatcherQueueTimer _vinylTimer;
+    private readonly DispatcherQueueTimer _mp3ClockTimer;
 
     /// <summary>转速：20 秒一圈（18°/s）。真实黑胶 33⅓ 转/分在屏幕上看太快，这里取观感上的慢转。</summary>
     private const double VinylDegreesPerSecond = 18;
@@ -182,6 +194,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Comments = comments;
         Effects = effects;
         InitializeComponent();
+        // 随身听模式下要清掉封面槽底色，切回其它样式时得把它还原。
+        _coverFrameBaseBackground = CoverFrame.Background;
         // 纹路批量生成：28 道细圈挤在最外圈，手写 XAML 既冗长又改不动间距。
         for (var index = 0; index < VinylGrooveCount; index++)
         {
@@ -205,7 +219,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
             FontPicker.SelectedIndexProperty, OnLyricsFontPickerSelectionChanged);
         BuildColorPalette();
         BuildSolidColorPalette();
+        BuildMp3ShellPalette();
         _paletteLoader = new CoverPaletteLoader(
+            (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)?.CreateLogger<CoverPaletteLoader>());
+        // 外壳自动取色单独一份：与纯色背景同时开启时，两边的请求不会互相取消。
+        _mp3PaletteLoader = new CoverPaletteLoader(
             (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)?.CreateLogger<CoverPaletteLoader>());
         // 海报单独一份取色器：对话框里的请求不能取消歌词页正在进行的自动取色。
         _posterPaletteLoader = new CoverPaletteLoader(
@@ -232,6 +250,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _vinylTimer = DispatcherQueue.CreateTimer();
         _vinylTimer.Interval = TimeSpan.FromMilliseconds(16);
         _vinylTimer.Tick += OnVinylTimer;
+        // 播放器屏幕的状态栏：时钟每 30 秒对齐一次，电量跟着系统走。
+        _mp3ClockTimer = DispatcherQueue.CreateTimer();
+        _mp3ClockTimer.Interval = TimeSpan.FromSeconds(30);
+        _mp3ClockTimer.IsRepeating = true;
+        _mp3ClockTimer.Tick += OnMp3ClockTick;
         AddHandler(KeyDownEvent, new KeyEventHandler(OnChromeKeyDown), true);
         AddHandler(PointerEnteredEvent, new PointerEventHandler(OnPointerActivity), true);
         AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerActivity), true);
@@ -328,6 +351,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         SyncTranslation();
         _pointerTimer.Start();
         UpdatePointerLocation();
+        _mp3ClockTimer.Start();
+        UpdateMp3StatusBar();
         BeginCoverEntrance();
     }
 
@@ -470,6 +495,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _chromeTimer.Stop();
         _pointerTimer.Stop();
         _layoutTimer.Stop();
+        _mp3ClockTimer.Stop();
         _chromeTimer.Tick -= OnChromeTimer;
         _pointerTimer.Tick -= OnPointerTimer;
         _layoutTimer.Tick -= OnLayoutTimer;
@@ -671,6 +697,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         UpdateChromeInsets();
         UpdateCoverScale();
         UpdateVinylSpin();
+        // 首轮布局完成后 ActualWidth 才是真的，进度条要按真实宽度再补一次。
+        UpdateMp3Screen();
     }
 
     private void OnPlayerChanged(object? sender, PropertyChangedEventArgs args)
@@ -685,12 +713,20 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (args.PropertyName is nameof(PlayerViewModel.CurrentTrackId) or nameof(PlayerViewModel.CurrentCoverUri))
         {
             _ = RefreshSolidColorAsync();
+            _ = RefreshMp3ShellColorAsync();
         }
 
         if (args.PropertyName is nameof(PlayerViewModel.IsPlaying) or nameof(PlayerViewModel.IsSeekPending))
         {
             UpdateCoverScale();
             UpdateVinylSpin();
+        }
+        if (args.PropertyName is nameof(PlayerViewModel.Title) or nameof(PlayerViewModel.ArtistText)
+            or nameof(PlayerViewModel.CurrentTrackId) or nameof(PlayerViewModel.PositionSeconds)
+            or nameof(PlayerViewModel.DurationSeconds) or nameof(PlayerViewModel.Volume)
+            or nameof(PlayerViewModel.NextTrackTitle))
+        {
+            UpdateMp3Screen();
         }
         if (args.PropertyName == nameof(PlayerViewModel.CurrentTrackId))
         {
@@ -745,22 +781,83 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void UpdateCoverScale()
     {
         var size = CoverDeck.Width;
-        var vinyl = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl;
-        if (_coverPlaying == Player.IsPlaying && _coverSize == size && _coverVinyl == vinyl) return;
+        // 黑胶与随身听都是「一台摆在桌上的机器」，暂停时不缩；只有方形封面会轻微回缩。
+        var anchored = Lyrics.CoverStyle is LyricsCoverStyle.Vinyl or LyricsCoverStyle.Mp3;
+        if (_coverPlaying == Player.IsPlaying && _coverSize == size && _coverAnchored == anchored) return;
         _coverPlaying = Player.IsPlaying;
         _coverSize = size;
-        _coverVinyl = vinyl;
+        _coverAnchored = anchored;
         var visual = ElementCompositionPreview.GetElementVisual(CoverDeck);
         visual.CenterPoint = new Vector3((float)(size / 2), (float)(size / 2), 0);
         using var animation = visual.Compositor.CreateVector3KeyFrameAnimation();
-        // 暂停缩放只属于方形封面；黑胶缩放会把整台唱片机连带唱臂一起缩小。
-        var scale = vinyl || Player.IsPlaying ? 1 : 0.94f;
+        var scale = anchored || Player.IsPlaying ? 1 : 0.94f;
         animation.InsertKeyFrame(1, new Vector3(scale, scale, 1));
         animation.Duration = TimeSpan.FromMilliseconds(400);
         visual.StartAnimation("Scale", animation);
     }
 
-    /// <summary>切封面样式：方形卡片与黑胶唱片互斥显示，两者共用同一个 DetailCover。</summary>
+    /// <summary>把播放状态写进随身听的屏幕、进度条与音量轮。</summary>
+    private void UpdateMp3Screen()
+    {
+        if (Lyrics.CoverStyle != LyricsCoverStyle.Mp3) return;
+
+        Mp3TitleText.Text = Player.Title;
+        Mp3ArtistText.Text = Player.ArtistText;
+
+        var next = Player.NextTrackTitle;
+        Mp3NextText.Text = string.IsNullOrEmpty(next) ? "" : $"下一首 · {next}";
+        Mp3NextText.Visibility = string.IsNullOrEmpty(next) ? Visibility.Collapsed : Visibility.Visible;
+
+        var ratio = Math.Clamp(Player.PositionSeconds / Math.Max(1, Player.ProgressMaximum), 0, 1);
+        // 首轮布局前 ActualWidth 还是 0；屏幕内框宽 164，按它先画一版。
+        var width = Mp3ProgressTrack.ActualWidth;
+        if (!double.IsFinite(width) || width <= 0) width = 164;
+        Mp3ProgressFill.Width = Math.Round(width * ratio, 2);
+
+        Mp3ElapsedText.Text = Formats.Duration(TimeSpan.FromSeconds(Math.Max(0, Player.PositionSeconds)));
+        Mp3DurationText.Text = Formats.Duration(TimeSpan.FromSeconds(Math.Max(0, Player.DurationSeconds)));
+    }
+
+    private void OnMp3ClockTick(DispatcherQueueTimer sender, object args) => UpdateMp3StatusBar();
+
+    /// <summary>状态栏的时钟与电量；没有电池的机器按满格显示。</summary>
+    private void UpdateMp3StatusBar()
+    {
+        Mp3ClockText.Text = DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture);
+
+        var percent = 100;
+        try
+        {
+            percent = Math.Clamp(PowerManager.RemainingChargePercent, 0, 100);
+        }
+        catch
+        {
+            // 取不到电池信息时保持满格，不要留一个空图标。
+        }
+
+        Mp3BatteryFill.Width = Math.Max(1, 10 * percent / 100.0);
+        Mp3BatteryText.Text = $"{percent}%";
+    }
+
+    /// <summary>方向键上/下调音量，步长与播放条一致。</summary>
+    private void OnMp3VolumeUpClick(object sender, RoutedEventArgs e)
+        => Player.Volume = Math.Clamp(Player.Volume + 5, 0, 100);
+
+    private void OnMp3VolumeDownClick(object sender, RoutedEventArgs e)
+        => Player.Volume = Math.Clamp(Player.Volume - 5, 0, 100);
+
+    /// <summary>扇形键的悬停反馈：只换扇形填充，不加描边，避免破坏四等分的分割线。</summary>
+    private void OnMp3SectorEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Button { Content: Microsoft.UI.Xaml.Shapes.Path path }) path.Fill = _mp3SectorHoverBrush;
+    }
+
+    private void OnMp3SectorExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Button { Content: Microsoft.UI.Xaml.Shapes.Path path }) path.Fill = _mp3SectorBrush;
+    }
+
+    /// <summary>切封面样式：方形卡片、黑胶唱片与随身听三者互斥，共用同一个 DetailCover。</summary>
     /// <remarks>
     /// 不换图片实例、不隐藏 DetailCover —— 共享封面动画靠这个元素测量起点与落点。
     /// 黑胶模式下它缩成中心标签，飞入 / 飞出的圆角由 CoverFrame 的 CornerRadius 提供。
@@ -768,6 +865,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void ApplyCoverStyle()
     {
         var vinyl = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl;
+        var mp3 = Lyrics.CoverStyle == LyricsCoverStyle.Mp3;
         // 切样式时把换碟动画收干净：可能停在滑出 / 滑入的中途。
         _coverSwapVersion++;
         CoverSwapLabel.Visibility = Visibility.Collapsed;
@@ -777,7 +875,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         VinylDisc.Visibility = vinyl ? Visibility.Visible : Visibility.Collapsed;
         VinylSpindle.Visibility = vinyl ? Visibility.Visible : Visibility.Collapsed;
         TonearmHost.Visibility = vinyl ? Visibility.Visible : Visibility.Collapsed;
-        ReflectionView.Visibility = vinyl ? Visibility.Collapsed : Visibility.Visible;
+        ReflectionView.Visibility = vinyl || mp3 ? Visibility.Collapsed : Visibility.Visible;
+        Mp3DeviceBack.Visibility = mp3 ? Visibility.Visible : Visibility.Collapsed;
+        ApplyMp3ShellColor();
+        if (mp3 && Lyrics.Mp3ShellColorAuto) _ = RefreshMp3ShellColorAsync();
+        // 随身听的专辑图是屏幕里的缩略图，封面槽底色会从机身周围透出来，必须清掉。
+        if (!_entranceActive) CoverFrame.Background = mp3 ? null : _coverFrameBaseBackground;
 
         UpdateCoverStyleGeometry(CoverDeck.Width);
 
@@ -793,6 +896,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         // Loaded 时的 UpdateLayoutSizing 会按真实尺寸补一次。
         if (IsLoaded) UpdateCoverScale();
         UpdateVinylSpin();
+        UpdateMp3Screen();
     }
 
     /// <summary>按封面槽尺寸重算黑胶的圆盘、中心标签与唱臂几何；方形模式只把封面还原成铺满。</summary>
@@ -803,7 +907,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
         VinylSpinLayer.Width = VinylSpinLayer.Height = size;
         TonearmHost.Width = TonearmHost.Height = size;
 
+        // 机身按 320 设计稿画，整层等比缩放到封面槽；屏幕缩略图的分数坐标与它对得上。
+        var mp3Scale = size / 320.0;
+        Mp3DeviceBack.RenderTransform = new ScaleTransform { ScaleX = mp3Scale, ScaleY = mp3Scale };
+
         var vinyl = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl;
+        var mp3 = Lyrics.CoverStyle == LyricsCoverStyle.Mp3;
         // 放台比唱片大一圈；唱片再比封面槽小一圈，右上角留出枢轴，唱头才能既落在盘缘、又摆出盘外。
         var platter = Math.Round(size * 0.94);
         VinylPlatter.Width = VinylPlatter.Height = platter;
@@ -811,12 +920,45 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Canvas.SetTop(VinylPlatter, (size - platter) / 2);
         var disc = Math.Round(size * 0.88);
         VinylDiscBase.Width = VinylDiscBase.Height = disc;
-        // 两种模式共用 CoverFrame：方形铺满封面槽，黑胶缩成占盘面 56% 的中心标签。
-        var label = vinyl ? Math.Round(disc * 0.56) : size;
+        // 三种模式共用 CoverFrame：方形铺满封面槽，黑胶缩成中心标签，
+        // 播放器缩进屏幕左侧的 60×60 图位（320 槽位），位置与 Mp3DeviceBack 的屏幕几何对齐。
+        double label;
+        CornerRadius frameRadius;
+        if (mp3)
+        {
+            label = Math.Round(size * 0.1875);
+            frameRadius = new CornerRadius(Math.Round(label * 0.11));
+        }
+        else if (vinyl)
+        {
+            label = Math.Round(disc * 0.56);
+            frameRadius = new CornerRadius(label / 2);
+        }
+        else
+        {
+            label = size;
+            frameRadius = new CornerRadius(16);
+        }
+
         CoverFrame.Width = CoverFrame.Height = label;
-        CoverFrame.CornerRadius = new CornerRadius(vinyl ? label / 2 : 16);
+        CoverFrame.CornerRadius = frameRadius;
         CoverSwapLabel.Width = CoverSwapLabel.Height = label;
-        CoverSwapLabel.CornerRadius = new CornerRadius(vinyl ? label / 2 : 16);
+        CoverSwapLabel.CornerRadius = frameRadius;
+
+        // CoverFrame 是 Grid 子元素：播放器要挪到屏幕左侧图位，其余两种必须回正居中。
+        if (mp3)
+        {
+            CoverFrame.HorizontalAlignment = HorizontalAlignment.Left;
+            CoverFrame.VerticalAlignment = VerticalAlignment.Top;
+            CoverFrame.Margin = new Thickness(
+                Math.Round(size * 0.25625), Math.Round(size * 0.15625), 0, 0);
+        }
+        else
+        {
+            CoverFrame.HorizontalAlignment = HorizontalAlignment.Center;
+            CoverFrame.VerticalAlignment = VerticalAlignment.Center;
+            CoverFrame.Margin = new Thickness(0);
+        }
 
         for (var index = 0; index < _vinylGrooves.Count; index++)
         {
@@ -1686,6 +1828,233 @@ public sealed partial class LyricsPage : Page, INavigationAware
         }
     }
 
+    /// <summary>播放器外壳的预设色板，与纯色背景共用同一组深色。</summary>
+    private void BuildMp3ShellPalette()
+    {
+        foreach (var (argb, name) in LyricsSettings.BackgroundPalette)
+        {
+            var value = argb;
+            var dot = new Border
+            {
+                Width = 18,
+                Height = 18,
+                CornerRadius = new CornerRadius(9),
+                Background = new SolidColorBrush(ToColor(value)),
+                VerticalAlignment = VerticalAlignment.Center,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, 0x80, 0x80, 0x80)),
+                BorderThickness = new Thickness(1),
+            };
+
+            var button = new Button
+            {
+                Content = dot,
+                Width = 28,
+                Height = 28,
+                MinWidth = 0,
+                Padding = new Thickness(5),
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
+            };
+            button.Click += (_, _) => Lyrics.SetMp3ShellColor(value, auto: false);
+            ToolTipService.SetToolTip(button, name);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"外壳颜色：{name}");
+            _mp3ShellDots.Add((dot, value));
+            Mp3ShellPalette.Children.Add(button);
+        }
+
+        _customMp3ShellDot = new Border
+        {
+            Width = 18,
+            Height = 18,
+            CornerRadius = new CornerRadius(9),
+            Background = new SolidColorBrush(ToColor(Lyrics.Mp3ShellCustomColorArgb)),
+            VerticalAlignment = VerticalAlignment.Center,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+        };
+
+        var applyButton = new Button
+        {
+            Content = _customMp3ShellDot,
+            Width = 28,
+            Height = 28,
+            MinWidth = 0,
+            Padding = new Thickness(5),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(14),
+            Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
+        };
+        applyButton.Click += (_, _) => Lyrics.SetMp3ShellColor(Lyrics.Mp3ShellCustomColorArgb, auto: false);
+        ToolTipService.SetToolTip(applyButton, "应用自定义颜色");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(applyButton, "应用自定义外壳颜色");
+
+        var pencilButton = new Button
+        {
+            Width = 14,
+            Height = 14,
+            MinWidth = 0,
+            Padding = new Thickness(0),
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(7),
+            Background = new SolidColorBrush(Color.FromArgb(0xC0, 0, 0, 0)),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Content = new Icon
+            {
+                Data = ResourceIcon("IconEdit"),
+                Size = 7,
+                Foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)),
+            },
+        };
+        pencilButton.Click += (_, _) => _ = OpenMp3ShellColorDialogAsync();
+        ToolTipService.SetToolTip(pencilButton, "编辑自定义颜色");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pencilButton, "编辑自定义外壳颜色");
+
+        var customCell = new Grid { Width = 28, Height = 28 };
+        customCell.Children.Add(applyButton);
+        customCell.Children.Add(pencilButton);
+        Mp3ShellPalette.Children.Add(customCell);
+    }
+
+    private void UpdateMp3ShellSelection()
+    {
+        foreach (var (dot, argb) in _mp3ShellDots)
+        {
+            var selected = !Lyrics.Mp3ShellColorAuto && Lyrics.Mp3ShellColorArgb == argb;
+            dot.BorderBrush = new SolidColorBrush(selected
+                ? Color.FromArgb(0xFF, 0x00, 0xD9, 0xA0)
+                : Color.FromArgb(0x66, 0x80, 0x80, 0x80));
+            dot.BorderThickness = new Thickness(selected ? 2 : 1);
+        }
+
+        if (_customMp3ShellDot is { } custom)
+        {
+            custom.Background = new SolidColorBrush(ToColor(Lyrics.Mp3ShellCustomColorArgb));
+            var selected = !Lyrics.Mp3ShellColorAuto
+                && Lyrics.Mp3ShellColorArgb == Lyrics.Mp3ShellCustomColorArgb;
+            custom.BorderBrush = new SolidColorBrush(selected
+                ? Color.FromArgb(0xFF, 0x00, 0xD9, 0xA0)
+                : Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
+            custom.BorderThickness = new Thickness(selected ? 2 : 1);
+        }
+    }
+
+    /// <summary>外壳当前实际使用的颜色：自动模式下取封面派生色。</summary>
+    private Color Mp3ShellDisplayColor
+        => Lyrics.Mp3ShellColorAuto && _autoMp3ShellColor is { } auto
+            ? auto
+            : ToColor(Lyrics.Mp3ShellColorArgb);
+
+    /// <summary>把外壳颜色铺成上亮下暗的哑光渐变，扇形键跟着壳体取一层更浅的填充。</summary>
+    private void ApplyMp3ShellColor()
+    {
+        var baseColor = Mp3ShellDisplayColor;
+        Mp3Shell.Background = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+            GradientStops =
+            {
+                new GradientStop { Color = Mix(baseColor, Colors.White, 0.14), Offset = 0 },
+                new GradientStop { Color = Mix(baseColor, Colors.White, 0.04), Offset = 0.55 },
+                new GradientStop { Color = Mix(baseColor, Colors.Black, 0.30), Offset = 1 },
+            },
+        };
+        Mp3Shell.BorderBrush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+            GradientStops =
+            {
+                new GradientStop { Color = Mix(baseColor, Colors.White, 0.38), Offset = 0 },
+                new GradientStop { Color = Mix(baseColor, Colors.White, 0.12), Offset = 0.35 },
+                new GradientStop { Color = Mix(baseColor, Colors.Black, 0.12), Offset = 1 },
+            },
+        };
+
+        _mp3SectorBrush.Color = Mix(baseColor, Colors.White, 0.05);
+        _mp3SectorHoverBrush.Color = Mix(baseColor, Colors.White, 0.14);
+        foreach (var button in new[] { Mp3UpButton, Mp3DownButton, Mp3PreviousButton, Mp3NextButton })
+        {
+            if (button.Content is Microsoft.UI.Xaml.Shapes.Path path) path.Fill = _mp3SectorBrush;
+        }
+    }
+
+    private static Color Mix(Color from, Color to, double amount)
+    {
+        amount = Math.Clamp(amount, 0, 1);
+        return Color.FromArgb(0xFF,
+            (byte)Math.Round(from.R + ((to.R - from.R) * amount)),
+            (byte)Math.Round(from.G + ((to.G - from.G) * amount)),
+            (byte)Math.Round(from.B + ((to.B - from.B) * amount)));
+    }
+
+    /// <summary>外壳跟随封面取色：与纯色背景同一条取色管线，同样固定取深色。</summary>
+    private async Task RefreshMp3ShellColorAsync()
+    {
+        if (Lyrics.CoverStyle != LyricsCoverStyle.Mp3 || !Lyrics.Mp3ShellColorAuto)
+        {
+            return;
+        }
+
+        var request = ++_autoMp3ShellRequest;
+        var seeds = await _mp3PaletteLoader.LoadAsync(Player.CurrentTrackId ?? 0, Player.CurrentCoverUri);
+
+        if (request != _autoMp3ShellRequest
+            || Lyrics.CoverStyle != LyricsCoverStyle.Mp3
+            || !Lyrics.Mp3ShellColorAuto)
+        {
+            return;
+        }
+
+        var dark = ColorPalette.SolidBackground(seeds, AmbientTheme.Dark);
+        _autoMp3ShellColor = Color.FromArgb(255, dark.R, dark.G, dark.B);
+        ApplyMp3ShellColor();
+        if (_appearanceOpen) SyncAppearanceControls();
+    }
+
+    private void OnMp3ShellAutoToggled(object sender, RoutedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetMp3ShellColorAuto(Mp3ShellAutoToggle.IsOn);
+    }
+
+    private async Task OpenMp3ShellColorDialogAsync()
+    {
+        if (!_appearanceOpen) return;
+
+        var current = ToColor(Lyrics.Mp3ShellCustomColorArgb);
+        var preview = new Border
+        {
+            Height = 120,
+            CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(current),
+        };
+        preview.Child = new TextBlock
+        {
+            Text = "外壳颜色预览",
+            FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+        };
+
+        var chosen = await ColorPickerDialog.ShowAsync(
+            current,
+            XamlRoot,
+            _themeRoot?.ActualTheme ?? ElementTheme.Default,
+            preview,
+            color => preview.Background = new SolidColorBrush(color),
+            _ => "外壳会按这个颜色生成上亮下暗的哑光渐变",
+            _logger);
+
+        if (chosen is { } argb)
+        {
+            Lyrics.SetMp3ShellCustomColor(argb);
+        }
+    }
+
     /// <summary>把 ViewModel 的当前值回填到面板控件；回填期间不反向写设置。</summary>
     private void SyncAppearanceControls()
     {
@@ -1696,7 +2065,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
             TranslationSettingsPanel.Visibility = Lyrics.HasTranslation
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            LyricsCoverStyleCombo.SelectedIndex = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl ? 1 : 0;
+            LyricsCoverStyleCombo.SelectedIndex = Lyrics.CoverStyle switch
+            {
+                LyricsCoverStyle.Vinyl => 1,
+                LyricsCoverStyle.Mp3 => 2,
+                _ => 0,
+            };
             LyricsBackgroundMicaItem.IsEnabled = MainWindow.IsMicaSupported;
             LyricsBackgroundMicaItem.Content = MainWindow.IsMicaSupported ? "Mica" : "Mica（需要 Windows 11）";
             LyricsBackgroundCombo.SelectedIndex = Lyrics.BackgroundMode switch
@@ -1732,6 +2106,15 @@ public sealed partial class LyricsPage : Page, INavigationAware
                 ? $"跟随封面 · #{displayColor.R:X2}{displayColor.G:X2}{displayColor.B:X2}"
                 : $"#{displayColor.R:X2}{displayColor.G:X2}{displayColor.B:X2}";
             UpdateSolidColorSelection();
+            Mp3ShellColorPanel.Visibility = Lyrics.CoverStyle == LyricsCoverStyle.Mp3
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            Mp3ShellAutoToggle.IsOn = Lyrics.Mp3ShellColorAuto;
+            var mp3ShellColor = Mp3ShellDisplayColor;
+            Mp3ShellHex.Text = Lyrics.Mp3ShellColorAuto
+                ? $"跟随封面 · #{mp3ShellColor.R:X2}{mp3ShellColor.G:X2}{mp3ShellColor.B:X2}"
+                : $"#{mp3ShellColor.R:X2}{mp3ShellColor.G:X2}{mp3ShellColor.B:X2}";
+            UpdateMp3ShellSelection();
             LyricsFontSizeSlider.Value = Lyrics.FontSize;
             LyricsFontSizeValue.Text = ((int)Math.Round(Lyrics.FontSize)).ToString();
             LyricsLineGapSlider.Value = Lyrics.LineGap;
@@ -1767,9 +2150,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private void OnLyricsCoverStyleSelectionChanged(object sender, SelectionChangedEventArgs args)
     {
         if (_syncingAppearance || !_appearanceOpen) return;
-        Lyrics.SetCoverStyle(LyricsCoverStyleCombo.SelectedIndex == 1
-            ? LyricsCoverStyle.Vinyl
-            : LyricsCoverStyle.Cover);
+        Lyrics.SetCoverStyle(LyricsCoverStyleCombo.SelectedIndex switch
+        {
+            1 => LyricsCoverStyle.Vinyl,
+            2 => LyricsCoverStyle.Mp3,
+            _ => LyricsCoverStyle.Cover,
+        });
     }
 
     private async void OnLyricsBackgroundSelectionChanged(object sender, SelectionChangedEventArgs args)
@@ -2259,6 +2645,20 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (args.PropertyName == nameof(LyricsViewModel.CoverStyle))
         {
             ApplyCoverStyle();
+            if (_appearanceOpen) SyncAppearanceControls();
+            return;
+        }
+
+        if (args.PropertyName is nameof(LyricsViewModel.Mp3ShellColorArgb)
+            or nameof(LyricsViewModel.Mp3ShellCustomColorArgb)
+            or nameof(LyricsViewModel.Mp3ShellColorAuto))
+        {
+            if (Lyrics.CoverStyle == LyricsCoverStyle.Mp3 && Lyrics.Mp3ShellColorAuto)
+            {
+                _ = RefreshMp3ShellColorAsync();
+            }
+
+            ApplyMp3ShellColor();
             if (_appearanceOpen) SyncAppearanceControls();
             return;
         }

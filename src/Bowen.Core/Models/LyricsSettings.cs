@@ -21,6 +21,9 @@ public enum LyricsCoverStyle
 
     /// <summary>黑胶唱片：圆盘、纹路、中心标签与唱臂。</summary>
     Vinyl = 1,
+
+    /// <summary>极简播放器：上方屏幕，下方方向键与中央播放键。</summary>
+    Mp3 = 2,
 }
 
 /// <summary>全屏歌词页的背景来源。</summary>
@@ -195,6 +198,9 @@ public sealed record LyricsSettings
     /// <summary>默认纯色背景：深蓝，够暗且能看出颜色。</summary>
     public const uint DefaultBackgroundColor = 0xFF24324A;
 
+    /// <summary>播放器外壳的默认颜色：石墨。</summary>
+    public const uint DefaultMp3ShellColor = 0xFF2B2B31;
+
     /// <summary>
     /// 纯色背景的预设。压到低亮度保证白色歌词可读，但保留明显的色相差异。
     /// </summary>
@@ -299,6 +305,15 @@ public sealed record LyricsSettings
 
     /// <summary>纯色背景是否跟随当前封面自动取色。</summary>
     public bool BackgroundColorAuto { get; init; }
+
+    /// <summary>播放器外壳的颜色，<c>0xAARRGGBB</c>。</summary>
+    public uint Mp3ShellColorArgb { get; init; } = DefaultMp3ShellColor;
+
+    /// <summary>自定义外壳色最近一次选的颜色。</summary>
+    public uint Mp3ShellCustomColorArgb { get; init; } = DefaultMp3ShellColor;
+
+    /// <summary>播放器外壳是否跟随当前封面自动取色。</summary>
+    public bool Mp3ShellColorAuto { get; init; }
 
     /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
@@ -407,5 +422,14 @@ public sealed record LyricsSettings
         BackgroundCustomColorArgb = BackgroundCustomColorArgb == 0
             ? DefaultBackgroundColor
             : BackgroundCustomColorArgb | 0xFF000000,
+
+        // 外壳颜色同样只接受不透明值。
+        Mp3ShellColorArgb = Mp3ShellColorArgb == 0
+            ? DefaultMp3ShellColor
+            : Mp3ShellColorArgb | 0xFF000000,
+
+        Mp3ShellCustomColorArgb = Mp3ShellCustomColorArgb == 0
+            ? DefaultMp3ShellColor
+            : Mp3ShellCustomColorArgb | 0xFF000000,
     };
 }

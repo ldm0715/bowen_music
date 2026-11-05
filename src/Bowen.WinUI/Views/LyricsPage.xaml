@@ -61,6 +61,84 @@
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
             <Setter Property="Background" Value="Transparent" />
         </Style>
+
+        <!--
+            极简键：一颗细线圆键，平时只有一圈描边，悬停提亮、按下压暗。
+            背景与描边都走模板绑定，播放键可以单独填成浅色实心，成为画面唯一的焦点。
+        -->
+        <Style x:Key="Mp3KeyButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="#3A424A" />
+            <Setter Property="Foreground" Value="#C8CDD3" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root" Background="Transparent">
+                            <Border x:Name="Key" CornerRadius="{TemplateBinding CornerRadius}" BorderThickness="1"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Key.BorderBrush">
+                                                <Setter.Value>
+                                                    <SolidColorBrush Color="#8A949E" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Key.Opacity" Value="0.7" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Opacity" Value="0.35" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            方向键扇形：四块扇形叠在同一个 136 圆里，各自的 Path 决定外观与命中区域。
+            模板根节点不能有背景，否则每块都会盖住整个圆、互相挡住点击。
+        -->
+        <Style x:Key="Mp3SectorButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="136" />
+            <Setter Property="Height" Value="136" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter x:Name="SectorContent"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Page.Resources>
 
     <VisualStateManager.VisualStateGroups>
@@ -215,6 +293,173 @@
                     -->
                     <Ellipse x:Name="VinylPlatter" Fill="#19191C" Stroke="#1FFFFFFF" StrokeThickness="1"
                         Visibility="Collapsed" />
+                    <!--
+                        机身与按键压在 DetailCover 之下：屏幕里的专辑图仍然是 DetailCover，
+                        共享封面动画的落点不用另起一张图。
+                    -->
+                    <Canvas x:Name="Mp3DeviceBack" Width="320" Height="320" Visibility="Collapsed">
+                        <!-- 落在桌面上的投影 -->
+                        <Rectangle Width="196" Height="22" Canvas.Left="62" Canvas.Top="288" RadiusX="11" RadiusY="11"
+                            IsHitTestVisible="False">
+                            <Rectangle.Fill>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#99000000" Offset="0" />
+                                    <GradientStop Color="#00000000" Offset="1" />
+                                </RadialGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Grid Canvas.Left="48" Canvas.Top="16" Width="224" Height="288" IsHitTestVisible="False">
+                            <!-- 哑光机身：一整块干净的圆角面，只有一圈极细的亮边 -->
+                            <Border x:Name="Mp3Shell" CornerRadius="26" BorderThickness="1">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#22262C" Offset="0" />
+                                        <GradientStop Color="#171A1E" Offset="0.55" />
+                                        <GradientStop Color="#111317" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Border.BorderBrush>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#4A525C" Offset="0" />
+                                        <GradientStop Color="#242A31" Offset="0.35" />
+                                        <GradientStop Color="#1B1F24" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.BorderBrush>
+                            </Border>
+                            <!-- 屏幕：上置的宽屏面板，纯平面板，不做玻璃与内凹 -->
+                            <Grid Width="184" Height="120" Margin="20,10,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <Border CornerRadius="10" Background="#0B0D10" BorderBrush="#272D34" BorderThickness="1" />
+                                <Grid Margin="10">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="14" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <!-- 状态栏：左电量、右时钟 -->
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <Grid Width="16" Height="8" VerticalAlignment="Center">
+                                                <Rectangle Width="14" Height="8" RadiusX="2" RadiusY="2"
+                                                    Stroke="#6F7983" StrokeThickness="1" HorizontalAlignment="Left" />
+                                                <Rectangle x:Name="Mp3BatteryFill" Width="7" Height="4"
+                                                    RadiusX="1" RadiusY="1" Fill="#C9D6E2"
+                                                    HorizontalAlignment="Left" Margin="3,0,0,0" />
+                                                <Rectangle Width="2" Height="4" RadiusX="1" RadiusY="1"
+                                                    Fill="#6F7983" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock x:Name="Mp3BatteryText" FontSize="8" Foreground="#6F7983"
+                                                VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock x:Name="Mp3ClockText" FontSize="9" Foreground="#6F7983"
+                                            HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <!-- 主信息：封面在左，曲名、歌手、下一首在右；整块水平居中 -->
+                                    <Grid Grid.Row="1" HorizontalAlignment="Center" ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="60" />
+                                            <ColumnDefinition Width="86" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="60" Height="60" CornerRadius="7" VerticalAlignment="Top"
+                                            Background="#14181D" BorderBrush="#232A31" BorderThickness="1" />
+                                        <StackPanel Grid.Column="1" Spacing="3">
+                                            <TextBlock x:Name="Mp3TitleText" FontSize="12" Foreground="#E3E9F0"
+                                                TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" />
+                                            <TextBlock x:Name="Mp3ArtistText" FontSize="9" Foreground="#8A939C"
+                                                TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                            <TextBlock x:Name="Mp3NextText" FontSize="8" Foreground="#6B757E"
+                                                TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <!-- 进度 -->
+                                    <Grid x:Name="Mp3ProgressTrack" Grid.Row="2" Height="2" Margin="0,6,0,0">
+                                        <Rectangle Height="2" Fill="#232A31" />
+                                        <Rectangle x:Name="Mp3ProgressFill" Width="0" Height="2"
+                                            HorizontalAlignment="Left" Fill="#C9D6E2" />
+                                    </Grid>
+                                    <!-- 已播 / 总时长 -->
+                                    <Grid Grid.Row="3" Margin="0,4,0,0">
+                                        <TextBlock x:Name="Mp3ElapsedText" FontSize="8" Foreground="#5C666F" />
+                                        <TextBlock x:Name="Mp3DurationText" FontSize="8" Foreground="#5C666F"
+                                            HorizontalAlignment="Right" />
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                        <!--
+                            方向键：一个完整的圆切成四块 90° 扇形，每块是一个独立按钮。
+                            扇形之间不留楔形空隙，改用等宽的分割线切过去，看起来才像「圆被切开」；
+                            分割线和内外圈都画在按钮之上，且不参与命中。
+                        -->
+                        <Button x:Name="Mp3UpButton" Canvas.Left="92" Canvas.Top="156" Style="{StaticResource Mp3SectorButtonStyle}"
+                            Click="OnMp3VolumeUpClick" PointerEntered="OnMp3SectorEntered" PointerExited="OnMp3SectorExited"
+                            AutomationProperties.Name="音量加" ToolTipService.ToolTip="音量加">
+                            <Path Data="M44,44 L20,20 A68,68 0 0 1 116,20 L92,44 A34,34 0 0 0 44,44 Z" Fill="#1C2126" />
+                        </Button>
+                        <Button x:Name="Mp3DownButton" Canvas.Left="92" Canvas.Top="156" Style="{StaticResource Mp3SectorButtonStyle}"
+                            Click="OnMp3VolumeDownClick" PointerEntered="OnMp3SectorEntered" PointerExited="OnMp3SectorExited"
+                            AutomationProperties.Name="音量减" ToolTipService.ToolTip="音量减">
+                            <Path Data="M92,92 L116,116 A68,68 0 0 1 20,116 L44,92 A34,34 0 0 0 92,92 Z" Fill="#1C2126" />
+                        </Button>
+                        <Button x:Name="Mp3PreviousButton" Canvas.Left="92" Canvas.Top="156" Style="{StaticResource Mp3SectorButtonStyle}"
+                            Command="{x:Bind Player.PreviousCommand}" IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}"
+                            PointerEntered="OnMp3SectorEntered" PointerExited="OnMp3SectorExited"
+                            AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
+                            <Path Data="M44,92 L20,116 A68,68 0 0 1 20,20 L44,44 A34,34 0 0 0 44,92 Z" Fill="#1C2126" />
+                        </Button>
+                        <Button x:Name="Mp3NextButton" Canvas.Left="92" Canvas.Top="156" Style="{StaticResource Mp3SectorButtonStyle}"
+                            Command="{x:Bind Player.NextCommand}" IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}"
+                            PointerEntered="OnMp3SectorEntered" PointerExited="OnMp3SectorExited"
+                            AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
+                            <Path Data="M92,44 L116,20 A68,68 0 0 1 116,116 L92,92 A34,34 0 0 0 92,44 Z" Fill="#1C2126" />
+                        </Button>
+                        <!--
+                            四条分割线：四块扇形按 90° 均分，分界线在对角线上（45° / 135° / 225° / 315°），
+                            不是正上正下。线从内圈半径 34 画到外圈半径 68，只做视觉，不参与命中。
+                        -->
+                        <Line X1="136" Y1="200" X2="112" Y2="176" Stroke="#0F1216" StrokeThickness="2" IsHitTestVisible="False" />
+                        <Line X1="184" Y1="200" X2="208" Y2="176" Stroke="#0F1216" StrokeThickness="2" IsHitTestVisible="False" />
+                        <Line X1="136" Y1="248" X2="112" Y2="272" Stroke="#0F1216" StrokeThickness="2" IsHitTestVisible="False" />
+                        <Line X1="184" Y1="248" X2="208" Y2="272" Stroke="#0F1216" StrokeThickness="2" IsHitTestVisible="False" />
+                        <Ellipse Canvas.Left="92" Canvas.Top="156" Width="136" Height="136"
+                            Stroke="#2A3138" StrokeThickness="1" IsHitTestVisible="False" />
+                        <Ellipse Canvas.Left="126" Canvas.Top="190" Width="68" Height="68"
+                            Stroke="#2A3138" StrokeThickness="1" IsHitTestVisible="False" />
+                        <!-- 方向图标：纯装饰，不参与命中 -->
+                        <controls:Icon Canvas.Left="152" Canvas.Top="165" Data="{StaticResource IconChevronDown}" Size="16"
+                            IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                            <controls:Icon.RenderTransform>
+                                <RotateTransform Angle="180" />
+                            </controls:Icon.RenderTransform>
+                        </controls:Icon>
+                        <controls:Icon Canvas.Left="152" Canvas.Top="267" Data="{StaticResource IconChevronDown}" Size="16"
+                            IsHitTestVisible="False" />
+                        <controls:Icon Canvas.Left="101" Canvas.Top="216" Data="{StaticResource IconChevronDown}" Size="16"
+                            IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                            <controls:Icon.RenderTransform>
+                                <RotateTransform Angle="90" />
+                            </controls:Icon.RenderTransform>
+                        </controls:Icon>
+                        <controls:Icon Canvas.Left="203" Canvas.Top="216" Data="{StaticResource IconChevronDown}" Size="16"
+                            IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                            <controls:Icon.RenderTransform>
+                                <RotateTransform Angle="270" />
+                            </controls:Icon.RenderTransform>
+                        </controls:Icon>
+                        <Button x:Name="Mp3PlayButton" Canvas.Left="134" Canvas.Top="198" Width="52" Height="52" CornerRadius="26"
+                            Style="{StaticResource Mp3KeyButtonStyle}" Command="{x:Bind Player.TogglePlayPauseCommand}"
+                            IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                            Background="#ECEFF3" BorderBrush="#00000000" Foreground="#101317"
+                            AutomationProperties.Name="播放或暂停" ToolTipService.ToolTip="播放或暂停 (Space)">
+                            <Grid>
+                                <controls:Icon Size="22" Data="{StaticResource IconPlay}"
+                                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsPlaying), Mode=OneWay}" />
+                                <controls:Icon Size="22" Data="{StaticResource IconPause}"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsPlaying), Mode=OneWay}" />
+                            </Grid>
+                        </Button>
+                    </Canvas>
                     <!-- 换碟滑动只裁这块区域：滑出去的唱片不会压到窗口左侧，倒影和唱臂不受影响。 -->
                     <Grid x:Name="VinylClipHost" Width="320" Height="320" controls:Motion.ClipToBounds="True">
                     <Grid x:Name="VinylSpinLayer" Width="320" Height="320">
@@ -725,8 +970,33 @@
                                     AutomationProperties.Name="歌词页封面样式">
                                     <ComboBoxItem Content="方形封面" />
                                     <ComboBoxItem Content="黑胶唱片" />
+                                    <ComboBoxItem Content="极简播放器" />
                                 </ComboBox>
                             </Grid>
+
+                            <!-- 播放器外壳颜色：只在「极简播放器」样式下显示 -->
+                            <StackPanel x:Name="Mp3ShellColorPanel" Spacing="8" Visibility="Collapsed">
+                                <TextBlock Text="外壳颜色" Style="{StaticResource LyricsSectionTitleStyle}" />
+                                <StackPanel x:Name="Mp3ShellPalette" Orientation="Horizontal" Spacing="6"
+                                    HorizontalAlignment="Center" Margin="0,4,0,0" />
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="跟随封面" FontSize="{StaticResource FontSizeBody}"
+                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock Text="按当前封面自动取暗色" FontSize="{StaticResource FontSizeCaption}"
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="Mp3ShellAutoToggle" Grid.Column="1"
+                                        MinWidth="0" OffContent="" OnContent=""
+                                        Toggled="OnMp3ShellAutoToggled" AutomationProperties.Name="外壳颜色跟随封面自动取色" />
+                                </Grid>
+                                <TextBlock x:Name="Mp3ShellHex" FontSize="{StaticResource FontSizeCaption}"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
 
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>
