@@ -175,7 +175,7 @@ public sealed partial class TrackActionsMenu : UserControl
             return;
         }
 
-        // 失败时留着菜单：错误就显示在这个面板里，关掉用户就看不见了。
+        // 成败都关菜单：提示统一走全局通知条，菜单不关会把那条盖在弹层下面。
         if (await viewModel.AddToPlaylistAsync(playlist))
         {
             Close();

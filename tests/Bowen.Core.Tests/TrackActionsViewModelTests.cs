@@ -1,3 +1,4 @@
+using Bowen.Core.Api;
 using Bowen.Core.Models;
 using Bowen.Core.Services;
 using Bowen.Core.Services.Abstractions;
@@ -594,9 +595,9 @@ public sealed class TrackActionsViewModelTests
         Assert.Equal("已加入「通勤」", notices.Last);
     }
 
-    /// <summary>写失败时菜单不能关：错误就显示在这个面板里，关掉用户就看不见了。</summary>
+    /// <summary>写失败也要关菜单，提示走全局通知条 —— 留在弹层里会被盖住。</summary>
     [Fact]
-    public async Task AddToPlaylist_KeepsThePanelOpenWithTheReason()
+    public async Task AddToPlaylist_ClosesTheMenuAndReportsFailureGlobally()
     {
         var api = new PlaybackApiStub
         {
@@ -605,11 +606,30 @@ public sealed class TrackActionsViewModelTests
         var notices = new Notices();
         var viewModel = new TrackActionsViewModel(Track(7), api, new Navigator(), notices);
 
-        var succeeded = await viewModel.AddToPlaylistAsync(new Playlist { Id = 5, Name = "通勤" }, Ct);
+        var handled = await viewModel.AddToPlaylistAsync(new Playlist { Id = 5, Name = "通勤" }, Ct);
 
-        Assert.False(succeeded);
-        Assert.Equal("加入歌单失败，请稍后再试。", viewModel.PlaylistError);
-        Assert.Equal("", notices.Last);
+        Assert.True(handled);
+        Assert.Equal("加入「通勤」失败，请稍后再试。", notices.Last);
+        Assert.Equal(NoticeSeverity.Error, notices.LastSeverity);
+        Assert.False(viewModel.HasPlaylistError);
+    }
+
+    /// <summary>服务端给了原因就用它，不再退回「请稍后再试」。</summary>
+    [Fact]
+    public async Task AddToPlaylist_PrefersTheServersReason()
+    {
+        var api = new PlaybackApiStub
+        {
+            AddPlaylistMusic = (_, _, _) => throw new BodianApiException(
+                BodianErrorCode.Unknown, 20005, "service/playlist/music", "歌曲已存在于歌单中", null),
+        };
+        var notices = new Notices();
+        var viewModel = new TrackActionsViewModel(Track(7), api, new Navigator(), notices);
+
+        await viewModel.AddToPlaylistAsync(new Playlist { Id = 5, Name = "通勤" }, Ct);
+
+        Assert.Equal("加入「通勤」失败：歌曲已存在于歌单中", notices.Last);
+        Assert.Equal(NoticeSeverity.Error, notices.LastSeverity);
     }
 
     [Fact]

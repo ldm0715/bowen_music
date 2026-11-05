@@ -1,3 +1,5 @@
+using Bowen.Core.Api;
+using Bowen.Core.Diagnostics;
 using Bowen.Core.Models;
 using Bowen.Core.Services;
 using Bowen.WinUI.Services;
@@ -13,12 +15,13 @@ namespace Bowen.WinUI.Controls;
 /// <para>
 /// <b>为什么是对话框而不是浮动面板</b>：行尾「更多」用的是 Flyout，因为它挂在会被回收的行容器里
 /// （二级弹层在那种位置定位不可靠，见 <see cref="TrackMoreButton"/>）。工具栏在页面顶层，没有这个约束；
-/// 而「选一个目标 + 看进度 + 看失败原因」是一屏级的决策，对话框能给它一个稳定的宿主。
+/// 而「选一个目标 + 看进度」是一屏级的决策，对话框能给它一个稳定的宿主；结果交给全局通知条。
 /// </para>
 /// <para>
-/// <b>写入过程中不关窗</b>：失败原因与「已取消，成功 N 首」这类结果要留在面板里。
-/// 关闭由外壳的按钮驱动，写入时点「取消」是取消写入而不是关窗，见
-/// <see cref="CancelWrite"/> 与 <c>TrackListToolbar</c> 里的 Closing 处理。
+/// <b>写入过程中不关窗，写完就关</b>：进度要留在面板里看；成败结果统一交给全局通知条，
+/// 不再画在对话框底部 —— 那里的文案容易被当成一张普通说明，位置也在视线之外。
+/// 写入时点「取消」是取消写入而不是关窗，见 <see cref="CancelWrite"/> 与
+/// <c>TrackListToolbar</c> 里的 Closing 处理。
 /// </para>
 /// </remarks>
 public sealed partial class BatchPlaylistPicker : UserControl
@@ -86,7 +89,10 @@ public sealed partial class BatchPlaylistPicker : UserControl
     /// <summary>
     /// 把选中的歌单写进去。
     /// </summary>
-    /// <returns>全部成功返回 <c>true</c>，外壳据此关窗；其余情况返回 <c>false</c>，错误留在面板里。</returns>
+    /// <returns>
+    /// 发起过写入就返回 <c>true</c>，外壳据此关窗 —— 结果由全局通知条呈现。
+    /// 没有可提交的内容（没选歌单、没有曲目）才返回 <c>false</c>。
+    /// </returns>
     public async Task<bool> CommitAsync()
     {
         if (_actions is not { } actions || SelectedPlaylist is not { } playlist || _tracks.Count == 0)
@@ -110,30 +116,36 @@ public sealed partial class BatchPlaylistPicker : UserControl
 
             if (result.Canceled)
             {
-                ShowMessage($"已取消，成功加入 {result.Succeeded} 首。");
-                return false;
+                actions.ShowNotice($"已取消，成功加入 {result.Succeeded} 首。", NoticeSeverity.Informational);
             }
-
-            if (result.Failed > 0)
+            else if (result.Failed > 0)
             {
-                ShowMessage($"成功加入 {result.Succeeded} 首，{result.Failed} 首失败。");
-                return false;
+                actions.ShowNotice(DescribeFailure(playlist, result), NoticeSeverity.Error);
+            }
+            else
+            {
+                actions.ShowNotice($"已加入「{playlist.Name}」{result.Succeeded} 首", NoticeSeverity.Success);
             }
 
-            actions.ShowNotice($"已加入「{playlist.Name}」{result.Succeeded} 首", NoticeSeverity.Success);
             return true;
         }
         catch (InvalidOperationException)
         {
             WritePanel.Visibility = Visibility.Collapsed;
-            ShowMessage("登录后可以添加到歌单。");
-            return false;
+            actions.ShowNotice("登录后可以添加到歌单。", NoticeSeverity.Error);
+            return true;
+        }
+        catch (BodianApiException ex)
+        {
+            WritePanel.Visibility = Visibility.Collapsed;
+            actions.ShowNotice(DescribeFailure(playlist.Name, ex.ServerMessage), NoticeSeverity.Error);
+            return true;
         }
         catch (Exception)
         {
             WritePanel.Visibility = Visibility.Collapsed;
-            ShowMessage("加入歌单失败，请稍后再试。");
-            return false;
+            actions.ShowNotice($"加入「{playlist.Name}」失败，请稍后再试。", NoticeSeverity.Error);
+            return true;
         }
         finally
         {
@@ -147,6 +159,29 @@ public sealed partial class BatchPlaylistPicker : UserControl
 
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         => SelectionChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>部分或全部失败时的文案；服务端给了原因就带上，不再只说「请稍后再试」。</summary>
+    private static string DescribeFailure(Playlist playlist, BatchWriteResult result)
+    {
+        var reason = string.IsNullOrWhiteSpace(result.FailureReason)
+            ? ""
+            : $"：{LogRedactor.Redact(result.FailureReason)}";
+
+        if (result.Succeeded == 0)
+        {
+            return reason.Length == 0
+                ? $"加入「{playlist.Name}」失败，请稍后再试。"
+                : $"加入「{playlist.Name}」失败{reason}";
+        }
+
+        return $"成功加入 {result.Succeeded} 首，{result.Failed} 首失败{reason}";
+    }
+
+    /// <inheritdoc cref="DescribeFailure(Playlist, BatchWriteResult)"/>
+    private static string DescribeFailure(string playlistName, string? serverMessage) =>
+        string.IsNullOrWhiteSpace(serverMessage)
+            ? $"加入「{playlistName}」失败，请稍后再试。"
+            : $"加入「{playlistName}」失败：{LogRedactor.Redact(serverMessage)}";
 
     private void ShowLoading()
     {

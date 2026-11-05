@@ -1,3 +1,4 @@
+using Bowen.Core.Api;
 using Microsoft.Extensions.Logging;
 
 namespace Bowen.Core.Services;
@@ -23,7 +24,11 @@ public readonly record struct BatchProgress(int Done, int Total);
 /// <param name="Succeeded">成功的曲目数。</param>
 /// <param name="Failed">失败的曲目数。</param>
 /// <param name="Canceled">是否被取消。</param>
-public readonly record struct BatchWriteResult(int Succeeded, int Failed, bool Canceled);
+/// <param name="FailureReason">
+/// 最后一次失败时服务端给的说明，可空。界面拿它替代「请稍后再试」这类兜底文案。
+/// </param>
+public readonly record struct BatchWriteResult(
+    int Succeeded, int Failed, bool Canceled, string? FailureReason = null);
 
 /// <summary>
 /// 往歌单里批量增删曲目。
@@ -96,6 +101,7 @@ public static class PlaylistMusicWriter
         var chunkSize = Strategy == BatchWriteStrategy.Chunked ? MaxPerRequest : 1;
         var succeeded = 0;
         var failed = 0;
+        string? failureReason = null;
 
         for (var offset = 0; offset < total; offset += chunkSize)
         {
@@ -103,7 +109,7 @@ public static class PlaylistMusicWriter
             // 抛出去的话这个数字就没了。
             if (cancellationToken.IsCancellationRequested)
             {
-                return new BatchWriteResult(succeeded, failed, true);
+                return new BatchWriteResult(succeeded, failed, true, failureReason);
             }
 
             var length = Math.Min(chunkSize, total - offset);
@@ -120,7 +126,7 @@ public static class PlaylistMusicWriter
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                return new BatchWriteResult(succeeded, failed, true);
+                return new BatchWriteResult(succeeded, failed, true, failureReason);
             }
             catch (InvalidOperationException)
             {
@@ -131,11 +137,17 @@ public static class PlaylistMusicWriter
             {
                 logger?.LogWarning(ex, "批量写入失败：曲目 {MusicIds}", string.Join(',', chunk));
                 failed += length;
+
+                // 服务端给的说明比兜底文案有用；没有就保留上一条，别把它清成 null。
+                if (ex is BodianApiException { ServerMessage: { Length: > 0 } message })
+                {
+                    failureReason = message;
+                }
             }
 
             progress?.Report(new BatchProgress(offset + length, total));
         }
 
-        return new BatchWriteResult(succeeded, failed, false);
+        return new BatchWriteResult(succeeded, failed, false, failureReason);
     }
 }

@@ -1,3 +1,4 @@
+using Bowen.Core.Api;
 using Bowen.Core.Services;
 using Bowen.Core.Tests.Support;
 using Xunit;
@@ -58,6 +59,22 @@ public sealed class PlaylistMusicWriterTests
             progress: progress, cancellationToken: Ct);
 
         Assert.Equal([new BatchProgress(1, 2), new BatchProgress(2, 2)], progress.Reports);
+    }
+
+    /// <summary>服务端的失败说明要带出去，界面才有得显示，不然只剩「请稍后再试」。</summary>
+    [Fact]
+    public async Task KeepsTheServersReasonForTheLastFailure()
+    {
+        var recorder = new Recorder
+        {
+            Fail = _ => new BodianApiException(
+                BodianErrorCode.Unknown, 20005, "service/playlist/music", "歌曲已存在于歌单中", null),
+        };
+
+        var result = await PlaylistMusicWriter.WriteAsync([1], recorder.WriteAsync, cancellationToken: Ct);
+
+        Assert.Equal(1, result.Failed);
+        Assert.Equal("歌曲已存在于歌单中", result.FailureReason);
     }
 
     /// <summary>一首写不了不该让剩下的白做。</summary>

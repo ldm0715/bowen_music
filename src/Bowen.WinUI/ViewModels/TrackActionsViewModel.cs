@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Bowen.Core.Api;
+using Bowen.Core.Diagnostics;
 using Bowen.Core.Models;
 using Bowen.Core.Services.Abstractions;
 using Bowen.WinUI.Services;
@@ -517,7 +518,14 @@ public sealed partial class TrackActionsViewModel : ObservableObject
     /// <summary>
     /// 把这首歌加进指定歌单。
     /// </summary>
-    /// <returns>成功为 <c>true</c>，调用方据此关闭菜单；失败时错误留在面板内，菜单保持打开。</returns>
+    /// <returns>
+    /// 发起过请求就返回 <c>true</c>，调用方据此关闭菜单 —— 成败都由全局通知条呈现，
+    /// 菜单留着反而把提示挡住。没有可提交的内容（无有效 id、正在写）才返回 <c>false</c>。
+    /// </returns>
+    /// <remarks>
+    /// <b>失败原因取服务端的 <c>msg</c></b>：「加入歌单失败，请稍后再试」这种兜底文案
+    /// 对排查没有价值。服务端没给说明时才退回兜底。
+    /// </remarks>
     public async Task<bool> AddToPlaylistAsync(Playlist playlist, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(playlist);
@@ -537,20 +545,32 @@ public sealed partial class TrackActionsViewModel : ObservableObject
         }
         catch (InvalidOperationException)
         {
-            PlaylistError = "登录后可以添加到歌单。";
-            return false;
+            _notice.Show("登录后可以添加到歌单。", NoticeSeverity.Error);
+            return true;
+        }
+        catch (BodianApiException ex)
+        {
+            _logger.LogWarning(ex, "曲目 {MusicId} 加入歌单 {PlaylistId} 失败", _track.Id, playlist.Id);
+            _notice.Show(DescribeAddFailure(playlist.Name, ex), NoticeSeverity.Error);
+            return true;
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "曲目 {MusicId} 加入歌单 {PlaylistId} 失败", _track.Id, playlist.Id);
-            PlaylistError = "加入歌单失败，请稍后再试。";
-            return false;
+            _logger.LogWarning(ex, "曲目 {MusicId} 加入歌单 {PlaylistId} 失败", _track.Id, playlist.Id);
+            _notice.Show($"加入「{playlist.Name}」失败，请稍后再试。", NoticeSeverity.Error);
+            return true;
         }
         finally
         {
             _busy = false;
         }
     }
+
+    /// <summary>失败文案优先用服务端说明；没有时退回兜底。</summary>
+    private static string DescribeAddFailure(string playlistName, BodianApiException exception) =>
+        string.IsNullOrWhiteSpace(exception.ServerMessage)
+            ? $"加入「{playlistName}」失败，请稍后再试。"
+            : $"加入「{playlistName}」失败：{LogRedactor.Redact(exception.ServerMessage)}";
 
     /// <summary>菜单关掉时复位，下次打开不残留上一首的加载态与错误。</summary>
     public void ResetPlaylistPicker()
