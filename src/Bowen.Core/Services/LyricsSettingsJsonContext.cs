@@ -8,7 +8,8 @@ namespace Bowen.Core.Services;
 /// </summary>
 /// <remarks>
 /// 与 <see cref="ThemeSettingsJsonContext"/> 同一条规矩：走源生成，不开运行时反射。
-/// 这份目前没有枚举项，<c>UseStringEnumConverter</c> 留着是为了以后加档位时不必再改。
+/// <c>Alignment</c>、<c>CoverStyle</c>、<c>BackgroundMode</c> 等枚举都按名字写盘，
+/// 文件可读，加档位时也不必迁移旧值。
 /// </remarks>
 [JsonSourceGenerationOptions(WriteIndented = true, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(LyricsSettings))]

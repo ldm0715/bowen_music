@@ -274,6 +274,12 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     [ObservableProperty]
     public partial long? CurrentTrackId { get; set; }
 
+    /// <summary>
+    /// 最近一次切歌的方向：<c>1</c> 下一首，<c>-1</c> 上一首，<c>0</c> 其他。
+    /// </summary>
+    /// <remarks>在 <see cref="CurrentTrackId"/> 变化之前赋值，歌词页据此决定黑胶换碟的滑动方向。</remarks>
+    public int TrackChangeDirection { get; private set; }
+
     /// <summary>当前放的是试听片段。</summary>
     [ObservableProperty]
     public partial bool IsAudition { get; set; }
@@ -573,6 +579,8 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
+        // 方向要在 CurrentTrackId 之前就位，歌词页收到切歌通知时要用它选滑动方向。
+        TrackChangeDirection = _coordinator.LastMoveDirection;
         // 先启动共享详情请求，再通知歌词页切歌，评论角标才能复用同一请求。
         CurrentTrackId = e.Track.Id;
         IsAudition = e.Policy.IsAudition;
@@ -644,6 +652,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         Title = e.Track.Title;
         ArtistText = e.Track.ArtistText;
         ApplyTrackDetails(e.Track);
+        TrackChangeDirection = _coordinator.LastMoveDirection;
         // 先启动共享详情请求，再通知歌词页切歌，评论角标才能复用同一请求。
         CurrentTrackId = e.Track.Id;
         QualityText = "";
@@ -690,6 +699,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         Title = track.Title;
         ArtistText = track.ArtistText;
         ApplyTrackDetails(track);
+        TrackChangeDirection = 0;
         CurrentTrackId = track.Id;
         IsAudition = false;
         PositionSeconds = positionSeconds;

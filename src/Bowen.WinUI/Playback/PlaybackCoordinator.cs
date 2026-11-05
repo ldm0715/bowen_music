@@ -242,6 +242,12 @@ public sealed class PlaybackCoordinator : IDisposable
     /// </remarks>
     internal RestoredQueueState? RestoredState { get; private set; }
 
+    /// <summary>
+    /// 最近一次起播的切歌方向：<c>1</c> 下一首，<c>-1</c> 上一首，<c>0</c> 其他（点选、恢复、重试）。
+    /// </summary>
+    /// <remarks>歌词页的黑胶换碟动画按它决定从左边还是右边滑入。</remarks>
+    public int LastMoveDirection { get; private set; }
+
     /// <summary>成功开始播放（含试听）。</summary>
     public event EventHandler<PlaybackStartedEventArgs>? Started;
 
@@ -342,7 +348,7 @@ public sealed class PlaybackCoordinator : IDisposable
             return Task.CompletedTask;
         }
 
-        return PlayCurrentAsync(cancellationToken);
+        return PlayCurrentAsync(cancellationToken, 1);
     }
 
     public Task PreviousAsync(CancellationToken cancellationToken = default)
@@ -354,7 +360,7 @@ public sealed class PlaybackCoordinator : IDisposable
 
         Queue.MovePrevious();
 
-        return PlayCurrentAsync(cancellationToken);
+        return PlayCurrentAsync(cancellationToken, -1);
     }
 
     /// <summary>重播当前曲目。被拒绝或出错后重试时用，会重新取一次地址。</summary>
@@ -841,9 +847,11 @@ public sealed class PlaybackCoordinator : IDisposable
     }
 
     /// <summary>解析并播放当前队列项。</summary>
-    private async Task PlayCurrentAsync(CancellationToken cancellationToken = default)
+    private async Task PlayCurrentAsync(CancellationToken cancellationToken = default, int direction = 0)
     {
         if (Queue.Current is not { } track) { return; }
+
+        LastMoveDirection = direction;
 
         // 队列里确实有一首、接下来就要解析并加载它 —— 上一轮的「播到头」到此翻篇。
         _queueExhausted = false;

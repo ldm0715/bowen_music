@@ -205,9 +205,64 @@
                     Visibility="{x:Bind local:Formats.Visible(Player.HasTrack), Mode=OneWay}">
                     <controls:AlbumCoverReflection x:Name="ReflectionView" Width="320" Height="176" Canvas.Top="322"
                         Opacity="0.25" CoverUri="{x:Bind Player.CurrentCoverUri, Mode=OneWay}" />
-                    <Border x:Name="CoverFrame" Width="320" Height="320" CornerRadius="16" Background="#18FFFFFF">
-                        <Image x:Name="DetailCover" controls:Motion.SharedCoverKey="{x:Bind local:Formats.TrackCoverKey(Player.CurrentTrackId), Mode=OneWay}" Source="{x:Bind Player.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
-                    </Border>
+                    <!--
+                        黑胶旋转只作用于这一层：方形封面与中心标签共用同一个 CoverFrame，
+                        倒影和唱臂留在层外——否则倒影会跟着转、唱臂会跟着盘面转。
+                    -->
+                    <!--
+                        放台不参与换碟动画：碟在它上面滑走，它留在原地。
+                        它必须放在裁剪层外面，否则会跟着唱片一起被裁掉。
+                    -->
+                    <Ellipse x:Name="VinylPlatter" Fill="#19191C" Stroke="#1FFFFFFF" StrokeThickness="1"
+                        Visibility="Collapsed" />
+                    <!-- 换碟滑动只裁这块区域：滑出去的唱片不会压到窗口左侧，倒影和唱臂不受影响。 -->
+                    <Grid x:Name="VinylClipHost" Width="320" Height="320" controls:Motion.ClipToBounds="True">
+                    <Grid x:Name="VinylSpinLayer" Width="320" Height="320">
+                        <Grid x:Name="VinylDisc" Visibility="Collapsed">
+                            <Ellipse x:Name="VinylDiscBase" Fill="#0B0B0C" />
+                            <Ellipse x:Name="VinylDiscRim" Width="318" Height="318"
+                                Stroke="#2EFFFFFF" StrokeThickness="1"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <!-- 纹路由 code-behind 批量生成：密密麻麻的细圈，间距不能靠手写 XAML。 -->
+                        </Grid>
+                        <Border x:Name="CoverFrame" Width="320" Height="320" CornerRadius="16" Background="#18FFFFFF">
+                            <Image x:Name="DetailCover" controls:Motion.SharedCoverKey="{x:Bind local:Formats.TrackCoverKey(Player.CurrentTrackId), Mode=OneWay}" Source="{x:Bind Player.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
+                        </Border>
+                        <!-- 轴孔：压住中心标签，黑胶模式下随盘面一起转（圆形所以看不出来）。 -->
+                        <Ellipse x:Name="VinylSpindle" Width="12" Height="12" Visibility="Collapsed"
+                            Fill="#0B0B0C" Stroke="#40FFFFFF" StrokeThickness="1"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <!--
+                            换碟时盖住已经更新的真实标签，让滑出去的那张碟仍是旧封面。
+                            只在滑出阶段显示，完成后收起，滑入的就是新封面。
+                        -->
+                        <Border x:Name="CoverSwapLabel" Width="120" Height="120" CornerRadius="60"
+                            Background="#18FFFFFF" Visibility="Collapsed"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image x:Name="CoverSwapLabelImage" Stretch="UniformToFill" />
+                        </Border>
+                    </Grid>
+                    </Grid>
+                    <!-- 唱臂：枢轴固定在盘面左上，臂杆绕枢轴在「落到盘面」与「抬起」之间摆动。 -->
+                    <Canvas x:Name="TonearmHost" Width="320" Height="320" Visibility="Collapsed">
+                        <!--
+                            折线唱臂：上段从枢轴往下，折点后下段朝左下伸到盘缘。
+                            Angle 与枢轴、各段长度一样按封面槽尺寸在 code-behind 里重算。
+                        -->
+                        <Canvas x:Name="TonearmRotor" Width="30" Height="150">
+                            <Rectangle x:Name="TonearmWeight" Width="12" Height="15" RadiusX="4" RadiusY="4" Fill="#DADADA" />
+                            <!-- 整根杆是一笔 Path：折点用圆角过渡，不画成两根直杆硬拼。 -->
+                            <Path x:Name="TonearmRod" Stroke="#EDEDED"
+                                StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            <Rectangle x:Name="TonearmHead" Width="14" Height="24" RadiusX="4" RadiusY="4"
+                                Fill="#F5F5F5" RenderTransformOrigin="0.5,0.5">
+                                <Rectangle.RenderTransform>
+                                    <RotateTransform x:Name="TonearmHeadTilt" Angle="78" />
+                                </Rectangle.RenderTransform>
+                            </Rectangle>
+                        </Canvas>
+                        <Ellipse x:Name="TonearmPivot" Width="18" Height="18" Fill="#F0F0F0" />
+                    </Canvas>
                 </Canvas>
                 <Grid Grid.Column="1" Margin="0,0,0,4">
                     <ContentControl x:Name="CanvasHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
@@ -650,6 +705,22 @@
                                 <TextBlock Text="字体" Style="{StaticResource LyricsSectionTitleStyle}"
                                     VerticalAlignment="Center" />
                                 <controls:FontPicker x:Name="LyricsFontPicker" Grid.Column="1" />
+                            </Grid>
+
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="封面" Style="{StaticResource LyricsSectionTitleStyle}"
+                                    VerticalAlignment="Center" />
+                                <ComboBox x:Name="LyricsCoverStyleCombo" Grid.Column="1"
+                                    HorizontalAlignment="Stretch"
+                                    SelectionChanged="OnLyricsCoverStyleSelectionChanged"
+                                    AutomationProperties.Name="歌词页封面样式">
+                                    <ComboBoxItem Content="方形封面" />
+                                    <ComboBoxItem Content="黑胶唱片" />
+                                </ComboBox>
                             </Grid>
 
                             <Grid ColumnSpacing="12">

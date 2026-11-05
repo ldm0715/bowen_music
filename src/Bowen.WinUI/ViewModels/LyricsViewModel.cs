@@ -92,6 +92,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationFontScale = loaded.TranslationFontScale;
         TranslationLineGap = loaded.TranslationLineGap;
         EdgeBlurRatio = loaded.EdgeBlurRatio;
+        CoverStyle = loaded.CoverStyle;
         BackgroundMode = loaded.BackgroundMode;
         MicaTintEnabled = loaded.MicaTintEnabled;
         BackgroundImageFile = loaded.BackgroundImageFile;
@@ -188,6 +189,9 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>视口上下边缘的模糊范围，占视口高度的比例。</summary>
     public double EdgeBlurRatio { get; private set; } = LyricsSettings.DefaultEdgeBlurRatio;
+
+    /// <summary>全屏歌词页左侧封面的样式。</summary>
+    public LyricsCoverStyle CoverStyle { get; private set; } = LyricsCoverStyle.Cover;
 
     /// <summary>全屏歌词页的背景来源。</summary>
     public LyricsBackgroundMode BackgroundMode { get; private set; } = LyricsBackgroundMode.CoverBlur;
@@ -403,6 +407,20 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>歌词页改封面样式：无效值退回方形封面后落盘。</summary>
+    public void SetCoverStyle(LyricsCoverStyle style)
+    {
+        if (!Enum.IsDefined(style)) style = LyricsCoverStyle.Cover;
+        if (CoverStyle == style)
+        {
+            return;
+        }
+
+        CoverStyle = style;
+        OnPropertyChanged(nameof(CoverStyle));
+        Persist();
+    }
+
     /// <summary>歌词页改背景来源：无效值退回封面模糊后落盘。</summary>
     public void SetBackgroundMode(LyricsBackgroundMode mode)
     {
@@ -585,6 +603,7 @@ public sealed partial class LyricsViewModel : ObservableObject
         TranslationFontScale = TranslationFontScale,
         TranslationLineGap = TranslationLineGap,
         EdgeBlurRatio = EdgeBlurRatio,
+        CoverStyle = CoverStyle,
         BackgroundMode = BackgroundMode,
         MicaTintEnabled = MicaTintEnabled,
         BackgroundImageFile = BackgroundImageFile,

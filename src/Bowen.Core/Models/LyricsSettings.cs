@@ -13,6 +13,16 @@ public enum LyricsAlignment
     Right = 2,
 }
 
+/// <summary>全屏歌词页左侧封面的呈现样式。</summary>
+public enum LyricsCoverStyle
+{
+    /// <summary>圆角方形封面，带倒影。</summary>
+    Cover = 0,
+
+    /// <summary>黑胶唱片：圆盘、纹路、中心标签与唱臂。</summary>
+    Vinyl = 1,
+}
+
 /// <summary>全屏歌词页的背景来源。</summary>
 public enum LyricsBackgroundMode
 {
@@ -212,6 +222,9 @@ public sealed record LyricsSettings
     /// </remarks>
     public double EdgeBlurRatio { get; init; } = DefaultEdgeBlurRatio;
 
+    /// <summary>全屏歌词页左侧封面的样式；默认方形封面。</summary>
+    public LyricsCoverStyle CoverStyle { get; init; } = LyricsCoverStyle.Cover;
+
     /// <summary>全屏歌词页的背景来源；默认封面模糊。</summary>
     public LyricsBackgroundMode BackgroundMode { get; init; } = LyricsBackgroundMode.CoverBlur;
 
@@ -306,6 +319,7 @@ public sealed record LyricsSettings
             : DefaultOffsetPercent,
 
         Alignment = Enum.IsDefined(Alignment) ? Alignment : LyricsAlignment.Left,
+        CoverStyle = Enum.IsDefined(CoverStyle) ? CoverStyle : LyricsCoverStyle.Cover,
         BackgroundMode = Enum.IsDefined(BackgroundMode) ? BackgroundMode : LyricsBackgroundMode.CoverBlur,
 
         // 只保留文件名，拒绝目录穿越；空串表示还没选图片。

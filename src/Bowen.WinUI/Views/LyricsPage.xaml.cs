@@ -72,7 +72,36 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly DispatcherQueueTimer _layoutTimer;
     private bool _layoutPending;
     private bool? _coverPlaying;
+    private bool? _coverVinyl;
     private double _coverSize;
+
+    /// <summary>换碟动画：上一次的封面图、当前图，以及连切时作废旧一轮的版本号。</summary>
+    private ImageSource? _lastCoverImage;
+    private ImageSource? _previousCoverImage;
+    private int _coverSwapVersion;
+
+    /// <summary>黑胶唱片当前的旋转角度，暂停时保留，恢复播放时从这里接着转。</summary>
+    private double _vinylAngle;
+    private bool _vinylSpinning;
+    private long _vinylSpinStarted;
+    private readonly DispatcherQueueTimer _vinylTimer;
+
+    /// <summary>转速：20 秒一圈（18°/s）。真实黑胶 33⅓ 转/分在屏幕上看太快，这里取观感上的慢转。</summary>
+    private const double VinylDegreesPerSecond = 18;
+
+    /// <summary>唱臂播放 / 待机角度；枢轴在右上，0° 是落盘姿态，正角把臂抬到唱片上方。</summary>
+    private const float TonearmPlayingAngle = 0;
+    private const float TonearmRestingAngle = 60;
+
+    /// <summary>折线唱臂：上段竖直长度、下段长度与折角（度）。上段要够长，否则像挂在枢轴下的短钩。</summary>
+    private const double TonearmUpperLength = 0.20;
+    private const double TonearmLowerLength = 0.13;
+    private const double TonearmBendDegrees = 80;
+
+    /// <summary>唱片外圈的细纹路数量与笔刷；集中在最外圈，中心标签占大半盘面。</summary>
+    private const int VinylGrooveCount = 28;
+    private readonly List<Ellipse> _vinylGrooves = [];
+    private readonly SolidColorBrush _vinylGrooveBrush = new(Color.FromArgb(0x0E, 0xFF, 0xFF, 0xFF));
     private bool? _fullscreen;
     private readonly ILogger<LyricsPage> _logger;
     private readonly BackgroundImageStore _backgroundImages;
@@ -153,6 +182,20 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Comments = comments;
         Effects = effects;
         InitializeComponent();
+        // 纹路批量生成：28 道细圈挤在最外圈，手写 XAML 既冗长又改不动间距。
+        for (var index = 0; index < VinylGrooveCount; index++)
+        {
+            var groove = new Ellipse
+            {
+                Stroke = _vinylGrooveBrush,
+                StrokeThickness = 1,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false,
+            };
+            VinylDisc.Children.Add(groove);
+            _vinylGrooves.Add(groove);
+        }
         Effects.PropertyChanged += OnEffectsPropertyChanged;
         UpdateEffectsButton();
         _fontOptions = BuildFontOptions(font);
@@ -184,6 +227,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _layoutTimer = DispatcherQueue.CreateTimer();
         _layoutTimer.Interval = TimeSpan.FromMilliseconds(120);
         _layoutTimer.IsRepeating = false;
+        // 黑胶旋转用 60 Hz 定时器直接推角度：合成器循环动画在部分机器上会一圈后停住，
+        // 定时器每帧写一个浮点，既匀速又可随时暂停、从原角度续转。
+        _vinylTimer = DispatcherQueue.CreateTimer();
+        _vinylTimer.Interval = TimeSpan.FromMilliseconds(16);
+        _vinylTimer.Tick += OnVinylTimer;
         AddHandler(KeyDownEvent, new KeyEventHandler(OnChromeKeyDown), true);
         AddHandler(PointerEnteredEvent, new PointerEventHandler(OnPointerActivity), true);
         AddHandler(PointerMovedEvent, new PointerEventHandler(OnPointerActivity), true);
@@ -267,7 +315,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _lastCursorPoint = null;
         _window.EnterImmersive(LyricsTitleBar);
         Lyrics.IsOpen = true;
+        _lastCoverImage = Player.CoverImage;
         ApplyBackgroundMode();
+        ApplyCoverStyle();
         if (Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor && Lyrics.BackgroundColorAuto)
         {
             _ = RefreshSolidColorAsync();
@@ -513,6 +563,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ReflectionView.IsResourceSuspended = releaseResources;
         BackdropView.IsResourceSuspended = releaseResources || !coverActive;
         AmbientView.IsResourceSuspended = releaseResources || !ambientActive || UsesCustomImage;
+        UpdateVinylSpin();
     }
 
     /// <summary>沉浸入场动画结束：此时外壳已收起，可以安全地亮出 Mica 背板。</summary>
@@ -605,26 +656,38 @@ public sealed partial class LyricsPage : Page, INavigationAware
         var availableHeight = Math.Max(140, MainStage.ActualHeight / 1.8);
         var size = Math.Max(140, Math.Min(Math.Min(ActualHeight * 0.45, ActualWidth * 0.4 - 84), availableHeight));
         size = Math.Min(size, 580);
-        CoverFrame.Width = CoverFrame.Height = size;
         CoverDeck.Width = CoverDeck.Height = size;
         ReflectionView.Width = size;
         ReflectionView.Height = size * 0.55;
         Canvas.SetTop(ReflectionView, size + 2);
+        UpdateCoverStyleGeometry(size);
         ApplyLyricsAppearance();
         CommentsPane.Width = Math.Max(0, Math.Min(420, ActualWidth - 32));
         if (_appearanceOpen) AppearancePane.MaxHeight = Math.Max(0, ActualHeight - 178);
         UpdateChromeInsets();
         UpdateCoverScale();
+        UpdateVinylSpin();
     }
 
     private void OnPlayerChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (args.PropertyName == nameof(PlayerViewModel.CoverImage))
+        {
+            // 绑定会先把新图挂到 DetailCover 上，这里留一份上一张给换碟动画的滑出阶段用。
+            _previousCoverImage = _lastCoverImage;
+            _lastCoverImage = Player.CoverImage;
+        }
+
         if (args.PropertyName is nameof(PlayerViewModel.CurrentTrackId) or nameof(PlayerViewModel.CurrentCoverUri))
         {
             _ = RefreshSolidColorAsync();
         }
 
-        if (args.PropertyName == nameof(PlayerViewModel.IsPlaying)) UpdateCoverScale();
+        if (args.PropertyName == nameof(PlayerViewModel.IsPlaying))
+        {
+            UpdateCoverScale();
+            UpdateVinylSpin();
+        }
         if (args.PropertyName == nameof(PlayerViewModel.CurrentTrackId))
         {
             ShowChrome();
@@ -636,6 +699,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
             if (Player.CurrentTrackId is > 0) _ = Comments.LoadBadgeAsync(Player.CurrentTrackId.Value);
             else Comments.CancelBadgeRequest();
+            PlayCoverSwap();
             if (Comments.IsOpen)
             {
                 if (Player.CurrentTrackId is > 0) _ = Comments.ShowAsync(Player.CurrentTrackId.Value, Player.Title);
@@ -676,17 +740,274 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     private void UpdateCoverScale()
     {
-        var size = CoverFrame.Width;
-        if (_coverPlaying == Player.IsPlaying && _coverSize == size) return;
+        var size = CoverDeck.Width;
+        var vinyl = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl;
+        if (_coverPlaying == Player.IsPlaying && _coverSize == size && _coverVinyl == vinyl) return;
         _coverPlaying = Player.IsPlaying;
         _coverSize = size;
+        _coverVinyl = vinyl;
         var visual = ElementCompositionPreview.GetElementVisual(CoverDeck);
-        visual.CenterPoint = new Vector3((float)(CoverFrame.Width / 2), (float)(CoverFrame.Height / 2), 0);
+        visual.CenterPoint = new Vector3((float)(size / 2), (float)(size / 2), 0);
         using var animation = visual.Compositor.CreateVector3KeyFrameAnimation();
-        var scale = Player.IsPlaying ? 1 : 0.94f;
+        // 暂停缩放只属于方形封面；黑胶缩放会把整台唱片机连带唱臂一起缩小。
+        var scale = vinyl || Player.IsPlaying ? 1 : 0.94f;
         animation.InsertKeyFrame(1, new Vector3(scale, scale, 1));
         animation.Duration = TimeSpan.FromMilliseconds(400);
         visual.StartAnimation("Scale", animation);
+    }
+
+    /// <summary>切封面样式：方形卡片与黑胶唱片互斥显示，两者共用同一个 DetailCover。</summary>
+    /// <remarks>
+    /// 不换图片实例、不隐藏 DetailCover —— 共享封面动画靠这个元素测量起点与落点。
+    /// 黑胶模式下它缩成中心标签，飞入 / 飞出的圆角由 CoverFrame 的 CornerRadius 提供。
+    /// </remarks>
+    private void ApplyCoverStyle()
+    {
+        var vinyl = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl;
+        // 切样式时把换碟动画收干净：可能停在滑出 / 滑入的中途。
+        _coverSwapVersion++;
+        CoverSwapLabel.Visibility = Visibility.Collapsed;
+        CoverSwapLabelImage.Source = null;
+        AppMotion.Reset(VinylSpinLayer);
+        VinylPlatter.Visibility = vinyl ? Visibility.Visible : Visibility.Collapsed;
+        VinylDisc.Visibility = vinyl ? Visibility.Visible : Visibility.Collapsed;
+        VinylSpindle.Visibility = vinyl ? Visibility.Visible : Visibility.Collapsed;
+        TonearmHost.Visibility = vinyl ? Visibility.Visible : Visibility.Collapsed;
+        ReflectionView.Visibility = vinyl ? Visibility.Collapsed : Visibility.Visible;
+
+        UpdateCoverStyleGeometry(CoverDeck.Width);
+
+        if (!vinyl)
+        {
+            // 方形封面不转：停表并把角度归零，下次切回黑胶从 0 开始。
+            _vinylSpinning = false;
+            _vinylTimer.Stop();
+            _vinylAngle = 0;
+            ElementCompositionPreview.GetElementVisual(VinylSpinLayer).RotationAngleInDegrees = 0;
+        }
+
+        UpdateTonearm(animate: false);
+        // 未挂到树上时先不碰封面缩放：缓存会记住「已经缩过」，动画却可能丢；
+        // Loaded 时的 UpdateLayoutSizing 会按真实尺寸补一次。
+        if (IsLoaded) UpdateCoverScale();
+        UpdateVinylSpin();
+    }
+
+    /// <summary>按封面槽尺寸重算黑胶的圆盘、中心标签与唱臂几何；方形模式只把封面还原成铺满。</summary>
+    private void UpdateCoverStyleGeometry(double size)
+    {
+        if (!double.IsFinite(size) || size <= 0) return;
+        VinylClipHost.Width = VinylClipHost.Height = size;
+        VinylSpinLayer.Width = VinylSpinLayer.Height = size;
+        TonearmHost.Width = TonearmHost.Height = size;
+
+        var vinyl = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl;
+        // 放台比唱片大一圈；唱片再比封面槽小一圈，右上角留出枢轴，唱头才能既落在盘缘、又摆出盘外。
+        var platter = Math.Round(size * 0.94);
+        VinylPlatter.Width = VinylPlatter.Height = platter;
+        Canvas.SetLeft(VinylPlatter, (size - platter) / 2);
+        Canvas.SetTop(VinylPlatter, (size - platter) / 2);
+        var disc = Math.Round(size * 0.88);
+        VinylDiscBase.Width = VinylDiscBase.Height = disc;
+        // 两种模式共用 CoverFrame：方形铺满封面槽，黑胶缩成占盘面 56% 的中心标签。
+        var label = vinyl ? Math.Round(disc * 0.56) : size;
+        CoverFrame.Width = CoverFrame.Height = label;
+        CoverFrame.CornerRadius = new CornerRadius(vinyl ? label / 2 : 16);
+        CoverSwapLabel.Width = CoverSwapLabel.Height = label;
+        CoverSwapLabel.CornerRadius = new CornerRadius(vinyl ? label / 2 : 16);
+
+        for (var index = 0; index < _vinylGrooves.Count; index++)
+        {
+            // 纹路压在 0.60–0.985 盘径的最外圈，彼此只差 1% 盘径，看起来是一圈细密纹理。
+            var fraction = 0.6 + 0.385 * index / (_vinylGrooves.Count - 1);
+            _vinylGrooves[index].Width = _vinylGrooves[index].Height = Math.Round(disc * fraction);
+        }
+
+        VinylDiscRim.Width = VinylDiscRim.Height = Math.Max(0, disc - 2);
+        VinylSpindle.Width = VinylSpindle.Height = Math.Max(5, Math.Round(size * 0.028));
+
+        // 折线唱臂：枢轴在盘外右上角，上段竖直向下，折点后下段朝左下搭到盘缘。
+        // 0° 时唱头落在最外圈纹路，待机时整根臂绕枢轴抬起、摆到唱片外。
+        var pivotX = size * 0.9;
+        var pivotY = size * 0.03;
+        var pivotLocalX = size * 0.24;
+        var pivotLocalY = size * 0.03;
+        var rotorWidth = size * 0.3;
+        var rotorHeight = size * 0.3;
+        TonearmRotor.Width = rotorWidth;
+        TonearmRotor.Height = rotorHeight;
+        Canvas.SetLeft(TonearmRotor, pivotX - pivotLocalX);
+        Canvas.SetTop(TonearmRotor, pivotY - pivotLocalY);
+
+        var armWidth = Math.Max(3, Math.Round(size * 0.012));
+        var upper = size * TonearmUpperLength;
+        var lower = size * TonearmLowerLength;
+        var bend = TonearmBendDegrees * Math.PI / 180;
+        var bendX = pivotLocalX;
+        var bendY = pivotLocalY + upper;
+        var endX = bendX - lower * Math.Sin(bend);
+        var endY = bendY + lower * Math.Cos(bend);
+
+        // 折点用二次贝塞尔过渡：先把直杆画到折点前 curve 处，再弯过折点接到下段。
+        var curve = Math.Min(upper, lower) * 0.28;
+        var figure = new PathFigure
+        {
+            StartPoint = new Point(pivotLocalX, pivotLocalY),
+            IsClosed = false,
+            IsFilled = false,
+        };
+        figure.Segments.Add(new LineSegment { Point = new Point(bendX, bendY - curve) });
+        figure.Segments.Add(new QuadraticBezierSegment
+        {
+            Point1 = new Point(bendX, bendY),
+            Point2 = new Point(bendX - curve * Math.Sin(bend), bendY + curve * Math.Cos(bend)),
+        });
+        figure.Segments.Add(new LineSegment { Point = new Point(endX, endY) });
+        TonearmRod.Data = new PathGeometry { Figures = { figure } };
+        TonearmRod.StrokeThickness = armWidth;
+        TonearmHeadTilt.Angle = TonearmBendDegrees;
+
+        TonearmHead.Width = Math.Max(8, size * 0.045);
+        TonearmHead.Height = Math.Max(10, size * 0.05);
+        TonearmHead.RadiusX = TonearmHead.RadiusY = Math.Max(3, size * 0.012);
+        Canvas.SetLeft(TonearmHead, endX - TonearmHead.Width / 2);
+        Canvas.SetTop(TonearmHead, endY - TonearmHead.Height / 2);
+
+        TonearmWeight.Width = Math.Max(8, size * 0.035);
+        TonearmWeight.Height = Math.Max(9, size * 0.04);
+        Canvas.SetLeft(TonearmWeight, pivotLocalX - TonearmWeight.Width / 2);
+        Canvas.SetTop(TonearmWeight, pivotLocalY - TonearmWeight.Height * 0.9);
+
+        TonearmPivot.Width = TonearmPivot.Height = Math.Max(8, Math.Round(size * 0.045));
+        Canvas.SetLeft(TonearmPivot, pivotX - TonearmPivot.Width / 2);
+        Canvas.SetTop(TonearmPivot, pivotY - TonearmPivot.Height / 2);
+
+        // 旋转中心随尺寸变化：圆盘绕封面槽中心，唱臂绕枢轴。
+        ElementCompositionPreview.GetElementVisual(VinylSpinLayer).CenterPoint =
+            new Vector3((float)(size / 2), (float)(size / 2), 0);
+        ElementCompositionPreview.GetElementVisual(TonearmRotor).CenterPoint =
+            new Vector3((float)pivotLocalX, (float)pivotLocalY, 0);
+    }
+
+    /// <summary>黑胶是否该转：只有黑胶样式、正在播放且页面可见未挂起时才转。</summary>
+    /// <remarks>
+    /// 停下时把当前角度记进 <see cref="_vinylAngle"/>，恢复播放从同一角度接着转，不跳回起点。
+    /// 角度由定时器按「起始角度 + 已播秒数 × 转速」算出，只做 360° 取模，没有循环接缝。
+    /// </remarks>
+    private void UpdateVinylSpin()
+    {
+        // IsLoaded 必须参与判断：OnNavigatedTo 早于 Loaded，此时给未挂到树上的元素起动画可能丢失；
+        // 而丢了之后状态已经记成「在转」，后续调用会提前返回。Loaded 时的布局会再进来一次。
+        var shouldSpin = IsLoaded && Lyrics.CoverStyle == LyricsCoverStyle.Vinyl
+            && Player.IsPlaying && Lyrics.IsOpen && _windowVisible && !_window.IsRenderingSuspended;
+        if (shouldSpin == _vinylSpinning) return;
+
+        var visual = ElementCompositionPreview.GetElementVisual(VinylSpinLayer);
+        visual.CenterPoint = new Vector3((float)(VinylSpinLayer.Width / 2), (float)(VinylSpinLayer.Height / 2), 0);
+
+        if (shouldSpin)
+        {
+            _vinylSpinning = true;
+            _vinylSpinStarted = Stopwatch.GetTimestamp();
+            visual.RotationAngleInDegrees = (float)_vinylAngle;
+            _vinylTimer.Start();
+            UpdateTonearm(animate: true);
+            return;
+        }
+
+        _vinylSpinning = false;
+        _vinylTimer.Stop();
+        _vinylAngle = (_vinylAngle
+            + Stopwatch.GetElapsedTime(_vinylSpinStarted).TotalSeconds * VinylDegreesPerSecond) % 360;
+        visual.RotationAngleInDegrees = (float)_vinylAngle;
+        UpdateTonearm(animate: true);
+    }
+
+    private void OnVinylTimer(DispatcherQueueTimer sender, object args)
+    {
+        if (!_vinylSpinning)
+        {
+            sender.Stop();
+            return;
+        }
+
+        var elapsed = Stopwatch.GetElapsedTime(_vinylSpinStarted).TotalSeconds;
+        var angle = (_vinylAngle + elapsed * VinylDegreesPerSecond) % 360;
+        ElementCompositionPreview.GetElementVisual(VinylSpinLayer).RotationAngleInDegrees = (float)angle;
+    }
+
+    /// <summary>播放时唱臂落到盘面，暂停时抬回待机位；切换样式时直接摆到位，不做过渡。</summary>
+    private void UpdateTonearm(bool animate)
+    {
+        if (Lyrics.CoverStyle != LyricsCoverStyle.Vinyl) return;
+        var angle = Player.IsPlaying ? TonearmPlayingAngle : TonearmRestingAngle;
+        if (!animate)
+        {
+            var visual = ElementCompositionPreview.GetElementVisual(TonearmRotor);
+            visual.StopAnimation("RotationAngleInDegrees");
+            visual.RotationAngleInDegrees = angle;
+            return;
+        }
+
+        AnimateTonearm(angle, TimeSpan.FromMilliseconds(360));
+    }
+
+    private void AnimateTonearm(float angle, TimeSpan duration)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(TonearmRotor);
+        using var animation = visual.Compositor.CreateScalarKeyFrameAnimation();
+        animation.InsertKeyFrame(1, angle);
+        animation.Duration = duration;
+        visual.StartAnimation("RotationAngleInDegrees", animation);
+    }
+
+    /// <summary>换碟：提起唱臂，旧碟带旧封面从左滑出，新碟从右滑入，最后再落针。</summary>
+    /// <remarks>
+    /// 切歌时真实的 DetailCover 已经先换成新图，滑出阶段用 <c>CoverSwapLabel</c> 盖住它，
+    /// 滑出去的才是旧封面。位移都在 <c>VinylClipHost</c> 的裁剪区内完成，不会压到窗口左侧。
+    /// 连续切歌时版本号会让上一轮后续步骤作废。
+    /// </remarks>
+    private async void PlayCoverSwap()
+    {
+        if (!IsLoaded || !AppMotion.IsEnabled || Lyrics.CoverStyle != LyricsCoverStyle.Vinyl) return;
+        var next = Player.CoverImage;
+        var previous = _previousCoverImage;
+        if (next is null || previous is null || ReferenceEquals(next, previous)) return;
+
+        var size = (float)VinylClipHost.ActualWidth;
+        if (size <= 0) return;
+
+        var version = ++_coverSwapVersion;
+        var armDuration = TimeSpan.FromMilliseconds(220);
+
+        // 下一首：旧碟向左、新碟从右；上一首反过来。其他切换方式（点选、恢复）按下一首处理。
+        var forwards = Player.TrackChangeDirection >= 0;
+        var exitTo = forwards ? new Vector3(-size, 0, 0) : new Vector3(size, 0, 0);
+        var enterFrom = forwards ? new Vector3(size, 0, 0) : new Vector3(-size, 0, 0);
+
+        // 旧封面遮罩必须在提起唱臂之前就盖上：切歌瞬间绑定已经把真实标签换成了新图，
+        // 晚一步盖就会在抬臂那两百毫秒里露出下一首的封面。
+        CoverSwapLabelImage.Source = previous;
+        CoverSwapLabel.Visibility = Visibility.Visible;
+
+        // 第一拍：提起唱臂。
+        AnimateTonearm(TonearmRestingAngle, armDuration);
+        await Task.Delay(armDuration);
+        if (version != _coverSwapVersion) return;
+
+        // 第二拍：整层带旧封面滑出去。
+        var moved = await AppMotion.PlayAsync(VinylSpinLayer, Vector3.Zero, exitTo,
+            1, 1, Vector3.One, Vector3.One, AppMotion.Standard);
+        if (!moved || version != _coverSwapVersion) return;
+
+        // 第三拍：此时整层在裁剪区外，收起旧封面并从另一侧滑入新碟。
+        CoverSwapLabel.Visibility = Visibility.Collapsed;
+        await AppMotion.PlayAsync(VinylSpinLayer, enterFrom, Vector3.Zero,
+            1, 1, Vector3.One, Vector3.One, AppMotion.Standard);
+        if (version != _coverSwapVersion) return;
+
+        // 第四拍：还在播放才落回盘面；暂停中保持抬起。
+        if (Player.IsPlaying) AnimateTonearm(TonearmPlayingAngle, armDuration);
     }
 
     private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
@@ -1351,6 +1672,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             TranslationSettingsPanel.Visibility = Lyrics.HasTranslation
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+            LyricsCoverStyleCombo.SelectedIndex = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl ? 1 : 0;
             LyricsBackgroundMicaItem.IsEnabled = MainWindow.IsMicaSupported;
             LyricsBackgroundMicaItem.Content = MainWindow.IsMicaSupported ? "Mica" : "Mica（需要 Windows 11）";
             LyricsBackgroundCombo.SelectedIndex = Lyrics.BackgroundMode switch
@@ -1408,6 +1730,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         if (_syncingAppearance || !_appearanceOpen) return;
         Lyrics.SetFontFamily(FontNameAt(LyricsFontPicker.SelectedIndex));
+    }
+
+    private void OnLyricsCoverStyleSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_syncingAppearance || !_appearanceOpen) return;
+        Lyrics.SetCoverStyle(LyricsCoverStyleCombo.SelectedIndex == 1
+            ? LyricsCoverStyle.Vinyl
+            : LyricsCoverStyle.Cover);
     }
 
     private async void OnLyricsBackgroundSelectionChanged(object sender, SelectionChangedEventArgs args)
@@ -1851,6 +2181,13 @@ public sealed partial class LyricsPage : Page, INavigationAware
                     : Visibility.Collapsed;
             }
 
+            return;
+        }
+
+        if (args.PropertyName == nameof(LyricsViewModel.CoverStyle))
+        {
+            ApplyCoverStyle();
+            if (_appearanceOpen) SyncAppearanceControls();
             return;
         }
 
