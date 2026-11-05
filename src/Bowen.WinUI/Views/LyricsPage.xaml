@@ -327,11 +327,12 @@
                                 </Border.BorderBrush>
                             </Border>
                             <!-- 屏幕：上置的宽屏面板，纯平面板，不做玻璃与内凹 -->
-                            <Grid Width="184" Height="120" Margin="20,10,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <Grid Width="184" Height="124" Margin="20,10,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
                                 <Border CornerRadius="10" Background="#0B0D10" BorderBrush="#272D34" BorderThickness="1" />
                                 <Grid Margin="10">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="14" />
+                                        <RowDefinition Height="6" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
@@ -340,13 +341,14 @@
                                     <!-- 状态栏：左电量、右时钟 -->
                                     <Grid>
                                         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                            <Grid Width="16" Height="8" VerticalAlignment="Center">
-                                                <Rectangle Width="14" Height="8" RadiusX="2" RadiusY="2"
+                                            <!-- 电池：外框 15×9，右侧 2 宽的正极；填充条内侧左右各留 1px -->
+                                            <Grid Width="17" Height="9" VerticalAlignment="Center">
+                                                <Rectangle Width="15" Height="9" RadiusX="2" RadiusY="2"
                                                     Stroke="#6F7983" StrokeThickness="1" HorizontalAlignment="Left" />
-                                                <Rectangle x:Name="Mp3BatteryFill" Width="7" Height="4"
+                                                <Rectangle x:Name="Mp3BatteryFill" Width="7" Height="5"
                                                     RadiusX="1" RadiusY="1" Fill="#C9D6E2"
-                                                    HorizontalAlignment="Left" Margin="3,0,0,0" />
-                                                <Rectangle Width="2" Height="4" RadiusX="1" RadiusY="1"
+                                                    HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                                <Rectangle Width="2" Height="5" RadiusX="1" RadiusY="1"
                                                     Fill="#6F7983" HorizontalAlignment="Right" />
                                             </Grid>
                                             <TextBlock x:Name="Mp3BatteryText" FontSize="8" Foreground="#6F7983"
@@ -356,7 +358,7 @@
                                             HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
                                     <!-- 主信息：封面在左，曲名、歌手、下一首在右；整块水平居中 -->
-                                    <Grid Grid.Row="1" HorizontalAlignment="Center" ColumnSpacing="10">
+                                    <Grid Grid.Row="2" HorizontalAlignment="Center" ColumnSpacing="10">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="60" />
                                             <ColumnDefinition Width="86" />
@@ -373,13 +375,13 @@
                                         </StackPanel>
                                     </Grid>
                                     <!-- 进度 -->
-                                    <Grid x:Name="Mp3ProgressTrack" Grid.Row="2" Height="2" Margin="0,6,0,0">
+                                    <Grid x:Name="Mp3ProgressTrack" Grid.Row="3" Height="2" Margin="0,5,0,0">
                                         <Rectangle Height="2" Fill="#232A31" />
                                         <Rectangle x:Name="Mp3ProgressFill" Width="0" Height="2"
                                             HorizontalAlignment="Left" Fill="#C9D6E2" />
                                     </Grid>
                                     <!-- 已播 / 总时长 -->
-                                    <Grid Grid.Row="3" Margin="0,4,0,0">
+                                    <Grid Grid.Row="4" Margin="0,3,0,0">
                                         <TextBlock x:Name="Mp3ElapsedText" FontSize="8" Foreground="#5C666F" />
                                         <TextBlock x:Name="Mp3DurationText" FontSize="8" Foreground="#5C666F"
                                             HorizontalAlignment="Right" />

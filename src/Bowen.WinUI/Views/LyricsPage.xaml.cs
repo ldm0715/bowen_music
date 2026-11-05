@@ -835,7 +835,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
             // 取不到电池信息时保持满格，不要留一个空图标。
         }
 
-        Mp3BatteryFill.Width = Math.Max(1, 10 * percent / 100.0);
+        // 外框内宽 13，左右各留 1px，填充最大 11。
+        Mp3BatteryFill.Width = Math.Max(1, 11 * percent / 100.0);
         Mp3BatteryText.Text = $"{percent}%";
     }
 
@@ -951,7 +952,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             CoverFrame.HorizontalAlignment = HorizontalAlignment.Left;
             CoverFrame.VerticalAlignment = VerticalAlignment.Top;
             CoverFrame.Margin = new Thickness(
-                Math.Round(size * 0.25625), Math.Round(size * 0.15625), 0, 0);
+                Math.Round(size * 0.25625), Math.Round(size * 0.175), 0, 0);
         }
         else
         {
