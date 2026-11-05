@@ -381,6 +381,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
             CoverFrame.Background = _coverFrameBackground;
             _coverFrameBackground = null;
             RevealReflection();
+            // 封面已经落位：从 0° 开始转，入场飞行期间不会把落点带歪。
+            UpdateVinylSpin();
         });
     }
 
@@ -777,14 +779,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
         UpdateCoverStyleGeometry(CoverDeck.Width);
 
-        if (!vinyl)
-        {
-            // 方形封面不转：停表并把角度归零，下次切回黑胶从 0 开始。
-            _vinylSpinning = false;
-            _vinylTimer.Stop();
-            _vinylAngle = 0;
-            ElementCompositionPreview.GetElementVisual(VinylSpinLayer).RotationAngleInDegrees = 0;
-        }
+        // 每次应用样式（含进入歌词页）都把角度归零：入场飞行期间封面是正的，
+        // 落位后再接着转；方形封面本来就不转，清零同样无害。
+        _vinylSpinning = false;
+        _vinylTimer.Stop();
+        _vinylAngle = 0;
+        ElementCompositionPreview.GetElementVisual(VinylSpinLayer).RotationAngleInDegrees = 0;
 
         UpdateTonearm(animate: false);
         // 未挂到树上时先不碰封面缩放：缓存会记住「已经缩过」，动画却可能丢；
@@ -882,7 +882,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Canvas.SetLeft(TonearmPivot, pivotX - TonearmPivot.Width / 2);
         Canvas.SetTop(TonearmPivot, pivotY - TonearmPivot.Height / 2);
 
-        // 旋转中心随尺寸变化：圆盘绕封面槽中心，唱臂绕枢轴。
+        // 旋转中心随尺寸变化：整张碟（盘面 + 中心封面）绕槽中心转；唱臂绕枢轴。
         ElementCompositionPreview.GetElementVisual(VinylSpinLayer).CenterPoint =
             new Vector3((float)(size / 2), (float)(size / 2), 0);
         ElementCompositionPreview.GetElementVisual(TonearmRotor).CenterPoint =
@@ -898,12 +898,14 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         // IsLoaded 必须参与判断：OnNavigatedTo 早于 Loaded，此时给未挂到树上的元素起动画可能丢失；
         // 而丢了之后状态已经记成「在转」，后续调用会提前返回。Loaded 时的布局会再进来一次。
-        var shouldSpin = IsLoaded && Lyrics.CoverStyle == LyricsCoverStyle.Vinyl
+        // 入场飞行期间不转：共享封面按中心标签的外框落位，旋转中的方形包围盒会被放大。
+        var shouldSpin = IsLoaded && Lyrics.CoverStyle == LyricsCoverStyle.Vinyl && !_entranceActive
             && Player.IsPlaying && Lyrics.IsOpen && _windowVisible && !_window.IsRenderingSuspended;
         if (shouldSpin == _vinylSpinning) return;
 
         var visual = ElementCompositionPreview.GetElementVisual(VinylSpinLayer);
-        visual.CenterPoint = new Vector3((float)(VinylSpinLayer.Width / 2), (float)(VinylSpinLayer.Height / 2), 0);
+        var half = (float)(VinylSpinLayer.Width / 2);
+        visual.CenterPoint = new Vector3(half, half, 0);
 
         if (shouldSpin)
         {
