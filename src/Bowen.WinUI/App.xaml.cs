@@ -213,6 +213,8 @@ public partial class App : Application
         // 歌词页的显示偏好。与桌面歌词那份外观偏好分开存（lyrics.json / desktop-lyrics.json）。
         builder.Services.AddSingleton<ILyricsSettingsStore>(sp => new JsonLyricsSettingsStore(
             logger: sp.GetRequiredService<ILogger<JsonLyricsSettingsStore>>()));
+        builder.Services.AddSingleton<ILyricPosterSettingsStore>(sp => new JsonLyricPosterSettingsStore(
+            logger: sp.GetRequiredService<ILogger<JsonLyricPosterSettingsStore>>()));
         builder.Services.AddSingleton<LyricsViewModel>();
 
         // 界面字体偏好（font-settings.json）。与主题、歌词分开存，重启后生效。

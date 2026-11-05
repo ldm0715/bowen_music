@@ -6,6 +6,7 @@ using Bowen.Core.Media;
 using Bowen.Core.Models;
 using Bowen.Core.Models.Lyrics;
 using Bowen.Core.Services;
+using Bowen.Core.Services.Abstractions;
 using Bowen.WinUI.Controls;
 using Bowen.WinUI.Media;
 using Bowen.WinUI.Services;
@@ -76,6 +77,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly ILogger<LyricsPage> _logger;
     private readonly BackgroundImageStore _backgroundImages;
     private readonly IClipboardService _clipboard;
+    private readonly ILyricPosterSettingsStore _posterSettings;
+    private readonly CoverPaletteLoader _posterPaletteLoader;
     private readonly nint _windowHandle;
     private NativeMethods.NativePoint? _lastCursorPoint;
     private bool _keyboardInteractionActive;
@@ -117,7 +120,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public LyricsPage(MainWindow window, LyricsCanvasView canvas, AudioSpectrumView spectrum, PlayerViewModel player,
         LyricsViewModel lyrics, SongCommentsViewModel comments, AudioEffectsViewModel effects,
         INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
-        FontSettingsViewModel font, BackgroundImageStore backgroundImages, IClipboardService clipboard)
+        FontSettingsViewModel font, BackgroundImageStore backgroundImages, IClipboardService clipboard,
+        ILyricPosterSettingsStore posterSettings)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -132,6 +136,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(font);
         ArgumentNullException.ThrowIfNull(backgroundImages);
         ArgumentNullException.ThrowIfNull(clipboard);
+        ArgumentNullException.ThrowIfNull(posterSettings);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
@@ -140,6 +145,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
         _backgroundImages = backgroundImages;
         _clipboard = clipboard;
+        _posterSettings = posterSettings;
         _canvas = canvas;
         _spectrum = spectrum;
         Player = player;
@@ -157,6 +163,9 @@ public sealed partial class LyricsPage : Page, INavigationAware
         BuildColorPalette();
         BuildSolidColorPalette();
         _paletteLoader = new CoverPaletteLoader(
+            (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)?.CreateLogger<CoverPaletteLoader>());
+        // 海报单独一份取色器：对话框里的请求不能取消歌词页正在进行的自动取色。
+        _posterPaletteLoader = new CoverPaletteLoader(
             (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)?.CreateLogger<CoverPaletteLoader>());
         _commentsPanel = new SongCommentsPanel(comments);
         _commentsPanel.CloseRequested += (_, _) => CloseComments();
@@ -1045,7 +1054,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
                 }
             },
             _trackActions,
-            _logger);
+            _logger,
+            _fontOptions,
+            _posterSettings,
+            _posterPaletteLoader);
 
         try
         {

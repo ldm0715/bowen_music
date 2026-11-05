@@ -1,6 +1,9 @@
 using Bowen.Core.Models;
 using Bowen.Core.Models.Lyrics;
+using Bowen.Core.Services.Abstractions;
+using Bowen.WinUI.Media;
 using Bowen.WinUI.Services;
+using Bowen.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -22,7 +25,10 @@ public sealed record LyricPosterDialogContext(
     IClipboardService Clipboard,
     Func<Task> ReportShareAsync,
     INoticeSink Notices,
-    ILogger? Logger);
+    ILogger? Logger,
+    IReadOnlyList<FontOption> FontOptions,
+    ILyricPosterSettingsStore SettingsStore,
+    CoverPaletteLoader PaletteLoader);
 
 /// <summary>
 /// 歌词海报对话框：先选句，再看预览，最后保存或复制。
@@ -30,11 +36,11 @@ public sealed record LyricPosterDialogContext(
 /// <remarks>
 /// <para>
 /// <b>两步放在同一个 ContentDialog 里。</b> 预览的「返回修改」只是切回第一步，
-/// 勾选状态由 <see cref="LyricPosterDialogContent"/> 保存，不会丢。
+/// 勾选状态与自定义设置由 <see cref="LyricPosterDialogContent"/> 保存，不会丢。
 /// </para>
 /// <para>
-/// <b>分享数只在第一次成功导出时上报一次。</b> 用户反复保存 / 复制同一张海报
-/// 不应该把分享数刷上去；这个标记跟着对话框走。
+/// <b>保存 / 复制只认最新渲染结果。</b> 右侧设置变化会触发重渲染，渲染期间按钮禁用；
+/// 导出永远读 <see cref="LyricPosterDialogContent.LatestPng"/>，不缓存旧图。
 /// </para>
 /// </remarks>
 internal static class LyricPosterDialog
@@ -45,24 +51,42 @@ internal static class LyricPosterDialog
 
         var content = new LyricPosterDialogContent(context);
 
-        var dialog = AppDialogs.Create("制作歌词海报", context.XamlRoot, context.Theme, maxWidth: 600);
+        var dialog = AppDialogs.Create(null, context.XamlRoot, context.Theme, maxWidth: 760);
+        // 看大图时内容会扩到接近窗口，最大宽高要留出空间。
+        dialog.Resources["ContentDialogMaxWidth"] = 4000d;
+        dialog.Resources["ContentDialogMaxHeight"] = 4000d;
         dialog.Content = content;
         dialog.PrimaryButtonText = "生成海报";
-        dialog.CloseButtonText = "取消";
+        dialog.SecondaryButtonText = "复制歌词";
+        dialog.CloseButtonText = "";
         dialog.DefaultButton = ContentDialogButton.Primary;
-        dialog.IsPrimaryButtonEnabled = content.SelectedCount > 0;
+
+        // 主按钮一开始就套强调色，避免对话框打开后靠默认按钮状态再慢一拍上色。
+        if (Application.Current.Resources.TryGetValue("AccentButtonStyle", out var accent)
+            && accent is Style accentStyle)
+        {
+            dialog.PrimaryButtonStyle = accentStyle;
+        }
+
+        // 标题与关闭按钮放在内容里；这里只负责把 X 接到 Hide。
+        content.CloseRequested += (_, _) => dialog.Hide();
 
         var previewing = false;
         var reported = false;
-        byte[]? png = null;
 
-        content.SelectionChanged += (_, _) =>
+        void UpdateButtons()
         {
-            if (!previewing)
-            {
-                dialog.IsPrimaryButtonEnabled = content.SelectedCount > 0;
-            }
-        };
+            dialog.IsPrimaryButtonEnabled = previewing
+                ? content.LatestPng is not null && !content.IsRendering
+                : content.SelectedCount > 0 && !content.IsRendering;
+            dialog.IsSecondaryButtonEnabled = previewing
+                ? content.LatestPng is not null && !content.IsRendering
+                : content.SelectedCount > 0;
+        }
+
+        UpdateButtons();
+        content.SelectionChanged += (_, _) => UpdateButtons();
+        content.RenderStateChanged += (_, _) => UpdateButtons();
 
         dialog.PrimaryButtonClick += async (_, args) =>
         {
@@ -75,9 +99,9 @@ internal static class LyricPosterDialog
                 return;
             }
 
-            if (png is not null)
+            if (!content.IsRendering && content.LatestPng is { } latest)
             {
-                await SaveAsync(png);
+                await SaveAsync(latest);
             }
         };
 
@@ -85,14 +109,20 @@ internal static class LyricPosterDialog
         {
             args.Cancel = true;
 
-            if (!previewing || png is null)
+            if (!previewing)
+            {
+                content.CopyLyrics();
+                return;
+            }
+
+            if (content.IsRendering || content.LatestPng is not { } latest)
             {
                 return;
             }
 
             try
             {
-                await context.Clipboard.SetImageAndTextAsync(png, context.ShareLink);
+                await context.Clipboard.SetImageAndTextAsync(latest, context.ShareLink);
                 await ReportOnceAsync();
                 context.Notices.Show("海报已复制到剪贴板", NoticeSeverity.Success);
             }
@@ -107,56 +137,39 @@ internal static class LyricPosterDialog
         {
             if (!previewing)
             {
+                // 选句阶段没有底部关闭按钮；这里只可能是 Esc，允许它关窗。
                 return;
             }
 
-            // 预览阶段的「返回修改」：保留勾选，回到第一步。
+            // 预览阶段的「返回修改」：保留勾选与设置，回到第一步。
             args.Cancel = true;
             previewing = false;
-            png = null;
             content.ShowSelectionStage();
             dialog.PrimaryButtonText = "生成海报";
-            dialog.SecondaryButtonText = "";
-            dialog.CloseButtonText = "取消";
-            dialog.IsPrimaryButtonEnabled = content.SelectedCount > 0;
+            dialog.SecondaryButtonText = "复制歌词";
+            dialog.CloseButtonText = "";
+            UpdateButtons();
         };
 
         await dialog.ShowAsync();
 
         async Task GeneratePreviewAsync()
         {
-            dialog.IsPrimaryButtonEnabled = false;
-            content.SetBusy(true);
+            await content.RenderLatestAsync();
 
-            try
+            if (content.LatestPng is null)
             {
-                png = await content.RenderPreviewAsync(new LyricPosterContent(
-                    context.Track,
-                    context.ShareLink,
-                    content.SelectedLines));
+                content.ShowMessage(content.LastRenderError ?? "海报生成失败，请稍后再试。");
+                UpdateButtons();
+                return;
+            }
 
-                previewing = true;
-                content.ShowPreviewStage();
-                dialog.PrimaryButtonText = "保存图片";
-                dialog.SecondaryButtonText = "复制图片";
-                dialog.CloseButtonText = "返回修改";
-            }
-            catch (LyricPosterOverflowException)
-            {
-                png = null;
-                content.ShowMessage("歌词太多，一页放不下，请减少勾选的歌词。");
-            }
-            catch (Exception exception)
-            {
-                png = null;
-                context.Logger?.LogWarning(exception, "生成歌词海报失败");
-                content.ShowMessage("海报生成失败，请稍后再试。");
-            }
-            finally
-            {
-                content.SetBusy(false);
-                dialog.IsPrimaryButtonEnabled = true;
-            }
+            previewing = true;
+            content.ShowPreviewStage();
+            dialog.PrimaryButtonText = "保存图片";
+            dialog.SecondaryButtonText = "复制图片";
+            dialog.CloseButtonText = "返回修改";
+            UpdateButtons();
         }
 
         async Task SaveAsync(byte[] bytes)

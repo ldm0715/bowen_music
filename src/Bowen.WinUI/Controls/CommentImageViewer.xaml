@@ -23,12 +23,12 @@
         <Grid ColumnSpacing="12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <StackPanel Spacing="6">
-                <TextBlock Text="评论图片" Foreground="{ThemeResource CommentPrimaryTextBrush}" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock x:Name="TitleText" Text="评论图片" Foreground="{ThemeResource CommentPrimaryTextBrush}" FontSize="18" FontWeight="SemiBold" />
                 <TextBlock x:Name="PanHintText" Text="双击或点击 + 放大图片" FontSize="12" TextWrapping="Wrap"
                     Foreground="{ThemeResource CommentSecondaryTextBrush}" />
             </StackPanel>
             <Button x:Name="ImageCloseButton" Grid.Column="1" Click="OnCloseClick" Style="{StaticResource ImageViewerButtonStyle}"
-                VerticalAlignment="Top" AutomationProperties.Name="关闭大图" ToolTipService.ToolTip="返回评论 (Esc)">
+                VerticalAlignment="Top" AutomationProperties.Name="关闭大图" ToolTipService.ToolTip="关闭大图 (Esc)">
                 <controls:Icon Size="12" Data="{StaticResource IconDismiss}" />
             </Button>
         </Grid>

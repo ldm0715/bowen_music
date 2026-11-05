@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Foundation;
+using Windows.System;
 
 namespace Bowen.WinUI.Controls;
 
@@ -32,8 +33,16 @@ public sealed partial class CommentImageViewer : UserControl
         ElementCompositionPreview.SetIsTranslationEnabled(FullImage, true);
         _imageVisual = ElementCompositionPreview.GetElementVisual(FullImage);
         _imageVisual.CenterPoint = Vector3.Zero;
+        KeyDown += OnViewerKeyDown;
         Loaded += (_, _) => UpdateViewport();
         Unloaded += (_, _) => { EndPan(); CancelRender(); };
+    }
+
+    private void OnViewerKeyDown(object sender, KeyRoutedEventArgs args)
+    {
+        if (args.Key != VirtualKey.Escape) return;
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+        args.Handled = true;
     }
 
     public static readonly DependencyProperty ImageUriProperty = DependencyProperty.Register(
@@ -45,10 +54,93 @@ public sealed partial class CommentImageViewer : UserControl
         set => SetValue(ImageUriProperty, value);
     }
 
+    public static readonly DependencyProperty ImageSourceProperty = DependencyProperty.Register(
+        nameof(ImageSource), typeof(ImageSource), typeof(CommentImageViewer), new PropertyMetadata(null, OnImageSourceChanged));
+
+    /// <summary>
+    /// 已解码的图片源；用于内存里的图片（例如歌词海报 PNG），没有 URI 可加载。
+    /// </summary>
+    public ImageSource? ImageSource
+    {
+        get => (ImageSource?)GetValue(ImageSourceProperty);
+        set => SetValue(ImageSourceProperty, value);
+    }
+
+    public static readonly DependencyProperty TitleProperty = DependencyProperty.Register(
+        nameof(Title), typeof(string), typeof(CommentImageViewer), new PropertyMetadata("评论图片", OnTitleChanged));
+
+    public string Title
+    {
+        get => (string)GetValue(TitleProperty);
+        set => SetValue(TitleProperty, value);
+    }
+
     public event EventHandler? CloseRequested;
+
+    /// <summary>把焦点交给关闭按钮，方便键盘用户直接按 Esc / Tab。</summary>
+    public void FocusCloseButton() => ImageCloseButton.Focus(FocusState.Programmatic);
 
     private static void OnImageUriChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
         => ((CommentImageViewer)sender).LoadImage();
+
+    private static void OnImageSourceChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+        => ((CommentImageViewer)sender).LoadSource();
+
+    private static void OnTitleChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+        => ((CommentImageViewer)sender).TitleText.Text = (string)args.NewValue;
+
+    private void LoadSource()
+    {
+        EndPan();
+        CancelRender();
+        ++_loadGeneration;
+
+        FullImage.Source = null;
+        _bitmap = null;
+        _viewport.Reset();
+        UpdateAppearance();
+        ImageProgress.IsActive = false;
+        LoadingState.Visibility = Visibility.Collapsed;
+        ErrorState.Visibility = Visibility.Collapsed;
+
+        if (ImageSource is not { } source)
+        {
+            return;
+        }
+
+        FullImage.Source = source;
+        _bitmap = source as BitmapImage;
+
+        // 已解码的位图重新挂到控件上不会触发 ImageOpened，直接按像素尺寸初始化。
+        if (_bitmap is { PixelWidth: > 0, PixelHeight: > 0 })
+        {
+            DispatcherQueue.TryEnqueue(SourceReady);
+        }
+        else if (_bitmap is not null)
+        {
+            ImageProgress.IsActive = true;
+            LoadingState.Visibility = Visibility.Visible;
+        }
+
+        ImageCloseButton.Focus(FocusState.Programmatic);
+    }
+
+    private void SourceReady()
+    {
+        if (_bitmap is not { PixelWidth: > 0, PixelHeight: > 0 })
+        {
+            return;
+        }
+
+        ImageProgress.IsActive = false;
+        LoadingState.Visibility = Visibility.Collapsed;
+        ErrorState.Visibility = Visibility.Collapsed;
+        _viewport.Resize(ImageViewport.ActualWidth, ImageViewport.ActualHeight);
+        _viewport.SetImageSize(_bitmap.PixelWidth, _bitmap.PixelHeight);
+        UpdateImageSize();
+        UpdateAppearance();
+        QueueRender();
+    }
 
     private void LoadImage()
     {
@@ -81,21 +173,10 @@ public sealed partial class CommentImageViewer : UserControl
         });
     }
 
-    private void OnImageOpened(object sender, RoutedEventArgs args)
-    {
-        if (ImageUri is null || _bitmap is not { PixelWidth: > 0, PixelHeight: > 0 }) return;
-        ImageProgress.IsActive = false;
-        LoadingState.Visibility = Visibility.Collapsed;
-        _viewport.Resize(ImageViewport.ActualWidth, ImageViewport.ActualHeight);
-        _viewport.SetImageSize(_bitmap.PixelWidth, _bitmap.PixelHeight);
-        UpdateImageSize();
-        UpdateAppearance();
-        QueueRender();
-    }
+    private void OnImageOpened(object sender, RoutedEventArgs args) => SourceReady();
 
     private void OnImageFailed(object sender, ExceptionRoutedEventArgs args)
     {
-        if (ImageUri is null) return;
         ImageProgress.IsActive = false;
         LoadingState.Visibility = Visibility.Collapsed;
         ErrorState.Visibility = Visibility.Visible;
@@ -236,6 +317,11 @@ public sealed partial class CommentImageViewer : UserControl
     private void OnImageDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     { SetZoom(_viewport.Zoom > 1.1 ? 1 : 2, args.GetPosition(ImageViewport)); args.Handled = true; }
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs args) => UpdateViewport();
-    private void OnRetryClick(object sender, RoutedEventArgs args) => LoadImage();
+    private void OnRetryClick(object sender, RoutedEventArgs args)
+    {
+        if (ImageSource is not null) LoadSource();
+        else LoadImage();
+    }
+
     private void OnCloseClick(object sender, RoutedEventArgs args) => CloseRequested?.Invoke(this, EventArgs.Empty);
 }

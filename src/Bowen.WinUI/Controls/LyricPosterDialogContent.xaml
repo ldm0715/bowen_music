@@ -7,8 +7,48 @@
     Width="520">
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,12" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                Text="制作歌词海报"
+                FontSize="18"
+                FontWeight="SemiBold"
+                VerticalAlignment="Center" />
+            <Button
+                Grid.Column="1"
+                Width="32"
+                Height="32"
+                MinWidth="0"
+                MinHeight="0"
+                Padding="0"
+                Background="Transparent"
+                BorderThickness="0"
+                CornerRadius="8"
+                Click="OnCloseDialogClick"
+                ToolTipService.ToolTip="关闭"
+                AutomationProperties.Name="关闭海报对话框">
+                <local:Icon
+                    Size="12"
+                    Data="{StaticResource IconDismiss}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="1">
         <!-- 第一步：选句 -->
-        <Grid x:Name="SelectionStage" RowSpacing="12">
+        <Grid
+            x:Name="SelectionStage"
+            Width="520"
+            HorizontalAlignment="Center"
+            RowSpacing="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -29,13 +69,24 @@
                     TextTrimming="CharacterEllipsis" />
             </StackPanel>
 
-            <Grid Grid.Row="1">
-                <TextBlock Text="选择歌词" FontSize="13" Opacity="0.75" />
+            <Grid Grid.Row="1" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
                 <TextBlock
                     x:Name="CounterText"
-                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
                     FontSize="13"
                     Opacity="0.75" />
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="4"
+                    VerticalAlignment="Center">
+                    <HyperlinkButton x:Name="SelectAllButton" Content="全选" Click="OnSelectAllClick" />
+                    <HyperlinkButton x:Name="ClearButton" Content="清空" Click="OnClearClick" />
+                </StackPanel>
             </Grid>
 
             <ListView
@@ -91,46 +142,51 @@
                 Text="当前歌曲没有歌词"
                 Visibility="Collapsed" />
 
-            <Grid Grid.Row="3" ColumnSpacing="4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <HyperlinkButton x:Name="SelectAllButton" Content="全选" Click="OnSelectAllClick" />
-                <HyperlinkButton x:Name="ClearButton" Grid.Column="1" Content="清空" Click="OnClearClick" />
-                <TextBlock
-                    x:Name="HintText"
-                    Grid.Column="2"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    FontSize="12"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    TextWrapping="Wrap" />
-            </Grid>
+            <TextBlock
+                x:Name="HintText"
+                Grid.Row="3"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                TextWrapping="Wrap" />
         </Grid>
 
-        <!-- 第二步：预览 -->
-        <Grid x:Name="PreviewStage" RowSpacing="8" Visibility="Collapsed">
+        <!-- 第二步：预览 + 右侧自定义 -->
+        <Grid
+            x:Name="PreviewStage"
+            ColumnSpacing="20"
+            RowSpacing="8"
+            Visibility="Collapsed">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
 
             <Border
+                Grid.Row="0"
+                Grid.Column="0"
+                Width="240"
                 Padding="16"
                 HorizontalAlignment="Center"
+                VerticalAlignment="Top"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="1"
                 CornerRadius="8">
                 <Grid>
                     <Image
                         x:Name="PreviewImage"
-                        MaxWidth="252"
-                        MaxHeight="448"
+                        MaxWidth="208"
+                        MaxHeight="360"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Stretch="Uniform" />
+                        Stretch="Uniform"
+                        Tapped="OnPreviewTapped"
+                        ToolTipService.ToolTip="点击查看大图"
+                        AutomationProperties.Name="歌词海报预览，点击查看大图" />
                     <ProgressRing
                         x:Name="PreviewProgress"
                         Width="40"
@@ -142,13 +198,82 @@
                 </Grid>
             </Border>
 
+            <ScrollViewer
+                Grid.Row="0"
+                Grid.Column="1"
+                MaxHeight="420"
+                Margin="4,0,0,0"
+                VerticalAlignment="Top"
+                VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="18">
+                    <StackPanel Spacing="8">
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="字体" />
+                        <local:FontPicker
+                            x:Name="PosterFontPicker"
+                            Width="250"
+                            HorizontalAlignment="Left" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="背景颜色" />
+                            <TextBlock
+                                FontSize="11"
+                                Opacity="0.55"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                VerticalAlignment="Center"
+                                Text="首颗为封面自动取色" />
+                        </StackPanel>
+                        <StackPanel x:Name="BackgroundSwatchPanel" Spacing="8" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="文字颜色" />
+                            <TextBlock
+                                FontSize="11"
+                                Opacity="0.55"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                VerticalAlignment="Center"
+                                Text="首颗为自动对比色" />
+                        </StackPanel>
+                        <StackPanel x:Name="TextColorSwatchPanel" Spacing="8" />
+                    </StackPanel>
+
+                    <TextBlock
+                        x:Name="ContrastHint"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </ScrollViewer>
+
             <TextBlock
                 x:Name="PreviewMessage"
                 Grid.Row="1"
+                Grid.ColumnSpan="2"
                 HorizontalAlignment="Center"
                 FontSize="12"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                 TextWrapping="Wrap" />
         </Grid>
+
+        </Grid>
+
+        <!-- 点击预览图后覆盖整个对话框内容的看大图视图，复用评论区的缩放/平移。 -->
+        <local:CommentImageViewer
+            x:Name="PosterViewer"
+            Grid.RowSpan="2"
+            CloseRequested="OnPosterViewerClose"
+            Visibility="Collapsed" />
     </Grid>
 </UserControl>

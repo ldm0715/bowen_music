@@ -223,6 +223,15 @@ public static class AppPaths
     /// </remarks>
     public static string LyricsSettingsFile => Path.Combine(LocalAppData, "lyrics.json");
 
+    /// <summary>
+    /// 歌词海报的自定义偏好（明文 JSON）。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="LyricsSettingsFile"/> 刻意分开</b>：海报的字体、背景、文字颜色
+    /// 是分享图专用的一套，改海报不应该连带重置歌词页的外观。
+    /// </remarks>
+    public static string LyricPosterSettingsFile => Path.Combine(LocalAppData, "lyrics-poster.json");
+
     /// <summary>歌词页自定义背景图片目录。</summary>
     public static string BackgroundsDirectory => Path.Combine(LocalAppData, "backgrounds");
 
