@@ -40,6 +40,9 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// <summary>正在把读盘的值灌进来。<b>只挡落盘，不挡送引擎。</b></summary>
     private bool _loadingVolume;
 
+    /// <summary>最近一次跳转的目标位置；进度越过它才算声音真的接上。</summary>
+    private TimeSpan _seekTarget;
+
     /// <summary>播放条封面默认的解码尺寸。</summary>
     private const int DefaultCoverDecodePixels = 256;
 
@@ -99,6 +102,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnEngineStateChanged;
+        _engine.SeekPending += OnSeekPending;
         _engine.Failed += OnEngineFailed;
         RefreshQualityOptions();
 
@@ -279,6 +283,19 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// </summary>
     /// <remarks>在 <see cref="CurrentTrackId"/> 变化之前赋值，歌词页据此决定黑胶换碟的滑动方向。</remarks>
     public int TrackChangeDirection { get; private set; }
+
+    /// <summary>
+    /// 跳转已发出、声音还没接上。
+    /// </summary>
+    /// <remarks>
+    /// mpv 在 seek 完成前就把位置报成目标值。歌词页的唱片据此停转，
+    /// 等进度真的越过目标（<see cref="SeekSettledThreshold"/>）再恢复，和歌词时钟同一条判据。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool IsSeekPending { get; set; }
+
+    /// <summary>超过目标这么多才算声音真的接上。</summary>
+    private static readonly TimeSpan SeekSettledThreshold = TimeSpan.FromMilliseconds(50);
 
     /// <summary>当前放的是试听片段。</summary>
     [ObservableProperty]
@@ -546,6 +563,12 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
             return;
         }
 
+        // seek 完成前 mpv 会把位置报成目标值，越过目标才算声音接上。
+        if (IsSeekPending && e.Position >= _seekTarget + SeekSettledThreshold)
+        {
+            IsSeekPending = false;
+        }
+
         PositionSeconds = e.Position.TotalSeconds;
 
         if (e.Duration > TimeSpan.Zero)
@@ -558,10 +581,28 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     {
         IsPlaying = e.State == PlaybackState.Playing;
 
+        // 暂停 / 停播时跳转不会再有「进度越过目标」的机会，先把等待状态清掉，
+        // 否则下一首恢复播放时唱片会一直不转。
+        if (e.State is not PlaybackState.Playing)
+        {
+            IsSeekPending = false;
+        }
+
         if (e.State == PlaybackState.Idle)
         {
             PositionSeconds = 0;
         }
+    }
+
+    private void OnSeekPending(object? sender, SeekPendingEventArgs e)
+    {
+        if (_engine.State is not (PlaybackState.Playing or PlaybackState.Paused))
+        {
+            return;
+        }
+
+        _seekTarget = e.Target;
+        IsSeekPending = true;
     }
 
     private void OnEngineFailed(object? sender, PlaybackFailedEventArgs e)
@@ -573,6 +614,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
     private void OnStarted(object? sender, PlaybackStartedEventArgs e)
     {
+        IsSeekPending = false;
         HasTrack = true;
         CurrentTrack = e.Track;
         HasMv = e.Track.HasMv;

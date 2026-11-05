@@ -685,7 +685,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             _ = RefreshSolidColorAsync();
         }
 
-        if (args.PropertyName == nameof(PlayerViewModel.IsPlaying))
+        if (args.PropertyName is nameof(PlayerViewModel.IsPlaying) or nameof(PlayerViewModel.IsSeekPending))
         {
             UpdateCoverScale();
             UpdateVinylSpin();
@@ -899,8 +899,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         // IsLoaded 必须参与判断：OnNavigatedTo 早于 Loaded，此时给未挂到树上的元素起动画可能丢失；
         // 而丢了之后状态已经记成「在转」，后续调用会提前返回。Loaded 时的布局会再进来一次。
         // 入场飞行期间不转：共享封面按中心标签的外框落位，旋转中的方形包围盒会被放大。
+        // 跳转等待声音接上时也不转：这时歌词已经卡住，唱片还在转就是没和播放状态对齐。
         var shouldSpin = IsLoaded && Lyrics.CoverStyle == LyricsCoverStyle.Vinyl && !_entranceActive
-            && Player.IsPlaying && Lyrics.IsOpen && _windowVisible && !_window.IsRenderingSuspended;
+            && Player.IsPlaying && !Player.IsSeekPending
+            && Lyrics.IsOpen && _windowVisible && !_window.IsRenderingSuspended;
         if (shouldSpin == _vinylSpinning) return;
 
         var visual = ElementCompositionPreview.GetElementVisual(VinylSpinLayer);
