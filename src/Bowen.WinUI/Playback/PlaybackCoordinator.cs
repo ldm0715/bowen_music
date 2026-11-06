@@ -856,6 +856,10 @@ public sealed class PlaybackCoordinator : IDisposable
         // 队列里确实有一首、接下来就要解析并加载它 —— 上一轮的「播到头」到此翻篇。
         _queueExhausted = false;
 
+        // 解析可能要等 API：先掐掉旧歌的断线重连，别让它在这期间自己续上，
+        // 否则会变成「点了新歌、界面是新歌、耳朵里还是旧歌」。
+        _engine.CancelRecovery();
+
         using var operation = BeginOperation(cancellationToken);
         var ct = operation.Token;
         try
@@ -892,6 +896,12 @@ public sealed class PlaybackCoordinator : IDisposable
                     fromCache ? "预取" : "现取",
                     Stopwatch.GetElapsedTime(resolvedAt).TotalMilliseconds);
             }
+            else
+            {
+                // 切歌没成功：引擎里可能还留着上一首（断网时重连还会把它续上）。
+                // 界面已经换成这一首了，声音必须一起清掉，不能停在旧歌上。
+                await _engine.StopAsync(CancellationToken.None).ConfigureAwait(true);
+            }
         }
         catch (OperationCanceledException) when (!ReferenceEquals(_operation, operation)) { }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -900,6 +910,8 @@ public sealed class PlaybackCoordinator : IDisposable
             {
                 _logger.LogWarning("音源解析或加载失败：{Title}（{ErrorType}）", track.Title, ex.GetType().Name);
                 Blocked?.Invoke(this, new PlaybackBlockedEventArgs(track, PlaybackDenialReason.NoStreamUrl, SafeError(ex)));
+                // 同上：解析失败时旧播放不能继续在引擎里响着。
+                await _engine.StopAsync(CancellationToken.None).ConfigureAwait(true);
             }
         }
         finally { CompleteOperation(operation); }

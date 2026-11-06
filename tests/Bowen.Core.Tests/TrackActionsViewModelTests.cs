@@ -676,6 +676,11 @@ public sealed class TrackActionsViewModelTests
             Last = message;
             LastSeverity = severity;
         }
+
+        public void ShowSticky(string message, NoticeSeverity severity = NoticeSeverity.Informational)
+            => Show(message, severity);
+
+        public void Dismiss(string message) => Last = "";
     }
 
     private sealed class Queue : IQueueSink

@@ -247,6 +247,7 @@ public sealed partial class LyricsCanvasView : UserControl
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
         _engine.SeekPending += OnSeekPending;
+        _engine.Stalled += OnStalled;
 
         _cacheTrimTimer = DispatcherQueue.CreateTimer();
         _cacheTrimTimer.Interval = CacheTrimInterval;
@@ -268,6 +269,7 @@ public sealed partial class LyricsCanvasView : UserControl
         _engine.PositionChanged -= OnPositionChanged;
         _engine.StateChanged -= OnStateChanged;
         _engine.SeekPending -= OnSeekPending;
+        _engine.Stalled -= OnStalled;
 
         if (_cacheTrimTimer is not null)
         {
@@ -508,6 +510,25 @@ public sealed partial class LyricsCanvasView : UserControl
         _waitingForSeekAdvance = true;
         _seekTarget = args.Target;
         _lastEnginePosition = null;
+        _waitingForPlaybackToAdvance = true;
+        _clock.SetPlaying(false);
+        StartPlaybackProbe();
+        _renderLoop?.Invalidate();
+    }
+
+    /// <summary>
+    /// 拉流卡死：和跳转等待一样先把时钟停住，等进度真的前进再续上。
+    /// </summary>
+    /// <remarks>
+    /// <b>恢复时不在这里直接启动时钟</b>：位置事件比这个事件晚到，交给
+    /// <see cref="TryStartPlaybackClock"/> 按「位置真的变了」来判断，
+    /// 才能避免连恢复事件本身都被当成「已经开始出声音」。
+    /// </remarks>
+    private void OnStalled(object? sender, PlaybackStalledEventArgs args)
+    {
+        if (!args.Stalled) return;
+
+        _lastEnginePosition = _engine.Position;
         _waitingForPlaybackToAdvance = true;
         _clock.SetPlaying(false);
         StartPlaybackProbe();

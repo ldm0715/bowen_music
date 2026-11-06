@@ -29,4 +29,16 @@ public interface INoticeSink
 {
     /// <summary>显示一条提示。<b>传空串表示不提示</b>（调用方已经滤过，这里不必再判）。</summary>
     void Show(string message, NoticeSeverity severity = NoticeSeverity.Informational);
+
+    /// <summary>
+    /// 显示一条不会自动消失的提示，直到调用方 <see cref="Dismiss"/>。
+    /// </summary>
+    /// <remarks>
+    /// 用于「状态一直没恢复就该一直挂着」的场合，例如拉流卡死后的重连提示。
+    /// 普通提示仍然按等级定时收起。
+    /// </remarks>
+    void ShowSticky(string message, NoticeSeverity severity = NoticeSeverity.Informational);
+
+    /// <summary>撤掉指定文案的提示；正在显示的和还在排队的都撤。没有这条时什么都不做。</summary>
+    void Dismiss(string message);
 }

@@ -97,6 +97,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnStateChanged;
         _engine.SeekPending += OnSeekPending;
+        _engine.Stalled += OnStalled;
         _settings.PropertyChanged += OnSettingsChanged;
         _lyrics.PropertyChanged += OnLyricsChanged;
         _subscribedRoot = XamlRoot;
@@ -114,6 +115,7 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         _engine.PositionChanged -= OnPositionChanged;
         _engine.StateChanged -= OnStateChanged;
         _engine.SeekPending -= OnSeekPending;
+        _engine.Stalled -= OnStalled;
         _settings.PropertyChanged -= OnSettingsChanged;
         _lyrics.PropertyChanged -= OnLyricsChanged;
         if (_subscribedRoot is not null) _subscribedRoot.Changed -= OnXamlRootChanged;
@@ -237,6 +239,14 @@ public sealed class DesktopLyricsCanvasView : Grid, IDisposable
         _waitingForSeekAdvance = true;
         _seekTarget = args.Target;
         _clock.SetPlaying(false);
+    }
+
+    /// <summary>
+    /// 拉流卡死时停住时钟；恢复且仍在播放时再续上。
+    /// </summary>
+    private void OnStalled(object? sender, PlaybackStalledEventArgs args)
+    {
+        _clock.SetPlaying(!args.Stalled && _engine.State == PlaybackState.Playing);
     }
 
     private void OnStateChanged(object? sender, PlaybackStateChangedEventArgs args)

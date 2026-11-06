@@ -51,6 +51,19 @@ public sealed class PlaybackFailedEventArgs(string message) : EventArgs
 }
 
 /// <summary>
+/// 拉流停住（没声音、进度不动）或恢复。
+/// </summary>
+/// <remarks>
+/// 引擎状态仍然是 <see cref="PlaybackState.Playing"/>：它没有暂停，只是后面的数据拉不下来。
+/// 这是网络层的问题，界面需要独立于「播放/暂停」来处理它。
+/// </remarks>
+public sealed class PlaybackStalledEventArgs(bool stalled) : EventArgs
+{
+    /// <summary><c>true</c> 表示停住，<c>false</c> 表示已经恢复。</summary>
+    public bool Stalled { get; } = stalled;
+}
+
+/// <summary>
 /// 跳转请求已发出、音频还没接上。
 /// </summary>
 /// <remarks>

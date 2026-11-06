@@ -96,6 +96,11 @@ public sealed class TrackActionsService : ITrackNavigator, INoticeSink, IQueueSi
 
     void INoticeSink.Show(string message, NoticeSeverity severity) => _notifications.Show(message, severity);
 
+    void INoticeSink.ShowSticky(string message, NoticeSeverity severity)
+        => _notifications.ShowSticky(message, severity);
+
+    void INoticeSink.Dismiss(string message) => _notifications.Dismiss(message);
+
     /// <remarks>
     /// 两条都落到同一个队列上：菜单里的「加入播放队列」与播放条上的「播放列表」看的是同一份数据。
     /// </remarks>

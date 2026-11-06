@@ -48,6 +48,16 @@ public interface IPlaybackService : IAsyncDisposable
     /// <summary>整段播完（到文件结尾，或到了 <see cref="PlaybackSource.End"/>）。</summary>
     event EventHandler? Ended;
 
+    /// <summary>
+    /// 拉流停住 / 恢复。
+    /// </summary>
+    /// <remarks>
+    /// <b>与 <see cref="State"/> 分开</b>：引擎仍然报 <see cref="PlaybackState.Playing"/> ——
+    /// 它并没有暂停，只是数据拉不下来，声音和进度一起停住。界面收到 <c>true</c> 后应当挂一条
+    /// 不自动消失的提示并停住歌词时钟，收到 <c>false</c>（或新的 <see cref="PositionChanged"/>）再撤掉。
+    /// </remarks>
+    event EventHandler<PlaybackStalledEventArgs>? Stalled;
+
     event EventHandler<PlaybackFailedEventArgs>? Failed;
 
     /// <summary>加载成功后才返回；失败抛异常。InitiallyPaused 指定初始暂停状态。</summary>
@@ -60,6 +70,15 @@ public interface IPlaybackService : IAsyncDisposable
     Task SeekAsync(TimeSpan position, CancellationToken cancellationToken = default);
 
     Task StopAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 取消正在进行的断线重连，<b>不打断正常播放</b>。
+    /// </summary>
+    /// <remarks>
+    /// <b>用户要换歌时先调这个。</b> 解析新音源可能要等 API，这期间不能让旧歌自己重连回来 ——
+    /// 否则会出现「点了新歌，界面是新歌，耳朵里还是旧歌」。
+    /// </remarks>
+    void CancelRecovery();
 
     /// <summary>设置音量，0 到 100。</summary>
     void SetVolume(double volume);

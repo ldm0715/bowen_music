@@ -51,6 +51,11 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     /// <summary>音量落盘的防抖时长。见 <see cref="OnVolumeChanged"/>。</summary>
     private static readonly TimeSpan VolumeSaveDelay = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// 拉流卡死时挂的提示文案。<b>恢复时要按同一句话撤掉</b>，所以只许出现在这里。
+    /// </summary>
+    private const string NetworkStalledMessage = "网络中断，正在重新连接…";
+
     public PlayerViewModel(
         PlaybackCoordinator coordinator,
         IPlaybackService engine,
@@ -103,6 +108,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         _engine.PositionChanged += OnPositionChanged;
         _engine.StateChanged += OnEngineStateChanged;
         _engine.SeekPending += OnSeekPending;
+        _engine.Stalled += OnEngineStalled;
         _engine.Failed += OnEngineFailed;
         RefreshQualityOptions();
 
@@ -607,6 +613,25 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
         _seekTarget = e.Target;
         IsSeekPending = true;
+    }
+
+    /// <summary>
+    /// 拉流停住时挂一条<b>不自动消失</b>的提示，恢复后撤掉。
+    /// </summary>
+    /// <remarks>
+    /// <b>不能按普通提示的几秒自动收起</b>：网络没恢复时提示先没了，用户会以为只是一次闪断；
+    /// 而这条提示存在的意义正是「在声音回来之前一直在」。
+    /// </remarks>
+    private void OnEngineStalled(object? sender, PlaybackStalledEventArgs e)
+    {
+        if (e.Stalled)
+        {
+            _notifications.ShowSticky(NetworkStalledMessage, NoticeSeverity.Error);
+        }
+        else
+        {
+            _notifications.Dismiss(NetworkStalledMessage);
+        }
     }
 
     private void OnEngineFailed(object? sender, PlaybackFailedEventArgs e)

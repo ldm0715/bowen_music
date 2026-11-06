@@ -48,6 +48,10 @@ internal sealed class FakePlaybackEngine : IPlaybackService
 
     event EventHandler<SeekPendingEventArgs>? IPlaybackService.SeekPending { add { } remove { } }
 
+    event EventHandler<PlaybackStalledEventArgs>? IPlaybackService.Stalled { add { } remove { } }
+
+    public void CancelRecovery() { }
+
     public event EventHandler? Ended;
 
     public event EventHandler<PlaybackFailedEventArgs>? Failed { add { } remove { } }

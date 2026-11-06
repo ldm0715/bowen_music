@@ -39,6 +39,15 @@ public sealed record NotificationEntry(string Message, NoticeSeverity Severity, 
 /// </remarks>
 public sealed partial class NotificationViewModel : ObservableObject
 {
+    /// <summary>
+    /// 不自动收起的时长哨兵。配合 <see cref="Show"/> 的 <c>duration</c> 参数使用。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Timeout.InfiniteTimeSpan"/> 正好是 <see cref="Task.Delay(TimeSpan, CancellationToken)"/>
+    /// 认可的「无限等待」，所以不需要给计时逻辑加分支。
+    /// </remarks>
+    public static readonly TimeSpan Sticky = Timeout.InfiniteTimeSpan;
+
     /// <summary>待播队列的上限。见类型注释里「满了丢最旧」的理由。</summary>
     private const int MaxPending = 5;
 
@@ -133,6 +142,12 @@ public sealed partial class NotificationViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 显示一条不会自动消失的提示，直到 <see cref="Dismiss(string)"/> 按同一句话撤掉。
+    /// </summary>
+    public void ShowSticky(string message, NoticeSeverity severity = NoticeSeverity.Informational)
+        => Show(message, severity, Sticky);
+
+    /// <summary>
     /// 收起当前这条，立刻放下一条。
     /// </summary>
     /// <remarks>
@@ -145,6 +160,28 @@ public sealed partial class NotificationViewModel : ObservableObject
         StopTimer();
         Current = null;
         Advance();
+    }
+
+    /// <summary>
+    /// 撤掉指定文案的那条提示（正在显示的和还在排队的都撤）。
+    /// </summary>
+    /// <remarks>
+    /// 给「条件恢复后自己收掉」的提示用，例如网络恢复时撤掉重连提示。
+    /// 按文案比对而不是发一个句柄：这类提示全程只有一句固定的文案，句柄反而多一份状态要维护。
+    /// </remarks>
+    public void Dismiss(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        _pending.RemoveAll(entry => string.Equals(entry.Message, message, StringComparison.Ordinal));
+
+        if (Current is { } current && string.Equals(current.Message, message, StringComparison.Ordinal))
+        {
+            Dismiss();
+        }
     }
 
     private void Advance()
