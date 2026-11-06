@@ -1407,12 +1407,12 @@
                                     AutomationProperties.Name="歌词页封面样式">
                                     <ComboBoxItem Content="方形封面" />
                                     <ComboBoxItem Content="黑胶唱片" />
-                                    <ComboBoxItem Content="极简播放器" />
+                                    <ComboBoxItem Content="简易随身听" />
                                     <ComboBoxItem Content="磁带机" />
                                 </ComboBox>
                             </Grid>
 
-                            <!-- 播放器外壳颜色：只在「极简播放器」样式下显示 -->
+                            <!-- 播放器外壳颜色：只在「简易随身听」样式下显示 -->
                             <StackPanel x:Name="ShellColorPanel" Spacing="8" Visibility="Collapsed">
                                 <TextBlock Text="外壳颜色" Style="{StaticResource LyricsSectionTitleStyle}" />
                                 <StackPanel x:Name="ShellPalette" Orientation="Horizontal" Spacing="6"
