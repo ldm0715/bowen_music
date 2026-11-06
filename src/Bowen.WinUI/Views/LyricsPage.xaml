@@ -139,6 +139,67 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!--
+            磁带键：一颗实心小键，悬停变淡、按下更暗。
+            模板根节点透明，键面完全由 Border 画出来，命中区只有键本身。
+        -->
+        <Style x:Key="CassetteKeyStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Root" Background="Transparent">
+                            <Border x:Name="Key" CornerRadius="{TemplateBinding CornerRadius}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" />
+                            <!-- 键帽高光：上沿一道玻璃反光，下沿一道内阴影，实体键才不至于像色块 -->
+                            <Border x:Name="Gloss" CornerRadius="{TemplateBinding CornerRadius}"
+                                IsHitTestVisible="False">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#3DFFFFFF" Offset="0" />
+                                        <GradientStop Color="#0FFFFFFF" Offset="0.34" />
+                                        <GradientStop Color="#00000000" Offset="0.36" />
+                                        <GradientStop Color="#2E000000" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <Border x:Name="Hover" CornerRadius="{TemplateBinding CornerRadius}"
+                                Background="#14FFFFFF" Opacity="0" IsHitTestVisible="False" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Hover.Opacity" Value="1" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Key.Opacity" Value="0.8" />
+                                            <Setter Target="Hover.Opacity" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Opacity" Value="0.4" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Page.Resources>
 
     <VisualStateManager.VisualStateGroups>
@@ -462,6 +523,244 @@
                             </Grid>
                         </Button>
                     </Canvas>
+                    <!--
+                        磁带机后层：银色机身、正面磁带仓、磁带本体与走带机构。
+                        纯正视图——仓门、磁轮、按键全部画在正面，不做俯视或 3/4 视角。
+                        放在 VinylClipHost 之下，专辑标签才能盖住磁带的中间区域。
+                    -->
+                    <Canvas x:Name="CassetteDeviceBack" Width="320" Height="320" Visibility="Collapsed">
+                        <!-- 机身投影：外圈更散、内圈更实，两层叠出落地感 -->
+                        <Rectangle Width="244" Height="18" Canvas.Left="38" Canvas.Top="301" RadiusX="9" RadiusY="9"
+                            IsHitTestVisible="False">
+                            <Rectangle.Fill>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#65000000" Offset="0" />
+                                    <GradientStop Color="#00000000" Offset="1" />
+                                </RadialGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Rectangle Width="204" Height="9" Canvas.Left="58" Canvas.Top="304" RadiusX="4.5" RadiusY="4.5"
+                            IsHitTestVisible="False">
+                            <Rectangle.Fill>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#B0000000" Offset="0" />
+                                    <GradientStop Color="#00000000" Offset="1" />
+                                </RadialGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+
+                        <!-- 机身：颜色由 code-behind 按外壳色生成，这里只是设计稿回退值 -->
+                        <Border x:Name="CassetteShell" Canvas.Left="36" Canvas.Top="10" Width="248" Height="300" CornerRadius="12"
+                            BorderThickness="1" IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#D5D7D9" Offset="0" />
+                                    <GradientStop Color="#BFC2C5" Offset="0.45" />
+                                    <GradientStop Color="#A9ADB0" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.BorderBrush>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#F4F5F6" Offset="0" />
+                                    <GradientStop Color="#8D9194" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.BorderBrush>
+                        </Border>
+
+                        <!-- 机身内沿：顶部一道柔光、底部一道内阴影，塑料件才有厚度 -->
+                        <Border Canvas.Left="37" Canvas.Top="11" Width="246" Height="28" CornerRadius="11,11,0,0"
+                            IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#4DFFFFFF" Offset="0" />
+                                    <GradientStop Color="#00FFFFFF" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Border Canvas.Left="37" Canvas.Top="282" Width="246" Height="27" CornerRadius="0,0,11,11"
+                            IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00000000" Offset="0" />
+                                    <GradientStop Color="#3D000000" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+
+                        <!-- 仓门：开盖时整层绕底边向下折，玻璃同步淡出 -->
+                        <Canvas x:Name="CassetteDoorLayer" Width="320" Height="320" IsHitTestVisible="False">
+                            <!-- 正面仓门：颜色由 code-behind 按外壳色加深一档 -->
+                            <Border x:Name="CassetteDoor" Canvas.Left="48" Canvas.Top="26" Width="224" Height="214" CornerRadius="8"
+                                Background="#AEB1B4" BorderBrush="#8A8E91" BorderThickness="1" />
+                            <!-- 仓门内阴影与底边反光 -->
+                            <Border Canvas.Left="49" Canvas.Top="27" Width="222" Height="20" CornerRadius="7,7,0,0">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#40000000" Offset="0" />
+                                        <GradientStop Color="#00000000" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <Rectangle Width="206" Height="1" Canvas.Left="57" Canvas.Top="238" Fill="#3DFFFFFF" />
+                            <!-- 仓门右侧的开启卡扣 -->
+                            <Rectangle Width="4" Height="14" Canvas.Left="268" Canvas.Top="126" RadiusX="2" RadiusY="2"
+                                Fill="#7E8285" />
+                            <!-- 仓门铰链 -->
+                            <Rectangle Width="18" Height="5" Canvas.Left="52" Canvas.Top="235" RadiusX="2" RadiusY="2"
+                                Fill="#7D8184" />
+                            <Rectangle Width="18" Height="5" Canvas.Left="250" Canvas.Top="235" RadiusX="2" RadiusY="2"
+                                Fill="#7D8184" />
+                        </Canvas>
+
+                        <!-- 仓腔：压在仓门之上；开盖后仓门折走，它仍然留在原地 -->
+                        <Border Canvas.Left="60" Canvas.Top="40" Width="200" Height="150" CornerRadius="4"
+                            Background="#17191C" BorderBrush="#7B7F82" BorderThickness="1" IsHitTestVisible="False" />
+                        <!-- 窗口倒角：上沿亮、下沿暗 -->
+                        <Rectangle Width="198" Height="1" Canvas.Left="61" Canvas.Top="41" Fill="#3DFFFFFF" IsHitTestVisible="False" />
+                        <Rectangle Width="198" Height="1" Canvas.Left="61" Canvas.Top="188" Fill="#8A000000" IsHitTestVisible="False" />
+
+                        <!--
+                            机芯：两根铜柱、两个压带轮与磁头。全部在磁带之后，
+                            装带时被磁带挡住，换带时磁带滑出才露出来。
+                        -->
+                        <Canvas x:Name="CassettePostLayer" Width="320" Height="320" IsHitTestVisible="False">
+                            <Ellipse Width="12" Height="12" Canvas.Left="94" Canvas.Top="106" Stroke="#8A6A38"
+                                StrokeThickness="1">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3"
+                                        RadiusX="0.8" RadiusY="0.8">
+                                        <GradientStop Color="#F2DDB0" Offset="0" />
+                                        <GradientStop Color="#C9A76E" Offset="0.65" />
+                                        <GradientStop Color="#9A7A45" Offset="1" />
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse Width="12" Height="12" Canvas.Left="214" Canvas.Top="106" Stroke="#8A6A38"
+                                StrokeThickness="1">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3"
+                                        RadiusX="0.8" RadiusY="0.8">
+                                        <GradientStop Color="#F2DDB0" Offset="0" />
+                                        <GradientStop Color="#C9A76E" Offset="0.65" />
+                                        <GradientStop Color="#9A7A45" Offset="1" />
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse Width="4" Height="4" Canvas.Left="98" Canvas.Top="110" Fill="#3A2C18" />
+                            <Ellipse Width="4" Height="4" Canvas.Left="218" Canvas.Top="110" Fill="#3A2C18" />
+
+                            <Ellipse Width="8" Height="8" Canvas.Left="134" Canvas.Top="158" Fill="#596066" />
+                            <Ellipse Width="8" Height="8" Canvas.Left="178" Canvas.Top="158" Fill="#596066" />
+                            <Border Canvas.Left="152" Canvas.Top="156" Width="16" Height="10" CornerRadius="2"
+                                Background="#6B7177" BorderBrush="#3E4449" BorderThickness="1" />
+                        </Canvas>
+
+                        <!--
+                            磁带：壳、走带与两个磁轮。整层都在贴纸下面，贴纸会盖住轮盘的一部分；
+                            换带时这一层与标签一起滑出。
+                        -->
+                        <Canvas x:Name="CassetteTapeLayer" Width="320" Height="320" IsHitTestVisible="False">
+                            <Border Canvas.Left="65" Canvas.Top="46" Width="190" Height="138" CornerRadius="2"
+                                Background="#E7E9EA" BorderBrush="#C2C6C9" BorderThickness="1" />
+                            <!-- 磁带壳倒角 -->
+                            <Rectangle Width="188" Height="1" Canvas.Left="66" Canvas.Top="47" Fill="#59FFFFFF" />
+                            <Rectangle Width="188" Height="1" Canvas.Left="66" Canvas.Top="183" Fill="#1F000000" />
+
+                            <!-- 磁带壳印刷：利用贴纸上下的留白补一点装饰 -->
+                            <TextBlock Canvas.Left="70" Canvas.Top="51" FontSize="4.5" Foreground="#8A8F93"
+                                Text="STEREO" IsHitTestVisible="False" />
+                            <TextBlock Canvas.Left="220" Canvas.Top="51" Width="30" FontSize="4.5" Foreground="#8A8F93"
+                                TextAlignment="Right" Text="60 MIN" IsHitTestVisible="False" />
+                            <TextBlock Canvas.Left="70" Canvas.Top="172" FontSize="4" Foreground="#9A9FA3"
+                                Text="TYPE II · NORMAL POSITION" IsHitTestVisible="False" />
+                            <TextBlock Canvas.Left="220" Canvas.Top="172" Width="30" FontSize="4.5" Foreground="#8A8F93"
+                                TextAlignment="Right" Text="SIDE A" IsHitTestVisible="False" />
+                            <!-- 走带：贴纸上方与下方各一条，横贯磁带壳；在贴纸之外，始终可见 -->
+                            <Path x:Name="CassetteTapePath" Data="M68,59 L252,57 M68,169 L252,167"
+                                Stroke="#CFD3D6" StrokeThickness="3"
+                                StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+
+                            <!-- 磁轮：径向渐变给一点圆润感，细密同心圆表示一层层绕上去的磁带 -->
+                            <Grid x:Name="CassetteReelLeftSpin" Width="54" Height="54" Canvas.Left="73" Canvas.Top="85">
+                                <Grid x:Name="CassetteReelLeftTape" Width="54" Height="54">
+                                    <Ellipse Stroke="#AEB4B9" StrokeThickness="1.5">
+                                        <Ellipse.Fill>
+                                            <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3"
+                                                RadiusX="0.8" RadiusY="0.8">
+                                                <GradientStop Color="#F2F4F5" Offset="0" />
+                                                <GradientStop Color="#DFE3E5" Offset="0.65" />
+                                                <GradientStop Color="#C4C9CD" Offset="1" />
+                                            </RadialGradientBrush>
+                                        </Ellipse.Fill>
+                                    </Ellipse>
+                                    <Ellipse Width="50" Height="50" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="44" Height="44" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="38" Height="38" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="32" Height="32" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="26" Height="26" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                </Grid>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5" />
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="60" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="120" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Ellipse Width="16" Height="16" Fill="#C7CCD0" Stroke="#8E9499" StrokeThickness="1" />
+                                <Ellipse Width="6" Height="6" Fill="#4E5459" />
+                            </Grid>
+                            <Grid x:Name="CassetteReelRightSpin" Width="54" Height="54" Canvas.Left="193" Canvas.Top="85">
+                                <Grid x:Name="CassetteReelRightTape" Width="54" Height="54">
+                                    <Ellipse Stroke="#AEB4B9" StrokeThickness="1.5">
+                                        <Ellipse.Fill>
+                                            <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3"
+                                                RadiusX="0.8" RadiusY="0.8">
+                                                <GradientStop Color="#F2F4F5" Offset="0" />
+                                                <GradientStop Color="#DFE3E5" Offset="0.65" />
+                                                <GradientStop Color="#C4C9CD" Offset="1" />
+                                            </RadialGradientBrush>
+                                        </Ellipse.Fill>
+                                    </Ellipse>
+                                    <Ellipse Width="50" Height="50" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="44" Height="44" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="38" Height="38" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="32" Height="32" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                    <Ellipse Width="26" Height="26" Stroke="#C7CCD0" StrokeThickness="0.75" />
+                                </Grid>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5" />
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="60" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="120" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Ellipse Width="16" Height="16" Fill="#C7CCD0" Stroke="#8E9499" StrokeThickness="1" />
+                                <Ellipse Width="6" Height="6" Fill="#4E5459" />
+                            </Grid>
+                        </Canvas>
+
+                        <!-- 四角螺丝：四边统一内缩 10，带一字槽 -->
+                        <Ellipse Width="5" Height="5" Canvas.Left="46" Canvas.Top="20" Fill="#C9CED2" IsHitTestVisible="False" />
+                        <Ellipse Width="5" Height="5" Canvas.Left="269" Canvas.Top="20" Fill="#C9CED2" IsHitTestVisible="False" />
+                        <Ellipse Width="5" Height="5" Canvas.Left="46" Canvas.Top="295" Fill="#C9CED2" IsHitTestVisible="False" />
+                        <Ellipse Width="5" Height="5" Canvas.Left="269" Canvas.Top="295" Fill="#C9CED2" IsHitTestVisible="False" />
+                        <Line X1="47" Y1="21.5" X2="50" Y2="24.5" Stroke="#6E7479" StrokeThickness="0.75" IsHitTestVisible="False" />
+                        <Line X1="270" Y1="21.5" X2="273" Y2="24.5" Stroke="#6E7479" StrokeThickness="0.75" IsHitTestVisible="False" />
+                        <Line X1="47" Y1="296.5" X2="50" Y2="299.5" Stroke="#6E7479" StrokeThickness="0.75" IsHitTestVisible="False" />
+                        <Line X1="270" Y1="296.5" X2="273" Y2="299.5" Stroke="#6E7479" StrokeThickness="0.75" IsHitTestVisible="False" />
+
+                        <!-- 底部刻度：code-behind 批量生成 -->
+                        <Canvas x:Name="CassetteTicks" Width="120" Height="8" Canvas.Left="100" Canvas.Top="292"
+                            IsHitTestVisible="False" />
+                    </Canvas>
                     <!-- 换碟滑动只裁这块区域：滑出去的唱片不会压到窗口左侧，倒影和唱臂不受影响。 -->
                     <Grid x:Name="VinylClipHost" Width="320" Height="320" controls:Motion.ClipToBounds="True">
                     <Grid x:Name="VinylSpinLayer" Width="320" Height="320">
@@ -490,6 +789,142 @@
                         </Border>
                     </Grid>
                     </Grid>
+                    <!--
+                        磁带机前层：仓窗玻璃、标签描边、曲名铭牌与底部机械按键。
+                        按键是正视图里的一排实体键，与机身底边平行，不做顶面视角。
+                    -->
+                    <Canvas x:Name="CassetteDeviceFront" Width="320" Height="320" Visibility="Collapsed">
+                        <!-- 仓窗玻璃：极淡的反光，压在磁带与标签之上；开盖时跟着淡出 -->
+                        <Border x:Name="CassetteGlass" Canvas.Left="60" Canvas.Top="40" Width="200" Height="150" CornerRadius="4"
+                            BorderBrush="#7B7F82" BorderThickness="1" IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#0FFFFFFF" Offset="0" />
+                                    <GradientStop Color="#03FFFFFF" Offset="0.45" />
+                                    <GradientStop Color="#00000000" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+
+                        <!-- 曲名铭牌：仓门下方，深色字印在银灰机身上 -->
+                        <TextBlock x:Name="CassetteTitleText" Canvas.Left="60" Canvas.Top="194" Width="200"
+                            FontSize="9.5" FontWeight="SemiBold" Foreground="#3E4245" TextAlignment="Center"
+                            TextTrimming="CharacterEllipsis" MaxLines="1"
+                            Text="{x:Bind Player.Title, Mode=OneWay}" IsHitTestVisible="False" />
+                        <TextBlock x:Name="CassetteArtistText" Canvas.Left="60" Canvas.Top="207" Width="200"
+                            FontSize="7.5" Foreground="#6A6E72" TextAlignment="Center"
+                            TextTrimming="CharacterEllipsis" MaxLines="1"
+                            Text="{x:Bind Player.ArtistText, Mode=OneWay}" IsHitTestVisible="False" />
+
+                        <!-- 出厂印刷 -->
+                        <TextBlock Canvas.Left="56" Canvas.Top="28" FontSize="6.5" Foreground="#55595C"
+                            Text="BOWEN" IsHitTestVisible="False" />
+                        <TextBlock Canvas.Left="212" Canvas.Top="224" FontSize="5.5" Foreground="#6A6E72"
+                            Text="AUTO REVERSE" IsHitTestVisible="False" />
+
+                        <!-- 底部机械按键：上一首 / 播放 / 停止 / 下一首 -->
+                        <Button x:Name="CassettePreviousButton" Canvas.Left="61" Canvas.Top="246" Width="40" Height="26"
+                            CornerRadius="4" Style="{StaticResource CassetteKeyStyle}" BorderThickness="1"
+                            Command="{x:Bind Player.PreviousCommand}" IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}"
+                            AutomationProperties.Name="上一首" ToolTipService.ToolTip="上一首">
+                            <Button.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#5D6266" Offset="0" />
+                                    <GradientStop Color="#454A4E" Offset="0.35" />
+                                    <GradientStop Color="#272B2F" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.Background>
+                            <Button.BorderBrush>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#7B8084" Offset="0" />
+                                    <GradientStop Color="#1E2226" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.BorderBrush>
+                            <controls:Icon Size="9" Data="{StaticResource IconChevronDown}" Foreground="#D5DADF"
+                                RenderTransformOrigin="0.5,0.5">
+                                <controls:Icon.RenderTransform>
+                                    <RotateTransform Angle="90" />
+                                </controls:Icon.RenderTransform>
+                            </controls:Icon>
+                        </Button>
+                        <Button x:Name="CassettePlayButton" Canvas.Left="107" Canvas.Top="246" Width="60" Height="26"
+                            CornerRadius="4" Style="{StaticResource CassetteKeyStyle}" BorderThickness="1"
+                            Command="{x:Bind Player.TogglePlayPauseCommand}" IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                            AutomationProperties.Name="播放或暂停" ToolTipService.ToolTip="播放或暂停 (Space)">
+                            <Button.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#F26454" Offset="0" />
+                                    <GradientStop Color="#D8352A" Offset="0.45" />
+                                    <GradientStop Color="#AC2018" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.Background>
+                            <Button.BorderBrush>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#FF8A7D" Offset="0" />
+                                    <GradientStop Color="#8E1C15" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.BorderBrush>
+                            <Grid>
+                                <controls:Icon Size="11" Data="{StaticResource IconPlay}" Foreground="#FFFFFFFF"
+                                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsPlaying), Mode=OneWay}" />
+                                <controls:Icon Size="11" Data="{StaticResource IconPause}" Foreground="#FFFFFFFF"
+                                    Visibility="{x:Bind local:Formats.Visible(Player.IsPlaying), Mode=OneWay}" />
+                            </Grid>
+                        </Button>
+                        <Button x:Name="CassetteStopButton" Canvas.Left="173" Canvas.Top="246" Width="40" Height="26"
+                            CornerRadius="4" Style="{StaticResource CassetteKeyStyle}" BorderThickness="1"
+                            Click="OnCassetteStopClick" IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                            AutomationProperties.Name="停止" ToolTipService.ToolTip="停止">
+                            <Button.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#5D6266" Offset="0" />
+                                    <GradientStop Color="#454A4E" Offset="0.35" />
+                                    <GradientStop Color="#272B2F" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.Background>
+                            <Button.BorderBrush>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#7B8084" Offset="0" />
+                                    <GradientStop Color="#1E2226" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.BorderBrush>
+                            <Rectangle Width="6" Height="6" RadiusX="1" RadiusY="1" Fill="#D5DADF" />
+                        </Button>
+                        <Button x:Name="CassetteNextButton" Canvas.Left="219" Canvas.Top="246" Width="40" Height="26"
+                            CornerRadius="4" Style="{StaticResource CassetteKeyStyle}" BorderThickness="1"
+                            Command="{x:Bind Player.NextCommand}" IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}"
+                            AutomationProperties.Name="下一首" ToolTipService.ToolTip="下一首">
+                            <Button.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#5D6266" Offset="0" />
+                                    <GradientStop Color="#454A4E" Offset="0.35" />
+                                    <GradientStop Color="#272B2F" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.Background>
+                            <Button.BorderBrush>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#7B8084" Offset="0" />
+                                    <GradientStop Color="#1E2226" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.BorderBrush>
+                            <controls:Icon Size="9" Data="{StaticResource IconChevronDown}" Foreground="#D5DADF"
+                                RenderTransformOrigin="0.5,0.5">
+                                <controls:Icon.RenderTransform>
+                                    <RotateTransform Angle="270" />
+                                </controls:Icon.RenderTransform>
+                            </controls:Icon>
+                        </Button>
+
+                        <!-- 键名 -->
+                        <TextBlock Canvas.Left="61" Canvas.Top="276" Width="40" FontSize="5.5" TextAlignment="Center"
+                            Foreground="#5C6064" Text="PREV" IsHitTestVisible="False" />
+                        <TextBlock Canvas.Left="107" Canvas.Top="276" Width="60" FontSize="5.5" TextAlignment="Center"
+                            Foreground="#5C6064" Text="PLAY" IsHitTestVisible="False" />
+                        <TextBlock Canvas.Left="173" Canvas.Top="276" Width="40" FontSize="5.5" TextAlignment="Center"
+                            Foreground="#5C6064" Text="STOP" IsHitTestVisible="False" />
+                        <TextBlock Canvas.Left="219" Canvas.Top="276" Width="40" FontSize="5.5" TextAlignment="Center"
+                            Foreground="#5C6064" Text="NEXT" IsHitTestVisible="False" />
+                    </Canvas>
                     <!-- 唱臂：枢轴固定在盘面左上，臂杆绕枢轴在「落到盘面」与「抬起」之间摆动。 -->
                     <Canvas x:Name="TonearmHost" Width="320" Height="320" Visibility="Collapsed">
                         <!--
@@ -973,13 +1408,14 @@
                                     <ComboBoxItem Content="方形封面" />
                                     <ComboBoxItem Content="黑胶唱片" />
                                     <ComboBoxItem Content="极简播放器" />
+                                    <ComboBoxItem Content="磁带机" />
                                 </ComboBox>
                             </Grid>
 
                             <!-- 播放器外壳颜色：只在「极简播放器」样式下显示 -->
-                            <StackPanel x:Name="Mp3ShellColorPanel" Spacing="8" Visibility="Collapsed">
+                            <StackPanel x:Name="ShellColorPanel" Spacing="8" Visibility="Collapsed">
                                 <TextBlock Text="外壳颜色" Style="{StaticResource LyricsSectionTitleStyle}" />
-                                <StackPanel x:Name="Mp3ShellPalette" Orientation="Horizontal" Spacing="6"
+                                <StackPanel x:Name="ShellPalette" Orientation="Horizontal" Spacing="6"
                                     HorizontalAlignment="Center" Margin="0,4,0,0" />
                                 <Grid ColumnSpacing="12">
                                     <Grid.ColumnDefinitions>
@@ -992,11 +1428,11 @@
                                         <TextBlock Text="按当前封面自动取暗色" FontSize="{StaticResource FontSizeCaption}"
                                             Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                                     </StackPanel>
-                                    <ToggleSwitch x:Name="Mp3ShellAutoToggle" Grid.Column="1"
+                                    <ToggleSwitch x:Name="ShellAutoToggle" Grid.Column="1"
                                         MinWidth="0" OffContent="" OnContent=""
-                                        Toggled="OnMp3ShellAutoToggled" AutomationProperties.Name="外壳颜色跟随封面自动取色" />
+                                        Toggled="OnShellAutoToggled" AutomationProperties.Name="外壳颜色跟随封面自动取色" />
                                 </Grid>
-                                <TextBlock x:Name="Mp3ShellHex" FontSize="{StaticResource FontSizeCaption}"
+                                <TextBlock x:Name="ShellHex" FontSize="{StaticResource FontSizeCaption}"
                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                             </StackPanel>
 

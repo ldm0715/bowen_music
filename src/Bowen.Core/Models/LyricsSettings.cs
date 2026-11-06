@@ -24,6 +24,9 @@ public enum LyricsCoverStyle
 
     /// <summary>极简播放器：上方屏幕，下方方向键与中央播放键。</summary>
     Mp3 = 2,
+
+    /// <summary>磁带机：透明外壳，专辑封面贴在正面标签上。</summary>
+    Cassette = 3,
 }
 
 /// <summary>全屏歌词页的背景来源。</summary>
@@ -201,6 +204,9 @@ public sealed record LyricsSettings
     /// <summary>播放器外壳的默认颜色：石墨。</summary>
     public const uint DefaultMp3ShellColor = 0xFF2B2B31;
 
+    /// <summary>磁带机外壳的默认颜色：银灰。</summary>
+    public const uint DefaultCassetteShellColor = 0xFFB9BDC1;
+
     /// <summary>
     /// 纯色背景的预设。压到低亮度保证白色歌词可读，但保留明显的色相差异。
     /// </summary>
@@ -314,6 +320,15 @@ public sealed record LyricsSettings
 
     /// <summary>播放器外壳是否跟随当前封面自动取色。</summary>
     public bool Mp3ShellColorAuto { get; init; }
+
+    /// <summary>磁带机外壳的颜色，<c>0xAARRGGBB</c>；默认银灰。</summary>
+    public uint CassetteShellColorArgb { get; init; } = DefaultCassetteShellColor;
+
+    /// <summary>磁带机自定义外壳色最近一次选的颜色。</summary>
+    public uint CassetteShellCustomColorArgb { get; init; } = DefaultCassetteShellColor;
+
+    /// <summary>磁带机外壳是否跟随当前封面自动取色。</summary>
+    public bool CassetteShellColorAuto { get; init; }
 
     /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
@@ -431,5 +446,13 @@ public sealed record LyricsSettings
         Mp3ShellCustomColorArgb = Mp3ShellCustomColorArgb == 0
             ? DefaultMp3ShellColor
             : Mp3ShellCustomColorArgb | 0xFF000000,
+
+        CassetteShellColorArgb = CassetteShellColorArgb == 0
+            ? DefaultCassetteShellColor
+            : CassetteShellColorArgb | 0xFF000000,
+
+        CassetteShellCustomColorArgb = CassetteShellCustomColorArgb == 0
+            ? DefaultCassetteShellColor
+            : CassetteShellCustomColorArgb | 0xFF000000,
     };
 }

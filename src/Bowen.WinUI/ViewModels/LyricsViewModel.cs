@@ -110,6 +110,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         Mp3ShellColorArgb = loaded.Mp3ShellColorArgb;
         Mp3ShellCustomColorArgb = loaded.Mp3ShellCustomColorArgb;
         Mp3ShellColorAuto = loaded.Mp3ShellColorAuto;
+        CassetteShellColorArgb = loaded.CassetteShellColorArgb;
+        CassetteShellCustomColorArgb = loaded.CassetteShellCustomColorArgb;
+        CassetteShellColorAuto = loaded.CassetteShellColorAuto;
         HorizontalOffsetPercent = loaded.HorizontalOffsetPercent;
         VerticalOffsetPercent = loaded.VerticalOffsetPercent;
         _loading = false;
@@ -249,6 +252,15 @@ public sealed partial class LyricsViewModel : ObservableObject
 
     /// <summary>播放器外壳是否跟随当前封面自动取色。</summary>
     public bool Mp3ShellColorAuto { get; private set; }
+
+    /// <summary>磁带机外壳的颜色，<c>0xAARRGGBB</c>。</summary>
+    public uint CassetteShellColorArgb { get; private set; } = LyricsSettings.DefaultCassetteShellColor;
+
+    /// <summary>磁带机自定义外壳色最近一次选的颜色。</summary>
+    public uint CassetteShellCustomColorArgb { get; private set; } = LyricsSettings.DefaultCassetteShellColor;
+
+    /// <summary>磁带机外壳是否跟随当前封面自动取色。</summary>
+    public bool CassetteShellColorAuto { get; private set; }
 
     /// <summary>在对齐结果之上的水平偏移，占歌词区域宽度的百分比。</summary>
     public double HorizontalOffsetPercent { get; private set; } = LyricsSettings.DefaultOffsetPercent;
@@ -620,6 +632,48 @@ public sealed partial class LyricsViewModel : ObservableObject
         Persist();
     }
 
+    /// <summary>选一个磁带机外壳颜色：同时关闭「跟随封面」，一并落盘。</summary>
+    public void SetCassetteShellColor(uint argb, bool auto)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultCassetteShellColor : argb | 0xFF000000;
+        if (CassetteShellColorArgb == argb && CassetteShellColorAuto == auto)
+        {
+            return;
+        }
+
+        CassetteShellColorArgb = argb;
+        CassetteShellColorAuto = auto;
+        OnPropertyChanged(nameof(CassetteShellColorArgb));
+        OnPropertyChanged(nameof(CassetteShellColorAuto));
+        Persist();
+    }
+
+    /// <summary>磁带机外壳颜色是否跟随封面自动取色。</summary>
+    public void SetCassetteShellColorAuto(bool enabled)
+    {
+        if (CassetteShellColorAuto == enabled)
+        {
+            return;
+        }
+
+        CassetteShellColorAuto = enabled;
+        OnPropertyChanged(nameof(CassetteShellColorAuto));
+        Persist();
+    }
+
+    /// <summary>应用磁带机自定义外壳色：同时记为最近一次自定义色，并关闭「跟随封面」。</summary>
+    public void SetCassetteShellCustomColor(uint argb)
+    {
+        argb = argb == 0 ? LyricsSettings.DefaultCassetteShellColor : argb | 0xFF000000;
+        CassetteShellColorArgb = argb;
+        CassetteShellCustomColorArgb = argb;
+        CassetteShellColorAuto = false;
+        OnPropertyChanged(nameof(CassetteShellColorArgb));
+        OnPropertyChanged(nameof(CassetteShellCustomColorArgb));
+        OnPropertyChanged(nameof(CassetteShellColorAuto));
+        Persist();
+    }
+
     /// <summary>重新裁剪已有背景图片：更新裁剪中心与缩放并落盘。</summary>
     public void SetBackgroundImageCrop(double focusX, double focusY, double zoom)
     {
@@ -735,6 +789,9 @@ public sealed partial class LyricsViewModel : ObservableObject
         Mp3ShellColorArgb = Mp3ShellColorArgb,
         Mp3ShellCustomColorArgb = Mp3ShellCustomColorArgb,
         Mp3ShellColorAuto = Mp3ShellColorAuto,
+        CassetteShellColorArgb = CassetteShellColorArgb,
+        CassetteShellCustomColorArgb = CassetteShellCustomColorArgb,
+        CassetteShellColorAuto = CassetteShellColorAuto,
         HorizontalOffsetPercent = HorizontalOffsetPercent,
         VerticalOffsetPercent = VerticalOffsetPercent,
     });
