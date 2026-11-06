@@ -169,6 +169,15 @@ public static class AppPaths
     public static string CoverCacheDirectory => Path.Combine(CacheDirectory, "covers");
 
     /// <summary>
+    /// mpv 磁盘缓存的临时目录。见 <c>docs/play-queue.md</c> §18。
+    /// </summary>
+    /// <remarks>
+    /// <b>不是持久缓存。</b> 每个媒体关闭时 mpv 会删掉自己的 <c>mpv-cache-*.dat</c>；
+    /// 这里只是给崩溃残留一个固定位置，启动时由播放引擎清一次。
+    /// </remarks>
+    public static string AudioCacheDirectory => Path.Combine(CacheDirectory, "audio");
+
+    /// <summary>
     /// 应用内快捷键的键位绑定（明文 JSON）。
     /// </summary>
     /// <remarks>

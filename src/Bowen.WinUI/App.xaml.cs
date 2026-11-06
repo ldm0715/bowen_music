@@ -4,6 +4,7 @@ using Bowen.Core.Lyrics;
 using Bowen.Core.Models;
 using Bowen.Core.Models.Home;
 using Bowen.Core.Models.Login;
+using Bowen.Core.Playback;
 using Bowen.Core.Services;
 using Bowen.Core.Services.Abstractions;
 using Bowen.Core.Services.Implementations;
@@ -447,6 +448,10 @@ public partial class App : Application
         UnhandledException += OnUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
+        // 清掉上次崩溃留下的 mpv 磁盘缓存。引擎是懒初始化的，不能等第一次播放 ——
+        // 启动后一直没播过歌的话，残留文件会一直占着磁盘。单实例保证此刻没有别的进程在用。
+        AudioCacheCleaner.ClearStale(logger: _host.Services.GetRequiredService<ILogger<App>>());
 
         // 设备标识**不是凭据**（它是假名化的设备串，没有它就没有账号访问能力），
         // 记下来是为了让「客户端与 P0 探针用的是同一个 devid」这条验收可以核对。

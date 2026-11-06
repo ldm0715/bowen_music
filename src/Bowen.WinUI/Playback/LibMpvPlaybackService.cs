@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Diagnostics;
+using Bowen.Core.Playback;
+using Bowen.Core.Services;
 using Bowen.Core.Threading;
 using HanumanInstitute.LibMpv;
 using HanumanInstitute.LibMpv.Core;
@@ -886,6 +888,8 @@ public sealed class LibMpvPlaybackService : IPlaybackService
             // 这个静态属性只在这里赋值一次。
             MpvApi.RootPath = AppContext.BaseDirectory;
 
+            AudioCacheCleaner.ClearStale(logger: _logger);
+
             var mpv = new MpvContext();
 
             // 纯音频 headless。构造时已经 mpv_initialize 过，所以走 property 而不是 option。
@@ -908,12 +912,21 @@ public sealed class LibMpvPlaybackService : IPlaybackService
             //   文件会自动退回原来的搜索方式，不会更差。精确位置仍由 mpv 自己的 hr-seek 解码补齐。
             mpv.SetPropertyString("demuxer-lavf-o", "fflags=+fastseek");
 
-            // 音乐不需要视频播放器的百兆预读；保留网络缓冲和向后 seek。
-            // 2026-10-29 试过把它调大来消除拖动进度条的延迟，实测无用：慢在 seek 方式，
-            // 不在缓存大小（见上面的 fastseek）。这里维持原来的内存/流量预算。
-            mpv.SetPropertyString("demuxer-max-bytes", "16MiB");
-            mpv.SetPropertyString("demuxer-max-back-bytes", "4MiB");
-            mpv.SetPropertyString("cache-secs", "60");
+            // ★ 整首预读，但数据放磁盘：播放期间不再依赖 CDN 长连接。
+            //   16 MiB 的缓存填满后 mpv 会主动停止读取，连接闲置两分钟被 CDN 回收；
+            //   播放推进到缓存右边界时踩在死连接上，就是 §17 的断流。
+            //   cache-on-disk 下 demuxer-max-bytes 只统计元数据，整首预读不会带来
+            //   几十 MB 常驻内存；cache-secs 保持默认（1000 小时），不再人为限流。
+            //   见 docs/play-queue.md §18。
+            mpv.SetPropertyString("cache", "yes");
+            mpv.SetPropertyString("cache-on-disk", "yes");
+            mpv.SetPropertyString("demuxer-cache-dir", AppPaths.AudioCacheDirectory);
+            // 默认 immediate 会在创建后立刻 unlink；Windows 上 mpv 用 FILE_SHARE_DELETE
+            // 打开文件，unlink 会成功，缓存文件在资源管理器里永远看不见。
+            // whendone 让它在播放期间可见、媒体关闭时再删。
+            mpv.SetPropertyString("demuxer-cache-unlink-files", "whendone");
+            mpv.SetPropertyString("demuxer-max-bytes", "64MiB");
+            mpv.SetPropertyString("demuxer-max-back-bytes", "16MiB");
 
             // 缓冲欠载后恢复播放所需的缓存时长，默认 1 秒。seek 会清空缓存，
             // 在慢速 CDN 上这 1 秒的要等数据明显拉长停顿；0.2 秒足够吸收抖动。
