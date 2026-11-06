@@ -84,11 +84,11 @@ AppInstallKind.Detect(fileExists) :
   挂 `MainWindow.OnHostLoaded`（外壳已建、首个页面已导航），再等几秒让首屏动画跑完。
 - **失败不打扰**：自动检查断网、接口变了都只记日志，不弹错误。检查失败是用户没做错任何事的场景，
   不值得给一个模态框。手动检查则一律给反馈。
-- **自动检查可以关**（默认开）：关于页多一行开关，存 `update.json`。
+- **自动检查可以关**（默认开）：关于页多一行开关，存 `config.json` 的 `update` section。
 
 ### 3.3 跳过此版本
 
-`update.json` 里存 `skippedVersion`（如 `"0.2.0"`）。自动检查拿到新版本后先比一次：
+`config.json` 的 `update` section 里存 `skippedVersion`（如 `"0.2.0"`）。自动检查拿到新版本后先比一次：
 
 ```
 latest <= current            → 静默（本来就没人会弹）
@@ -166,7 +166,7 @@ XAML 渲染，而本项目对体积是计较的**（见 `size-optimization.md`�
 | `Models/ReleaseNotes.cs` | **新增**：行模型 + `Parse` |
 | `Models/UpdatePreferences.cs` | **新增**：`AutoCheck`（默认 `true`）/ `SkippedVersion` / `IsSkipped` |
 | `Models/AppUpdateOptions.cs` | 加 `ReleasePageUri`（由 `Owner`/`Repository` 推出来） |
-| `Services/AppPaths.cs` | 加 `UpdatePreferencesFile`（`update.json`）与 `UpdateDownloadDirectory`（`updates\`） |
+| `Services/AppPaths.cs` | 加 `UpdatePreferencesFile`（旧 `update.json`，迁移用）与 `UpdateDownloadDirectory`（`updates\`） |
 | `Services/Abstractions/IAppUpdateService.cs` | 加 `DownloadAsync(asset, progress, ct)`；去掉「不做自动检查」那句（现在做） |
 | `Services/Abstractions/IUpdatePreferencesStore.cs` | **新增** |
 | `Services/Implementations/GitHubReleaseUpdateService.cs` | 解析 `assets[]`（含 `digest`）与 `body`；`DownloadAsync` 走**独立的无限超时 `HttpClient`** |

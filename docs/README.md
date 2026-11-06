@@ -37,6 +37,7 @@
 | [`tech-stack.md`](tech-stack.md) | 技术栈选型：.NET / WinAppSDK / 音频引擎 / SMTC / 工程结构 |
 | [`transport.md`](transport.md) | 工程骨架与传输层的落地设计稿：csproj 全文 / 类清单 / DTO 映射 / 测试清单 / 验收命令 |
 | [`dev-environment.md`](dev-environment.md) | 开发环境（本机实测状态，换机器时对照） |
+| [`settings-storage.md`](settings-storage.md) | **配置文件统一**：单份 `config.json` 的结构、存储层、容错与分阶段迁移 |
 | [`release.md`](release.md) | **打包与发布**：三个产物的差别、NSIS 安装器设计、本地复现、首次发版准备 |
 | [`update.md`](update.md) | **检查更新与安装**：启动自动检查、安装版应用内下载、发布说明展示、跳过此版本 |
 | [`proxy.md`](proxy.md) | **网络与代理**：业务请求固定直连、更新通道的代理设置、为什么音频不纳入 |

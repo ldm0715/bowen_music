@@ -117,10 +117,8 @@ _mode     : PlayMode
 
 ## 4. 模式落盘
 
-`IPlaybackSettingsStore` + `JsonPlaybackSettingsStore`，落到 `%LOCALAPPDATA%\Bowen\playback.json`。
-写法与音质偏好那套逐字一致（先写 `.tmp` 再 `File.Move` 覆盖、枚举合法性校验、失败只记 warning）。
-
-**刻意与 `audio-quality.json` 分开**：两个互不相干的小偏好共用一个文件只会让读写互相牵制。
+`IPlaybackSettingsStore` 的 `UnifiedPlaybackSettingsStore` 适配器，落到 `config.json` 的 `playback` section。
+旧 `playback.json` 只用于迁移；读取保留了裸枚举等老格式的回落。
 它与 `devid.txt` / `session.dat` 不同，不受「必须与探针共用」那条约束。
 
 **2026-10-07 起队列本身也落盘了**，落在 `accounts\<uid>\queue.json`（2026-10-08 起按账号分目录，
@@ -528,7 +526,7 @@ Changed
 （不自动播放，不会突然出声）。设置页「播放」分类多一个「记住播放列表」开关，**默认开**。
 
 落到 `%LOCALAPPDATA%\Bowen\accounts\<uid>\queue.json`（2026-10-08 起按账号分目录；
-「记住播放列表」开关则挪进了 `playback.json`，见 `multi-account.md`），与 `playback.json` 分开 ——
+「记住播放列表」开关在 `config.json` 的 `playback` section，见 `multi-account.md`），与配置分开 ——
 那份几行、很少写；这份几百首、每次增删切歌都要重写。
 
 ### 13.2 存的是快照，不是曲目

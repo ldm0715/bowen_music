@@ -115,7 +115,7 @@
 透给 XAML（`ViewModel.ViewMode.UseGrid`）—— 存多份就要同步，而搜索页的 ViewModel 恰恰是单例、活得更久，
 漏一处就是「在收藏页切了卡片、回搜索页还是列表」。
 
-选择落在 `%LOCALAPPDATA%\Bowen\view-mode.json`（`ViewModeSettings`，路径见 `AppPaths.ViewModeFile`），
+选择落在 `config.json` 的 `viewMode` section（`ViewModeSettings`），
 与关键词历史分开存（一个是内容、一个是界面偏好）。`ViewModeService` 构造时**同步**读一次 ——
 晚一帧就会先铺一遍行列表再翻成卡片；用户改一次写一次，构造时读进来的那一次不回写。
 写失败只记日志：本次会话的选择已经生效，不该为此报错。

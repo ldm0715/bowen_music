@@ -490,7 +490,7 @@ pushkine 的 MIT 实现。单行歌词（含关闭译文、中文歌）的单元
 | 层 | 位置 |
 | --- | --- |
 | 偏好 | `Models/LyricsSettings.cs`（`ShowTranslation`，默认开） |
-| 存储 | `JsonLyricsSettingsStore` → `%LOCALAPPDATA%\Bowen\lyrics.json`（PascalCase 属性名，与其它设置一致） |
+| 存储 | `UnifiedLyricsSettingsStore` → `config.json` 的 `lyrics` section；旧 `lyrics.json` 只用于迁移 |
 | 生效 | `LyricsViewModel.ShowTranslation`：构造时同步读出（避免首帧闪一下），改动即落盘并重投影 `Document` |
 | 可用性 | `LyricDocument.HasTranslation` → `LyricsViewModel.HasTranslation`：**必须在未过滤的 `_fullDocument` 上算**，投影后的 `Document` 上永远是 `false` |
 | 界面 | `LyricsPage` 顶栏那颗按钮：`IsEnabled` 绑 `HasTranslation`；开/关只差图标不透明度；提示文案三种（显示译文／关闭译文／这首歌没有译文） |

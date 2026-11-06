@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>
@@ -14,6 +17,7 @@ namespace Bowen.Core.Models;
 /// 但它是「这一次能不能算完整一首」的试听规则，与循环/随机无关。
 /// </para>
 /// </remarks>
+[JsonConverter(typeof(TolerantEnumConverter<PlayMode>))]
 public enum PlayMode
 {
     /// <summary>顺序播放：按队列顺序放到底就停。</summary>

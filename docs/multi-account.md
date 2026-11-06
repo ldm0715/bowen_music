@@ -9,9 +9,9 @@
 > 2. **队列没有走「每次问当前账号」这条路**，改成由 `PlaybackCoordinator` 显式传作用域。
 >    原因见第五节末尾：队列的内存副本由协调器长期持有且有防抖落盘，切号时必须先写回**旧**作用域，
 >    而那一刻"当前是谁"已经是新账号了。
-> 3. **「记住播放列表」开关从 `queue.json` 挪进了 `playback.json`。** 队列按账号分之后它也会被带走，
+> 3. **「记住播放列表」开关从 `queue.json` 挪进了个人级配置。** 队列按账号分之后它也会被带走，
 >    于是"为隐私关掉、换个号又自己打开"。它本质是个人级偏好，归位即可。
->    `playback.json` 的格式随之从裸枚举变成对象，读取保留了老格式的回落。
+>    2026-11-06 起它位于 `config.json` 的 `playback` section，读取保留了旧 `playback.json` 的格式回落。
 
 ## 问题
 
@@ -46,8 +46,8 @@
 
 | 项 | 为什么 |
 | --- | --- |
-| `window.json`、`mini-player-window.json`、`desktop-lyrics-window.json` | 窗口几何是「这台机器」的事（`AppPaths` 的原话） |
-| `settings.json`（主题）、`shortcuts.json`、`audio-quality.json`、`playback.json`（播放模式 + 记住播放列表）、`volume.json`、`view-mode.json`、`lyrics.json`、`desktop-lyrics.json`、`input-method.json` | 「这个人怎么用这个软件」。换个账号就得重设主题和快捷键会很烦 |
+| `config.json` → `windows` | 窗口几何是「这台机器」的事（同一份配置里的 section） |
+| `config.json` 的其余 section（`appearance` / `fonts` / `playback` / `volume` / `lyrics` / `desktopLyrics` / `shortcuts` 等） | 「这个人怎么用这个软件」。换个账号就得重设主题和快捷键会很烦 |
 
 ### 账号级 —— **现在错位的就是这三项**
 
@@ -66,7 +66,7 @@
 ├── devid.txt                    设备级：不动
 ├── logs\                        设备级：不动
 ├── cache\covers\                设备级：不动
-├── settings.json 等 9 项        个人级：不动
+├── config.json                  个人级：不动
 └── accounts\
     ├── anonymous\               未登录期间产生的历史 / 搜索词
     │   ├── history.json

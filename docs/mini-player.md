@@ -180,7 +180,7 @@ private bool IsActive => IsOpen || IsDesktopLyricsOpen || IsMiniPlayerOpen;
 
 | 文件 | 保存内容 | 实现 |
 | --- | --- | --- |
-| `%LOCALAPPDATA%\Bowen\mini-player-window.json` | 内容条的 X、Y | `MiniPlayerPlacementStore` 转发到独立路径的 `JsonWindowPlacementStore` |
+| `config.json` → `windows.miniPlayer` | 内容条的 X、Y | `UnifiedMiniPlayerPlacementStore`；旧 `mini-player-window.json` 只用于迁移 |
 
 - **只记位置，不记贴边收起**：收起是临时让路的状态，重启后小窗应该看得见，
   而不是缩在屏幕边上让人以为丢了。载入后起始状态一律「自由」。

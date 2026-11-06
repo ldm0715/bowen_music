@@ -1,6 +1,10 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>海报背景色的来源。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<LyricPosterBackgroundSource>))]
 public enum LyricPosterBackgroundSource
 {
     /// <summary>跟随当前封面自动取色。</summary>
@@ -14,6 +18,7 @@ public enum LyricPosterBackgroundSource
 }
 
 /// <summary>海报文字颜色的来源。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<LyricPosterTextColorMode>))]
 public enum LyricPosterTextColorMode
 {
     /// <summary>按背景亮度自动取白色或近黑色。</summary>
@@ -43,23 +48,23 @@ public sealed record LyricPosterSettings
     public const uint DefaultTextColor = 0xFFFFFFFF;
 
     /// <summary>歌词字体族；空串表示海报默认字体。</summary>
-    public string FontFamily { get; init; } = string.Empty;
+    public string FontFamily { get; set; } = string.Empty;
 
-    public LyricPosterBackgroundSource BackgroundSource { get; init; } = LyricPosterBackgroundSource.Auto;
+    public LyricPosterBackgroundSource BackgroundSource { get; set; } = LyricPosterBackgroundSource.Auto;
 
     /// <summary>实际生效的背景色（预设或自定义）。</summary>
-    public uint BackgroundColorArgb { get; init; } = DefaultBackgroundColor;
+    public uint BackgroundColorArgb { get; set; } = DefaultBackgroundColor;
 
     /// <summary>色轮最近一次选中的背景色，供「自定义」圆点显示。</summary>
-    public uint BackgroundCustomColorArgb { get; init; } = DefaultBackgroundColor;
+    public uint BackgroundCustomColorArgb { get; set; } = DefaultBackgroundColor;
 
-    public LyricPosterTextColorMode TextColorMode { get; init; } = LyricPosterTextColorMode.Auto;
+    public LyricPosterTextColorMode TextColorMode { get; set; } = LyricPosterTextColorMode.Auto;
 
     /// <summary>自定义文字颜色；只在 <see cref="TextColorMode"/> 为 Custom 时生效。</summary>
-    public uint TextColorArgb { get; init; } = DefaultTextColor;
+    public uint TextColorArgb { get; set; } = DefaultTextColor;
 
     /// <summary>色轮最近一次选中的文字颜色，供「自定义」圆点显示。</summary>
-    public uint TextCustomColorArgb { get; init; } = DefaultTextColor;
+    public uint TextCustomColorArgb { get; set; } = DefaultTextColor;
 
     public static LyricPosterSettings Default { get; } = new();
 

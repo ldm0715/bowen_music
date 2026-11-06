@@ -24,7 +24,7 @@ public sealed record ViewModeSettings
     /// <b>默认关（行列表）。</b> 卡片是后加的形态，默认停在原来那一套上，
     /// 老用户升级上来不会一打开就觉得列表变了样。
     /// </remarks>
-    public bool UseGrid { get; init; }
+    public bool UseGrid { get; set; }
 
     /// <summary>默认设置：行列表。</summary>
     public static ViewModeSettings Default { get; } = new();

@@ -1,6 +1,10 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>更新通道走哪条路。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<ProxyMode>))]
 public enum ProxyMode
 {
     /// <summary>
@@ -30,10 +34,28 @@ public enum ProxyMode
 /// 真要收企业代理的账号密码时，这个文件得改成走 DPAPI。
 /// </para>
 /// </remarks>
-public sealed record ProxySettings(ProxyMode Mode = ProxyMode.Direct, string Address = "")
+public sealed record ProxySettings
 {
+    /// <summary>代理模式。</summary>
+    public ProxyMode Mode { get; set; } = ProxyMode.Direct;
+
+    /// <summary>自定义代理地址；仅 <see cref="ProxyMode.Custom"/> 时生效。</summary>
+    public string Address { get; set; } = "";
+
     /// <summary>默认：不使用代理。</summary>
     public static ProxySettings Default { get; } = new();
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public ProxySettings()
+    {
+    }
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public ProxySettings(ProxyMode Mode = ProxyMode.Direct, string Address = "")
+    {
+        this.Mode = Mode;
+        this.Address = Address;
+    }
 
     /// <summary>
     /// 把认不出来的模式换回直连，其余字段原样留着。

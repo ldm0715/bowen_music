@@ -101,14 +101,17 @@ public sealed class DesktopLyricsSettingsStoreTests : IDisposable
     }
 
     [Fact]
-    public void UnknownAlignmentName_FallsBackToDefaultEntirely()
+    public void UnknownAlignmentName_FallsBackOnlyThatField()
     {
-        // 字符串枚举的未知名字是**反序列化期**的失败，整份文档读不出来，
-        // 所以这里退回的是全默认值 —— 不是「只把对齐修回居中、其余照读」。
-        // 想只夹那一项，得是数字越界那种情况（见下面的 OutOfRangeFontSize）。
+        // 枚举容错转换器把未知名字收回该枚举的默认值，其余字段照读。
+        // 整份退回默认只发生在文件读不出来的时候。
         WriteRaw("""{ "FontSize": 60, "Alignment": "Diagonal", "DualLine": true }""");
 
-        Assert.Equal(DesktopLyricsSettings.Default, NewStore().Load());
+        var loaded = NewStore().Load();
+
+        Assert.Equal(60d, loaded.FontSize);
+        Assert.True(loaded.DualLine);
+        Assert.Equal(DesktopLyricsAlignment.Center, loaded.Alignment);
     }
 
     [Fact]

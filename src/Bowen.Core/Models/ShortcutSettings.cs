@@ -16,7 +16,7 @@ namespace Bowen.Core.Models;
 public sealed record ShortcutSettings
 {
     /// <summary>每个动作一条。缺项表示这个动作这一轮没有快捷键。</summary>
-    public ShortcutBinding[] Bindings { get; init; } = [];
+    public ShortcutBinding[] Bindings { get; set; } = [];
 
     /// <summary>出厂键位。</summary>
     public static ShortcutSettings Default { get; } = new()

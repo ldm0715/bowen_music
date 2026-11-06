@@ -10,7 +10,7 @@ namespace Bowen.Core.Services.Implementations;
 public sealed class JsonAudioQualitySettingsStore(string? path = null, ILogger<JsonAudioQualitySettingsStore>? logger = null)
     : IAudioQualitySettingsStore
 {
-    private readonly string _path = path ?? Path.Combine(AppPaths.LocalAppData, "audio-quality.json");
+    private readonly string _path = path ?? AppPaths.AudioQualityFile;
     private readonly ILogger _logger = logger ?? NullLogger<JsonAudioQualitySettingsStore>.Instance;
 
     public AudioQuality Load()

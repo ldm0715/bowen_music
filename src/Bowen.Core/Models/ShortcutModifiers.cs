@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>
@@ -8,6 +11,7 @@ namespace Bowen.Core.Models;
 /// 绑上去多半会被系统先吃掉，表现为「设了没反应」。与其让用户去踩，不如不提供。
 /// </remarks>
 [Flags]
+[JsonConverter(typeof(TolerantEnumConverter<ShortcutModifiers>))]
 public enum ShortcutModifiers
 {
     None = 0,

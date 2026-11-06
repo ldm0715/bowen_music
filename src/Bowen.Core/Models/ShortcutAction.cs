@@ -1,8 +1,12 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>
 /// 一个可以被快捷键触发的动作。
 /// </summary>
+[JsonConverter(typeof(TolerantEnumConverter<ShortcutAction>))]
 public enum ShortcutAction
 {
     TogglePlayPause = 0,

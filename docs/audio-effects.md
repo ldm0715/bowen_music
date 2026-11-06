@@ -25,7 +25,7 @@
 | 目录 | `src/Bowen.Core/Audio/AudioEffectCatalog.cs` | 预设名、描述、滤镜片段、环境音定义 |
 | 图构建 | `src/Bowen.Core/Audio/AudioEffectGraphBuilder.cs` | 纯函数：设置 + 环境音路径 → mpv `af` 字符串 |
 | 环境音素材 | `src/Bowen.Core/Audio/AmbientSoundGenerator.cs` | 从程序集解压嵌入的 OGG/FLAC 循环到本地缓存 |
-| 持久化 | `JsonAudioEffectSettingsStore` | `%LOCALAPPDATA%/audio-effects.json`，临时文件 + Move |
+| 持久化 | `UnifiedAudioEffectSettingsStore` | `config.json` 的 `audioEffects` section；旧 `audio-effects.json` 只用于迁移 |
 | 播放层 | `IPlaybackService.SetAudioFilter` / `SendAudioFilterCommand` | 只碰 mpv；失败时清空链，不打断播放 |
 | 面板 | `AudioEffectsViewModel` + `AudioEffectsPanel.xaml` | 页签、卡片、总开关、音量滑杆、错误提示 |
 

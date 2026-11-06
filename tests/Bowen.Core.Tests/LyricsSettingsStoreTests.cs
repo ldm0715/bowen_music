@@ -167,8 +167,8 @@ public sealed class LyricsSettingsStoreTests : IDisposable
     }
 
     /// <summary>
-    /// 旧版 lyrics.json 没有外观字段。缺字段时源生成的构造会塞 CLR 默认值，
-    /// 行距 0 恰好也是合法值，必须在 store 里按“文件里有没有这个属性”补默认。
+    /// 旧版 lyrics.json 没有外观字段。store 按「文件里有没有这个属性」补默认，
+    /// 这样显式写入的 0（合法行距）不会被误当成缺字段。
     /// </summary>
     [Fact]
     public void LegacyFile_WithoutAppearanceFields_FallsBackToDefaults()
@@ -394,31 +394,25 @@ public sealed class LyricsSettingsStoreTests : IDisposable
     }
 
     /// <summary>
-    /// 缺字段时落到 <b>CLR 默认值</b>（<c>false</c>），不是属性上写的那个初始值。
+    /// 缺字段时落到属性上写的初始化器，不是 CLR 默认值。
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 源生成器给 record 生成的是「有参构造」那条快路径
-    /// （<c>ObjectWithParameterizedConstructorCreator</c>，见
-    /// <c>obj/.../LyricsSettingsJsonContext.LyricsSettings.g.cs</c>），
-    /// 缺的字段会被塞 <c>default</c>，属性初始值根本不参与。
+    /// 源生成器对 <c>init</c> 属性走「有参构造」快路径，缺字段会被塞 <c>default</c>；
+    /// 只有可写属性（<c>set</c>）才走无参构造，属性初始化器才会生效。
     /// </para>
     /// <para>
-    /// <b>这对本项目每一份设置 record 都成立</b>，不是这份独有的 ——
-    /// <c>LyricsSettings.ShowTranslation</c> 声明成默认开，同样会被 <c>{}</c> 关掉。
-    /// 实际踩不到：<c>Save</c> 每次写完整的一份，缺字段只可能来自手工改文件。
-    /// </para>
-    /// <para>
-    /// 这条测试是把行为钉住，省得以后有人看见 <c>{}</c> 读成 false 就去「修」属性初始值 ——
-    /// 修不动。真要改，得动的是这份 record 的形状，那是全项目一起的事。
+    /// <b>本项目所有会进配置文件的模型都按 <c>get; set;</c> 声明</b>，
+    /// 所以 <c>{}</c> 读到的是 <c>ShowTranslation = true</c>。这条测试钉住的是那个形状，
+    /// 以后不要为了让某个字段「可以有初始值」又改回 <c>init</c>。
     /// </para>
     /// </remarks>
     [Fact]
-    public void MissingField_FallsBackToTheClrDefault_NotTheInitializer()
+    public void MissingField_FallsBackToTheInitializer()
     {
         WriteRaw("{}");
 
-        Assert.False(NewStore().Load().ShowTranslation);
+        Assert.True(NewStore().Load().ShowTranslation);
     }
 
     [Fact]

@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>
@@ -12,6 +15,7 @@ namespace Bowen.Core.Models;
 /// 回退到 <see cref="Discover"/>，见 <c>MainWindow.NavigateToStartupPage</c>。
 /// </para>
 /// </remarks>
+[JsonConverter(typeof(TolerantEnumConverter<StartupSection>))]
 public enum StartupSection
 {
     /// <summary>发现页。匿名也能用。</summary>

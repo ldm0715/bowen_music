@@ -1,6 +1,10 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>全屏歌词的横向对齐方式。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<LyricsAlignment>))]
 public enum LyricsAlignment
 {
     /// <summary>居左。</summary>
@@ -14,6 +18,7 @@ public enum LyricsAlignment
 }
 
 /// <summary>全屏歌词页左侧封面的呈现样式。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<LyricsCoverStyle>))]
 public enum LyricsCoverStyle
 {
     /// <summary>圆角方形封面，带倒影。</summary>
@@ -30,6 +35,7 @@ public enum LyricsCoverStyle
 }
 
 /// <summary>全屏歌词页的背景来源。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<LyricsBackgroundMode>))]
 public enum LyricsBackgroundMode
 {
     /// <summary>当前封面的模糊背景。</summary>
@@ -68,7 +74,7 @@ public sealed record LyricsSettings
     /// <b>默认开。</b> 译文本来就在歌词内容里，客户端此前一直显示着；
     /// 这个开关的意义是给用户一个关掉它的办法，不是新增一种显示。
     /// </remarks>
-    public bool ShowTranslation { get; init; } = true;
+    public bool ShowTranslation { get; set; } = true;
 
     /// <summary>
     /// 全屏歌词的字体族名；空串表示跟随系统默认。
@@ -77,7 +83,7 @@ public sealed record LyricsSettings
     /// <b>只存名字，不校验是否存在。</b> 缺字体时渲染层回退系统默认，与界面字体同一条规矩。
     /// 改它即时生效（重排当前文档），不需要重启。
     /// </remarks>
-    public string FontFamily { get; init; } = string.Empty;
+    public string FontFamily { get; set; } = string.Empty;
 
     /// <summary>
     /// 小窗歌词的字体族名；空串表示跟随界面字体。
@@ -86,7 +92,7 @@ public sealed record LyricsSettings
     /// 小窗那一行歌词是 XAML TextBlock，默认吃全局界面字体；这里单独存一份，
     /// 选了字体就覆盖它。只存名字，缺字体时窗口回退系统默认。
     /// </remarks>
-    public string MiniPlayerFontFamily { get; init; } = string.Empty;
+    public string MiniPlayerFontFamily { get; set; } = string.Empty;
 
     /// <summary>全屏歌词字号下限（DIP）。</summary>
     public const double MinimumFontSize = 24;
@@ -230,20 +236,20 @@ public sealed record LyricsSettings
     ];
 
     /// <summary>全屏歌词字号，DIP。</summary>
-    public double FontSize { get; init; } = DefaultFontSize;
+    public double FontSize { get; set; } = DefaultFontSize;
 
     /// <summary>全屏歌词的横向对齐方式。</summary>
-    public LyricsAlignment Alignment { get; init; } = LyricsAlignment.Left;
+    public LyricsAlignment Alignment { get; set; } = LyricsAlignment.Left;
 
     /// <summary>已唱部分的高亮色，<c>0xAARRGGBB</c>；未唱部分固定白色半透明。</summary>
-    public uint HighlightColorArgb { get; init; } = DefaultHighlightColor;
+    public uint HighlightColorArgb { get; set; } = DefaultHighlightColor;
 
     /// <summary>未高亮歌词的不透明度，0.2–1；默认 0.38。</summary>
     /// <remarks>不跟随背景模式；亮背景上可调高，保证非当前行可读。</remarks>
-    public double InactiveLineOpacity { get; init; } = DefaultInactiveLineOpacity;
+    public double InactiveLineOpacity { get; set; } = DefaultInactiveLineOpacity;
 
     /// <summary>行与行之间的额外间距，DIP；0 表示只保留文本自身行高。</summary>
-    public double LineGap { get; init; } = DefaultLineGap;
+    public double LineGap { get; set; } = DefaultLineGap;
 
     /// <summary>
     /// 译文是否跟随原文同步扫色。默认开。
@@ -251,13 +257,13 @@ public sealed record LyricsSettings
     /// <remarks>
     /// 关掉后译文仍按原文下方显示，但不再跟随演唱进度染色，保持未播放行的暗色。
     /// </remarks>
-    public bool SyncTranslationHighlight { get; init; } = true;
+    public bool SyncTranslationHighlight { get; set; } = true;
 
     /// <summary>译文相对歌词字号的缩放，0.5–1；默认 0.72。</summary>
-    public double TranslationFontScale { get; init; } = DefaultTranslationFontScale;
+    public double TranslationFontScale { get; set; } = DefaultTranslationFontScale;
 
     /// <summary>译文与原文之间的间距，DIP；默认 6。</summary>
-    public double TranslationLineGap { get; init; } = DefaultTranslationLineGap;
+    public double TranslationLineGap { get; set; } = DefaultTranslationLineGap;
 
     /// <summary>
     /// 视口边缘模糊范围，占视口高度的比例，0–0.5；默认 0.2。
@@ -265,80 +271,80 @@ public sealed record LyricsSettings
     /// <remarks>
     /// 歌词在视口中部保持清晰，越靠近上下边缘越模糊；0 表示不按边缘模糊。
     /// </remarks>
-    public double EdgeBlurRatio { get; init; } = DefaultEdgeBlurRatio;
+    public double EdgeBlurRatio { get; set; } = DefaultEdgeBlurRatio;
 
     /// <summary>全屏歌词页左侧封面的样式；默认方形封面。</summary>
-    public LyricsCoverStyle CoverStyle { get; init; } = LyricsCoverStyle.Cover;
+    public LyricsCoverStyle CoverStyle { get; set; } = LyricsCoverStyle.Cover;
 
     /// <summary>全屏歌词页的背景来源；默认封面模糊。</summary>
-    public LyricsBackgroundMode BackgroundMode { get; init; } = LyricsBackgroundMode.CoverBlur;
+    public LyricsBackgroundMode BackgroundMode { get; set; } = LyricsBackgroundMode.CoverBlur;
 
     /// <summary>封面模糊背景上叠加的黑色暗度，0–0.8；默认 0.4。</summary>
-    public double CoverBlurDim { get; init; } = DefaultCoverBlurDim;
+    public double CoverBlurDim { get; set; } = DefaultCoverBlurDim;
 
     /// <summary>封面模糊强度，DIP；默认 52。</summary>
-    public double CoverBlurAmount { get; init; } = DefaultCoverBlurAmount;
+    public double CoverBlurAmount { get; set; } = DefaultCoverBlurAmount;
 
     /// <summary>Mica 之上是否叠一层封面主色，避免暗色下纯黑。</summary>
-    public bool MicaTintEnabled { get; init; } = true;
+    public bool MicaTintEnabled { get; set; } = true;
 
     /// <summary>
     /// 自定义背景图片的文件名，位于应用数据目录的 <c>backgrounds</c> 下。
     /// </summary>
     /// <remarks>只存文件名，不存绝对路径；换机器或改目录时不会失效。</remarks>
-    public string BackgroundImageFile { get; init; } = string.Empty;
+    public string BackgroundImageFile { get; set; } = string.Empty;
 
     /// <summary>自定义背景图片上叠加的黑色暗度，0–0.8；默认 0.6。</summary>
-    public double BackgroundImageDim { get; init; } = DefaultBackgroundDim;
+    public double BackgroundImageDim { get; set; } = DefaultBackgroundDim;
 
     /// <summary>自定义背景图片的模糊量，DIP；默认 8。</summary>
-    public double BackgroundImageBlur { get; init; } = DefaultBackgroundBlur;
+    public double BackgroundImageBlur { get; set; } = DefaultBackgroundBlur;
 
     /// <summary>自定义背景图片的水平裁剪中心，0–1；0.5 为居中。</summary>
-    public double BackgroundImageFocusX { get; init; } = 0.5;
+    public double BackgroundImageFocusX { get; set; } = 0.5;
 
     /// <summary>自定义背景图片的垂直裁剪中心，0–1；0.5 为居中。</summary>
-    public double BackgroundImageFocusY { get; init; } = 0.5;
+    public double BackgroundImageFocusY { get; set; } = 0.5;
 
     /// <summary>自定义背景图片在 cover 基础上的缩放，1–3；1 表示刚好铺满。</summary>
-    public double BackgroundImageZoom { get; init; } = 1;
+    public double BackgroundImageZoom { get; set; } = 1;
 
     /// <summary>纯色背景的颜色，<c>0xAARRGGBB</c>。</summary>
-    public uint BackgroundColorArgb { get; init; } = DefaultBackgroundColor;
+    public uint BackgroundColorArgb { get; set; } = DefaultBackgroundColor;
 
     /// <summary>自定义取色最近一次选的颜色，供预设行末尾的「自定义」圆点使用。</summary>
-    public uint BackgroundCustomColorArgb { get; init; } = DefaultBackgroundColor;
+    public uint BackgroundCustomColorArgb { get; set; } = DefaultBackgroundColor;
 
     /// <summary>纯色背景是否跟随当前封面自动取色。</summary>
-    public bool BackgroundColorAuto { get; init; }
+    public bool BackgroundColorAuto { get; set; }
 
     /// <summary>播放器外壳的颜色，<c>0xAARRGGBB</c>。</summary>
-    public uint Mp3ShellColorArgb { get; init; } = DefaultMp3ShellColor;
+    public uint Mp3ShellColorArgb { get; set; } = DefaultMp3ShellColor;
 
     /// <summary>自定义外壳色最近一次选的颜色。</summary>
-    public uint Mp3ShellCustomColorArgb { get; init; } = DefaultMp3ShellColor;
+    public uint Mp3ShellCustomColorArgb { get; set; } = DefaultMp3ShellColor;
 
     /// <summary>播放器外壳是否跟随当前封面自动取色。</summary>
-    public bool Mp3ShellColorAuto { get; init; }
+    public bool Mp3ShellColorAuto { get; set; }
 
     /// <summary>磁带机外壳的颜色，<c>0xAARRGGBB</c>；默认银灰。</summary>
-    public uint CassetteShellColorArgb { get; init; } = DefaultCassetteShellColor;
+    public uint CassetteShellColorArgb { get; set; } = DefaultCassetteShellColor;
 
     /// <summary>磁带机自定义外壳色最近一次选的颜色。</summary>
-    public uint CassetteShellCustomColorArgb { get; init; } = DefaultCassetteShellColor;
+    public uint CassetteShellCustomColorArgb { get; set; } = DefaultCassetteShellColor;
 
     /// <summary>磁带机外壳是否跟随当前封面自动取色。</summary>
-    public bool CassetteShellColorAuto { get; init; }
+    public bool CassetteShellColorAuto { get; set; }
 
     /// <summary>
     /// 水平偏移，占歌词区域宽度的百分比；在对齐结果之上继续左右移动。
     /// </summary>
-    public double HorizontalOffsetPercent { get; init; } = DefaultOffsetPercent;
+    public double HorizontalOffsetPercent { get; set; } = DefaultOffsetPercent;
 
     /// <summary>
     /// 垂直偏移，占歌词区域高度的百分比；正数向下移动。
     /// </summary>
-    public double VerticalOffsetPercent { get; init; } = DefaultOffsetPercent;
+    public double VerticalOffsetPercent { get; set; } = DefaultOffsetPercent;
 
     /// <summary>默认设置：显示译文、跟随系统字体、白色高亮。</summary>
     public static LyricsSettings Default { get; } = new();

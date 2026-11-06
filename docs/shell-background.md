@@ -155,7 +155,7 @@ public enum ShellBackgroundMode
 ### 5.2 设置与持久化
 
 新增 `ShellBackgroundSettings` 与 `JsonShellBackgroundSettingsStore`，文件
-`%LOCALAPPDATA%/Bowen/shell-background.json`，独立于 `theme.json`：
+`config.json` 的 `shellBackground` section（旧版是 `shell-background.json`）：
 
 - 背景模式与一张图片的路径、裁剪、暗度、模糊是同一组偏好，拆出去与 `LyricsSettings` 的拆分理由一致。
 - 不扩 `ThemeSettings`：那是外观档位与启动页，混入图片路径会让“主题”这个概念变重。
@@ -425,8 +425,8 @@ OKLCH 的明度与彩度解耦，可以单独抬高明度而保住颜色。这�
 
 ## 11. 数据兼容
 
-- 新增 `shell-background.json`，旧版本无此文件时按 `CoverAmbient` 处理。
-- 不动 `lyrics.json` 与 `theme.json` 的字段。
+- 新增 `shellBackground` section（旧版是 `shell-background.json`），旧版本无此项时按 `CoverAmbient` 处理。
+- 不动 `lyrics` 与 `appearance` section 的字段。
 - 升级后外壳观感会变化，来源是取色算法改进，不是设置迁移；发布说明需要提一句。
 - 删除自定义图片时保留歌词页的图片文件；两者前缀不同。
 - 存储清理服务可选地增加“无引用的外壳图片”清理，放在后续阶段。
@@ -503,7 +503,7 @@ OKLCH 的明度与彩度解耦，可以单独抬高明度而保住颜色。这�
 
 | 位置 | 内容 |
 | --- | --- |
-| `ShellBackgroundSettings` / `JsonShellBackgroundSettingsStore` | 独立文件 `shell-background.json`；模式、纯色、图片与取景 |
+| `ShellBackgroundSettings` / `UnifiedShellBackgroundSettingsStore` | `config.json` 的 `shellBackground` section；模式、纯色、图片与取景 |
 | `ShellBackgroundViewModel` | 模式切换、深浅两套预设、跟随封面取色、图片状态 |
 | `MainWindow.ApplyWindowBackdrop` | 唯一的 `SystemBackdrop` 写入点；歌词页 Mica 改为请求 |
 | `MainWindow.ApplyShellBackgroundLayers` | 底色 / 氛围 / 纯色 / 图片四层互斥 |

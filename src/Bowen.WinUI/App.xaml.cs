@@ -81,6 +81,11 @@ public partial class App : Application
             return;
         }
 
+        // ★ 必须在单实例判定之后、建窗口之前。
+        //   重复启动的进程只负责唤醒已有实例，不能在这里迁移或归档配置文件 ——
+        //   那会和主实例并发读写同一份 settings。输入法兼容的预读是只读的，放在 Program 里。
+        var settingsBootstrap = SettingsBootstrap.Load(warning: Program.Report);
+
         var builder = Host.CreateApplicationBuilder();
 
         // 只留 Serilog，去掉默认的控制台与 EventLog provider
@@ -93,6 +98,12 @@ public partial class App : Application
         // ——那会无限递归。
         builder.Services.AddSingleton<ILoggerFactory>(sp =>
             new RedactingLoggerFactory(new LoggerFactory(sp.GetServices<ILoggerProvider>())));
+
+        // 统一配置的唯一读写入口。bootstrap 已经在单实例判定之后加载好并做过迁移；
+        // 这里只把它交给容器，之后的读写都走同一个单例。
+        builder.Services.AddSingleton<ISettingsStore>(sp => new JsonAppSettingsStore(
+            settingsBootstrap.Settings,
+            logger: sp.GetRequiredService<ILogger<JsonAppSettingsStore>>()));
 
         builder.Services.AddSingleton<BodianTransportOptions>();
         builder.Services.AddSingleton(TimeProvider.System);
@@ -111,27 +122,25 @@ public partial class App : Application
             logger: sp.GetRequiredService<ILogger<JsonPlayHistoryStore>>(),
             account: sp.GetRequiredService<ICurrentAccount>()));
 
-        // 外观设置同样是明文 JSON。构造参数里有个可选的路径，同样用显式工厂。
-        // 它在主窗口构造时被同步读一次 —— 主题必须在第一帧之前定下来，否则会闪一下系统主题。
-        builder.Services.AddSingleton<IInputMethodSettingsStore>(sp => new JsonInputMethodSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonInputMethodSettingsStore>>()));
+        // 外观设置在统一配置里，主窗口构造时同步读一次 —— 主题必须在第一帧之前定下来。
+        builder.Services.AddSingleton<IInputMethodSettingsStore>(sp => new UnifiedInputMethodSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<InputMethodSettingsViewModel>();
 
-        builder.Services.AddSingleton<IThemeSettingsStore>(sp => new JsonThemeSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonThemeSettingsStore>>()));
+        builder.Services.AddSingleton<IThemeSettingsStore>(sp => new UnifiedThemeSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
 
-        // 主窗口外壳背景（shell-background.json）。与主题分开一份，见 AppPaths 的说明。
-        builder.Services.AddSingleton<IShellBackgroundSettingsStore>(sp => new JsonShellBackgroundSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonShellBackgroundSettingsStore>>()));
+        // 主窗口外壳背景。与主题同一份配置，不同 section。
+        builder.Services.AddSingleton<IShellBackgroundSettingsStore>(sp => new UnifiedShellBackgroundSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<ShellBackgroundViewModel>();
 
         // 背景图片的导入、亮度估算与删除。歌词页与外壳共用同一个无状态服务。
         builder.Services.AddSingleton<BackgroundImageStore>();
 
-        // 窗口位置记忆。单独一个文件（window.json）—— 几何是「这台机器」的事，
-        // 而外观偏好是「这个人」的事，不混在一起。
-        builder.Services.AddSingleton<IWindowPlacementStore>(sp => new JsonWindowPlacementStore(
-            logger: sp.GetRequiredService<ILogger<JsonWindowPlacementStore>>()));
+        // 窗口位置记忆。统一配置的 windows.main，与外观偏好同一份文件、不同 section。
+        builder.Services.AddSingleton<IWindowPlacementStore>(sp => new UnifiedWindowPlacementStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<BodianSession>();
 
         // 「当前是谁」的抽象：账号级数据（队列 / 历史 / 搜索历史）靠它决定读写哪个目录。
@@ -155,19 +164,19 @@ public partial class App : Application
         // 播放。引擎是单例，退出时显式释放（见 OnLaunched 的 Closed 处理）。
         builder.Services.AddSingleton<IPlaybackService>(sp => new LibMpvPlaybackService(
             sp.GetRequiredService<ILogger<LibMpvPlaybackService>>()));
-        builder.Services.AddSingleton<IAudioQualitySettingsStore>(sp => new JsonAudioQualitySettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonAudioQualitySettingsStore>>()));
-        builder.Services.AddSingleton<IPlaybackSettingsStore>(sp => new JsonPlaybackSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonPlaybackSettingsStore>>()));
+        builder.Services.AddSingleton<IAudioQualitySettingsStore>(sp => new UnifiedAudioQualitySettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
+        builder.Services.AddSingleton<IPlaybackSettingsStore>(sp => new UnifiedPlaybackSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
 
-        // 播放队列快照与音量偏好，各占一个文件。构造参数里都有可选路径，同样显式写工厂。
-        // 队列那份可能几百首、每次增删切歌都要重写，所以与上面那份小偏好分开存。
+        // 播放队列快照仍单独一份文件：它是账号级数据，不是配置。
         builder.Services.AddSingleton<IPlayQueueSnapshotStore>(sp => new JsonPlayQueueSnapshotStore(
             logger: sp.GetRequiredService<ILogger<JsonPlayQueueSnapshotStore>>()));
-        builder.Services.AddSingleton<IVolumeSettingsStore>(sp => new JsonVolumeSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonVolumeSettingsStore>>()));
-        builder.Services.AddSingleton<IAudioEffectSettingsStore>(sp => new JsonAudioEffectSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonAudioEffectSettingsStore>>()));
+        // 音量与音效在统一配置里。
+        builder.Services.AddSingleton<IVolumeSettingsStore>(sp => new UnifiedVolumeSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
+        builder.Services.AddSingleton<IAudioEffectSettingsStore>(sp => new UnifiedAudioEffectSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<AudioEffectsViewModel>();
         builder.Services.AddSingleton<PlaybackCoordinator>();
 
@@ -211,25 +220,23 @@ public partial class App : Application
         // 全应用唯一的短提示出口。外壳里那一个 InfoBar 显示它，行内动作与播放引擎都往它里面发。
         builder.Services.AddSingleton<NotificationViewModel>();
 
-        // 歌词页的显示偏好。与桌面歌词那份外观偏好分开存（lyrics.json / desktop-lyrics.json）。
-        builder.Services.AddSingleton<ILyricsSettingsStore>(sp => new JsonLyricsSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonLyricsSettingsStore>>()));
-        builder.Services.AddSingleton<ILyricPosterSettingsStore>(sp => new JsonLyricPosterSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonLyricPosterSettingsStore>>()));
+        // 歌词页与桌面歌词的外观偏好、歌词海报，都在统一配置里。
+        builder.Services.AddSingleton<ILyricsSettingsStore>(sp => new UnifiedLyricsSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
+        builder.Services.AddSingleton<ILyricPosterSettingsStore>(sp => new UnifiedLyricPosterSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<LyricsViewModel>();
 
-        // 界面字体偏好（font-settings.json）。与主题、歌词分开存，重启后生效。
-        builder.Services.AddSingleton<IFontSettingsStore>(sp => new JsonFontSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonFontSettingsStore>>()));
+        // 界面字体偏好。改动仍只落盘，重启后生效。
+        builder.Services.AddSingleton<IFontSettingsStore>(sp => new UnifiedFontSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<FontSettingsViewModel>();
 
-        // 桌面歌词。外观偏好与窗口几何分两个文件存，与主窗口那套拆法一致。
-        // 位置那一条不写新实现，直接把现成的 JsonWindowPlacementStore 换个路径注册 ——
-        // 所以它按 IDesktopLyricsPlacementStore 这个空接口注册，两个注册才不会打架。
-        builder.Services.AddSingleton<IDesktopLyricsSettingsStore>(sp => new JsonDesktopLyricsSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonDesktopLyricsSettingsStore>>()));
-        builder.Services.AddSingleton<IDesktopLyricsPlacementStore>(sp => new DesktopLyricsPlacementStore(
-            logger: sp.GetRequiredService<ILogger<JsonWindowPlacementStore>>()));
+        // 桌面歌词外观与几何各占一个 section；几何在 windows.desktopLyrics。
+        builder.Services.AddSingleton<IDesktopLyricsSettingsStore>(sp => new UnifiedDesktopLyricsSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
+        builder.Services.AddSingleton<IDesktopLyricsPlacementStore>(sp => new UnifiedDesktopLyricsPlacementStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<DesktopLyricsViewModel>();
 
         // 窗口本身是 transient，但由宿主单例懒创建、藏起来之后复用 —— 见 DesktopLyricsWindowHost。
@@ -238,9 +245,9 @@ public partial class App : Application
             sp.GetRequiredService<DesktopLyricsWindow>);
         builder.Services.AddSingleton<DesktopLyricsWindowHost>();
 
-        // 小窗。位置单独一份文件，理由与桌面歌词那条一样：三份窗口几何混用会互相覆盖。
-        builder.Services.AddSingleton<IMiniPlayerPlacementStore>(sp => new MiniPlayerPlacementStore(
-            logger: sp.GetRequiredService<ILogger<JsonWindowPlacementStore>>()));
+        // 小窗位置在 windows.miniPlayer。
+        builder.Services.AddSingleton<IMiniPlayerPlacementStore>(sp => new UnifiedMiniPlayerPlacementStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<MiniPlayerViewModel>();
 
         // 窗口本身是 transient，但由宿主单例懒创建、藏起来之后复用 —— 见 MiniPlayerWindowHost。
@@ -261,16 +268,15 @@ public partial class App : Application
             logger: sp.GetRequiredService<ILogger<JsonSearchHistoryStore>>(),
             account: sp.GetRequiredService<ICurrentAccount>()));
 
-        // 行列表 / 封面卡片这一个偏好（view-mode.json）。与关键词历史分开存 ——
-        // 一个是内容、一个是界面偏好。服务本身是单例：搜索结果的三个页签与收藏的两页
-        // 绑的是同一份状态，一处切换处处生效，也不用担心页面各存一份之后不同步。
-        builder.Services.AddSingleton<IViewModeSettingsStore>(sp => new JsonViewModeSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonViewModeSettingsStore>>()));
+        // 行列表 / 封面卡片偏好。与关键词历史分开：一个是内容、一个是界面偏好。
+        // 服务本身是单例：搜索结果的三个页签与收藏的两页绑同一份状态。
+        builder.Services.AddSingleton<IViewModeSettingsStore>(sp => new UnifiedViewModeSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<ViewModeService>();
 
         // 应用内快捷键。键位同步读，加速器要在窗口建起来之前装好。
-        builder.Services.AddSingleton<IShortcutSettingsStore>(sp => new JsonShortcutSettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonShortcutSettingsStore>>()));
+        builder.Services.AddSingleton<IShortcutSettingsStore>(sp => new UnifiedShortcutSettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
         builder.Services.AddSingleton<IShortcutService, ShortcutService>();
 
         // 封面磁盘缓存。复用 API 那条 HttpMessageHandler —— 同一份连接池；
@@ -331,14 +337,13 @@ public partial class App : Application
         // 检查更新。AppUpdateOptions 是**唯一配置点** —— 仓库建好后只改它的三个字段。
         builder.Services.AddSingleton(AppUpdateOptions.Default);
 
-        // 更新偏好（自动检查开关、已跳过的版本号）落在自己的文件里（update.json）。
-        // 与外观、快捷键那些偏好分开，理由见 AppPaths.UpdatePreferencesFile。
-        builder.Services.AddSingleton<IUpdatePreferencesStore>(sp => new JsonUpdatePreferencesStore(
-            logger: sp.GetRequiredService<ILogger<JsonUpdatePreferencesStore>>()));
+        // 更新偏好（自动检查开关、已跳过的版本号）在统一配置的 update section。
+        builder.Services.AddSingleton<IUpdatePreferencesStore>(sp => new UnifiedUpdatePreferencesStore(
+            sp.GetRequiredService<ISettingsStore>()));
 
-        // 更新通道的代理（proxy.json）。读取只在这里发生一次，之后由「网络」那一页写。
-        builder.Services.AddSingleton<IProxySettingsStore>(sp => new JsonProxySettingsStore(
-            logger: sp.GetRequiredService<ILogger<JsonProxySettingsStore>>()));
+        // 更新通道的代理在统一配置的 proxy section。读取只在这里发生一次，之后由「网络」页写。
+        builder.Services.AddSingleton<IProxySettingsStore>(sp => new UnifiedProxySettingsStore(
+            sp.GetRequiredService<ISettingsStore>()));
 
         // ★ 单例，而且**与业务那条 HttpMessageHandler 是两个东西**。
         //   业务请求固定直连（见 BodianHttpTransport.CreateHandler）；更新检查要走哪条由用户定。
@@ -566,6 +571,9 @@ public partial class App : Application
                 .AsTask()
                 .GetAwaiter()
                 .GetResult();
+
+            // 统一配置的待写内容在退出前落盘；容器释放时还会再兜一次（JsonAppSettingsStore.Dispose）。
+            _host.Services.GetRequiredService<ISettingsStore>().Flush();
 
             // Dispose 会顺带 flush 掉 Serilog（注册时传了 dispose: true）
             _host.Dispose();

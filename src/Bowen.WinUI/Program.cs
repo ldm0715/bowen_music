@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Bowen.Core.Services;
 using Bowen.Core.Services.Implementations;
 using Bowen.WinUI.Services;
 using Microsoft.Extensions.Logging;
@@ -23,13 +24,38 @@ internal static class Program
     {
         WaitForPreviousInstance(args);
 
-        var enabled = new JsonInputMethodSettingsStore().Load().CompatibilityEnabled
+        var enabled = ReadInputMethodCompatibility()
             || args.Contains("--ime-compatibility", StringComparer.OrdinalIgnoreCase);
         using var compatibility = enabled ? LegacyImeCompatibility.TryEnable(Report) : null;
         IsInputMethodCompatibilityActive = compatibility is not null;
         if (IsInputMethodCompatibilityActive)
             Report("输入法兼容版本：final-minimal，仅跳过初始化限制；不改 IMM 上下文、候选位置或托盘生命周期");
         RunWinUi();
+    }
+
+    /// <summary>
+    /// 在 XAML 初始化前读输入法兼容开关。
+    /// </summary>
+    /// <remarks>
+    /// <b>只读，不迁移、不写盘。</b> 这一步早于单实例判定；若在这里跑完整迁移，
+    /// 用户第二次启动（只该唤醒已有实例）也会去动配置文件。
+    /// 完整迁移在 <see cref="App"/> 构造函数里、单实例判定之后执行。
+    /// </remarks>
+    private static bool ReadInputMethodCompatibility()
+    {
+        try
+        {
+            if (File.Exists(AppPaths.ConfigFile) || File.Exists(AppPaths.ConfigFile + ".bak"))
+            {
+                return JsonAppSettingsStore.Load().InputMethod.CompatibilityEnabled;
+            }
+
+            return new JsonInputMethodSettingsStore().Load().CompatibilityEnabled;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     /// <summary>

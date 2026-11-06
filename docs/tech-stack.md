@@ -250,7 +250,7 @@ Bowen.sln
 
 ### 配置存储
 
-`%LOCALAPPDATA%\<App>\settings.json` + `System.Text.Json` 源生成器。**不要用 `Windows.Storage.ApplicationData.Current`**——unpackaged 下直接抛异常。
+`%LOCALAPPDATA%\<App>\config.json` + `System.Text.Json` 源生成器。**不要用 `Windows.Storage.ApplicationData.Current`**——unpackaged 下直接抛异常。
 
 ---
 

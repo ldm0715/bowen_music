@@ -14,12 +14,7 @@ namespace Bowen.Core.Models;
 /// <b>不存「当前页签」。</b> 页签是界面状态，从两个 id 的前缀就能恢复；存下来只会多一份要同步的状态。
 /// </para>
 /// </remarks>
-public sealed record AudioEffectSettings(
-    bool Enabled = false,
-    string PresetId = "",
-    string AmbientId = "",
-    double AmbientVolume = 30,
-    double[]? EqBands = null)
+public sealed record AudioEffectSettings
 {
     /// <summary>环境音音量下限。</summary>
     public const double MinimumAmbientVolume = 0;
@@ -30,8 +25,43 @@ public sealed record AudioEffectSettings(
     /// <summary>默认环境音音量。</summary>
     public const double DefaultAmbientVolume = 30;
 
+    /// <summary>音效是否启用。</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>当前选中的音效预设 id；空串表示不选。</summary>
+    public string PresetId { get; set; } = "";
+
+    /// <summary>当前选中的环境音 id；空串表示不选。</summary>
+    public string AmbientId { get; set; } = "";
+
+    /// <summary>环境音音量。</summary>
+    public double AmbientVolume { get; set; } = DefaultAmbientVolume;
+
+    /// <summary>EQ 各段增益；<c>null</c> 表示还没设置过。</summary>
+    public double[]? EqBands { get; set; }
+
     /// <summary>默认设置。</summary>
     public static AudioEffectSettings Default { get; } = new();
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public AudioEffectSettings()
+    {
+    }
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public AudioEffectSettings(
+        bool Enabled = false,
+        string PresetId = "",
+        string AmbientId = "",
+        double AmbientVolume = DefaultAmbientVolume,
+        double[]? EqBands = null)
+    {
+        this.Enabled = Enabled;
+        this.PresetId = PresetId;
+        this.AmbientId = AmbientId;
+        this.AmbientVolume = AmbientVolume;
+        this.EqBands = EqBands;
+    }
 
     /// <summary>
     /// 把越界的值收进合法范围。

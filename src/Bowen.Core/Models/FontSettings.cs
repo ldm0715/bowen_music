@@ -23,10 +23,7 @@ public sealed record FontSettings
     /// <summary>
     /// 界面使用的字体族名；空字符串表示跟随系统默认（Segoe UI Variable Text）。
     /// </summary>
-    public string FontFamily { get; init; } = string.Empty;
-
-    /// <summary>显式公开无参构造，确保源生成 JSON 使用对象初始化器。</summary>
-    public FontSettings() { }
+    public string FontFamily { get; set; } = string.Empty;
 
     /// <summary>默认设置：跟随系统。不是 JSON 字段。</summary>
     [System.Text.Json.Serialization.JsonIgnore]

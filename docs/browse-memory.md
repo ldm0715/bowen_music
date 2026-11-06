@@ -66,7 +66,7 @@
 | `BODIAN_DAILY_LYRICS_REPEAT` | 每轮进出歌词页的次数，默认 1 |
 
 两个场景都只读，不收藏、不改歌单。开播时会把播放器音量设为 0，**这个值会被保存下来**，
-测完要把 `%LOCALAPPDATA%\Bowen\volume.json` 恢复原值。播放会替换当前账号的队列，并写入最近播放。
+测完要把 `config.json` 的 `volume.level` 恢复原值。播放会替换当前账号的队列，并写入最近播放。
 
 ### 运行方式
 

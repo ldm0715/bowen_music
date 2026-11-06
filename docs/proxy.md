@@ -150,7 +150,7 @@ public sealed record ProxySettings(ProxyMode Mode = ProxyMode.Direct, string Add
 交给 `IWebProxy.Credentials`。不做单独的凭据界面：本地代理（Clash 这类）不需要，
 而企业代理那种需求给一个 URL 足够表达，单开用户名/密码两个框只是把同一件事说两遍。
 
-存 `%LOCALAPPDATA%\Bowen\proxy.json`，明文 —— 与其它偏好一样，不含账号标识。
+存 `config.json` 的 `proxy` section（旧版是 `proxy.json`），明文 —— 与其它偏好一样，不含账号标识。
 **它确实是凭据**（如果用户在 URL 里写了密码），这一点在文件里写清楚：
 凭据类的东西本来是走 DPAPI 的（`session.dat` / `remembered-accounts.dat`），
 这里从简的理由是「用户自己填的代理地址，且本地代理占绝大多数」。

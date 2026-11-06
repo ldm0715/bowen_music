@@ -32,7 +32,7 @@
 | 二维码 | 始终画在 112px 白色圆角托板上，码元保持黑色；深色背景也能扫 |
 | 派生色 | 歌手 = 文字色 60% alpha；竖线 = 15%；封面缺失占位 = 7% |
 | 色轮 | 海报对话框本身是 `ContentDialog`，不能再叠 `ColorPickerDialog`；色盘拆成 `ColorPickerPanel`，用 `ColorPickerFlyout` 承载 |
-| 持久化 | 独立 `lyrics-poster.json`，字段见 `LyricPosterSettings`；字体与文字/背景颜色跨会话记住 |
+| 持久化 | `config.json` 的 `lyricPoster` section，字段见 `LyricPosterSettings`；旧 `lyrics-poster.json` 只用于迁移 |
 | 预览大图 | 点击预览图打开 `CommentImageViewer` 覆盖层；按海报宽高比和窗口高度扩成竖版查看器，不拉满窗口宽度。支持缩放 / 平移 / Esc 关闭。复用评论区查看逻辑，仅新增按 `ImageSource` 直接显示内存 PNG 的入口 |
 
 ## 0.3 验收补充

@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>
@@ -15,6 +18,7 @@ namespace Bowen.Core.Models;
 /// 那会同时废掉歌词浮层、播放队列抽屉与搜索面板的关闭路径。不进枚举，就没有这条绑定路径。
 /// </para>
 /// </remarks>
+[JsonConverter(typeof(TolerantEnumConverter<ShortcutKey>))]
 public enum ShortcutKey
 {
     Tab = 0x09,

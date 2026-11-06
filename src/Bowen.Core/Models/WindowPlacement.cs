@@ -8,8 +8,31 @@ namespace Bowen.Core.Models;
 /// 存成它要的形态可以原样还原、不做换算。代价是显示器缩放变过之后窗口的「视觉大小」
 /// 会跟着变 —— 但位置仍然对得上，比按逻辑像素存、还原时换算错了好。
 /// </remarks>
-/// <param name="X">窗口左边缘的屏幕坐标。</param>
-/// <param name="Y">窗口上边缘的屏幕坐标。</param>
-/// <param name="Width">宽度。</param>
-/// <param name="Height">高度。</param>
-public sealed record WindowPlacement(int X, int Y, int Width, int Height);
+public sealed record WindowPlacement
+{
+    /// <summary>窗口左边缘的屏幕坐标。</summary>
+    public int X { get; set; }
+
+    /// <summary>窗口上边缘的屏幕坐标。</summary>
+    public int Y { get; set; }
+
+    /// <summary>宽度。</summary>
+    public int Width { get; set; }
+
+    /// <summary>高度。</summary>
+    public int Height { get; set; }
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public WindowPlacement()
+    {
+    }
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public WindowPlacement(int X, int Y, int Width, int Height)
+    {
+        this.X = X;
+        this.Y = Y;
+        this.Width = Width;
+        this.Height = Height;
+    }
+}

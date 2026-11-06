@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
 using Bowen.Core.Media;
+using Bowen.Core.Services;
 
 namespace Bowen.Core.Models;
 
 /// <summary>主窗口外壳的背景来源。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<ShellBackgroundMode>))]
 public enum ShellBackgroundMode
 {
     /// <summary>封面驱动的氛围色。</summary>
@@ -57,44 +60,44 @@ public sealed record ShellBackgroundSettings
     public const double MaximumImageZoom = 3;
 
     /// <summary>背景来源；默认封面取色。</summary>
-    public ShellBackgroundMode Mode { get; init; } = ShellBackgroundMode.CoverAmbient;
+    public ShellBackgroundMode Mode { get; set; } = ShellBackgroundMode.CoverAmbient;
 
     /// <summary>自定义图片的文件名，位于 <see cref="Bowen.Core.Services.AppPaths.BackgroundsDirectory"/> 下。</summary>
     /// <remarks>只存文件名，不存绝对路径；换机器或改目录时不会失效。</remarks>
-    public string ImageFile { get; init; } = string.Empty;
+    public string ImageFile { get; set; } = string.Empty;
 
     /// <summary>自定义图片上的遮罩强度，0–0.8；遮罩颜色跟随主题。</summary>
-    public double ImageDim { get; init; } = DefaultImageDim;
+    public double ImageDim { get; set; } = DefaultImageDim;
 
     /// <summary>自定义图片的模糊量，0–40 DIP；默认 16。</summary>
-    public double ImageBlur { get; init; } = DefaultImageBlur;
+    public double ImageBlur { get; set; } = DefaultImageBlur;
 
     /// <summary>自定义图片的水平裁剪中心，0–1。</summary>
-    public double ImageFocusX { get; init; } = 0.5;
+    public double ImageFocusX { get; set; } = 0.5;
 
     /// <summary>自定义图片的垂直裁剪中心，0–1。</summary>
-    public double ImageFocusY { get; init; } = 0.5;
+    public double ImageFocusY { get; set; } = 0.5;
 
     /// <summary>自定义图片的缩放，1–3。</summary>
-    public double ImageZoom { get; init; } = 1;
+    public double ImageZoom { get; set; } = 1;
 
     /// <summary>深色主题的手动纯色，<c>0xAARRGGBB</c>。</summary>
-    public uint SolidColorArgb { get; init; } = DefaultSolidColorArgb;
+    public uint SolidColorArgb { get; set; } = DefaultSolidColorArgb;
 
     /// <summary>浅色主题的手动纯色，<c>0xAARRGGBB</c>。</summary>
-    public uint LightSolidColorArgb { get; init; } = DefaultLightSolidColorArgb;
+    public uint LightSolidColorArgb { get; set; } = DefaultLightSolidColorArgb;
 
     /// <summary>深色主题保存的自定义色；下拉框选中它时直接应用。</summary>
-    public uint CustomSolidColorArgb { get; init; } = DefaultSolidColorArgb;
+    public uint CustomSolidColorArgb { get; set; } = DefaultSolidColorArgb;
 
     /// <summary>浅色主题保存的自定义色；下拉框选中它时直接应用。</summary>
-    public uint LightCustomSolidColorArgb { get; init; } = DefaultLightSolidColorArgb;
+    public uint LightCustomSolidColorArgb { get; set; } = DefaultLightSolidColorArgb;
 
     /// <summary>纯色是否跟随当前封面自动取色。</summary>
-    public bool SolidColorAuto { get; init; }
+    public bool SolidColorAuto { get; set; }
 
     /// <summary>Mica 之上是否叠一层封面主色，避免暗色下纯黑。</summary>
-    public bool MicaTintEnabled { get; init; } = true;
+    public bool MicaTintEnabled { get; set; } = true;
 
     /// <summary>深色主题的纯色预设。全部压到低明度，保证白色文字可读。</summary>
     public static readonly (uint Argb, string Name)[] DarkSolidPresets =

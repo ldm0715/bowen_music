@@ -1,6 +1,10 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>桌面歌词条双行时的对齐方式。</summary>
+[JsonConverter(typeof(TolerantEnumConverter<DesktopLyricsAlignment>))]
 public enum DesktopLyricsAlignment
 {
     /// <summary>两句都居中。</summary>
@@ -65,10 +69,10 @@ public sealed record DesktopLyricsSettings
     /// <b>要落盘</b>：上次退出时开着，下次启动就自动出现。默认关，首次使用不会平白多出一个浮窗。
     /// </para>
     /// </remarks>
-    public bool IsEnabled { get; init; }
+    public bool IsEnabled { get; set; }
 
     /// <summary>字号，DIP。</summary>
-    public double FontSize { get; init; } = DefaultFontSize;
+    public double FontSize { get; set; } = DefaultFontSize;
 
     /// <summary>
     /// 字体族名；空串表示跟随渲染层默认（<c>LyricsRenderSettings.Default.FontFamily</c>）。
@@ -76,19 +80,19 @@ public sealed record DesktopLyricsSettings
     /// <remarks>
     /// <b>只存名字，不校验是否存在。</b> 缺字体时渲染层回退默认，改它即时生效。
     /// </remarks>
-    public string FontFamily { get; init; } = string.Empty;
+    public string FontFamily { get; set; } = string.Empty;
 
     /// <summary>已唱部分的高亮色，<c>0xAARRGGBB</c>；未唱文字为不透明白色。</summary>
-    public uint TextColorArgb { get; init; } = DefaultTextColor;
+    public uint TextColorArgb { get; set; } = DefaultTextColor;
 
     /// <summary>是否显示下一句。</summary>
-    public bool DualLine { get; init; }
+    public bool DualLine { get; set; }
 
     /// <summary>双行时的对齐方式。单行时无意义。</summary>
-    public DesktopLyricsAlignment Alignment { get; init; } = DesktopLyricsAlignment.Center;
+    public DesktopLyricsAlignment Alignment { get; set; } = DesktopLyricsAlignment.Center;
 
     /// <summary>是否锁定：锁上后不能拖动，也不能拉伸宽度。</summary>
-    public bool Locked { get; init; }
+    public bool Locked { get; set; }
 
     /// <summary>
     /// 透明处是否让鼠标穿透。
@@ -97,7 +101,7 @@ public sealed record DesktopLyricsSettings
     /// <b>默认关</b>：第一次打开桌面歌词时最常做的是拖动摆位置；默认穿透会让窗口看起来
     /// 点不动、拖不动，容易被当成故障。需要不挡住下方窗口时，在歌词条工具栏或设置页打开。
     /// </remarks>
-    public bool PassThrough { get; init; } = false;
+    public bool PassThrough { get; set; } = false;
 
     /// <summary>默认设置。</summary>
     public static DesktopLyricsSettings Default { get; } = new();

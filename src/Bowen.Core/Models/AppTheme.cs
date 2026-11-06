@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Bowen.Core.Services;
+
 namespace Bowen.Core.Models;
 
 /// <summary>
@@ -7,6 +10,7 @@ namespace Bowen.Core.Models;
 /// <b>落盘时必须写成字符串</b>（见 <see cref="Services.ThemeSettingsJsonContext"/>）：
 /// 枚举的数值顺序随时可能被重排，写成数字的话旧设置文件会静默解析成错的档位。
 /// </remarks>
+[JsonConverter(typeof(TolerantEnumConverter<AppTheme>))]
 public enum AppTheme
 {
     /// <summary>跟随系统的浅色 / 深色设置。默认值。</summary>

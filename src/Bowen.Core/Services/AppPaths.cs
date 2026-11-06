@@ -27,6 +27,13 @@ namespace Bowen.Core.Services;
 /// 迁移执行完即已删除（见 <c>docs/roadmap.md</c> 的命名更正一节）。
 /// **从改名前的版本升级上来的用户会拿到一个新的设备标识。**
 /// </para>
+/// <para>
+/// <b>2026-11-06 起，所有设置统一到 <see cref="ConfigFile"/>（<c>config.json</c>）。</b>
+/// 下面带 <c>File</c> 后缀的设置路径（<see cref="SettingsFile"/>、<see cref="VolumeFile"/>、
+/// <see cref="WindowFile"/> 等）是旧版文件路径，<b>只用于迁移和旧 store 的默认值</b>；
+/// 新代码不要读写它们。迁移成功后它们会被移到 <c>archive\legacy-settings\</c>。
+/// 设计与迁移规则见 <c>docs/settings-storage.md</c>。
+/// </para>
 /// </remarks>
 public static class AppPaths
 {
@@ -145,9 +152,16 @@ public static class AppPaths
     public static string ViewModeFile => Path.Combine(LocalAppData, "view-mode.json");
 
     /// <summary>
-    /// 界面设置（明文 JSON，目前只有外观一项）。
+    /// 统一配置文件（明文 JSON），所有设置项都在这一份里。见 <c>docs/settings-storage.md</c>。
+    /// </summary>
+    public static string ConfigFile => Path.Combine(LocalAppData, "config.json");
+
+    /// <summary>
+    /// 旧的外壳外观设置文件（明文 JSON，目前只有外观一项）。
     /// </summary>
     /// <remarks>
+    /// <b>迁移用，不再由新代码读写。</b> 统一后外观并入 <see cref="ConfigFile"/> 的
+    /// <c>appearance</c> section；这份文件会在迁移成功后归档。
     /// <b>与探针无关</b>：探针是控制台程序，没有界面，不读写这个文件。
     /// 它与 <c>devid.txt</c> / <c>session.dat</c> 不同，不受「必须与探针共用」那条约束。
     /// </remarks>
@@ -185,6 +199,11 @@ public static class AppPaths
     /// 而且坏了会让整套快捷键失灵，单独一份便于出问题时直接删掉回到默认。
     /// </remarks>
     public static string ShortcutFile => Path.Combine(LocalAppData, "shortcuts.json");
+
+    /// <summary>
+    /// 默认音质偏好（明文 JSON，旧版裸枚举）。迁移用。
+    /// </summary>
+    public static string AudioQualityFile => Path.Combine(LocalAppData, "audio-quality.json");
 
     /// <summary>
     /// 播放偏好（明文 JSON，目前只有播放模式一项）。

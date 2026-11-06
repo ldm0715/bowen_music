@@ -14,7 +14,7 @@ namespace Bowen.Core.Models;
 /// 用户以为应用坏了」这一后果，多数播放器也不记。
 /// </para>
 /// </remarks>
-public sealed record VolumeSettings(double Level = 100)
+public sealed record VolumeSettings
 {
     /// <summary>音量下限。</summary>
     public const double MinimumLevel = 0;
@@ -25,8 +25,22 @@ public sealed record VolumeSettings(double Level = 100)
     /// <summary>默认音量。</summary>
     public const double DefaultLevel = 100;
 
+    /// <summary>播放音量。</summary>
+    public double Level { get; set; } = DefaultLevel;
+
     /// <summary>默认设置。</summary>
     public static VolumeSettings Default { get; } = new();
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public VolumeSettings()
+    {
+    }
+
+    /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
+    public VolumeSettings(double Level)
+    {
+        this.Level = Level;
+    }
 
     /// <summary>
     /// 把越界的值收进 [0,100]。
