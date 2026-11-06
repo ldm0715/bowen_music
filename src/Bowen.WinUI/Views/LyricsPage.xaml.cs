@@ -1591,6 +1591,24 @@ public sealed partial class LyricsPage : Page, INavigationAware
         LeftChromeHost.Width = 48 + captionWidth;
         HeadingHost.Margin = new Thickness(Math.Max(64, captionWidth + 56), 0,
             Math.Max(64, captionWidth + 56), 0);
+        // 右侧留白一变，全屏按钮的位置就跟着动，按钮让位要按新布局重算一次。
+        QueueDragRegionRecompute();
+    }
+
+    /// <summary>
+    /// 按当前布局重算标题栏里按钮的让位（passthrough 区）。
+    /// </summary>
+    /// <remarks>
+    /// <c>AutoRefreshDragRegions</c> 默认是关的，<c>Content.LayoutUpdated</c> 只在首次布局时算一次；
+    /// 之后改模板列宽、换全屏状态都不会自动刷新，按钮热区会停在旧位置。排到下一轮布局再算。
+    /// </remarks>
+    private void QueueDragRegionRecompute()
+    {
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (!Lyrics.IsOpen || _window.IsMinimized || _window.IsRenderingSuspended) return;
+            LyricsTitleBar.RecomputeDragRegions();
+        });
     }
 
     private void OnPointerActivity(object sender, PointerRoutedEventArgs args)
@@ -1680,9 +1698,13 @@ public sealed partial class LyricsPage : Page, INavigationAware
         if (!visible) ProgressTimePopup.IsOpen = false;
         _window.SetLyricsChromeVisible(visible);
         if (visible) UpdateChromeInsets();
+        // 收起时只关按钮的命中，标题栏本身保持可命中：拖拽区就是这条矩形，
+        // 整条 IsHitTestVisible=false 会让顶部在收起态下按不住、拖不动窗口。
+        ControlDeck.IsHitTestVisible = visible;
+        LeftChromeHost.IsHitTestVisible = visible;
+        FullscreenButton.IsHitTestVisible = visible;
         foreach (var element in new FrameworkElement[] { LyricsTitleBar, HeadingHost, ControlDeck })
         {
-            if (element != HeadingHost) element.IsHitTestVisible = visible;
             var visual = ElementCompositionPreview.GetElementVisual(element);
             using var animation = visual.Compositor.CreateScalarKeyFrameAnimation();
             animation.InsertKeyFrame(1, visible ? 1 : 0);

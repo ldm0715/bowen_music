@@ -133,6 +133,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     private OverlappedPresenter? _hiddenCaptionPresenter;
     private bool _captionRestoreBorder;
     private bool _captionRestoreTitleBar;
+    /// <summary>上一次记录的窗口状态；最大化 / 还原切换后要重挂标题栏拖拽区。</summary>
+    private OverlappedPresenterState _lastWindowState;
     private (bool Dark, Color Foreground)? _captionPalette;
 
     /// <summary>
@@ -1367,6 +1369,15 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         {
             ApplyMinimumWindowSize();
         }
+
+        // 最大化 / 还原会改窗口的非客户区，WinUI 已登记的沉浸页拖拽区可能失效，
+        // 表现为顶部按住拖不动、要轻微缩放一下才恢复（microsoft-ui-xaml#10391）。
+        if (args.DidSizeChange && AppWindow.Presenter is OverlappedPresenter presenter
+            && presenter.State != _lastWindowState)
+        {
+            _lastWindowState = presenter.State;
+            QueueDragRegionRefresh();
+        }
     }
 
     /// <summary>
@@ -2566,6 +2577,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         // 全屏由系统呈现器接管，窗口没有标题栏；保留页面引用，退出全屏时再挂回去。
         SetTitleBar(IsLyricsFullscreen ? null : titleBar);
         UpdateCaptionButtonColors();
+        if (AppWindow.Presenter is OverlappedPresenter presenter) _lastWindowState = presenter.State;
+        QueueDragRegionRefresh();
     }
 
     /// <summary>
@@ -2627,7 +2640,13 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var placement = _lyricsRestorePlacement;
         await Task.Run(() => RestoreLyricsWindow(handle, placement));
-        if (!_closed) SetTitleBar(_lyricsTitleBar);
+        if (!_closed)
+        {
+            SetTitleBar(_lyricsTitleBar);
+            // 恢复 WINDOWPLACEMENT 可能带回最大化状态，此时窗口刚重建过框架，再登记一次。
+            if (AppWindow.Presenter is OverlappedPresenter windowPresenter) _lastWindowState = windowPresenter.State;
+            QueueDragRegionRefresh();
+        }
     }
 
     private void RestoreLyricsPresenter()
@@ -2639,6 +2658,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppWindow.SetPresenter(presenter);
         RestoreLyricsWindow(WinRT.Interop.WindowNative.GetWindowHandle(this), _lyricsRestorePlacement);
         SetTitleBar(_lyricsTitleBar);
+        if (AppWindow.Presenter is OverlappedPresenter windowPresenter) _lastWindowState = windowPresenter.State;
     }
 
     private static void RestoreLyricsWindow(nint handle, NativeMethods.WindowPlacement placement)
@@ -2905,6 +2925,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         SetTitleBar(AppTitleBar);
         UpdateCaptionButtonColors();
         UpdateTitleBarRightInsetCompensation();
+        QueueDragRegionRefresh();
     }
 
     /// <summary>
@@ -2958,6 +2979,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             presenter.SetBorderAndTitleBar(_captionRestoreBorder, false);
         }
         UpdateCaptionButtonColors();
+        // 关 / 开原生标题栏都会重建窗口的非客户区，已登记的自定义拖拽区可能被系统清掉；
+        // 收起动画不能只淡出按钮，顶部那条仍要能按住拖动窗口，所以两种状态都补登记一次。
+        QueueDragRegionRefresh();
     }
 
     private void RestoreNativeCaption()
@@ -2965,6 +2989,35 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (_hiddenCaptionPresenter is not { } presenter) return;
         presenter.SetBorderAndTitleBar(_captionRestoreBorder, _captionRestoreTitleBar);
         _hiddenCaptionPresenter = null;
+    }
+
+    /// <summary>
+    /// 重新登记当前页标题栏的拖拽区。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Window.SetTitleBar</c> 登记的拖拽矩形会被系统在非客户区重建后丢弃：自动收起时
+    /// <c>SetBorderAndTitleBar</c> 开关原生标题栏、进出全屏、最大化 / 还原都会触发。
+    /// 丢了之后不会自己回来，表现为顶部按住拖不动窗口，轻微缩放一下又好了
+    /// （microsoft-ui-xaml#10391）。这里排到下一轮布局后再登记一次。
+    /// </para>
+    /// <para>
+    /// 重新登记同时也重算按钮让位：<c>RecomputeDragRegions</c> 只更新打洞区，
+    /// 不负责恢复拖拽区，两者要一起做。元素没变化时整套调用是幂等的。
+    /// </para>
+    /// </remarks>
+    private void QueueDragRegionRefresh()
+    {
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (_closed || IsMinimized) return;
+            // 系统全屏没有窗口标题栏，登记了也没有意义。
+            if (_immersiveVisible && IsLyricsFullscreen) return;
+            var titleBar = _immersiveVisible ? _lyricsTitleBar : AppTitleBar;
+            if (titleBar is null) return;
+            SetTitleBar(titleBar);
+            if (titleBar is Microsoft.UI.Xaml.Controls.TitleBar control) control.RecomputeDragRegions();
+        });
     }
 
     private void SetShellSurfaceVisible(bool visible)
