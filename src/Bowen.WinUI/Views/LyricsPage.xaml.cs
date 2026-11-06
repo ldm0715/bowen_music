@@ -14,7 +14,10 @@ using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.UI;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -90,6 +93,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private ImageSource? _lastCoverImage;
     private ImageSource? _previousCoverImage;
     private int _coverSwapVersion;
+    /// <summary>纸标签上的曲名也是磁带印刷的一部分，换带时要先按住上一首。</summary>
+    private string _lastTitle = "";
+    private string _previousTitle = "";
+    private string _lastArtist = "";
+    private string _previousArtist = "";
 
     /// <summary>黑胶唱片当前的旋转角度，暂停时保留，恢复播放时从这里接着转。</summary>
     private double _vinylAngle;
@@ -107,6 +115,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     /// <summary>磁带轮盘转速：三秒一圈；比黑胶快，才有走带的观感。</summary>
     private const double CassetteDegreesPerSecond = 120;
+
+    /// <summary>卷盘满盘时的外半径（设计稿坐标）；纸标签的卷带孔半径 24，要留出带基与边距。</summary>
+    private const double CassettePackRadius = 20;
+
+    /// <summary>空盘时的缩放：环缩到轮毂外沿（半径 8.5 / 20），看起来就是一圈带子都没有。</summary>
+    private const double EmptyReelScale = 0.425;
 
     /// <summary>唱臂播放 / 待机角度；枢轴在右上，0° 是落盘姿态，正角把臂抬到唱片上方。</summary>
     private const float TonearmPlayingAngle = 0;
@@ -158,6 +172,12 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private static readonly SolidColorBrush CoverBackdropBrush = new(Color.FromArgb(0xFF, 0x0B, 0x12, 0x22));
     private static readonly SolidColorBrush TransparentBackdropBrush = new(Color.FromArgb(0, 0, 0, 0));
     private Brush? _coverFrameBackground;
+    private Brush? _coverSwapLabelBackground;
+    /// <summary>磁带纸标签的卷带孔：封面与换带遮罩各裁两个圆孔，几何在尺寸变化时重建。</summary>
+    private CompositionClip? _cassetteArtClip;
+    private CompositionClip? _cassetteSwapClip;
+    private CanvasGeometry? _cassetteClipGeometry;
+    private double _cassetteClipSize = double.NaN;
     private float _reflectionOpacity;
     private bool _pointerOverChrome;
     private bool _volumePopupOpen;
@@ -207,6 +227,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         InitializeComponent();
         // 随身听模式下要清掉封面槽底色，切回其它样式时得把它还原。
         _coverFrameBaseBackground = CoverFrame.Background;
+        // 换带遮罩自带一层淡色底；磁带模式下要清掉，否则纸标签上会多一层白。
+        _coverSwapLabelBackground = CoverSwapLabel.Background;
         // 纹路批量生成：28 道细圈挤在最外圈，手写 XAML 既冗长又改不动间距。
         for (var index = 0; index < VinylGrooveCount; index++)
         {
@@ -366,6 +388,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _window.EnterImmersive(LyricsTitleBar);
         Lyrics.IsOpen = true;
         _lastCoverImage = Player.CoverImage;
+        _lastTitle = Player.Title ?? "";
+        _lastArtist = Player.ArtistText ?? "";
         ApplyBackgroundMode();
         ApplyCoverStyle();
         if (Lyrics.BackgroundMode == LyricsBackgroundMode.SolidColor && Lyrics.BackgroundColorAuto)
@@ -739,6 +763,16 @@ public sealed partial class LyricsPage : Page, INavigationAware
             _previousCoverImage = _lastCoverImage;
             _lastCoverImage = Player.CoverImage;
         }
+        if (args.PropertyName == nameof(PlayerViewModel.Title))
+        {
+            _previousTitle = _lastTitle;
+            _lastTitle = Player.Title ?? "";
+        }
+        if (args.PropertyName == nameof(PlayerViewModel.ArtistText))
+        {
+            _previousArtist = _lastArtist;
+            _lastArtist = Player.ArtistText ?? "";
+        }
 
         if (args.PropertyName is nameof(PlayerViewModel.CurrentTrackId) or nameof(PlayerViewModel.CurrentCoverUri))
         {
@@ -776,11 +810,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
             PlayCassetteSwap();
             if (Comments.IsOpen)
             {
-                if (Player.CurrentTrackId is > 0) _ = Comments.ShowAsync(Player.CurrentTrackId.Value, Player.Title);
+                if (Player.CurrentTrackId is > 0) _ = Comments.ShowAsync(Player.CurrentTrackId.Value, Player.Title ?? "");
                 else CloseComments();
             }
         }
-        if (args.PropertyName == nameof(PlayerViewModel.Title) && Comments.IsOpen) Comments.SongTitle = Player.Title;
+        if (args.PropertyName == nameof(PlayerViewModel.Title) && Comments.IsOpen) Comments.SongTitle = Player.Title ?? "";
 
         // 付费徽标出现/消失会占掉一截宽度，上限跟着变。
         if (args.PropertyName == nameof(PlayerViewModel.HasPayLabel)) UpdateHeadingWidth();
@@ -903,6 +937,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         var vinyl = Lyrics.CoverStyle == LyricsCoverStyle.Vinyl;
         var mp3 = Lyrics.CoverStyle == LyricsCoverStyle.Mp3;
         var cassette = Lyrics.CoverStyle == LyricsCoverStyle.Cassette;
+        // 离开磁带模式时立刻拆掉封面上的开窗裁剪，不等尺寸重算。
+        if (!cassette) ClearCassetteLabelClip();
         // 切样式时把换碟动画收干净：可能停在滑出 / 滑入的中途。
         _coverSwapVersion++;
         CoverSwapLabel.Visibility = Visibility.Collapsed;
@@ -920,9 +956,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         Mp3DeviceBack.Visibility = mp3 ? Visibility.Visible : Visibility.Collapsed;
         CassetteDeviceBack.Visibility = cassette ? Visibility.Visible : Visibility.Collapsed;
         CassetteDeviceFront.Visibility = cassette ? Visibility.Visible : Visibility.Collapsed;
-        // 磁带贴纸是正方形，完整适配让整张封面都看得见；其它样式仍铺满各自的标签位。
+        // 磁带封面是方形，完整适配让整张封面都看得见；其它样式仍铺满各自的标签位。
         DetailCover.Stretch = cassette ? Stretch.Uniform : Stretch.UniformToFill;
         CoverSwapLabelImage.Stretch = DetailCover.Stretch;
+        CoverSwapLabel.Background = cassette ? null : _coverSwapLabelBackground;
         ApplyShellColor();
         if ((mp3 || cassette) && ShellColorAuto) _ = RefreshShellColorAsync();
         // 随身听与磁带的专辑图都不铺满封面槽，底色会从机身周围透出来，必须清掉。
@@ -981,13 +1018,13 @@ public sealed partial class LyricsPage : Page, INavigationAware
         var disc = Math.Round(size * 0.88);
         VinylDiscBase.Width = VinylDiscBase.Height = disc;
         // 四种模式共用 CoverFrame：方形铺满封面槽，黑胶缩成中心标签，
-        // 播放器缩进屏幕左侧的 60×60 图位，磁带贴到正面 96×96 的方形标签位。
+        // 播放器缩进屏幕左侧的 60×60 图位，磁带贴到纸标签上的 92×92 封面位。
         double labelWidth;
         double labelHeight;
         CornerRadius frameRadius;
         if (cassette)
         {
-            labelWidth = Math.Round(size * 0.3);
+            labelWidth = Math.Round(size * 0.2875);
             labelHeight = labelWidth;
             frameRadius = new CornerRadius(Math.Max(1.5, Math.Round(size * 0.00625)));
         }
@@ -1020,7 +1057,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
             CoverFrame.HorizontalAlignment = HorizontalAlignment.Left;
             CoverFrame.VerticalAlignment = VerticalAlignment.Top;
             CoverFrame.Margin = new Thickness(
-                Math.Round(size * 0.35), Math.Round(size * 0.209375), 0, 0);
+                Math.Round(size * 0.35625), Math.Round(size * 0.19375), 0, 0);
         }
         else if (mp3)
         {
@@ -1041,6 +1078,10 @@ public sealed partial class LyricsPage : Page, INavigationAware
         CoverSwapLabel.HorizontalAlignment = CoverFrame.HorizontalAlignment;
         CoverSwapLabel.VerticalAlignment = CoverFrame.VerticalAlignment;
         CoverSwapLabel.Margin = CoverFrame.Margin;
+
+        // 磁带纸标签的开窗要跟着尺寸重算；切回其它样式时把裁剪清掉。
+        if (cassette) ApplyCassetteLabelClip(size);
+        else ClearCassetteLabelClip();
 
         for (var index = 0; index < _vinylGrooves.Count; index++)
         {
@@ -1200,6 +1241,74 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ElementCompositionPreview.GetElementVisual(CassetteReelRightSpin).RotationAngleInDegrees = value;
     }
 
+    /// <summary>
+    /// 纸标签的两个卷带孔：纸面用 Path 的偶奇规则挖洞，封面是叠在上面的独立元素，
+    /// 还得再裁一次，否则封面会盖住圆孔。只改视觉裁剪，不动尺寸与可见性，
+    /// 共享封面动画仍然拿 DetailCover 当落点。
+    /// </summary>
+    private void ApplyCassetteLabelClip(double size)
+    {
+        // 尺寸没变就别重建：重建会有一帧把裁剪摘掉，窗口里会闪出整张封面。
+        if (_cassetteArtClip is not null && Math.Abs(_cassetteClipSize - size) < 0.5)
+        {
+            // 重新挂一次，防止元素重挂树后视觉上丢了裁剪。
+            ElementCompositionPreview.GetElementVisual(DetailCover).Clip = _cassetteArtClip;
+            ElementCompositionPreview.GetElementVisual(CoverSwapLabelImage).Clip = _cassetteSwapClip;
+            return;
+        }
+
+        ClearCassetteLabelClip();
+        var width = (float)CoverFrame.Width;
+        var height = (float)CoverFrame.Height;
+        if (size <= 0 || !double.IsFinite(width) || width <= 0 || height <= 0) return;
+
+        // 设计稿坐标：封面在 (114,62)、92×92；两个卷带孔半径 24，圆心 (100,112) / (220,112)。
+        // 圆心落在封面左右外面，圆孔只咬掉封面两侧，中间画面保持完整。
+        var scale = size / 320.0;
+        var radius = (float)(24 * scale);
+        var left = new Vector2((float)((100 - 114) * scale), (float)((112 - 62) * scale));
+        var right = new Vector2((float)((220 - 114) * scale), (float)((112 - 62) * scale));
+
+        try
+        {
+            var device = CanvasDevice.GetSharedDevice();
+            using var outer = CanvasGeometry.CreateRectangle(device, new Rect(0, 0, width, height));
+            using var leftHole = CanvasGeometry.CreateCircle(device, left.X, left.Y, radius);
+            using var rightHole = CanvasGeometry.CreateCircle(device, right.X, right.Y, radius);
+            using var cropped = outer.CombineWith(leftHole, Matrix3x2.Identity, CanvasGeometryCombine.Xor);
+            _cassetteClipGeometry = cropped?.CombineWith(rightHole, Matrix3x2.Identity, CanvasGeometryCombine.Xor);
+            if (_cassetteClipGeometry is null) return;
+
+            var compositor = ElementCompositionPreview.GetElementVisual(DetailCover).Compositor;
+            _cassetteArtClip = compositor.CreateGeometricClip(
+                compositor.CreatePathGeometry(new CompositionPath(_cassetteClipGeometry)));
+            _cassetteSwapClip = compositor.CreateGeometricClip(
+                compositor.CreatePathGeometry(new CompositionPath(_cassetteClipGeometry)));
+            ElementCompositionPreview.GetElementVisual(DetailCover).Clip = _cassetteArtClip;
+            ElementCompositionPreview.GetElementVisual(CoverSwapLabelImage).Clip = _cassetteSwapClip;
+            _cassetteClipSize = size;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // 裁剪失败就退回整张封面：圆孔里会看到封面而不是磁轮，但不影响播放。
+            _logger.LogDebug(exception, "磁带纸标签的卷带孔裁剪失败");
+        }
+    }
+
+    private void ClearCassetteLabelClip()
+    {
+        if (_cassetteArtClip is null && _cassetteSwapClip is null && _cassetteClipGeometry is null) return;
+        ElementCompositionPreview.GetElementVisual(DetailCover).Clip = null;
+        ElementCompositionPreview.GetElementVisual(CoverSwapLabelImage).Clip = null;
+        _cassetteArtClip?.Dispose();
+        _cassetteArtClip = null;
+        _cassetteSwapClip?.Dispose();
+        _cassetteSwapClip = null;
+        _cassetteClipGeometry?.Dispose();
+        _cassetteClipGeometry = null;
+        _cassetteClipSize = double.NaN;
+    }
+
     /// <summary>停止键：播放中按下才暂停；已经暂停时点它不出声，也不切歌。</summary>
     private void OnCassetteStopClick(object sender, RoutedEventArgs args)
     {
@@ -1208,9 +1317,11 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
     /// <summary>换带：开盖、旧磁带滑出、新磁带推入、盖盖；连续切歌时版本号让上一轮作废。</summary>
     /// <remarks>
-    /// 标签仍是共享封面的 <c>DetailCover</c>，绑定会在切歌瞬间换成新图；
+    /// 封面是共享封面的 <c>DetailCover</c>，绑定会在切歌瞬间换成新图；
     /// 滑出阶段用 <c>CoverSwapLabel</c> 盖住它，滑出去的才是旧封面。
-    /// 磁带本体在 <c>CassetteTapeLayer</c>，标签在 <c>VinylSpinLayer</c>，两层做同一段位移。
+    /// 纸标签上的曲名同样等新磁带推入前才换字，滑出去的仍是上一首。
+    /// 磁带本体与纸标签在 <c>CassetteTapeLayer</c>，封面在 <c>VinylSpinLayer</c>，
+    /// 两层做同一段位移；机芯与固定铜柱不参与动画。
     /// </remarks>
     private async void PlayCassetteSwap()
     {
@@ -1224,6 +1335,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
 
         CoverSwapLabelImage.Source = previous;
         CoverSwapLabel.Visibility = Visibility.Visible;
+        CassetteTitleText.Text = _previousTitle;
+        CassetteArtistText.Text = _previousArtist;
 
         // 第一拍：开盖。
         await AnimateCassetteDoorAsync(open: true, doorDuration);
@@ -1239,6 +1352,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         // 第三拍：换上新磁带，从下方推入。
         CoverSwapLabel.Visibility = Visibility.Collapsed;
         CoverSwapLabelImage.Source = null;
+        CassetteTitleText.Text = Player.Title ?? "";
+        CassetteArtistText.Text = Player.ArtistText ?? "";
         await Task.WhenAll(
             AppMotion.PlayAsync(CassetteTapeLayer, exit, Vector3.Zero, 0, 1, Vector3.One, Vector3.One, AppMotion.Standard),
             AppMotion.PlayAsync(VinylSpinLayer, exit, Vector3.Zero, 0, 1, Vector3.One, Vector3.One, AppMotion.Standard));
@@ -1273,17 +1388,60 @@ public sealed partial class LyricsPage : Page, INavigationAware
         await Task.Delay(duration);
     }
 
-    /// <summary>按播放进度更新两侧带量：供带轮变空、收带轮变满。</summary>
+    /// <summary>按播放进度更新两侧带量：供带轮变薄、收带轮变厚，履带跟着改斜率。</summary>
     private void UpdateCassetteTapeAmount()
     {
         if (Lyrics.CoverStyle != LyricsCoverStyle.Cassette) return;
         var duration = Player.DurationSeconds;
         var progress = duration > 0 ? Math.Clamp(Player.PositionSeconds / duration, 0, 1) : 0;
-        // 没有固定圆壳，磁带卷本身就是可见直径：满盘 54，空盘缩到约 17，差得够明显。
-        var supply = 1 - 0.68 * progress;
-        var takeUp = 0.32 + 0.68 * progress;
+        // 物理映射：满盘 1.0、空盘缩到轮毂外沿。开头收带轮是空的，播完供带轮变空。
+        var supply = EmptyReelScale + (1 - EmptyReelScale) * (1 - progress);
+        var takeUp = EmptyReelScale + (1 - EmptyReelScale) * progress;
         SetCassetteTapeScale(CassetteReelLeftTape, supply);
         SetCassetteTapeScale(CassetteReelRightTape, takeUp);
+        UpdateCassetteTapeBridge(CassettePackRadius * supply, CassettePackRadius * takeUp);
+    }
+
+    /// <summary>
+    /// 闭环履带：沿左盘外缘半圈、下切线、右盘外缘半圈、上切线，一笔画回起点。
+    /// 圆心等高，切线斜率由两边半径差决定；路径与卷盘同色，切点压在外缘上看不出接缝。
+    /// </summary>
+    private void UpdateCassetteTapeBridge(double leftRadius, double rightRadius)
+    {
+        var normalX = (leftRadius - rightRadius) / 120.0;
+        var normalY = Math.Sqrt(Math.Max(0, 1 - normalX * normalX));
+        var figure = new PathFigure
+        {
+            StartPoint = new Point(100 + leftRadius * normalX, 112 - leftRadius * normalY),
+            IsClosed = true,
+            IsFilled = false,
+            Segments =
+            {
+                // 绕左盘外侧：半径差决定包角，大的一侧超过半圈
+                new ArcSegment
+                {
+                    Point = new Point(100 + leftRadius * normalX, 112 + leftRadius * normalY),
+                    Size = new Size(leftRadius, leftRadius),
+                    SweepDirection = SweepDirection.Counterclockwise,
+                    IsLargeArc = normalX > 0,
+                },
+                new LineSegment
+                {
+                    Point = new Point(220 + rightRadius * normalX, 112 + rightRadius * normalY),
+                },
+                // 绕右盘外侧
+                new ArcSegment
+                {
+                    Point = new Point(220 + rightRadius * normalX, 112 - rightRadius * normalY),
+                    Size = new Size(rightRadius, rightRadius),
+                    SweepDirection = SweepDirection.Counterclockwise,
+                    IsLargeArc = normalX < 0,
+                },
+            },
+        };
+        var geometry = new PathGeometry();
+        geometry.Figures.Add(figure);
+        CassetteTapeBridge.Data = geometry;
     }
 
     private static void SetCassetteTapeScale(FrameworkElement pack, double scale)

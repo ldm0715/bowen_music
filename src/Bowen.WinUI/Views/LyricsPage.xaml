@@ -620,10 +620,155 @@
                         <Rectangle Width="198" Height="1" Canvas.Left="61" Canvas.Top="188" Fill="#8A000000" IsHitTestVisible="False" />
 
                         <!--
-                            机芯：两根铜柱、两个压带轮与磁头。全部在磁带之后，
-                            装带时被磁带挡住，换带时磁带滑出才露出来。
+                            机芯：两个压带轮与磁头固定在背景层，装带时被磁带挡住，
+                            换带时磁带滑出才露出来。
                         -->
                         <Canvas x:Name="CassettePostLayer" Width="320" Height="320" IsHitTestVisible="False">
+                            <Ellipse Width="8" Height="8" Canvas.Left="134" Canvas.Top="158" Fill="#596066" />
+                            <Ellipse Width="8" Height="8" Canvas.Left="178" Canvas.Top="158" Fill="#596066" />
+                            <Border Canvas.Left="152" Canvas.Top="156" Width="16" Height="10" CornerRadius="2"
+                                Background="#6B7177" BorderBrush="#3E4449" BorderThickness="1" />
+                        </Canvas>
+
+                        <!--
+                            磁带：壳、两个磁轮与大张纸标签。纸标签在磁轮之上，
+                            只在两个磁轮处挖圆孔；换带时这一层与封面一起滑出。
+                        -->
+                        <Canvas x:Name="CassetteTapeLayer" Width="320" Height="320" IsHitTestVisible="False">
+                            <Border Canvas.Left="65" Canvas.Top="46" Width="190" Height="138" CornerRadius="2"
+                                Background="#E7E9EA" BorderBrush="#C2C6C9" BorderThickness="1" />
+                            <!-- 磁带壳倒角 -->
+                            <Rectangle Width="188" Height="1" Canvas.Left="66" Canvas.Top="47" Fill="#59FFFFFF" />
+                            <Rectangle Width="188" Height="1" Canvas.Left="66" Canvas.Top="183" Fill="#1F000000" />
+
+                            <!-- 卷盘：深灰色圆环表示绕上去的磁带厚度，圈数随播放进度变化 -->
+                            <Grid x:Name="CassetteReelLeftSpin" Width="54" Height="54" Canvas.Left="73" Canvas.Top="85">
+                                <Grid x:Name="CassetteReelLeftTape" Width="54" Height="54">
+                                    <!-- 卷绕的磁带：外径 20、内孔 8；和带基同一块深灰料，接缝看不出来 -->
+                                    <Path Data="F0 M7,27 A20,20 0 1 1 47,27 A20,20 0 1 1 7,27 Z M19,27 A8,8 0 1 1 35,27 A8,8 0 1 1 19,27 Z"
+                                        Fill="#43474B" />
+                                    <!-- 卷层细纹：五道浅色同心圆，读出绕了多少圈，也让转动看得出来 -->
+                                    <Ellipse Width="38" Height="38" Stroke="#1CFFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="33" Height="33" Stroke="#24FFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="28" Height="28" Stroke="#1AFFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="23" Height="23" Stroke="#22FFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="19" Height="19" Stroke="#18FFFFFF" StrokeThickness="0.75" />
+                                </Grid>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5" />
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="60" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="120" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Ellipse Width="16" Height="16" Fill="#C7CCD0" Stroke="#8E9499" StrokeThickness="1" />
+                                <Ellipse Width="6" Height="6" Fill="#4E5459" />
+                            </Grid>
+                            <Grid x:Name="CassetteReelRightSpin" Width="54" Height="54" Canvas.Left="193" Canvas.Top="85">
+                                <Grid x:Name="CassetteReelRightTape" Width="54" Height="54">
+                                    <!-- 卷绕的磁带：外径 20、内孔 8；和带基同一块深灰料，接缝看不出来 -->
+                                    <Path Data="F0 M7,27 A20,20 0 1 1 47,27 A20,20 0 1 1 7,27 Z M19,27 A8,8 0 1 1 35,27 A8,8 0 1 1 19,27 Z"
+                                        Fill="#43474B" />
+                                    <!-- 卷层细纹：五道浅色同心圆，读出绕了多少圈，也让转动看得出来 -->
+                                    <Ellipse Width="38" Height="38" Stroke="#1CFFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="33" Height="33" Stroke="#24FFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="28" Height="28" Stroke="#1AFFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="23" Height="23" Stroke="#22FFFFFF" StrokeThickness="0.75" />
+                                    <Ellipse Width="19" Height="19" Stroke="#18FFFFFF" StrokeThickness="0.75" />
+                                </Grid>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5" />
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="60" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
+                                    <Rectangle.RenderTransform>
+                                        <RotateTransform Angle="120" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Ellipse Width="16" Height="16" Fill="#C7CCD0" Stroke="#8E9499" StrokeThickness="1" />
+                                <Ellipse Width="6" Height="6" Fill="#4E5459" />
+                            </Grid>
+
+                            <!--
+                                带基：绕在两个卷盘外圈的闭环履带。路径在 code-behind 里按带量半径
+                                重算：左盘外缘半圈 → 下切线 → 右盘外缘半圈 → 上切线，一笔闭合，
+                                没有端头；和卷盘同色，切点压在环的外缘上。
+                            -->
+                            <Path x:Name="CassetteTapeBridge" Stroke="#43474B" StrokeThickness="1.5"
+                                StrokeLineJoin="Round" IsHitTestVisible="False" />
+
+                            <!--
+                                纸标签：覆盖磁带正面约七成的大张纸。只在左右两个磁轮处挖圆孔，
+                                中间留给专辑封面；圆孔尺寸与 code-behind 里给封面做的合成裁剪
+                                一致，两边对齐后一起缩放。
+                            -->
+                            <Path Data="F0 M78.5,58 H241.5 A2.5,2.5 0 0 1 244,60.5 V169.5 A2.5,2.5 0 0 1 241.5,172 H78.5 A2.5,2.5 0 0 1 76,169.5 V60.5 A2.5,2.5 0 0 1 78.5,58 Z M76,112 A24,24 0 1 1 124,112 A24,24 0 1 1 76,112 Z M196,112 A24,24 0 1 1 244,112 A24,24 0 1 1 196,112 Z">
+                                <Path.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#F8F5EC" Offset="0" />
+                                        <GradientStop Color="#F1EDE2" Offset="0.55" />
+                                        <GradientStop Color="#E9E4D6" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Path.Fill>
+                            </Path>
+                            <!-- 纸张外沿：一圈细描边，让标签从同色塑料壳上分离出来 -->
+                            <Border Canvas.Left="76" Canvas.Top="58" Width="168" Height="114" CornerRadius="2.5"
+                                BorderBrush="#D9D2C1" BorderThickness="1" IsHitTestVisible="False" />
+                            <!-- 卷带孔上的一层极淡玻璃 + 一圈切口阴影，滚轮在里面转 -->
+                            <Ellipse Canvas.Left="76" Canvas.Top="88" Width="48" Height="48"
+                                Stroke="#4A000000" StrokeThickness="1" IsHitTestVisible="False">
+                                <Ellipse.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#1AFFFFFF" Offset="0" />
+                                        <GradientStop Color="#08000000" Offset="0.55" />
+                                        <GradientStop Color="#00000000" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse Canvas.Left="196" Canvas.Top="88" Width="48" Height="48"
+                                Stroke="#4A000000" StrokeThickness="1" IsHitTestVisible="False">
+                                <Ellipse.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#1AFFFFFF" Offset="0" />
+                                        <GradientStop Color="#08000000" Offset="0.55" />
+                                        <GradientStop Color="#00000000" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+
+                            <!-- 标签印刷：只占纸标签左右两条留白，不被封面盖住 -->
+                            <TextBlock Canvas.Left="82" Canvas.Top="63" FontSize="4.5" Foreground="#8D8678"
+                                Text="STEREO" IsHitTestVisible="False" />
+                            <TextBlock Canvas.Left="82" Canvas.Top="70.5" FontSize="4" Foreground="#938C7D"
+                                Text="TYPE II" IsHitTestVisible="False" />
+                            <TextBlock Canvas.Left="206" Canvas.Top="63" Width="34" FontSize="4.5" Foreground="#8D8678"
+                                TextAlignment="Right" Text="60 MIN" IsHitTestVisible="False" />
+                            <TextBlock Canvas.Left="206" Canvas.Top="70.5" Width="34" FontSize="4" Foreground="#938C7D"
+                                TextAlignment="Right" Text="SIDE A" IsHitTestVisible="False" />
+
+                            <!-- 曲名与歌手印在纸标签下沿：跟着磁带一起滑出，不再印在机器上 -->
+                            <TextBlock x:Name="CassetteTitleText" Canvas.Left="76" Canvas.Top="154" Width="168"
+                                FontSize="7" FontWeight="SemiBold" Foreground="#6B6455" TextAlignment="Center"
+                                TextTrimming="CharacterEllipsis" MaxLines="1"
+                                Text="{x:Bind Player.Title, Mode=OneWay}" IsHitTestVisible="False" />
+                            <TextBlock x:Name="CassetteArtistText" Canvas.Left="76" Canvas.Top="163.5" Width="168"
+                                FontSize="5.5" Foreground="#8A8273" TextAlignment="Center"
+                                TextTrimming="CharacterEllipsis" MaxLines="1"
+                                Text="{x:Bind Player.ArtistText, Mode=OneWay}" IsHitTestVisible="False" />
+                        </Canvas>
+
+                        <!--
+                            机芯转轴：播放器的固定件，压在磁带之上、不跟随换带。
+                            两根铜柱正好落在纸标签的圆形卷带孔里，磁带卷盘绕它们转；
+                            换带时磁带滑走，它们留在原地。
+                        -->
+                        <Canvas x:Name="CassetteSpindleLayer" Width="320" Height="320" IsHitTestVisible="False">
                             <Ellipse Width="12" Height="12" Canvas.Left="94" Canvas.Top="106" Stroke="#8A6A38"
                                 StrokeThickness="1">
                                 <Ellipse.Fill>
@@ -648,103 +793,6 @@
                             </Ellipse>
                             <Ellipse Width="4" Height="4" Canvas.Left="98" Canvas.Top="110" Fill="#3A2C18" />
                             <Ellipse Width="4" Height="4" Canvas.Left="218" Canvas.Top="110" Fill="#3A2C18" />
-
-                            <Ellipse Width="8" Height="8" Canvas.Left="134" Canvas.Top="158" Fill="#596066" />
-                            <Ellipse Width="8" Height="8" Canvas.Left="178" Canvas.Top="158" Fill="#596066" />
-                            <Border Canvas.Left="152" Canvas.Top="156" Width="16" Height="10" CornerRadius="2"
-                                Background="#6B7177" BorderBrush="#3E4449" BorderThickness="1" />
-                        </Canvas>
-
-                        <!--
-                            磁带：壳、走带与两个磁轮。整层都在贴纸下面，贴纸会盖住轮盘的一部分；
-                            换带时这一层与标签一起滑出。
-                        -->
-                        <Canvas x:Name="CassetteTapeLayer" Width="320" Height="320" IsHitTestVisible="False">
-                            <Border Canvas.Left="65" Canvas.Top="46" Width="190" Height="138" CornerRadius="2"
-                                Background="#E7E9EA" BorderBrush="#C2C6C9" BorderThickness="1" />
-                            <!-- 磁带壳倒角 -->
-                            <Rectangle Width="188" Height="1" Canvas.Left="66" Canvas.Top="47" Fill="#59FFFFFF" />
-                            <Rectangle Width="188" Height="1" Canvas.Left="66" Canvas.Top="183" Fill="#1F000000" />
-
-                            <!-- 磁带壳印刷：利用贴纸上下的留白补一点装饰 -->
-                            <TextBlock Canvas.Left="70" Canvas.Top="51" FontSize="4.5" Foreground="#8A8F93"
-                                Text="STEREO" IsHitTestVisible="False" />
-                            <TextBlock Canvas.Left="220" Canvas.Top="51" Width="30" FontSize="4.5" Foreground="#8A8F93"
-                                TextAlignment="Right" Text="60 MIN" IsHitTestVisible="False" />
-                            <TextBlock Canvas.Left="70" Canvas.Top="172" FontSize="4" Foreground="#9A9FA3"
-                                Text="TYPE II · NORMAL POSITION" IsHitTestVisible="False" />
-                            <TextBlock Canvas.Left="220" Canvas.Top="172" Width="30" FontSize="4.5" Foreground="#8A8F93"
-                                TextAlignment="Right" Text="SIDE A" IsHitTestVisible="False" />
-                            <!-- 走带：贴纸上方与下方各一条，横贯磁带壳；在贴纸之外，始终可见 -->
-                            <Path x:Name="CassetteTapePath" Data="M68,59 L252,57 M68,169 L252,167"
-                                Stroke="#CFD3D6" StrokeThickness="3"
-                                StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-
-                            <!-- 磁轮：径向渐变给一点圆润感，细密同心圆表示一层层绕上去的磁带 -->
-                            <Grid x:Name="CassetteReelLeftSpin" Width="54" Height="54" Canvas.Left="73" Canvas.Top="85">
-                                <Grid x:Name="CassetteReelLeftTape" Width="54" Height="54">
-                                    <Ellipse Stroke="#AEB4B9" StrokeThickness="1.5">
-                                        <Ellipse.Fill>
-                                            <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3"
-                                                RadiusX="0.8" RadiusY="0.8">
-                                                <GradientStop Color="#F2F4F5" Offset="0" />
-                                                <GradientStop Color="#DFE3E5" Offset="0.65" />
-                                                <GradientStop Color="#C4C9CD" Offset="1" />
-                                            </RadialGradientBrush>
-                                        </Ellipse.Fill>
-                                    </Ellipse>
-                                    <Ellipse Width="50" Height="50" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="44" Height="44" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="38" Height="38" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="32" Height="32" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="26" Height="26" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                </Grid>
-                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5" />
-                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
-                                    <Rectangle.RenderTransform>
-                                        <RotateTransform Angle="60" />
-                                    </Rectangle.RenderTransform>
-                                </Rectangle>
-                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
-                                    <Rectangle.RenderTransform>
-                                        <RotateTransform Angle="120" />
-                                    </Rectangle.RenderTransform>
-                                </Rectangle>
-                                <Ellipse Width="16" Height="16" Fill="#C7CCD0" Stroke="#8E9499" StrokeThickness="1" />
-                                <Ellipse Width="6" Height="6" Fill="#4E5459" />
-                            </Grid>
-                            <Grid x:Name="CassetteReelRightSpin" Width="54" Height="54" Canvas.Left="193" Canvas.Top="85">
-                                <Grid x:Name="CassetteReelRightTape" Width="54" Height="54">
-                                    <Ellipse Stroke="#AEB4B9" StrokeThickness="1.5">
-                                        <Ellipse.Fill>
-                                            <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3"
-                                                RadiusX="0.8" RadiusY="0.8">
-                                                <GradientStop Color="#F2F4F5" Offset="0" />
-                                                <GradientStop Color="#DFE3E5" Offset="0.65" />
-                                                <GradientStop Color="#C4C9CD" Offset="1" />
-                                            </RadialGradientBrush>
-                                        </Ellipse.Fill>
-                                    </Ellipse>
-                                    <Ellipse Width="50" Height="50" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="44" Height="44" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="38" Height="38" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="32" Height="32" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                    <Ellipse Width="26" Height="26" Stroke="#C7CCD0" StrokeThickness="0.75" />
-                                </Grid>
-                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5" />
-                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
-                                    <Rectangle.RenderTransform>
-                                        <RotateTransform Angle="60" />
-                                    </Rectangle.RenderTransform>
-                                </Rectangle>
-                                <Rectangle Width="2.5" Height="18" Fill="#9AA0A5" RenderTransformOrigin="0.5,0.5">
-                                    <Rectangle.RenderTransform>
-                                        <RotateTransform Angle="120" />
-                                    </Rectangle.RenderTransform>
-                                </Rectangle>
-                                <Ellipse Width="16" Height="16" Fill="#C7CCD0" Stroke="#8E9499" StrokeThickness="1" />
-                                <Ellipse Width="6" Height="6" Fill="#4E5459" />
-                            </Grid>
                         </Canvas>
 
                         <!-- 四角螺丝：四边统一内缩 10，带一字槽 -->
@@ -806,15 +854,7 @@
                             </Border.Background>
                         </Border>
 
-                        <!-- 曲名铭牌：仓门下方，深色字印在银灰机身上 -->
-                        <TextBlock x:Name="CassetteTitleText" Canvas.Left="60" Canvas.Top="194" Width="200"
-                            FontSize="9.5" FontWeight="SemiBold" Foreground="#3E4245" TextAlignment="Center"
-                            TextTrimming="CharacterEllipsis" MaxLines="1"
-                            Text="{x:Bind Player.Title, Mode=OneWay}" IsHitTestVisible="False" />
-                        <TextBlock x:Name="CassetteArtistText" Canvas.Left="60" Canvas.Top="207" Width="200"
-                            FontSize="7.5" Foreground="#6A6E72" TextAlignment="Center"
-                            TextTrimming="CharacterEllipsis" MaxLines="1"
-                            Text="{x:Bind Player.ArtistText, Mode=OneWay}" IsHitTestVisible="False" />
+                        <!-- 曲名与歌手印在磁带的纸标签上，仓门下方只留出厂印刷 -->
 
                         <!-- 出厂印刷 -->
                         <TextBlock Canvas.Left="56" Canvas.Top="28" FontSize="6.5" Foreground="#55595C"
