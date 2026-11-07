@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Bowen.Core.Models;
 using Bowen.WinUI.ViewModels;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -39,6 +40,9 @@ public sealed partial class TrayControlPanel : UserControl
         {
             Bindings.Update();
             ApplyHostTheme();
+            // 面板可能上次就关在队列页：重新打开时不会走 OnQueueTabClick，
+            // 这里补一次队列状态与当前行的定位。
+            if (IsQueueTab) ShowQueue();
         };
 
         // 面板里的主题切换由 x:Bind 改内容；托盘库那个 presenter 的亚克力背景
@@ -225,15 +229,55 @@ public sealed partial class TrayControlPanel : UserControl
 
     private void OnQueueTabClick(object sender, RoutedEventArgs e)
     {
-        // 面板没有走主窗口抽屉的 IsOpen，必须单独告知队列「这里也开着」，
-        // 否则 Rows 一直是空的。切回本页时开关可能已经是 true，再强制补一次。
+        PanelTab = 1;
+        ShowQueue();
+    }
+
+    /// <summary>
+    /// 队列页显示出来：同步「面板开着」状态，并把当前播放那一行滚进可视区。
+    /// </summary>
+    /// <remarks>
+    /// 面板没有走主窗口抽屉的 <c>IsOpen</c>，必须单独告知队列「这里也开着」，
+    /// 否则 <c>Rows</c> 不会随切歌刷新。切回本页时开关可能已经是 true，再强制补一次。
+    /// </remarks>
+    private void ShowQueue()
+    {
         if (Queue is { } queue)
         {
             queue.IsTrayPanelOpen = true;
             queue.RefreshNow();
         }
 
-        PanelTab = 1;
+        RevealCurrentRow();
+    }
+
+    /// <summary>
+    /// 把正在播放那一行滚进可视区。
+    /// </summary>
+    /// <remarks>
+    /// 页签刚切过来时列表还是 Collapsed，容器也还没生成，直接 <c>ScrollIntoView</c>
+    /// 会落空。排到下一轮布局之后再滚；行对象在 <c>RefreshNow</c> 之后取，避免拿到被重建掉的旧行。
+    /// </remarks>
+    private void RevealCurrentRow()
+    {
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (!IsQueueTab || Queue is not { } queue)
+            {
+                return;
+            }
+
+            foreach (var row in queue.Rows)
+            {
+                if (row.IsCurrent)
+                {
+                    // 页签刚切换时可视树还没走到这一页，先把布局赶出来，行容器才生成得出来。
+                    QueueList.UpdateLayout();
+                    QueueList.ScrollIntoView(row, ScrollIntoViewAlignment.Leading);
+                    return;
+                }
+            }
+        });
     }
 
     private void SetQueueTabActive(bool active)

@@ -660,6 +660,7 @@
                 <!-- 播放列表 -->
                 <Grid Visibility="{x:Bind local:Formats.Visible(IsQueueTab)}">
                     <ListView
+                        x:Name="QueueList"
                         MinWidth="0"
                         Padding="0,0,14,0"
                         IsItemClickEnabled="True"
@@ -671,28 +672,40 @@
                         ScrollViewer.HorizontalScrollMode="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:PlayQueueRow">
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                                <!--
+                                    正在播放那一行铺一层强调色底，方便从长队列里一眼找到。
+                                    负外边距抵消 ListViewItem 的 Padding（8,4），底色铺满整行，
+                                    与悬停态的大小一致。
+                                -->
+                                <Grid>
+                                    <Border
+                                        Margin="-8,-4"
+                                        Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                                        CornerRadius="4"
+                                        Visibility="{x:Bind local:Formats.Visible(IsCurrent), Mode=OneWay}" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Spacing="1">
+                                            <TextBlock
+                                                FontSize="11"
+                                                Text="{x:Bind Title}"
+                                                TextTrimming="CharacterEllipsis" />
+                                            <TextBlock
+                                                FontSize="10"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Text="{x:Bind ArtistText}"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
                                         <TextBlock
-                                            FontSize="11"
-                                            Text="{x:Bind Title}"
-                                            TextTrimming="CharacterEllipsis" />
-                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
                                             FontSize="10"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                            Text="{x:Bind ArtistText}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        VerticalAlignment="Center"
-                                        FontSize="10"
-                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                        Text="{x:Bind DurationText}" />
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                            Text="{x:Bind DurationText}" />
+                                    </Grid>
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
