@@ -23,6 +23,11 @@ public sealed record ThemeSettings
     /// </summary>
     public StartupSection StartupPage { get; set; } = StartupSection.Favorites;
 
+    /// <summary>
+    /// 托盘右键菜单形态。默认简洁：旧设置文件没有这个字段，读出来要保持升级前的行为。
+    /// </summary>
+    public TrayMenuStyle TrayMenuStyle { get; set; } = TrayMenuStyle.Compact;
+
     /// <summary>没有设置文件时用的默认值。</summary>
     public static ThemeSettings Default { get; } = new();
 
@@ -32,6 +37,7 @@ public sealed record ThemeSettings
         Theme = Enum.IsDefined(Theme) ? Theme : AppTheme.System,
         AcrylicEffects = AcrylicEffects ?? true,
         StartupPage = Enum.IsDefined(StartupPage) ? StartupPage : StartupSection.Favorites,
+        TrayMenuStyle = Enum.IsDefined(TrayMenuStyle) ? TrayMenuStyle : TrayMenuStyle.Compact,
     };
 
     /// <summary>保留旧的构造签名，供现有调用点使用。</summary>
@@ -43,10 +49,12 @@ public sealed record ThemeSettings
     public ThemeSettings(
         AppTheme Theme,
         bool? AcrylicEffects = null,
-        StartupSection StartupPage = StartupSection.Favorites)
+        StartupSection StartupPage = StartupSection.Favorites,
+        TrayMenuStyle TrayMenuStyle = TrayMenuStyle.Compact)
     {
         this.Theme = Theme;
         this.AcrylicEffects = AcrylicEffects;
         this.StartupPage = StartupPage;
+        this.TrayMenuStyle = TrayMenuStyle;
     }
 }

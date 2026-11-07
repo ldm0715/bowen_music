@@ -117,6 +117,39 @@
                 </Setter>
             </Style>
 
+            <!--
+                效率面板那一项：宽度随面板走，高度用 MinHeight 顶住托盘库强写的 Height=32。
+                模板不画悬停底 —— 整个面板是一整项，鼠标在面板内移动不该整块变色。
+                PointerPressed / Tapped 仍标 Handled，阻止库的「点击即收起」。
+            -->
+            <Style x:Key="TrayPanelItemStyle" TargetType="controls:TrayMenuItem">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="500" />
+                <Setter Property="Margin" Value="3,1,3,1" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="controls:TrayMenuItem">
+                            <Grid
+                                Padding="0"
+                                Background="Transparent"
+                                PointerPressed="OnTrayMenuContentPointerPressed"
+                                PointerReleased="OnTrayMenuContentPointerPressed"
+                                Tapped="OnTrayMenuContentTapped">
+                                <ContentPresenter
+                                    Content="{TemplateBinding Body}"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- 展开的三项按文字测量宽度，只保留左右内距。 -->
             <Style x:Key="TrayPlayModeItemStyle" TargetType="controls:TrayMenuItem" BasedOn="{StaticResource TrayMenuItemStyle}">
                 <Setter Property="Width" Value="Auto" />
@@ -1626,6 +1659,29 @@
                 <MenuFlyout>
 
                     <!--
+                        效率面板：整块面板作为**一个**菜单项的内容。
+                        ★ 不能换成普通 Flyout —— SecondWindow 会把 ContextFlyout 直接转成
+                          MenuFlyout 并把各项搬进自己的内部菜单。
+                        ★ 简洁组的所有项与本项互斥显示，靠 Theme.IsEfficientTrayMenu 切换。
+                    -->
+                    <controls:TrayMenuItem
+                        Style="{StaticResource TrayPanelItemStyle}"
+                        Visibility="{x:Bind local:Formats.Visible(Theme.IsEfficientTrayMenu), Mode=OneWay}">
+                        <controls:TrayMenuItem.Body>
+                            <controls:TrayControlPanel
+                                DesktopLyrics="{x:Bind DesktopLyrics}"
+                                Effects="{x:Bind Effects}"
+                                ExitRequested="OnTrayPanelExitRequested"
+                                MiniPlayer="{x:Bind MiniPlayer}"
+                                Player="{x:Bind Player}"
+                                Queue="{x:Bind Queue}"
+                                RestartRequested="OnTrayPanelRestartRequested"
+                                SettingsRequested="OnTrayPanelSettingsRequested"
+                                Theme="{x:Bind Theme}" />
+                        </controls:TrayMenuItem.Body>
+                    </controls:TrayMenuItem>
+
+                    <!--
                         ★★ 这一整颗菜单**没有任何一项依赖"菜单即将弹出"事件**。
 
                         该库把 TrayContextMenuOpen / TrayPopupOpen 这些事件在编译期关掉了
@@ -1659,7 +1715,8 @@
                     <controls:TrayMenuItem
                         MinHeight="50"
                         Style="{StaticResource TrayMenuItemStyle}"
-                        IsEnabled="False">
+                        IsEnabled="False"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <controls:TrayMenuItem.Body>
                             <Grid Margin="8,6,8,6">
                                 <Grid.ColumnDefinitions>
@@ -1698,7 +1755,7 @@
                         </controls:TrayMenuItem.Body>
                     </controls:TrayMenuItem>
 
-                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+                    <MenuFlyoutSeparator IsHitTestVisible="False" Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}" />
 
                     <!--
                         转台：**三个纯图标合成一行**，不放文字（与参照图一致）。
@@ -1709,7 +1766,9 @@
                         三个按钮的 Click 只执行播放操作，支持连续点击。
                         所有菜单项的模板统一处理点击，避免执行命令后收起菜单。
                     -->
-                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}">
+                    <controls:TrayMenuItem
+                        Style="{StaticResource TrayMenuItemStyle}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <controls:TrayMenuItem.Body>
                             <StackPanel
                                 Orientation="Horizontal"
@@ -1742,7 +1801,7 @@
                         </controls:TrayMenuItem.Body>
                     </controls:TrayMenuItem>
 
-                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+                    <MenuFlyoutSeparator IsHitTestVisible="False" Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}" />
 
                     <!--
                         模式子菜单。标题直接显示**当前模式**（与参照图一致：那里写的就是
@@ -1757,7 +1816,10 @@
                           CommunityToolkit.Mvvm 8.4.2 的 RelayCommand<T> 不做 string→enum 转换，
                           传字符串会在运行时抛 ArgumentException。
                     -->
-                    <MenuFlyoutSubItem Style="{StaticResource TrayMenuSubItemStyle}" Text="{x:Bind Player.PlayModeText, Mode=OneWay}">
+                    <MenuFlyoutSubItem
+                        Style="{StaticResource TrayMenuSubItemStyle}"
+                        Text="{x:Bind Player.PlayModeText, Mode=OneWay}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <MenuFlyoutSubItem.Icon>
                             <PathIcon Data="{x:Bind local:Formats.IconGeometryFor('IconListLoop')}" />
                         </MenuFlyoutSubItem.Icon>
@@ -1832,14 +1894,17 @@
                         </controls:TrayMenuItem>
                     </MenuFlyoutSubItem>
 
-                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+                    <MenuFlyoutSeparator IsHitTestVisible="False" Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}" />
 
                     <!--
                         两个窗口开关。选中态直接绑各自的 IsEnabled —— 小窗与桌面歌词窗的显隐
                         本来就由这个开关驱动（见 MiniPlayerWindowHost / DesktopLyricsWindowHost），
                         所以这里不需要额外同步，也不该多存一份状态。
                     -->
-                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind MiniPlayer.ToggleCommand}">
+                    <controls:TrayMenuItem
+                        Style="{StaticResource TrayMenuItemStyle}"
+                        Command="{x:Bind MiniPlayer.ToggleCommand}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <controls:TrayMenuItem.Body>
                             <Grid>
                                 <Border
@@ -1854,7 +1919,10 @@
                         </controls:TrayMenuItem.Body>
                     </controls:TrayMenuItem>
 
-                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind DesktopLyrics.ToggleCommand}">
+                    <controls:TrayMenuItem
+                        Style="{StaticResource TrayMenuItemStyle}"
+                        Command="{x:Bind DesktopLyrics.ToggleCommand}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <controls:TrayMenuItem.Body>
                             <Grid>
                                 <Border
@@ -1869,7 +1937,7 @@
                         </controls:TrayMenuItem.Body>
                     </controls:TrayMenuItem>
 
-                    <MenuFlyoutSeparator IsHitTestVisible="False" />
+                    <MenuFlyoutSeparator IsHitTestVisible="False" Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}" />
 
                     <!--
                         设置 = 主窗口设置页的入口，与标题栏那颗齿轮是同一个去处。
@@ -1881,7 +1949,10 @@
                         ★ Command 走 OpenSettings（MainWindow），不是拿标题栏那颗按钮的 Click ——
                           RelayCommand 与按钮点击本来就不是一套接线。
                     -->
-                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind OpenSettingsCommand}">
+                    <controls:TrayMenuItem
+                        Style="{StaticResource TrayMenuItemStyle}"
+                        Command="{x:Bind OpenSettingsCommand}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <controls:TrayMenuItem.Body>
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
                                 <controls:Icon Data="{StaticResource IconSettings}" Size="16" VerticalAlignment="Center" />
@@ -1894,7 +1965,10 @@
                         重启 = 更新界面字体后不必手动退出再打开。先拉起新进程、再走「退出」的
                         收尾链；新进程会等本进程退完才继续（restart-wait 开关），原因见 RestartApp。
                     -->
-                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind RestartAppCommand}">
+                    <controls:TrayMenuItem
+                        Style="{StaticResource TrayMenuItemStyle}"
+                        Command="{x:Bind RestartAppCommand}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <controls:TrayMenuItem.Body>
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
                                 <controls:Icon Data="{StaticResource IconRefresh}" Size="16" VerticalAlignment="Center" />
@@ -1908,7 +1982,10 @@
                         走的是 App 在 OnLaunched 里挂的那条清理串（桌面歌词窗 → 小窗 → SMTC →
                         播放引擎 → 容器），一行都没有重复实现。
                     -->
-                    <controls:TrayMenuItem Style="{StaticResource TrayMenuItemStyle}" Command="{x:Bind ExitAppCommand}">
+                    <controls:TrayMenuItem
+                        Style="{StaticResource TrayMenuItemStyle}"
+                        Command="{x:Bind ExitAppCommand}"
+                        Visibility="{x:Bind local:Formats.VisibleWhenFalse(Theme.IsEfficientTrayMenu), Mode=OneWay}">
                         <controls:TrayMenuItem.Body>
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,6,8,6">
                                 <controls:Icon Data="{StaticResource IconExit}" Size="16" VerticalAlignment="Center" />

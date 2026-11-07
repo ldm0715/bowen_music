@@ -490,12 +490,16 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
         ShellRoot.ActualThemeChanged += (_, _) =>
         {
+            Theme.UpdateActualTheme(ShellRoot.ActualTheme);
             QueueThemeChromeUpdate();
 
             // 纯色背景的明暗与预设色块跟随主题；外壳层按新主题重绘一次。
             _shellBackground.UpdateTheme(CurrentAmbientTheme);
             ApplyWindowBackdrop();
         };
+
+        // 启动时 ShellRoot.ActualTheme 已经是具体值；同步一次，托盘面板才有可绑的主题。
+        Theme.UpdateActualTheme(ShellRoot.ActualTheme);
         AppTitleBar.RegisterPropertyChangedCallback(Control.ForegroundProperty, (_, _) => QueueThemeChromeUpdate());
         UpdateCaptionButtonColors();
 
@@ -1145,6 +1149,17 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     {
         Player.NextCommand.Execute(null);
     }
+
+    // 效率面板底部的三个动作。前两项（小窗、桌面歌词）直接绑 ToggleCommand，
+    // 这三项要走主窗口自己的命令：设置要带回前台，重启与退出要经过收尾链。
+    private void OnTrayPanelSettingsRequested(object? sender, EventArgs e) =>
+        OpenSettingsCommand.Execute(null);
+
+    private void OnTrayPanelRestartRequested(object? sender, EventArgs e) =>
+        RestartAppCommand.Execute(null);
+
+    private void OnTrayPanelExitRequested(object? sender, EventArgs e) =>
+        ExitAppCommand.Execute(null);
 
     private void OnTrayMenuContentPointerPressed(object sender, PointerRoutedEventArgs e)
     {

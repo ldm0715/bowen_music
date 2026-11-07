@@ -24,7 +24,6 @@ public sealed partial class AudioQualityPicker : UserControl
     {
         if (!e.InRecycleQueue && e.Item is AudioQualityOption option)
         {
-            e.ItemContainer.IsEnabled = option.IsEnabled;
             AutomationProperties.SetName(e.ItemContainer, option.Name);
         }
     }

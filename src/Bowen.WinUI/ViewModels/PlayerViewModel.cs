@@ -138,6 +138,9 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
     /// <summary>当前正在用的档位，供音质胶囊取色。还没取到音源时为 <c>null</c>。</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStandardQuality))]
+    [NotifyPropertyChangedFor(nameof(IsHighQuality))]
+    [NotifyPropertyChangedFor(nameof(IsLosslessQuality))]
     public partial AudioQuality? CurrentQuality { get; set; }
 
     [ObservableProperty]
@@ -148,6 +151,20 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
     public partial string QualityStatus { get; set; } = "";
 
     public bool HasQualityStatus => QualityStatus.Length > 0;
+
+    /// <summary>三档音质的当前态。给托盘面板的三等分段选用。</summary>
+    public bool IsStandardQuality => CurrentQuality == AudioQuality.Standard;
+
+    public bool IsHighQuality => CurrentQuality == AudioQuality.High;
+
+    public bool IsLosslessQuality => CurrentQuality == AudioQuality.Lossless;
+
+    /// <summary>三档音质是否可选（无音源时为 false）。</summary>
+    public bool StandardQualityEnabled => QualityOptions.Count > 0 && QualityOptions[0].IsEnabled;
+
+    public bool HighQualityEnabled => QualityOptions.Count > 1 && QualityOptions[1].IsEnabled;
+
+    public bool LosslessQualityEnabled => QualityOptions.Count > 2 && QualityOptions[2].IsEnabled;
 
     public Task SwitchQualityAsync(AudioQuality quality) => _coordinator.SwitchQualityAsync(quality);
 
@@ -161,24 +178,50 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
         CanChangeQuality = !busy;
         CurrentQuality = current;
         QualityStatus = busy ? "正在切换音质…" : audition ? "试听片段不支持音质切换" : "";
-        SelectedQualityOption = null;
-        QualityOptions.Clear();
+
+        // ★ 原地更新，不清空再重建：切音质会在开始时也触发一次本方法，
+        //   重建集合会让音质列表整块闪一下。三项的顺序固定，按下标复用同一个对象。
         AudioQualityOption? selected = null;
         AudioQuality[] order = [AudioQuality.Standard, AudioQuality.High, AudioQuality.Lossless];
-        foreach (var quality in order)
+        for (var index = 0; index < order.Length; index++)
         {
+            var quality = order[index];
             var variant = track?.AudioVariants.Where(v => AudioQualityTable.IsSupportedVariant(v) && v.Quality == quality)
                 .OrderByDescending(v => v.BitrateKbps).FirstOrDefault();
             var available = track is null || track.AvailableQualities.Contains(quality);
             var size = variant?.SizeBytes ?? 0;
             if (current == quality && _coordinator.CurrentSource is { SizeBytes: > 0 } actual) { size = actual.SizeBytes; }
-            var option = new AudioQualityOption(quality, AudioQualityTable.DisplayName(quality),
-                available ? AudioQualityTable.FormatSize(size) : "暂无音源", available && !audition && !busy,
-                current == quality);
-            QualityOptions.Add(option);
-            if (current == quality) { selected = option; }
+            var sizeText = available ? AudioQualityTable.FormatSize(size) : "暂无音源";
+            var isEnabled = available && !audition && !busy;
+            var isCurrent = current == quality;
+
+            AudioQualityOption option;
+            if (index < QualityOptions.Count)
+            {
+                option = QualityOptions[index];
+                option.SizeText = sizeText;
+                option.IsEnabled = isEnabled;
+                option.IsCurrent = isCurrent;
+            }
+            else
+            {
+                option = new AudioQualityOption(
+                    quality, AudioQualityTable.DisplayName(quality), sizeText, isEnabled, isCurrent);
+                QualityOptions.Add(option);
+            }
+
+            if (isCurrent) { selected = option; }
         }
+
+        while (QualityOptions.Count > order.Length)
+        {
+            QualityOptions.RemoveAt(QualityOptions.Count - 1);
+        }
+
         SelectedQualityOption = selected;
+        OnPropertyChanged(nameof(StandardQualityEnabled));
+        OnPropertyChanged(nameof(HighQualityEnabled));
+        OnPropertyChanged(nameof(LosslessQualityEnabled));
     }
 
     /// <summary>播放条是否该显示。</summary>
@@ -862,4 +905,37 @@ public sealed partial class PlayerViewModel : ObservableObject, IVolumeSource
 
 /// <summary>音质弹层里的一档。</summary>
 /// <param name="IsCurrent">是否当前正在用的档位。弹层里当前档摆满、其余收暗。</param>
-public sealed record AudioQualityOption(AudioQuality Quality, string Name, string SizeText, bool IsEnabled, bool IsCurrent);
+/// <summary>音质菜单里的一档。</summary>
+/// <remarks>
+/// <b>可变、可通知</b>：切音质时只更新 <see cref="SizeText"/> / <see cref="IsEnabled"/> /
+/// <see cref="IsCurrent"/>，不重建集合 —— 否则列表会整块闪一下。
+/// </remarks>
+public sealed partial class AudioQualityOption : ObservableObject
+{
+    public AudioQualityOption(
+        AudioQuality quality,
+        string name,
+        string sizeText,
+        bool isEnabled,
+        bool isCurrent)
+    {
+        Quality = quality;
+        Name = name;
+        SizeText = sizeText;
+        IsEnabled = isEnabled;
+        IsCurrent = isCurrent;
+    }
+
+    public AudioQuality Quality { get; }
+
+    public string Name { get; }
+
+    [ObservableProperty]
+    public partial string SizeText { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsCurrent { get; set; }
+}

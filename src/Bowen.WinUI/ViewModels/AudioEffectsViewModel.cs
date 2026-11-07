@@ -83,6 +83,10 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
     /// <summary>当前页签里的预设卡。</summary>
     public ObservableCollection<AudioEffectPresetItem> VisiblePresets { get; } = [];
 
+    /// <summary>当前页签下选中的预设。给托盘面板的下拉框用。</summary>
+    public AudioEffectPresetItem? SelectedPreset =>
+        VisiblePresets.FirstOrDefault(item => item.IsSelected);
+
     /// <summary>全部环境音，固定 11 项。</summary>
     public ObservableCollection<AmbientSoundItem> AmbientSounds { get; } = [];
 
@@ -301,6 +305,8 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
                 IsSelected = string.Equals(preset.Id, _settings.PresetId, StringComparison.OrdinalIgnoreCase),
             });
         }
+
+        OnPropertyChanged(nameof(SelectedPreset));
     }
 
     private void RefreshSelection()
@@ -315,6 +321,7 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
             item.IsSelected = string.Equals(item.Id, _settings.AmbientId, StringComparison.OrdinalIgnoreCase);
         }
 
+        OnPropertyChanged(nameof(SelectedPreset));
         OnPropertyChanged(nameof(ActivePresetName));
         OnPropertyChanged(nameof(ActiveAmbientName));
         OnPropertyChanged(nameof(ActiveEffectName));

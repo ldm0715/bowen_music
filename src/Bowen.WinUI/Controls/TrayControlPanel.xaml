@@ -1,0 +1,778 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Bowen.WinUI.Controls.TrayControlPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Bowen.WinUI.Controls"
+    xmlns:local="using:Bowen.WinUI"
+    xmlns:vm="using:Bowen.WinUI.ViewModels">
+
+    <!--
+        托盘「效率面板」的全部内容。
+
+        ★ 尺寸固定，不随页签变化：托盘库的 SecondWindow 只在弹出那一刻量一次窗口，
+          打开后再变高变矮会露空白或被裁掉。三页内容共用同一块固定高区域，各自内部滚动。
+          改高度时同步改 MainWindow.xaml 里 TrayPanelItemStyle 的 MinHeight。
+
+        ★ 整个面板是 MenuFlyout 里**一个** TrayMenuItem 的 Body，见 docs/tray-control-panel.md。
+
+        ★ 版面按 4/8 网格：区块之间 8 DIP 分隔线 + 8 DIP 外边距，区块内部 8 DIP，
+          卡片内边距 10~12 DIP。所有横向内容都对齐到卡片内边距（根 16 + 卡 12/10）。
+    -->
+    <Border
+        Background="Transparent"
+        CornerRadius="8"
+        RequestedTheme="{x:Bind Theme.ActualTheme, Mode=OneWay}">
+        <Grid
+            Width="336"
+            Height="500"
+            Padding="16,12,16,12">
+            <Grid.RowDefinitions>
+            <RowDefinition Height="136" />
+            <RowDefinition Height="17" />
+            <RowDefinition Height="26" />
+            <RowDefinition Height="30" />
+            <RowDefinition Height="32" />
+            <RowDefinition Height="17" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="17" />
+            <RowDefinition Height="30" />
+        </Grid.RowDefinitions>
+
+        <Grid.Resources>
+            <!-- 卡片：浅色表面 + 1px 描边。面板里的两个主容器与音效页的总开关行共用。 -->
+            <Style x:Key="PanelCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="12" />
+            </Style>
+
+            <!-- 卡片内的小行：比主容器再深一档，形成「卡中行」的层级。 -->
+            <Style x:Key="PanelRowCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorSecondaryBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Padding" Value="12,8" />
+            </Style>
+
+            <!-- 1px 分隔线，行高 17：上下各 8 的留白夹一条线。 -->
+            <Style x:Key="PanelDividerStyle" TargetType="Border">
+                <Setter Property="Height" Value="1" />
+                <Setter Property="Margin" Value="0,8" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Background" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+            </Style>
+
+            <!-- 横向音量条：保留原生模板，只收掉多余高度和浮层提示。 -->
+            <Style x:Key="PanelVolumeSliderStyle" TargetType="Slider" BasedOn="{StaticResource DefaultSliderStyle}">
+                <Setter Property="Height" Value="28" />
+                <Setter Property="MinHeight" Value="28" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="IsThumbToolTipEnabled" Value="False" />
+            </Style>
+
+            <Style x:Key="PanelSegmentButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Height" Value="26" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Background" Value="Transparent" />
+                <!-- 内容必须撑满：选中底是内容里的 Border，居中时只会包住文字。 -->
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            </Style>
+
+            <!--
+                经典 / 增强：真正的 RadioButton 卡片。默认模板里那颗圆点不画，
+                选中态用强调色描边 + 强调色底；未选中是浅色卡面。
+            -->
+            <Style x:Key="PanelRadioCardStyle" TargetType="RadioButton">
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="34" />
+                <Setter Property="Padding" Value="12,8" />
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border
+                                x:Name="Card"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Card.Background" Value="{ThemeResource ControlFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Card.Background" Value="{ThemeResource ControlFillColorTertiaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Card.Opacity" Value="0.4" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="CheckStates">
+                                        <VisualState x:Name="Checked">
+                                            <VisualState.Setters>
+                                                <Setter Target="Card.Background" Value="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}" />
+                                                <Setter Target="Card.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Unchecked" />
+                                        <VisualState x:Name="Indeterminate" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <ContentPresenter
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="PanelFooterButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+                <Setter Property="Width" Value="30" />
+                <Setter Property="Height" Value="28" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            </Style>
+
+            <Style x:Key="PanelInlineIconButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+                <Setter Property="Width" Value="28" />
+                <Setter Property="Height" Value="28" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            </Style>
+
+            <Style x:Key="PanelListItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="30" />
+                <Setter Property="Padding" Value="8,4" />
+                <Setter Property="Margin" Value="0,1" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            </Style>
+        </Grid.Resources>
+
+        <!--
+            ── 顶部播放控制卡 ────────────────────────────────────────────────
+            封面 36 · 曲名 12.5 · 歌手 10.5；转台 36；音量 24。
+            卡片内距 12，三行间距 6，整体高度 136。
+        -->
+        <Border Grid.Row="0" Padding="12,10" Style="{StaticResource PanelCardStyle}">
+            <Grid RowSpacing="4" VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="36" />
+                    <RowDefinition Height="44" />
+                    <RowDefinition Height="28" />
+                </Grid.RowDefinitions>
+
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border
+                        Width="36"
+                        Height="36"
+                        Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                        CornerRadius="4">
+                        <Image Source="{x:Bind Player.CoverImage, Mode=OneWay}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Spacing="1">
+                        <TextBlock
+                            FontSize="12.5"
+                            FontWeight="SemiBold"
+                            Text="{x:Bind Player.NowPlayingTitleText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            FontSize="10.5"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind Player.NowPlayingArtistText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis"
+                            Visibility="{x:Bind local:Formats.Visible(Player.HasNowPlayingArtist), Mode=OneWay}" />
+                    </StackPanel>
+                    <Button
+                        Grid.Column="2"
+                        Width="28"
+                        Height="28"
+                        MinWidth="0"
+                        MinHeight="0"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="喜欢"
+                        Click="OnFavoriteClick"
+                        IsEnabled="{x:Bind Player.HasTrack, Mode=OneWay}"
+                        Style="{StaticResource SubtleButtonStyle}"
+                        ToolTipService.ToolTip="喜欢 / 取消喜欢">
+                        <Grid>
+                            <controls:Icon
+                                Data="{StaticResource IconHeart}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.Statistics.IsFavorite), Mode=OneWay}" />
+                            <controls:Icon
+                                Data="{StaticResource IconHeartFilled}"
+                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.Visible(Player.Statistics.IsFavorite), Mode=OneWay}" />
+                        </Grid>
+                    </Button>
+                </Grid>
+
+                <StackPanel
+                    Grid.Row="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="12">
+                    <Button
+                        Style="{StaticResource PlayerBareIconButtonStyle}"
+                        AutomationProperties.Name="上一首"
+                        Command="{x:Bind Player.PreviousCommand}"
+                        IsEnabled="{x:Bind Player.CanGoPrevious, Mode=OneWay}"
+                        ToolTipService.ToolTip="上一首">
+                        <controls:Icon Data="{StaticResource IconPrevious}" Size="18" />
+                    </Button>
+                    <Button
+                        Style="{StaticResource PlayerAccentButtonStyle}"
+                        AutomationProperties.Name="播放 / 暂停"
+                        Command="{x:Bind Player.TogglePlayPauseCommand}"
+                        ToolTipService.ToolTip="播放 / 暂停">
+                        <Grid>
+                            <controls:Icon
+                                Data="{StaticResource IconPlay}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsPlaying), Mode=OneWay}" />
+                            <controls:Icon
+                                Data="{StaticResource IconPause}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsPlaying), Mode=OneWay}" />
+                        </Grid>
+                    </Button>
+                    <Button
+                        Style="{StaticResource PlayerBareIconButtonStyle}"
+                        AutomationProperties.Name="下一首"
+                        Command="{x:Bind Player.NextCommand}"
+                        IsEnabled="{x:Bind Player.CanGoNext, Mode=OneWay}"
+                        ToolTipService.ToolTip="下一首">
+                        <controls:Icon Data="{StaticResource IconNext}" Size="18" />
+                    </Button>
+                    <!-- 单键循环，与播放条那颗行为一致；不把四种模式一次性铺开。 -->
+                    <Button
+                        Style="{StaticResource PlayerBareIconButtonStyle}"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="播放模式"
+                        Command="{x:Bind Player.CyclePlayModeCommand}"
+                        ToolTipService.ToolTip="{x:Bind Player.PlayModeText, Mode=OneWay}">
+                        <Grid>
+                            <controls:Icon
+                                Data="{StaticResource IconSequential}"
+                                Size="18"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsSequentialMode), Mode=OneWay}" />
+                            <controls:Icon
+                                Data="{StaticResource IconListLoop}"
+                                Size="18"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsListLoopMode), Mode=OneWay}" />
+                            <controls:Icon
+                                Data="{StaticResource IconSingleLoop}"
+                                Size="18"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsSingleLoopMode), Mode=OneWay}" />
+                            <controls:Icon
+                                Data="{StaticResource IconShuffle}"
+                                Size="18"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsShuffleMode), Mode=OneWay}" />
+                        </Grid>
+                    </Button>
+                </StackPanel>
+
+                <Grid Grid.Row="2" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="34" />
+                    </Grid.ColumnDefinitions>
+                    <Button
+                        Style="{StaticResource PanelInlineIconButtonStyle}"
+                        AutomationProperties.Name="静音"
+                        Click="OnMuteClick"
+                        ToolTipService.ToolTip="静音">
+                        <Grid>
+                            <controls:Icon
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource IconVolume}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.VisibleWhenFalse(Player.IsMuted), Mode=OneWay}" />
+                            <controls:Icon
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource IconVolumeMute}"
+                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                Size="16"
+                                Visibility="{x:Bind local:Formats.Visible(Player.IsMuted), Mode=OneWay}" />
+                        </Grid>
+                    </Button>
+                    <Slider
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="音量"
+                        Maximum="100"
+                        Minimum="0"
+                        Style="{StaticResource PanelVolumeSliderStyle}"
+                        Value="{x:Bind Player.Volume, Mode=TwoWay}" />
+                    <TextBlock
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        FontSize="10.5"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind local:Formats.Percent(Player.Volume), Mode=OneWay}" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Style="{StaticResource PanelDividerStyle}" />
+
+        <!-- 主题：左右与卡片内容对齐（12 DIP），与页签同宽。 -->
+        <Grid Grid.Row="2" Margin="12,0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                VerticalAlignment="Center"
+                FontSize="11"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="主题" />
+            <Grid Grid.Column="1" ColumnSpacing="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    Style="{StaticResource PanelSegmentButtonStyle}"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="跟随系统主题"
+                    Click="OnThemeSystemClick"
+                    ToolTipService.ToolTip="跟随系统">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(Theme.IsSystem), Mode=OneWay}" />
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="跟随" />
+                    </Grid>
+                </Button>
+                <Button
+                    Grid.Column="1"
+                    Style="{StaticResource PanelSegmentButtonStyle}"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="浅色主题"
+                    Click="OnThemeLightClick"
+                    ToolTipService.ToolTip="浅色">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(Theme.IsLight), Mode=OneWay}" />
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="浅色" />
+                    </Grid>
+                </Button>
+                <Button
+                    Grid.Column="2"
+                    Style="{StaticResource PanelSegmentButtonStyle}"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="深色主题"
+                    Click="OnThemeDarkClick"
+                    ToolTipService.ToolTip="深色">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(Theme.IsDark), Mode=OneWay}" />
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="深色" />
+                    </Grid>
+                </Button>
+            </Grid>
+        </Grid>
+
+        <!-- 音质：只有标准 / HQ / SQ 三档，与主题行完全同一套 Grid 三等分。 -->
+        <Grid Grid.Row="3" Margin="12,4,12,0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                VerticalAlignment="Center"
+                FontSize="11"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="音质" />
+            <Grid Grid.Column="1" ColumnSpacing="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    Style="{StaticResource PanelSegmentButtonStyle}"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="标准音质"
+                    Click="OnStandardQualityClick"
+                    IsEnabled="{x:Bind Player.StandardQualityEnabled, Mode=OneWay}"
+                    ToolTipService.ToolTip="标准">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(Player.IsStandardQuality), Mode=OneWay}" />
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="标准" />
+                    </Grid>
+                </Button>
+                <Button
+                    Grid.Column="1"
+                    Style="{StaticResource PanelSegmentButtonStyle}"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="高音质"
+                    Click="OnHighQualityClick"
+                    IsEnabled="{x:Bind Player.HighQualityEnabled, Mode=OneWay}"
+                    ToolTipService.ToolTip="HQ">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(Player.IsHighQuality), Mode=OneWay}" />
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="HQ" />
+                    </Grid>
+                </Button>
+                <Button
+                    Grid.Column="2"
+                    Style="{StaticResource PanelSegmentButtonStyle}"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="无损音质"
+                    Click="OnLosslessQualityClick"
+                    IsEnabled="{x:Bind Player.LosslessQualityEnabled, Mode=OneWay}"
+                    ToolTipService.ToolTip="SQ">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(Player.IsLosslessQuality), Mode=OneWay}" />
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="SQ" />
+                    </Grid>
+                </Button>
+            </Grid>
+        </Grid>
+
+        <!-- 页签：只保留音效与播放列表，与上下同宽。 -->
+        <Grid Grid.Row="4" Margin="12,4,12,0" ColumnSpacing="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button
+                Style="{StaticResource PanelSegmentButtonStyle}"
+                Height="28"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.Name="音效"
+                Click="OnEffectsTabClick">
+                <Grid>
+                    <Border
+                        Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                        CornerRadius="4"
+                        Visibility="{x:Bind local:Formats.Visible(IsEffectsTab)}" />
+                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="音效" />
+                </Grid>
+            </Button>
+            <Button
+                Grid.Column="1"
+                Style="{StaticResource PanelSegmentButtonStyle}"
+                Height="28"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.Name="播放列表"
+                Click="OnQueueTabClick">
+                <Grid>
+                    <Border
+                        Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                        CornerRadius="4"
+                        Visibility="{x:Bind local:Formats.Visible(IsQueueTab)}" />
+                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Text="播放列表" />
+                </Grid>
+            </Button>
+        </Grid>
+
+        <Border Grid.Row="5" Style="{StaticResource PanelDividerStyle}" />
+
+        <!-- 内容区：三页同高，外层统一一张卡片。 -->
+        <Border Grid.Row="6" Padding="10" Style="{StaticResource PanelCardStyle}">
+            <Grid>
+                <!-- 音效 -->
+                <Grid
+                    RowSpacing="8"
+                    Visibility="{x:Bind local:Formats.Visible(IsEffectsTab)}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 总开关行：SettingsCard 形态，图标 + 标题/当前音效 + 开关。 -->
+                    <Border Style="{StaticResource PanelRowCardStyle}">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <controls:Icon
+                                Data="{StaticResource IconEqualizer}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Size="16"
+                                VerticalAlignment="Center" />
+                            <StackPanel
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Spacing="1">
+                                <TextBlock FontSize="11" FontWeight="SemiBold" Text="音效" />
+                                <TextBlock
+                                    FontSize="10"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind Effects.ActiveEffectName, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <ToggleSwitch
+                                Grid.Column="2"
+                                MinWidth="0"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="音效总开关"
+                                IsOn="{x:Bind Effects.IsEnabled, Mode=TwoWay}"
+                                OffContent=""
+                                OnContent="" />
+                        </Grid>
+                    </Border>
+
+                    <!-- 经典 / 增强：并列的 RadioButton 卡片，等宽 8 DIP 间距。 -->
+                    <Grid Grid.Row="1" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <RadioButton
+                            GroupName="EffectsCategory"
+                            IsChecked="{x:Bind Effects.IsGalaxyTab, Mode=OneWay}"
+                            Style="{StaticResource PanelRadioCardStyle}"
+                            AutomationProperties.Name="经典音效"
+                            Click="OnEffectsClassicClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <controls:Icon Data="{StaticResource IconEqualizer}" Size="14" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    Text="经典音效" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton
+                            Grid.Column="1"
+                            GroupName="EffectsCategory"
+                            IsChecked="{x:Bind Effects.IsViperTab, Mode=OneWay}"
+                            Style="{StaticResource PanelRadioCardStyle}"
+                            AutomationProperties.Name="增强音效"
+                            Click="OnEffectsEnhancedClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <controls:Icon Data="{StaticResource IconStarFilled}" Size="14" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    Text="增强音效" />
+                            </StackPanel>
+                        </RadioButton>
+                    </Grid>
+
+                    <!-- 预设：标准 ComboBox，左侧前缀图标，整行撑满。 -->
+                    <Grid Grid.Row="2" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <controls:Icon
+                            Data="{StaticResource IconEqualizer}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Size="14"
+                            VerticalAlignment="Center" />
+                        <ComboBox
+                            Grid.Column="1"
+                            Height="32"
+                            MinHeight="32"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="音效预设"
+                            DisplayMemberPath="Name"
+                            FontSize="11"
+                            ItemsSource="{x:Bind Effects.VisiblePresets}"
+                            PlaceholderText="选择音效预设"
+                            SelectedItem="{x:Bind Effects.SelectedPreset, Mode=OneWay}"
+                            SelectionChanged="OnPresetSelectionChanged">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="FontSize" Value="11" />
+                                    <Setter Property="MinHeight" Value="30" />
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                        </ComboBox>
+                    </Grid>
+                </Grid>
+
+                <!-- 播放列表 -->
+                <Grid Visibility="{x:Bind local:Formats.Visible(IsQueueTab)}">
+                    <ListView
+                        MinWidth="0"
+                        Padding="0,0,14,0"
+                        IsItemClickEnabled="True"
+                        ItemClick="OnQueueClick"
+                        ItemContainerStyle="{StaticResource PanelListItemStyle}"
+                        ItemsSource="{x:Bind Queue.Rows}"
+                        SelectionMode="None"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                        ScrollViewer.HorizontalScrollMode="Disabled">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PlayQueueRow">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock
+                                            FontSize="11"
+                                            Text="{x:Bind Title}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            FontSize="10"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind ArtistText}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        FontSize="10"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Text="{x:Bind DurationText}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="播放列表为空"
+                        Visibility="{x:Bind local:Formats.Visible(Queue.IsEmpty), Mode=OneWay}" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="7" Style="{StaticResource PanelDividerStyle}" />
+
+        <!-- 底部动作：左组窗口开关，右组应用动作。 -->
+        <Grid Grid.Row="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <Button
+                    Style="{StaticResource PanelFooterButtonStyle}"
+                    AutomationProperties.Name="小窗"
+                    Command="{x:Bind MiniPlayer.ToggleCommand}"
+                    ToolTipService.ToolTip="小窗">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(MiniPlayer.IsEnabled), Mode=OneWay}" />
+                        <controls:Icon Data="{StaticResource IconMiniPlayer}" Size="16" />
+                    </Grid>
+                </Button>
+                <Button
+                    Style="{StaticResource PanelFooterButtonStyle}"
+                    AutomationProperties.Name="桌面歌词"
+                    Command="{x:Bind DesktopLyrics.ToggleCommand}"
+                    ToolTipService.ToolTip="桌面歌词">
+                    <Grid>
+                        <Border
+                            Background="{ThemeResource AccentFillColorSelectedTextBackgroundBrush}"
+                            CornerRadius="4"
+                            Visibility="{x:Bind local:Formats.Visible(DesktopLyrics.IsEnabled), Mode=OneWay}" />
+                        <controls:Icon Data="{StaticResource IconLyrics}" Size="16" />
+                    </Grid>
+                </Button>
+            </StackPanel>
+            <StackPanel
+                Grid.Column="2"
+                Orientation="Horizontal"
+                Spacing="4"
+                VerticalAlignment="Center">
+                <Button
+                    Style="{StaticResource PanelFooterButtonStyle}"
+                    AutomationProperties.Name="设置"
+                    Click="OnSettingsClick"
+                    ToolTipService.ToolTip="设置">
+                    <controls:Icon Data="{StaticResource IconSettings}" Size="16" />
+                </Button>
+                <Button
+                    Style="{StaticResource PanelFooterButtonStyle}"
+                    AutomationProperties.Name="重启"
+                    Click="OnRestartClick"
+                    ToolTipService.ToolTip="重启">
+                    <controls:Icon Data="{StaticResource IconRefresh}" Size="16" />
+                </Button>
+                <Button
+                    Style="{StaticResource PanelFooterButtonStyle}"
+                    AutomationProperties.Name="退出"
+                    Click="OnExitClick"
+                    ToolTipService.ToolTip="退出">
+                    <controls:Icon Data="{StaticResource IconExit}" Size="16" />
+                </Button>
+            </StackPanel>
+        </Grid>
+        </Grid>
+    </Border>
+</UserControl>

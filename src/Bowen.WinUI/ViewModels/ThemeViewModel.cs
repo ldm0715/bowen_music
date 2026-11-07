@@ -25,6 +25,8 @@ public sealed partial class ThemeViewModel : ObservableObject
     private readonly IThemeSettingsStore _store;
     private bool _useAcrylicEffects;
     private StartupSection _startupPage;
+    private TrayMenuStyle _trayMenuStyle;
+    private ElementTheme _actualTheme = ElementTheme.Default;
     internal Func<Action, Task>? Transition { get; set; }
 
     public ThemeViewModel(IThemeSettingsStore store)
@@ -36,6 +38,7 @@ public sealed partial class ThemeViewModel : ObservableObject
         Current = settings.Theme;
         _useAcrylicEffects = settings.AcrylicEffects ?? true;
         _startupPage = settings.StartupPage;
+        _trayMenuStyle = settings.TrayMenuStyle;
 
         // 第一帧之前就定下来，避免启动时先画一帧亚克力再切成实色。
         AcrylicMaterial.SetEnabled(_useAcrylicEffects);
@@ -51,6 +54,32 @@ public sealed partial class ThemeViewModel : ObservableObject
         AppTheme.Dark => ElementTheme.Dark,
         _ => ElementTheme.Default,
     };
+
+    /// <summary>
+    /// 外壳上实际生效的浅色 / 深色。<b>已把「跟随系统」解析掉</b>，永远是具体值。
+    /// </summary>
+    /// <remarks>
+    /// 托盘右键面板在托盘库自建的第二个窗口里，那个窗口的主题不会主动跟随外壳；
+    /// 面板必须绑这个具体值，不能绑可能为 <see cref="ElementTheme.Default"/> 的
+    /// <see cref="RequestedTheme"/> —— 否则「跟随系统」时会继承第二个窗口的旧主题。
+    /// 由 <c>MainWindow</c> 在 <c>ShellRoot.ActualThemeChanged</c> 时更新。
+    /// </remarks>
+    public ElementTheme ActualTheme
+    {
+        get => _actualTheme;
+        private set
+        {
+            if (_actualTheme == value)
+            {
+                return;
+            }
+
+            _actualTheme = value;
+            OnPropertyChanged(nameof(ActualTheme));
+        }
+    }
+
+    internal void UpdateActualTheme(ElementTheme theme) => ActualTheme = theme;
 
     /// <summary>当前档位的显示名。给按钮的提示文字用。</summary>
     public string CurrentLabel => Current switch
@@ -75,6 +104,44 @@ public sealed partial class ThemeViewModel : ObservableObject
     public bool IsDark => Current == AppTheme.Dark;
 
     /// <summary>
+    /// 托盘右键菜单的形态。改后立刻落盘；主窗口的菜单分组直接绑它。
+    /// </summary>
+    public TrayMenuStyle TrayMenu
+    {
+        get => _trayMenuStyle;
+        set
+        {
+            if (_trayMenuStyle == value)
+            {
+                return;
+            }
+
+            _trayMenuStyle = value;
+            Save();
+            OnPropertyChanged(nameof(TrayMenu));
+            OnPropertyChanged(nameof(TrayMenuStyleIndex));
+            OnPropertyChanged(nameof(IsEfficientTrayMenu));
+        }
+    }
+
+    /// <summary>给设置页下拉框用。下标顺序与 <see cref="TrayMenuStyle"/> 一致。</summary>
+    public int TrayMenuStyleIndex
+    {
+        get => (int)TrayMenu;
+        set
+        {
+            if (value is < 0 or > (int)TrayMenuStyle.Efficient)
+            {
+                return;
+            }
+
+            TrayMenu = (TrayMenuStyle)value;
+        }
+    }
+
+    public bool IsEfficientTrayMenu => TrayMenu == TrayMenuStyle.Efficient;
+
+    /// <summary>
     /// 应用内的磨砂表面是否使用亚克力。改后立刻生效并落盘。
     /// </summary>
     /// <remarks>
@@ -92,7 +159,7 @@ public sealed partial class ThemeViewModel : ObservableObject
             }
 
             _useAcrylicEffects = value;
-            _store.Save(new ThemeSettings(Current, value, _startupPage));
+            Save();
             AcrylicMaterial.SetEnabled(value);
             OnPropertyChanged(nameof(UseAcrylicEffects));
         }
@@ -115,10 +182,16 @@ public sealed partial class ThemeViewModel : ObservableObject
             }
 
             _startupPage = value;
-            _store.Save(new ThemeSettings(Current, _useAcrylicEffects, value));
+            Save();
             OnPropertyChanged(nameof(StartupPage));
         }
     }
+
+    /// <summary>
+    /// 把当前所有外观字段一起写回。<b>不要在各处零星 new</b>：漏一个字段就会把它静默重置。
+    /// </summary>
+    private void Save() =>
+        _store.Save(new ThemeSettings(Current, _useAcrylicEffects, _startupPage, _trayMenuStyle));
 
     /// <summary>
     /// 切到某个档位并立刻落盘。
@@ -135,7 +208,7 @@ public sealed partial class ThemeViewModel : ObservableObject
         }
 
         Current = theme;
-        _store.Save(new ThemeSettings(theme, _useAcrylicEffects, _startupPage));
+        Save();
 
         void NotifyTheme()
         {

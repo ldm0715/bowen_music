@@ -40,6 +40,8 @@
                     <Setter Property="Margin" Value="0,1" />
                     <Setter Property="CornerRadius" Value="6" />
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <!-- 档位可用性会原地变化，容器跟着绑定，不再靠 ContainerContentChanging 一次性赋值。 -->
+                    <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
                 </Style>
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
@@ -51,8 +53,8 @@
                         </Grid.ColumnDefinitions>
                         <!-- 档位名做成彩色胶囊，当前档摆满、其余收暗；大小仍在行尾右对齐。 -->
                         <controls:AudioQualityChip Label="{x:Bind Name}" Quality="{x:Bind Quality}"
-                            IsCurrent="{x:Bind IsCurrent}" HorizontalAlignment="Left" />
-                        <TextBlock Grid.Column="1" Text="{x:Bind SizeText}" VerticalAlignment="Center"
+                            IsCurrent="{x:Bind IsCurrent, Mode=OneWay}" HorizontalAlignment="Left" />
+                        <TextBlock Grid.Column="1" Text="{x:Bind SizeText, Mode=OneWay}" VerticalAlignment="Center"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="10" />
                     </Grid>
                 </DataTemplate>

@@ -85,6 +85,28 @@ public sealed partial class PlayQueueViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 托盘效率面板的「播放列表」页是不是正显示着。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="IsOpen"/> / <see cref="IsMiniPlayerOpen"/> 同样必须分开：
+    /// 面板切到队列页时不能把主窗口的抽屉一起拉开。切走或面板收起时置回 false，
+    /// 队列变化就不再白重建 <see cref="Rows"/>。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool IsTrayPanelOpen { get; set; }
+
+    partial void OnIsTrayPanelOpenChanged(bool value)
+    {
+        if (value)
+        {
+            Refresh();
+        }
+    }
+
+    /// <summary>托盘面板切回队列页时强制补一次：开关可能本来就是 true，setter 不会再触发。</summary>
+    public void RefreshNow() => Refresh();
+
     /// <summary>跳到第 <paramref name="position"/> 首并开始播。</summary>
     public void Play(int position) => _ = _coordinator.PlayQueueItemAsync(position);
 
@@ -126,8 +148,8 @@ public sealed partial class PlayQueueViewModel : ObservableObject
 
     private void RefreshIfOpen()
     {
-        // 两个宿主任意一个开着就要重建 —— 见 IsMiniPlayerOpen 的说明。
-        if (!IsOpen && !IsMiniPlayerOpen)
+        // 三个宿主任意一个开着就要重建 —— 见 IsMiniPlayerOpen 的说明。
+        if (!IsOpen && !IsMiniPlayerOpen && !IsTrayPanelOpen)
         {
             return;
         }

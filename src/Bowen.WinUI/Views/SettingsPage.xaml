@@ -217,6 +217,17 @@
                                     </controls:SettingsRow.RightContent>
                                 </controls:SettingsRow>
                                 <Border Style="{StaticResource BowenSettingsRowDivider}" />
+                                <controls:SettingsRow Description="简洁：轻量原生菜单；效率面板：右键直接调音量、模式、音效、音质与播放列表" Header="托盘菜单">
+                                    <controls:SettingsRow.RightContent>
+                                        <ComboBox
+                                            SelectedIndex="{x:Bind ViewModel.Theme.TrayMenuStyleIndex, Mode=TwoWay}"
+                                            AutomationProperties.Name="托盘菜单形态">
+                                            <ComboBoxItem Content="简洁" />
+                                            <ComboBoxItem Content="效率面板" />
+                                        </ComboBox>
+                                    </controls:SettingsRow.RightContent>
+                                </controls:SettingsRow>
+                                <Border Style="{StaticResource BowenSettingsRowDivider}" />
                                 <controls:SettingsRow Description="封面取色 / Mica / 自定义图片 / 纯色；Mica 需要 Windows 11" Header="窗口背景">
                                     <controls:SettingsRow.RightContent>
                                         <ComboBox
