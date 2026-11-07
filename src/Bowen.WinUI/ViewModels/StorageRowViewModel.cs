@@ -39,8 +39,19 @@ public sealed partial class StorageRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasResult))]
     public partial string ResultText { get; set; } = "";
 
-    /// <summary>「清理」按钮能不能点。给绑定用 —— <c>x:Bind</c> 不接受取反。</summary>
-    public bool CanClear => !IsBusy;
+    /// <summary>这一项当前有没有可清理的内容。占用为 0 B 时为假。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanClear))]
+    public partial bool HasContent { get; set; }
+
+    /// <summary>
+    /// 「清理」按钮能不能点。给绑定用 —— <c>x:Bind</c> 不接受取反。
+    /// </summary>
+    /// <remarks>
+    /// 0 B 时禁用：此时再点只会用「已清理 0 B」覆盖上一次的结果文案，
+    /// 用户看到的是「刚清的提示没了」，会以为清理失败。
+    /// </remarks>
+    public bool CanClear => !IsBusy && HasContent;
 
     /// <summary>有没有结果文案可显示。同上，避免在 XAML 里写比较。</summary>
     public bool HasResult => ResultText.Length > 0;

@@ -646,7 +646,10 @@
 
                         <TextBlock Style="{StaticResource BowenPageStatus}" Text="清理只删这些可再生数据，账号、偏好与窗口位置不受影响。" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Command="{x:Bind ViewModel.Storage.ClearAllCommand}" Content="全部清理" />
+                            <Button
+                                Command="{x:Bind ViewModel.Storage.ClearAllCommand}"
+                                Content="全部清理"
+                                IsEnabled="{x:Bind ViewModel.Storage.CanClearAll, Mode=OneWay}" />
                             <Button Command="{x:Bind ViewModel.Storage.OpenDataDirectoryCommand}" Content="打开数据目录" />
                             <!-- 日志是排查时最常去的一处，单独给个直达入口，不用从数据目录里再找。 -->
                             <Button Command="{x:Bind ViewModel.Storage.OpenLogDirectoryCommand}" Content="打开日志文件夹" />

@@ -78,18 +78,24 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     {
         var usages = new List<StorageUsage>(5);
 
+        // 这几项都是同步文件 IO，必须放到线程池：封面缓存可能有几千个文件，
+        // 直接在 UI 线程上扫目录会卡住设置页。
         var cover = _coverCache is null
             ? new CoverCacheUsage(0, 0)
-            : await _coverCache.MeasureAsync(cancellationToken).ConfigureAwait(true);
+            : await Task.Run(
+                () => _coverCache.MeasureAsync(cancellationToken), cancellationToken)
+                .ConfigureAwait(true);
         usages.Add(new StorageUsage(StorageItemKind.CoverCache, cover.Bytes, cover.FileCount));
 
         usages.Add(MeasureFile(StorageItemKind.PlayHistory, PlayHistoryFile));
         usages.Add(MeasureFile(StorageItemKind.SearchHistory, SearchHistoryFile));
 
-        var (logBytes, logCount) = MeasureDirectory(_logDirectory, "*.log");
+        var (logBytes, logCount) = await Task.Run(
+            () => MeasureDirectory(_logDirectory, "*.log"), cancellationToken).ConfigureAwait(true);
         usages.Add(new StorageUsage(StorageItemKind.Logs, logBytes, logCount));
 
-        var (updateBytes, updateCount) = MeasureDirectory(_updateDownloadDirectory, "*");
+        var (updateBytes, updateCount) = await Task.Run(
+            () => MeasureDirectory(_updateDownloadDirectory, "*"), cancellationToken).ConfigureAwait(true);
         usages.Add(new StorageUsage(StorageItemKind.UpdatePackages, updateBytes, updateCount));
 
         return usages;
@@ -111,10 +117,10 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
                 return await ClearSearchHistoryAsync().ConfigureAwait(true);
 
             case StorageItemKind.Logs:
-                return ClearLogs();
+                return await Task.Run(ClearLogs, cancellationToken).ConfigureAwait(true);
 
             case StorageItemKind.UpdatePackages:
-                return ClearUpdatePackages();
+                return await Task.Run(ClearUpdatePackages, cancellationToken).ConfigureAwait(true);
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(item));
@@ -141,8 +147,11 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             return new StorageClearOutcome(StorageItemKind.CoverCache, 0, 0, "封面缓存不可用");
         }
 
-        var before = await _coverCache.MeasureAsync(cancellationToken).ConfigureAwait(true);
-        var removed = await _coverCache.ClearAsync(cancellationToken).ConfigureAwait(true);
+        // 统计与删除都是同步文件 IO，放到线程池，避免清封面缓存时卡住界面。
+        var before = await Task.Run(
+            () => _coverCache.MeasureAsync(cancellationToken), cancellationToken).ConfigureAwait(true);
+        var removed = await Task.Run(
+            () => _coverCache.ClearAsync(cancellationToken), cancellationToken).ConfigureAwait(true);
 
         // 正在显示的封面不会因此消失：位图已经解码在内存里，删掉文件只是下次要重新下。
         return new StorageClearOutcome(StorageItemKind.CoverCache, removed, before.Bytes);

@@ -82,8 +82,15 @@ public sealed partial class StorageSettingsViewModel : ObservableObject
         {
             var usage = usages.FirstOrDefault(item => item.Item == row.Kind);
             row.SizeText = usage?.SizeText ?? "0 B";
+            row.HasContent = usage is { Bytes: > 0 };
         }
+
+        OnPropertyChanged(nameof(CanClearAll));
     }
+
+    /// <summary>「全部清理」能不能点：至少要有一项有内容。</summary>
+    /// <remarks>与行内按钮同一条规则，避免用「已清理 0 B」覆盖上一次的结果文案。</remarks>
+    public bool CanClearAll => Rows.Any(row => row.HasContent);
 
     /// <summary>清掉一项。</summary>
     public async Task ClearAsync(StorageRowViewModel row, CancellationToken cancellationToken = default)
