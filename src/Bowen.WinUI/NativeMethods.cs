@@ -220,6 +220,48 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y, int width, int height, uint flags);
 
+    /// <summary>取窗口矩形，物理像素。</summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetWindowRect(nint window, out NativeRect rect);
+
+    [DllImport("user32.dll")]
+    internal static extern uint GetWindowThreadProcessId(nint window, out uint processId);
+
+    /// <summary>
+    /// 取托盘图标在屏幕上的矩形。<c>NOTIFYICONIDENTIFIER</c> 用 Guid 指定图标。
+    /// </summary>
+    [DllImport("shell32.dll", ExactSpelling = true)]
+    internal static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out NativeRect iconLocation);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NotifyIconIdentifier
+    {
+        internal uint Size;
+        internal nint Window;
+        internal uint Id;
+        internal Guid Guid;
+    }
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    internal static extern nint MonitorFromRect(ref NativeRect rect, uint flags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MonitorInfo
+    {
+        internal uint Size;
+        internal NativeRect Monitor;
+        internal NativeRect Work;
+        internal uint Flags;
+    }
+
+    [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo info);
+
+    /// <summary><c>MONITOR_DEFAULTTONEAREST</c>。</summary>
+    internal const uint MonitorDefaultToNearest = 2;
+
     /// <summary>
     /// 设置 DWM 窗口属性。桌面歌词窗用它去掉圆角与那圈细边框。
     /// </summary>

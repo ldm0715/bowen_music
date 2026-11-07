@@ -10,6 +10,7 @@ using Bowen.WinUI.Controls;
 using Bowen.WinUI.Services;
 using Bowen.WinUI.ViewModels;
 using Bowen.WinUI.Views;
+using H.NotifyIcon.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI;
 using Microsoft.UI.Composition.SystemBackdrops;
@@ -486,6 +487,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
             // Explorer 崩溃重启后系统会广播 TaskbarCreated，库那一路重建不可靠，自己再补一次。
             Tray.TrayIcon.MessageWindow.TaskbarCreated += (_, _) => DispatcherQueue.TryEnqueue(OnTaskbarCreated);
+
+            // 效率面板要贴在托盘图标正上方；库自己的处理器按光标定位，这里在它之后改窗口位置。
+            Tray.TrayIcon.MessageWindow.MouseEventReceived += OnTrayMouseEvent;
         }
 
         ShellRoot.ActualThemeChanged += (_, _) =>
@@ -1160,6 +1164,111 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private void OnTrayPanelExitRequested(object? sender, EventArgs e) =>
         ExitAppCommand.Execute(null);
+
+    /// <summary>
+    /// 托盘右键后把效率面板挪到图标正上方。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>必须同步做，不能排进 DispatcherQueue。</b>库的处理器的执行顺序在构造函数里先于本方法，
+    /// 它已经 <c>ShowWindow</c> + <c>SetForegroundWindow</c>，但窗口还没走到第一次 WM_PAINT；
+    /// 在这条调用栈里直接 <c>SetWindowPos</c>，首帧就会画在新位置，不会出现「先露一下再跳」。
+    /// 排队会让用户先看到光标旁的位置再看到它跳过去。
+    /// </para>
+    /// <para>
+    /// 只处理效率面板；简洁菜单保持库原本的「贴着光标」定位。
+    /// </para>
+    /// </remarks>
+    private void OnTrayMouseEvent(object? sender, MessageWindow.MouseEventReceivedEventArgs args)
+    {
+        if (args.MouseEvent != MouseEvent.IconRightMouseUp || !Theme.IsEfficientTrayMenu)
+        {
+            return;
+        }
+
+        var window = NativeMethods.GetForegroundWindow();
+        if (window == 0 || window == WinRT.Interop.WindowNative.GetWindowHandle(this))
+        {
+            return;
+        }
+
+        NativeMethods.GetWindowThreadProcessId(window, out var processId);
+        if (processId != (uint)Environment.ProcessId)
+        {
+            return;
+        }
+
+        // 库创建的第二个窗口是置顶的；主窗口不是。这一条把「挪错窗口」挡掉。
+        var exStyle = NativeMethods.GetWindowLongPtr(window, NativeMethods.GwlExStyle).ToInt64();
+        if ((exStyle & NativeMethods.WsExTopmost) == 0)
+        {
+            return;
+        }
+
+        MoveTrayPanelAboveIcon(window);
+    }
+
+    private void MoveTrayPanelAboveIcon(nint window)
+    {
+        if (!TryGetTrayIconRect(out var icon) ||
+            !NativeMethods.GetWindowRect(window, out var current))
+        {
+            return;
+        }
+
+        var width = current.Right - current.Left;
+        var height = current.Bottom - current.Top;
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var dpi = NativeMethods.GetDpiForWindow(window);
+        var gap = (int)Math.Round(8.0 * dpi / 96.0);
+        var x = icon.Left + (icon.Right - icon.Left) / 2 - width / 2;
+        var y = icon.Top - height - gap;
+
+        // 贴边时收回显示器工作区，避免面板跑到屏幕外。
+        var monitor = NativeMethods.MonitorFromRect(ref icon, NativeMethods.MonitorDefaultToNearest);
+        var info = new NativeMethods.MonitorInfo
+        {
+            Size = (uint)Marshal.SizeOf<NativeMethods.MonitorInfo>(),
+        };
+        if (monitor != 0 && NativeMethods.GetMonitorInfo(monitor, ref info))
+        {
+            x = Math.Clamp(x, info.Work.Left, Math.Max(info.Work.Left, info.Work.Right - width));
+            y = Math.Clamp(y, info.Work.Top, Math.Max(info.Work.Top, info.Work.Bottom - height));
+        }
+
+        NativeMethods.SetWindowPos(
+            window,
+            NativeMethods.HwndTopmost,
+            x,
+            y,
+            0,
+            0,
+            NativeMethods.SwpNoSize | NativeMethods.SwpNoActivate);
+    }
+
+    /// <summary>托盘图标当前所在的屏幕矩形（物理像素）。</summary>
+    private bool TryGetTrayIconRect(out NativeMethods.NativeRect rect)
+    {
+        rect = default;
+        if (Tray.TrayIcon is not { } icon)
+        {
+            return false;
+        }
+
+        var identifier = new NativeMethods.NotifyIconIdentifier
+        {
+            Size = (uint)Marshal.SizeOf<NativeMethods.NotifyIconIdentifier>(),
+            Window = icon.MessageWindow.Handle,
+            Id = 0,
+            Guid = icon.Id,
+        };
+
+        return NativeMethods.Shell_NotifyIconGetRect(ref identifier, out rect) >= 0;
+    }
 
     private void OnTrayMenuContentPointerPressed(object sender, PointerRoutedEventArgs e)
     {
