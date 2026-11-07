@@ -28,6 +28,7 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     private string PlayHistoryFile => Path.Combine(AccountDirectory, AppPaths.PlayHistoryFileName);
     private string SearchHistoryFile => Path.Combine(AccountDirectory, AppPaths.SearchHistoryFileName);
     private string LogDirectory => Path.Combine(_root, "logs");
+    private string UpdateDownloadDirectory => Path.Combine(_root, "updates");
 
     public void Dispose()
     {
@@ -59,7 +60,7 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     {
         var usages = await NewService().MeasureAsync(Ct);
 
-        Assert.Equal(4, usages.Count);
+        Assert.Equal(5, usages.Count);
         Assert.All(usages, usage => Assert.Equal(0, usage.Bytes));
     }
 
@@ -148,6 +149,58 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Measure_IncludesUpdatePackages()
+    {
+        Directory.CreateDirectory(UpdateDownloadDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(UpdateDownloadDirectory, "BowenMusic-0.9.0-setup.exe"), new string('x', 700), Ct);
+        await File.WriteAllTextAsync(
+            Path.Combine(UpdateDownloadDirectory, "portable.zip.part"), new string('y', 100), Ct);
+
+        var usage = (await NewService().MeasureAsync(Ct))
+            .Single(item => item.Item == StorageItemKind.UpdatePackages);
+
+        Assert.Equal(800, usage.Bytes);
+        Assert.Equal(2, usage.FileCount);
+    }
+
+    [Fact]
+    public async Task ClearUpdatePackages_DeletesFilesAndKeepsDirectory()
+    {
+        Directory.CreateDirectory(UpdateDownloadDirectory);
+        var package = Path.Combine(UpdateDownloadDirectory, "BowenMusic-0.9.0-setup.exe");
+        await File.WriteAllTextAsync(package, new string('x', 700), Ct);
+
+        var outcome = await NewService().ClearAsync(StorageItemKind.UpdatePackages, Ct);
+
+        Assert.True(outcome.Succeeded);
+        Assert.Equal(1, outcome.FilesRemoved);
+        Assert.Equal(700, outcome.BytesFreed);
+        Assert.False(File.Exists(package));
+        Assert.True(Directory.Exists(UpdateDownloadDirectory));
+    }
+
+    [Fact]
+    public async Task ClearUpdatePackages_ReportsLockedFileWithoutFailingTheRest()
+    {
+        Directory.CreateDirectory(UpdateDownloadDirectory);
+        var locked = Path.Combine(UpdateDownloadDirectory, "BowenMusic-0.9.0-setup.exe");
+        var free = Path.Combine(UpdateDownloadDirectory, "portable.zip");
+        await File.WriteAllTextAsync(locked, "held", Ct);
+        await File.WriteAllTextAsync(free, "free", Ct);
+
+        // 拿住其中一个的文件句柄，模拟「正在下载的 .part」。
+        using (File.Open(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var outcome = await NewService().ClearAsync(StorageItemKind.UpdatePackages, Ct);
+
+            Assert.False(outcome.Succeeded);
+            Assert.Contains("未能删除", outcome.Message, StringComparison.Ordinal);
+            Assert.False(File.Exists(free));
+        }
+    }
+
+    [Fact]
     public async Task ClearAll_VisitsEveryKind()
     {
         Directory.CreateDirectory(AccountDirectory);
@@ -157,7 +210,7 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
 
         var outcomes = await NewService(playHistory: store, searchHistory: sink).ClearAllAsync(Ct);
 
-        Assert.Equal(4, outcomes.Count);
+        Assert.Equal(5, outcomes.Count);
         Assert.True(store.Cleared);
         Assert.Equal(1, sink.ClearCount);
     }
@@ -165,10 +218,10 @@ public sealed class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task ClearAll_SucceedsWithNoStoresWired()
     {
-        // 播放记录与搜索历史都不可用时，另外两项仍要能清，整体不抛。
+        // 播放记录与搜索历史都不可用时，其余几项仍要能清，整体不抛。
         var outcomes = await NewService().ClearAllAsync(Ct);
 
-        Assert.Equal(4, outcomes.Count);
+        Assert.Equal(5, outcomes.Count);
         Assert.False(outcomes.Single(o => o.Item == StorageItemKind.PlayHistory).Succeeded);
         Assert.False(outcomes.Single(o => o.Item == StorageItemKind.SearchHistory).Succeeded);
     }

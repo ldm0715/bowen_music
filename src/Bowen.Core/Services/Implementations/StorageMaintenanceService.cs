@@ -11,7 +11,8 @@ namespace Bowen.Core.Services.Implementations;
 /// <b>清理语义逐项不同</b>，因为清完之后对正在运行的界面影响不同：
 /// 播放记录清完「最近播放」页自然就空了（那一页每次进入重读）；
 /// 搜索历史必须走 <see cref="ISearchHistorySink"/>，否则内存里那份还在；
-/// 日志当天那一份删不掉，因为 Serilog 正持有它的文件句柄。
+/// 日志当天那一份删不掉，因为 Serilog 正持有它的文件句柄；
+/// 更新安装包只删文件、保留目录，正在下载的 <c>.part</c> 被占着时会跳过。
 /// </para>
 /// <para>
 /// <b>播放记录与搜索历史只算、只清当前账号那一份。</b> 封面缓存与日志是设备级的，跨账号共用。
@@ -27,6 +28,7 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
     private readonly string _logDirectory;
+    private readonly string _updateDownloadDirectory;
 
     /// <param name="rootDirectory">
     /// 数据根目录。默认 <see cref="AppPaths.LocalAppData"/>；<b>测试可指向临时目录</b> ——
@@ -54,6 +56,8 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
         RootDirectory = rootDirectory ?? AppPaths.LocalAppData;
         _logDirectory = Path.Combine(RootDirectory, Path.GetFileName(AppPaths.LogDirectory));
+        _updateDownloadDirectory = Path.Combine(
+            RootDirectory, Path.GetFileName(AppPaths.UpdateDownloadDirectory));
     }
 
     public string RootDirectory { get; }
@@ -72,7 +76,7 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
     public async Task<IReadOnlyList<StorageUsage>> MeasureAsync(CancellationToken cancellationToken = default)
     {
-        var usages = new List<StorageUsage>(4);
+        var usages = new List<StorageUsage>(5);
 
         var cover = _coverCache is null
             ? new CoverCacheUsage(0, 0)
@@ -84,6 +88,9 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
         var (logBytes, logCount) = MeasureDirectory(_logDirectory, "*.log");
         usages.Add(new StorageUsage(StorageItemKind.Logs, logBytes, logCount));
+
+        var (updateBytes, updateCount) = MeasureDirectory(_updateDownloadDirectory, "*");
+        usages.Add(new StorageUsage(StorageItemKind.UpdatePackages, updateBytes, updateCount));
 
         return usages;
     }
@@ -106,6 +113,9 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             case StorageItemKind.Logs:
                 return ClearLogs();
 
+            case StorageItemKind.UpdatePackages:
+                return ClearUpdatePackages();
+
             default:
                 throw new ArgumentOutOfRangeException(nameof(item));
         }
@@ -114,7 +124,7 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     public async Task<IReadOnlyList<StorageClearOutcome>> ClearAllAsync(
         CancellationToken cancellationToken = default)
     {
-        var outcomes = new List<StorageClearOutcome>(4);
+        var outcomes = new List<StorageClearOutcome>(5);
 
         foreach (var item in Enum.GetValues<StorageItemKind>())
         {
@@ -198,6 +208,44 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     }
 
     /// <remarks>
+    /// <b>只删文件，保留 <c>updates</c> 目录。</b> 正在下载的 <c>.part</c> 被下载器占着，
+    /// 删除会失败；计入 <c>Message</c>，其它安装包照删，不让整次清理变成失败。
+    /// </remarks>
+    private StorageClearOutcome ClearUpdatePackages()
+    {
+        if (!System.IO.Directory.Exists(_updateDownloadDirectory))
+        {
+            return new StorageClearOutcome(StorageItemKind.UpdatePackages, 0, 0);
+        }
+
+        long freed = 0;
+        var removed = 0;
+        var skipped = 0;
+
+        foreach (var file in new DirectoryInfo(_updateDownloadDirectory).EnumerateFiles())
+        {
+            try
+            {
+                var length = file.Length;
+                file.Delete();
+                freed += length;
+                removed++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                skipped++;
+                _logger.LogDebug(ex, "更新安装包删不掉：{Path}", file.FullName);
+            }
+        }
+
+        return new StorageClearOutcome(
+            StorageItemKind.UpdatePackages,
+            removed,
+            freed,
+            skipped == 0 ? "" : $"有 {skipped} 个更新包文件正被占用，未能删除");
+    }
+
+    /// <remarks>
     /// <b>腾出的字节数按清理**之前**的大小算。</b> 播放记录清完文件还在（只是内容变成空数组），
     /// 事后去量会得到 0，而用户刚刚明明看到那一栏有几百 KB。
     /// </remarks>
@@ -240,8 +288,15 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
 
         foreach (var file in new DirectoryInfo(directory).EnumerateFiles(pattern))
         {
-            bytes += file.Length;
-            count++;
+            try
+            {
+                bytes += file.Length;
+                count++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // 统计期间文件被删或被占用：跳过这一项，不让整页统计失败。
+            }
         }
 
         return (bytes, count);

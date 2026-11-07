@@ -38,6 +38,10 @@ public sealed partial class StorageSettingsViewModel : ObservableObject
                 "封面缓存",
                 "看过的封面留在本地，断网也能显示；删掉不影响使用，只是下次要重新下"),
             new StorageRowViewModel(
+                StorageItemKind.UpdatePackages,
+                "更新安装包",
+                "下载过的安装包；安装完成后不会自动删除，可以在这里清掉"),
+            new StorageRowViewModel(
                 StorageItemKind.PlayHistory,
                 "播放记录",
                 "「最近播放」列表（只算当前账号）"),

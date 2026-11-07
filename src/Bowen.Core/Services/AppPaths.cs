@@ -334,8 +334,8 @@ public static class AppPaths
     /// <remarks>
     /// <b>不往系统的「下载」文件夹里丢东西</b>：那是用户自己的地盘，应用静默写进去会变成
     /// 「咦这个文件哪来的」。放在数据目录下、界面上给「打开所在文件夹」，路径是可见的，
-    /// 想挪走随时能挪。也不放在 <see cref="CacheDirectory"/> 下 —— 那不是缓存，
-    /// 被「清除缓存」顺手删掉会让下了一半的包凭空消失。
+    /// 想挪走随时能挪。也不放在 <see cref="CacheDirectory"/> 下 —— 它不跟着「清除封面缓存」
+    /// 一起清；存储页对它单独一项，需要用户明确点清理。正在下载的 <c>.part</c> 被占用时会跳过。
     /// </remarks>
     public static string UpdateDownloadDirectory => Path.Combine(LocalAppData, "updates");
 

@@ -4,7 +4,7 @@ namespace Bowen.Core.Models;
 /// 可以被「清除缓存」清掉的一项。
 /// </summary>
 /// <remarks>
-/// <b>只有这四类。</b> 凭据、窗口位置、各种偏好都不在里面 ——
+/// <b>只有这几类。</b> 凭据、窗口位置、各种偏好都不在里面 ——
 /// 「清除缓存」不该把用户设过的东西一起清掉。
 /// </remarks>
 public enum StorageItemKind
@@ -20,6 +20,9 @@ public enum StorageItemKind
 
     /// <summary>日志文件。<b>当天那一份删不掉</b>（Serilog 正持有它）。</summary>
     Logs,
+
+    /// <summary>下载过的更新安装包。安装或解压后不会自动删除。</summary>
+    UpdatePackages,
 }
 
 /// <summary>某一项的占用。大小一律是磁盘上的实际字节数。</summary>
