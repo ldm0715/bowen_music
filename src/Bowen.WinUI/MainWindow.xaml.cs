@@ -137,6 +137,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// <summary>上一次记录的窗口状态；最大化 / 还原切换后要重挂标题栏拖拽区。</summary>
     private OverlappedPresenterState _lastWindowState;
     private (bool Dark, Color Foreground)? _captionPalette;
+    /// <summary>当前挂着拖拽区校验监听的标题栏元素。</summary>
+    private FrameworkElement? _dragRegionTitleBar;
 
     /// <summary>
     /// 用户已经明确要求退出（托盘菜单的「退出」）。
@@ -469,6 +471,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppTitleBar.AutoRefreshDragRegions = false;
         SetTitleBar(AppTitleBar);
+        WatchTitleBarDragRegion(AppTitleBar);
 
         // 任务栏与 Alt-Tab 上显示的名字。标题栏本身是自绘的，看不到它，但系统那几处会读。
         Title = AppIdentity.DisplayName;
@@ -1502,6 +1505,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             _lastWindowState = presenter.State;
             QueueDragRegionRefresh();
         }
+
+        // 尺寸 / 位置一变，标题栏的客户区坐标也跟着变，顺手校验一次。
+        if (args.DidSizeChange || args.DidPositionChange) ApplyTitleBarDragRegion();
     }
 
     /// <summary>
@@ -2700,6 +2706,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         ImmersiveHost.Visibility = Visibility.Visible;
         // 全屏由系统呈现器接管，窗口没有标题栏；保留页面引用，退出全屏时再挂回去。
         SetTitleBar(IsLyricsFullscreen ? null : titleBar);
+        WatchTitleBarDragRegion(titleBar);
         UpdateCaptionButtonColors();
         if (AppWindow.Presenter is OverlappedPresenter presenter) _lastWindowState = presenter.State;
         QueueDragRegionRefresh();
@@ -2767,6 +2774,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (!_closed)
         {
             SetTitleBar(_lyricsTitleBar);
+            WatchTitleBarDragRegion(_lyricsTitleBar);
             // 恢复 WINDOWPLACEMENT 可能带回最大化状态，此时窗口刚重建过框架，再登记一次。
             if (AppWindow.Presenter is OverlappedPresenter windowPresenter) _lastWindowState = windowPresenter.State;
             QueueDragRegionRefresh();
@@ -2782,6 +2790,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         AppWindow.SetPresenter(presenter);
         RestoreLyricsWindow(WinRT.Interop.WindowNative.GetWindowHandle(this), _lyricsRestorePlacement);
         SetTitleBar(_lyricsTitleBar);
+        WatchTitleBarDragRegion(_lyricsTitleBar);
         if (AppWindow.Presenter is OverlappedPresenter windowPresenter) _lastWindowState = windowPresenter.State;
     }
 
@@ -3047,6 +3056,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         SyncOverlayInsets();
 
         SetTitleBar(AppTitleBar);
+        WatchTitleBarDragRegion(AppTitleBar);
         UpdateCaptionButtonColors();
         UpdateTitleBarRightInsetCompensation();
         QueueDragRegionRefresh();
@@ -3126,8 +3136,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
     /// （microsoft-ui-xaml#10391）。这里排到下一轮布局后再登记一次。
     /// </para>
     /// <para>
-    /// 重新登记同时也重算按钮让位：<c>RecomputeDragRegions</c> 只更新打洞区，
-    /// 不负责恢复拖拽区，两者要一起做。元素没变化时整套调用是幂等的。
+    /// <b>但只靠 <c>SetTitleBar</c> 不够</b>：它内部缓存了上一次的拖拽矩形，矩形没变时
+    /// 直接返回，不会把已经被系统清掉的区域补回来。真正兜底的是
+    /// <see cref="ApplyTitleBarDragRegion"/>。
     /// </para>
     /// </remarks>
     private void QueueDragRegionRefresh()
@@ -3140,8 +3151,87 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             var titleBar = _immersiveVisible ? _lyricsTitleBar : AppTitleBar;
             if (titleBar is null) return;
             SetTitleBar(titleBar);
+            WatchTitleBarDragRegion(titleBar);
             if (titleBar is Microsoft.UI.Xaml.Controls.TitleBar control) control.RecomputeDragRegions();
+            ApplyTitleBarDragRegion();
         });
+    }
+
+    /// <summary>
+    /// 让当前标题栏的布局变化都触发一次拖拽区校验。
+    /// </summary>
+    /// <remarks>
+    /// 标题栏首次布局、页面进场、外壳收起、窗口缩放都会经过 <c>LayoutUpdated</c>。
+    /// 校验本身只读，只有区域确实丢了才写，所以挂在上面不产生额外抖动。
+    /// </remarks>
+    private void WatchTitleBarDragRegion(FrameworkElement? titleBar)
+    {
+        if (ReferenceEquals(_dragRegionTitleBar, titleBar)) return;
+        if (_dragRegionTitleBar is { } previous) previous.LayoutUpdated -= OnTitleBarLayoutUpdated;
+        _dragRegionTitleBar = titleBar;
+        if (titleBar is not null) titleBar.LayoutUpdated += OnTitleBarLayoutUpdated;
+    }
+
+    private void OnTitleBarLayoutUpdated(object? sender, object args) => ApplyTitleBarDragRegion();
+
+    /// <summary>
+    /// 把窗口拖拽区重新写到当前标题栏的实际位置。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Window.SetTitleBar"/> 只在标题栏矩形变化时重写 Caption 区，而且内部缓存了
+    /// 上一次的矩形：非客户区被重建清空后，再用同样的矩形调一次是空操作，区域不会回来。
+    /// 所以这里绕开它，直接按标题栏的实际 bounds 校验并写入
+    /// （与 WinUI 内部 <c>CWindowChrome</c> 用的是同一套坐标换算）。
+    /// </para>
+    /// <para>
+    /// 系统里现有的 Caption 区与目标矩形一致时不写，布局期间反复调用也不会闪。
+    /// </para>
+    /// </remarks>
+    private void ApplyTitleBarDragRegion()
+    {
+        if (_closed || IsMinimized) return;
+        // 系统全屏没有窗口标题栏。
+        if (_immersiveVisible && IsLyricsFullscreen) return;
+        var titleBar = _immersiveVisible ? _lyricsTitleBar : AppTitleBar;
+        if (titleBar is not { IsLoaded: true } element
+            || element.XamlRoot is not { } xamlRoot
+            || element.ActualWidth <= 0
+            || element.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var scale = xamlRoot.RasterizationScale;
+        if (scale <= 0) return;
+
+        var bounds = element.TransformToVisual(null)
+            .TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+        var rect = new RectInt32(
+            (int)Math.Round(bounds.X * scale),
+            (int)Math.Round(bounds.Y * scale),
+            (int)Math.Round(bounds.Width * scale),
+            (int)Math.Round(bounds.Height * scale));
+        if (rect.Width <= 0 || rect.Height <= 0) return;
+
+        try
+        {
+            var source = InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+            // 目标矩形已经在系统里就不动：布局期间会被反复调用，没必要每次都重写。
+            if (source.GetRegionRects(NonClientRegionKind.Caption).Any(existing =>
+                existing.X == rect.X && existing.Y == rect.Y
+                && existing.Width == rect.Width && existing.Height == rect.Height))
+            {
+                return;
+            }
+
+            source.ClearRegionRects(NonClientRegionKind.Caption);
+            source.SetRegionRects(NonClientRegionKind.Caption, [rect]);
+        }
+        catch (Exception)
+        {
+            // 窗口还没进 compositor 时这个 API 会抛，下一轮布局再补。
+        }
     }
 
     private void SetShellSurfaceVisible(bool visible)
@@ -3209,6 +3299,9 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         if (!finished || _closed || version != _immersiveMotionVersion
             || !ReferenceEquals(_navigation.Current, page)) return;
         SetShellSurfaceVisible(false);
+        // 外壳收起后布局还会走一轮；MV 页没有歌词页自动收起 chrome 那条自愈路径，
+        // 这里补一次拖拽区校验，保证入场结束时顶部已经能拖。
+        ApplyTitleBarDragRegion();
         // 外壳已经整块藏起：把常规宿主换成退出沉浸时的落点，用户看不见这次换页。
         // 少了这一步，从歌词页点进专辑再退回歌词后，退出歌词会先露出那张专辑页。
         _navigation.SettleShellUnderImmersive();
