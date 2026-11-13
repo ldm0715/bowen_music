@@ -283,6 +283,44 @@ internal static class Endpoints
     public static string CollectList(int source) =>
         string.Create(System.Globalization.CultureInfo.InvariantCulture, $"service/collect/{source}/list");
 
+    // ── 播放历史（安卓 5.9.8 静态还原，未实测）──────────────────────────────
+
+    /// <summary>
+    /// 播放历史上报。POST + JSON body <c>{sourceType, items}</c>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>路径没有 <c>service/</c> 前缀</b>，完整地址是 <c>/api/playlist/history/add</c>。
+    /// </para>
+    /// <para>
+    /// 官方桌面端不接这条链路（<c>reverse/pc/app.so</c> 里连字符串都没有），
+    /// 所以桌面播放默认不会出现在手机端「最近播放」。
+    /// </para>
+    /// <para>
+    /// <c>sourceType</c>：<c>1</c> = 歌曲、<c>2</c> = 歌单、<c>3</c> = 专辑。
+    /// 歌曲条目的 item 只有 <c>sourceId</c>。见 <c>docs/play-history-sync.md</c>。
+    /// </para>
+    /// </remarks>
+    public const string PlayHistoryAdd = "playlist/history/add";
+
+    /// <summary>播放历史的 <c>sourceType</c>：歌曲。</summary>
+    public const int PlayHistorySourceSong = 1;
+
+    /// <summary>播放历史的 <c>sourceType</c>：歌单。</summary>
+    public const int PlayHistorySourcePlaylist = 2;
+
+    /// <summary>播放历史的 <c>sourceType</c>：专辑。</summary>
+    public const int PlayHistorySourceAlbum = 3;
+
+    /// <summary>
+    /// 读播放历史。GET + query <c>sourceType</c> / <c>pn</c> / <c>rn</c>。
+    /// </summary>
+    /// <remarks>
+    /// 响应 <c>{total, list}</c>，<c>list</c> 元素是完整歌曲对象。
+    /// <b>本产品不读它</b>，只留给探针验证写入是否生效。
+    /// </remarks>
+    public const string PlayHistoryPage = "playlist/history/page";
+
     // ── 静态确认，参数已解 🟡 ───────────────────────────────────────────────
 
     /// <summary>

@@ -197,6 +197,9 @@ public partial class App : Application
         // 关注歌手状态同理：歌手详情各处共享同一份本地列表（详情接口没有 follow 字段）。
         builder.Services.AddSingleton<IFollowedArtistsService, FollowedArtistsService>();
 
+        // 跨端播放历史同步。登录态下把起播曲目上报到账号，手机端「最近播放」才能看到。
+        builder.Services.AddSingleton<IPlayHistorySync, PlayHistorySync>();
+
         // 曲目行「更多」菜单的装配点。这几个接口指向同一个实例：
         // 行内控件从 App 资源拿它，而动作 ViewModel / 发现页只认接口（这样才能进离线测试）。
         builder.Services.AddSingleton<TrackActionsService>();

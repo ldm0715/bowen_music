@@ -13,6 +13,15 @@ public sealed record Album
     /// <summary>专辑 id。</summary>
     public required long Id { get; init; }
 
+    /// <summary>
+    /// 专辑对象自身的 <c>sourceType</c>。上报播放历史时作为条目的 <c>playlistType</c>。
+    /// </summary>
+    /// <remarks>
+    /// 专辑列表与详情实测都是 <c>6</c>；<b>0 表示这个来源没带</b>（例如从曲目行合成出来的专辑）。
+    /// 值为 0 时不上报专辑历史，不要把 0 当成有效类型发给服务端。
+    /// </remarks>
+    public int SourceType { get; init; }
+
     /// <summary>专辑名。</summary>
     public required string Name { get; init; }
 

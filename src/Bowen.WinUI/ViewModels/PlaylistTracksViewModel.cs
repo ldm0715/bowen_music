@@ -128,6 +128,17 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
     /// </remarks>
     protected virtual int PlaylistSource => 5;
 
+    /// <summary>
+    /// 当前列表对应的集合来源，用于播放历史。
+    /// </summary>
+    /// <remarks>
+    /// 歌单 id 还没解析出来时返回 <c>null</c>，这次播放就只上报歌曲、不上报歌单。
+    /// <c>sourceType</c> 用 <see cref="PlaylistSource"/> 的值，公开歌单（4/13）也能透传正确。
+    /// </remarks>
+    protected virtual PlaybackOrigin? CollectionOrigin => PlaylistId > 0
+        ? new PlaybackOrigin(PlaybackCollectionKind.Playlist, PlaylistId, PlaylistSource)
+        : null;
+
     /// <summary>歌单不存在时的说明文案。</summary>
     protected abstract string MissingText { get; }
 
@@ -319,7 +330,7 @@ public abstract partial class PlaylistTracksViewModel : ObservableObject
 
         CurrentTrack = track;
 
-        await Coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
+        await Coordinator.EnqueueAndPlayAsync(track, CollectionOrigin).ConfigureAwait(true);
     }
 
     private async Task AppendNextPageAsync(CancellationToken cancellationToken)

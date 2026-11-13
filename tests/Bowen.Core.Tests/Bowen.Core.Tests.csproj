@@ -56,6 +56,8 @@
          它的 LoadAllAsync 语义要单独验。同样只依赖 Core 与 PlaybackCoordinator。 -->
     <Compile Include="..\..\src\Bowen.WinUI\ViewModels\PlaylistTracksViewModel.cs" Link="ViewModels\PlaylistTracksViewModel.cs" />
     <Compile Include="..\..\src\Bowen.WinUI\Playback\PlaybackCoordinator.cs" Link="Playback\PlaybackCoordinator.cs" />
+    <!-- 协调器在起播时按它判断「是不是同一个歌单/专辑」，只依赖 Core 的枚举值。 -->
+    <Compile Include="..\..\src\Bowen.WinUI\Playback\PlaybackOrigin.cs" Link="Playback\PlaybackOrigin.cs" />
     <Compile Include="..\..\src\Bowen.WinUI\Playback\PlaybackTypes.cs" Link="Playback\PlaybackTypes.cs" />
     <Compile Include="..\..\src\Bowen.WinUI\Playback\PlayQueue.cs" Link="Playback\PlayQueue.cs" />
     <Compile Include="..\..\src\Bowen.WinUI\Playback\IPlaybackService.cs" Link="Playback\IPlaybackService.cs" />

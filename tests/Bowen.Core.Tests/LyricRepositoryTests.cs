@@ -298,5 +298,12 @@ public sealed class LyricRepositoryTests
         public Task<AccountVipInfo?> GetAccountVipInfoAsync(
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public Task AddSongPlayHistoryAsync(long musicId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task AddCollectionPlayHistoryAsync(int historySourceType, long sourceId, int playlistType,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 }

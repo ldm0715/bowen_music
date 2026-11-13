@@ -265,7 +265,7 @@ public sealed partial class PlaylistDetailViewModel : PlaylistTracksViewModel
 
             if (Tracks.Count > 0)
             {
-                await Coordinator.PlayFromAsync([.. Tracks], 0).ConfigureAwait(true);
+                await Coordinator.PlayFromAsync([.. Tracks], 0, CollectionOrigin).ConfigureAwait(true);
             }
         }
         finally

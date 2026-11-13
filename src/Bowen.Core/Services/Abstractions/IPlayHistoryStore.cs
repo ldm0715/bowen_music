@@ -7,11 +7,12 @@ namespace Bowen.Core.Services.Abstractions;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>为什么是本地而不是接口</b>：官方桌面端的历史就是纯本地的
-/// （<c>addHistorySong</c> 写 SQL → <c>%LOCALAPPDATA%\cn.wenyu.bodian\...\songDB.db</c>），
-/// 整个桌面端二进制里没有任何读取历史的服务端路径。移动端虽然有
-/// <c>playlist/history/page</c>，但那是移动端专属，桌面头能不能对上静态无法回答。
-/// 见 <c>docs/library-sidebar.md</c> §6。
+/// <b>为什么本地仍是展示数据源</b>：本地记录不依赖登录与网络，未登录也能用。
+/// 官方桌面端的历史是纯本地的（<c>addHistorySong</c> 写 SQL →
+/// <c>%LOCALAPPDATA%\cn.wenyu.bodian\...\songDB.db</c>），整个桌面二进制里没有任何
+/// 服务端历史路径；但该接口<b>不是</b>移动端专属 —— <c>playlist/history/add</c> 已用桌面
+/// 请求头实测可写。跨端同步由 <see cref="IPlayHistorySync"/> 负责，见
+/// <c>docs/play-history-sync.md</c>。
 /// </para>
 /// <para>
 /// <b>同一首歌重复播放会被提到最前，不新增条目</b>：历史列表里出现十遍同一首歌没有意义。

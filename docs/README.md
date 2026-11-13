@@ -49,6 +49,7 @@
 
 | 文档 | 用途 |
 | --- | --- |
+| [`play-history-sync.md`](play-history-sync.md) | 播放历史同步：手机端最近播放的写入链路、`sourceType` 语义、上报时机与实施方案 |
 | [`collect-follow.md`](collect-follow.md) | 收藏歌单与关注歌手：接口、判定机制、两态按钮与取消确认、验收清单 |
 | [`comments-ui.md`](comments-ui.md) | 评论入口与角标、列表与回复、发布和点赞、主题与图片查看、接口约束及验证 |
 | [`mv.md`](mv.md) | MV 播放：三处入口、沉浸 MV 页、画面比例、音视频互斥与验收 |

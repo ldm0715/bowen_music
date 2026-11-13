@@ -205,12 +205,19 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
     public Task RefreshAccountStateAsync(CancellationToken cancellationToken = default)
         => LoadCollectStateAsync(cancellationToken);
 
+    /// <summary>
+    /// 当前专辑的播放来源，用于播放历史。详情没加载回来、<c>sourceType</c> 还是 0 时为 <c>null</c>。
+    /// </summary>
+    private PlaybackOrigin? CollectionOrigin => Album.Id > 0 && Album.SourceType > 0
+        ? new PlaybackOrigin(PlaybackCollectionKind.Album, Album.Id, Album.SourceType)
+        : null;
+
     /// <summary>点播：加到队尾并立即播放它。要整张专辑入队走工具栏的「全部加入播放列表」或页头的「播放全部」。</summary>
     public async Task PlayAsync(Track track)
     {
         ArgumentNullException.ThrowIfNull(track);
 
-        await _coordinator.EnqueueAndPlayAsync(track).ConfigureAwait(true);
+        await _coordinator.EnqueueAndPlayAsync(track, CollectionOrigin).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -242,7 +249,7 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
 
             if (Tracks.Items.Count > 0)
             {
-                await _coordinator.PlayFromAsync([.. Tracks.Items], 0).ConfigureAwait(true);
+                await _coordinator.PlayFromAsync([.. Tracks.Items], 0, CollectionOrigin).ConfigureAwait(true);
             }
         }
         finally

@@ -1883,6 +1883,7 @@ public sealed class BodianApi : IBodianApi
     {
         // 两种形状的主键不同（albumId / id），由 DTO 自己挑，调用方不必关心。
         Id = dto.EffectiveId,
+        SourceType = dto.SourceType,
 
         // 名字缺失也要给个能显示的东西：列表里一行空白比「(未命名专辑)」更难排查。
         Name = string.IsNullOrWhiteSpace(dto.Name) ? "(未命名专辑)" : dto.Name,
@@ -2083,6 +2084,85 @@ public sealed class BodianApi : IBodianApi
     /// 挡掉的是服务端本来就允许的东西。见 <c>reverse/findings/06-library-api.md</c>。
     /// </para>
     /// </remarks>
+    public Task AddSongPlayHistoryAsync(long musicId, CancellationToken cancellationToken = default)
+    {
+        EnsureMusicId(musicId);
+
+        return AddPlayHistoryAsync(
+            Endpoints.PlayHistorySourceSong,
+            [new PlayHistoryItem { SourceId = musicId }],
+            "歌曲",
+            musicId,
+            cancellationToken);
+    }
+
+    public Task AddCollectionPlayHistoryAsync(
+        int historySourceType,
+        long sourceId,
+        int playlistType,
+        CancellationToken cancellationToken = default)
+    {
+        if (historySourceType is not (Endpoints.PlayHistorySourcePlaylist or Endpoints.PlayHistorySourceAlbum))
+        {
+            throw new ArgumentOutOfRangeException(nameof(historySourceType), historySourceType, "只支持歌单（2）与专辑（3）");
+        }
+
+        if (sourceId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sourceId), sourceId, "歌单 / 专辑 id 必须是正数");
+        }
+
+        if (playlistType <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playlistType), playlistType, "playlistType 必须是正数");
+        }
+
+        return AddPlayHistoryAsync(
+            historySourceType,
+            [new PlayHistoryItem { SourceId = sourceId, PlaylistType = playlistType }],
+            historySourceType == Endpoints.PlayHistorySourcePlaylist ? "歌单" : "专辑",
+            sourceId,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// <c>playlist/history/add</c> 的共同写入流程。
+    /// </summary>
+    private async Task AddPlayHistoryAsync(
+        int sourceType,
+        PlayHistoryItem[] items,
+        string kind,
+        long sourceId,
+        CancellationToken cancellationToken)
+    {
+        RequireAuthenticated();
+
+        var body = new PlayHistoryAddBody
+        {
+            SourceType = sourceType,
+            Items = items,
+        };
+
+        var envelope = await _transport.SendAsync(
+            new BodianRequest
+            {
+                Path = Endpoints.PlayHistoryAdd,
+                Verb = BodianHttpVerb.Post,
+                Signed = true,
+                JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.PlayHistoryAddBody),
+            },
+            BodianJsonContext.Default.JsonElement,
+            cancellationToken).ConfigureAwait(false);
+
+        // 成功与否都只记一条调试日志：历史同步是尽力而为，不影响播放，也不需要提示用户。
+        _logger.LogDebug(
+            "播放历史上报：{Kind} {SourceId}，sourceType {SourceType}，业务码 {Code}",
+            kind,
+            sourceId,
+            sourceType,
+            envelope.Code);
+    }
+
     private void RequireAuthenticated()
     {
         if (!_session.IsAuthenticated)

@@ -636,4 +636,41 @@ public interface IBodianApi
     /// 登录期间不会变；这条用来在下拉框打开时重算，避免会员变了界面不跟。
     /// </remarks>
     Task<AccountVipInfo?> GetAccountVipInfoAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 上报一次歌曲播放历史，让这首歌出现在手机端「最近播放」。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>POST playlist/history/add</c>，body <c>{sourceType:1, items:[{sourceId}]}</c>。
+    /// 未登录时抛 <see cref="BodianNotSignedInException"/>。
+    /// </para>
+    /// <para>
+    /// <b>这是写操作，会影响真实账号。</b> 调用方应把它当作「尽力而为」：失败不影响播放，
+    /// 也不要在这里做重试队列。见 <c>docs/play-history-sync.md</c>。
+    /// </para>
+    /// </remarks>
+    Task AddSongPlayHistoryAsync(long musicId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 上报一次歌单 / 专辑播放历史。
+    /// </summary>
+    /// <param name="historySourceType">
+    /// <c>2</c> = 歌单，<c>3</c> = 专辑（<c>Endpoints.PlayHistorySourcePlaylist</c> /
+    /// <c>PlayHistorySourceAlbum</c>）。
+    /// </param>
+    /// <param name="sourceId">歌单 / 专辑 id。</param>
+    /// <param name="playlistType">
+    /// 歌单 / 专辑对象自身的 <c>sourceType</c>，必须透传，不能写死。
+    /// 自建歌单实测为 <c>5</c>，专辑为 <c>6</c>。
+    /// </param>
+    /// <remarks>
+    /// 与 <see cref="AddSongPlayHistoryAsync"/> 一样是写操作、需要登录、尽力而为。
+    /// 协议已在 2026-11-13 实网验证。
+    /// </remarks>
+    Task AddCollectionPlayHistoryAsync(
+        int historySourceType,
+        long sourceId,
+        int playlistType,
+        CancellationToken cancellationToken = default);
 }

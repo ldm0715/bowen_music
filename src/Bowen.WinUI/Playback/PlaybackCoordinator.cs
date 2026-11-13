@@ -25,6 +25,18 @@ public sealed class PlaybackCoordinator : IDisposable
     private readonly IBodianApi _api;
     private readonly IPlaybackService _engine;
     private readonly IPlayHistoryStore _history;
+
+    /// <summary>跨端播放历史同步。未注入时只写本地（测试与旧构造点）。</summary>
+    private readonly IPlayHistorySync? _historySync;
+
+    /// <summary>
+    /// 当前队列是从哪个歌单 / 专辑点进来的。只用于历史同步；<c>null</c> 表示没有集合上下文。
+    /// </summary>
+    private PlaybackOrigin? _currentOrigin;
+
+    /// <summary>本次运行中最后一次上报过的集合，避免同一歌单里每首歌都发一次请求。</summary>
+    private PlaybackOrigin? _lastReportedOrigin;
+
     private readonly ILogger<PlaybackCoordinator> _logger;
     private readonly IAudioQualitySettingsStore? _qualitySettings;
     private readonly IPlaybackSettingsStore? _playbackSettings;
@@ -152,7 +164,8 @@ public sealed class PlaybackCoordinator : IDisposable
         IAudioQualitySettingsStore? qualitySettings = null,
         IPlaybackSettingsStore? playbackSettings = null,
         IPlayQueueSnapshotStore? queueStore = null,
-        ICurrentAccount? account = null)
+        ICurrentAccount? account = null,
+        IPlayHistorySync? historySync = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(engine);
@@ -161,6 +174,7 @@ public sealed class PlaybackCoordinator : IDisposable
         _api = api;
         _engine = engine;
         _history = history;
+        _historySync = historySync;
         _logger = logger ?? NullLogger<PlaybackCoordinator>.Instance;
         _qualitySettings = qualitySettings;
         _playbackSettings = playbackSettings;
@@ -261,12 +275,27 @@ public sealed class PlaybackCoordinator : IDisposable
     public event EventHandler? QueueExhausted;
 
     /// <summary>从一整页结果开始播第 <paramref name="index"/> 首。</summary>
-    public Task PlayFromAsync(IReadOnlyList<Track> playlist, int index, CancellationToken cancellationToken = default)
+    public Task PlayFromAsync(
+        IReadOnlyList<Track> playlist,
+        int index,
+        CancellationToken cancellationToken = default)
+        => PlayFromAsync(playlist, index, origin: null, cancellationToken);
+
+    /// <summary>从一整页结果开始播第 <paramref name="index"/> 首，并记下来源。</summary>
+    /// <param name="origin">
+    /// 这一页来自哪个歌单 / 专辑。播放历史上报用；搜索、排行榜等没有集合上下文的入口传 <c>null</c>。
+    /// </param>
+    public Task PlayFromAsync(
+        IReadOnlyList<Track> playlist,
+        int index,
+        PlaybackOrigin? origin,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(playlist);
 
         _logger.LogDebug("从队列第 {Index} 首开始播（共 {Count} 首）", index, playlist.Count);
 
+        SetPlaybackOrigin(origin);
         Queue.Replace(playlist, index);
 
         return PlayCurrentAsync(cancellationToken);
@@ -291,10 +320,19 @@ public sealed class PlaybackCoordinator : IDisposable
     /// </para>
     /// </remarks>
     public Task EnqueueAndPlayAsync(Track track, CancellationToken cancellationToken = default)
+        => EnqueueAndPlayAsync(track, origin: null, cancellationToken);
+
+    /// <summary>点播一首，并记下来源。</summary>
+    public Task EnqueueAndPlayAsync(
+        Track track,
+        PlaybackOrigin? origin,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(track);
 
         _logger.LogDebug("点播：{Title}", track.Title);
+
+        SetPlaybackOrigin(origin);
 
         // 与 PlayQueue.Append 同一套去重规则：没有有效 Id 的曲目无从比对（上游已挡掉）。
         var existing = track.Id > 0 ? IndexOfQueueItem(track.Id) : -1;
@@ -1140,6 +1178,10 @@ public sealed class PlaybackCoordinator : IDisposable
             QualityOptionsChanged?.Invoke(this, EventArgs.Empty);
             RecordHistory(track);
 
+            // 跨端同步：让这首歌出现在手机端「最近播放」。立即返回，失败不影响播放。
+            _historySync?.NotifyPlayed(track.Id);
+            ReportCollectionHistory();
+
             // 已经开始放了，顺手把下一首的音源备好 —— 用户按「下一首」时省掉两跳 API。
             PrefetchNextTrack();
         }
@@ -1301,6 +1343,42 @@ public sealed class PlaybackCoordinator : IDisposable
     /// 失败也只影响「最近播放」一页，所以这里自己吞掉异常并记日志。
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// 记住这次播放来自哪个集合。<b>无效来源按没有上下文处理</b>，不会把 0 发给服务端。
+    /// </summary>
+    /// <remarks>
+    /// 切到没有集合上下文的入口（搜索、排行榜、最近播放）时，把上一次的集合也清掉 ——
+    /// 否则用户从歌单播完再去搜索页点歌，歌单会被错误地再次顶到最近播放第一位。
+    /// </remarks>
+    private void SetPlaybackOrigin(PlaybackOrigin? origin)
+    {
+        _currentOrigin = origin is { IsValid: true } ? origin : null;
+
+        if (_currentOrigin is null)
+        {
+            _lastReportedOrigin = null;
+        }
+    }
+
+    /// <summary>
+    /// 集合变化时上报一次歌单 / 专辑历史。<b>同一集合内连续切歌不重复发。</b>
+    /// </summary>
+    private void ReportCollectionHistory()
+    {
+        if (_historySync is not { } sync || _currentOrigin is not { IsValid: true } origin)
+        {
+            return;
+        }
+
+        if (origin == _lastReportedOrigin)
+        {
+            return;
+        }
+
+        sync.NotifyCollectionPlayed((int)origin.Kind, origin.Id, origin.SourceType);
+        _lastReportedOrigin = origin;
+    }
+
     private void RecordHistory(Track track) => _ = RecordHistoryAsync(track);
 
     private async Task RecordHistoryAsync(Track track)
