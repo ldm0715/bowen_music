@@ -236,6 +236,9 @@ public sealed partial class SongCommentsViewModel : ObservableObject
     private bool CanPublish => IsOpen && !CommentsUnavailable && IsAuthenticated && !IsPosting && !string.IsNullOrWhiteSpace(DraftText) && DraftText.Length <= 1000;
     private (long Song, long Parent, long Reply) DraftKey => (_musicId, SelectedRoot?.Id ?? 0, ReplyTarget is { IsReply: true } reply ? reply.Id : 0);
 
+    /// <summary>当前评论对应的歌曲；换歌时通知界面重置列表位置。</summary>
+    public long MusicId => _musicId;
+
     public Task ShowAsync(long musicId, string title)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(musicId);
@@ -246,7 +249,9 @@ public sealed partial class SongCommentsViewModel : ObservableObject
         SetThreadRoot(null);
         ReplyTarget = null;
         PreviewImageUri = null;
+        var songChanged = _musicId != musicId;
         _musicId = musicId;
+        if (songChanged) OnPropertyChanged(nameof(MusicId));
         if (_badgeMusicId != musicId) SetBadge(musicId, null);
         SongTitle = title;
         Feedback = "";
@@ -254,7 +259,9 @@ public sealed partial class SongCommentsViewModel : ObservableObject
         IsOpen = true;
         OnPropertyChanged(nameof(IsAuthenticated));
         OnPropertyChanged(nameof(IsComposerEnabled));
-        return ReloadAsync();
+        // 同一首歌重新打开时沿用已加载的列表，滚动位置也随列表一起保留；
+        // 换歌才重新拉取，由界面把新列表退回顶部。
+        return songChanged || !HasLoaded ? ReloadAsync() : Task.CompletedTask;
     }
 
     public Task ChangeSortAsync(SongCommentSort sort)
