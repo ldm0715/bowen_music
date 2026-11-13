@@ -39,7 +39,7 @@ using VirtualKey = Windows.System.VirtualKey;
 
 namespace Bowen.WinUI.Views;
 
-public sealed partial class LyricsPage : Page, INavigationAware
+public sealed partial class LyricsPage : Page, INavigationAware, INavigationRestoreAware
 {
     private void OnQualitySelected(object? sender, EventArgs e) => QualityFlyout.Hide();
 
@@ -360,17 +360,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     public void OnNavigatedTo()
     {
         // 上一次收起 / 被中途取消的入场会留下位移与透明度，先复位再入场。
-        _immersiveEntranceCompleted = false;
-        AppMotion.Reset(BackdropLayer);
-        AppMotion.Reset(ContentLayer);
-        AppMotion.Reset(CommentsOverlay);
-        foreach (var element in new FrameworkElement[]
-        {
-            LyricsTitleBar, HeadingHost, ControlDeck, PositionSlider, SpectrumHost, CanvasHost, CoverDeck,
-        })
-        {
-            AppMotion.Reset(element);
-        }
+        ResetMotionState();
         _chromeTimer.Tick += OnChromeTimer;
         _pointerTimer.Tick += OnPointerTimer;
         _layoutTimer.Tick += OnLayoutTimer;
@@ -412,6 +402,28 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _mp3ClockTimer.Start();
         UpdateMp3StatusBar();
         BeginCoverEntrance();
+    }
+
+    /// <summary>
+    /// 离场动画还没结束、用户又点了歌词入口：页面从未真正离场，只把离场动画改掉的
+    /// 位移与透明度复位。生命周期不重跑 —— 那会重复挂事件，而且数据本来就没释放。
+    /// </summary>
+    public void OnNavigationRestored() => ResetMotionState();
+
+    /// <summary>把出场 / 中途取消的入场留下的位移与透明度复位到常态。</summary>
+    private void ResetMotionState()
+    {
+        _immersiveEntranceCompleted = false;
+        AppMotion.Reset(BackdropLayer);
+        AppMotion.Reset(ContentLayer);
+        AppMotion.Reset(CommentsOverlay);
+        foreach (var element in new FrameworkElement[]
+        {
+            LyricsTitleBar, HeadingHost, ControlDeck, PositionSlider, SpectrumHost, CanvasHost, CoverDeck,
+        })
+        {
+            AppMotion.Reset(element);
+        }
     }
 
     /// <summary>

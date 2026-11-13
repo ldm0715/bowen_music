@@ -21,6 +21,20 @@ public interface INavigationAware
 }
 
 /// <summary>
+/// 离场动画还没结束、页面又被导航回自己时收到通知。
+/// </summary>
+/// <remarks>
+/// <b>只还原视觉，不重跑 <see cref="INavigationAware.OnNavigatedTo"/>。</b>
+/// 这种「挂起后又回到原页」的情况里页面从未真正离场，生命周期不该重跑（重复订阅事件）；
+/// 但离场动画已经把内容层淡出，不还原的话页面结构还在、画面却是一片空白。
+/// </remarks>
+public interface INavigationRestoreAware
+{
+    /// <summary>离场被打断、页面继续显示：把离场动画造成的位移与透明度还原。</summary>
+    void OnNavigationRestored();
+}
+
+/// <summary>
 /// 带参数的根页（如每个自建歌单的详情）用它声明「我是哪一个」。
 /// </summary>
 /// <remarks>

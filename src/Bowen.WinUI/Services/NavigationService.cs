@@ -243,7 +243,13 @@ public sealed class NavigationService : INavigationService
         _pendingCover = null;
         if (ReferenceEquals(_shown, next))
         {
-            // 离场途中又回到原页，只恢复视觉状态，不重复页面生命周期。
+            // 离场途中又回到原页：离场动画已经把页面淡出，但页面从未真正离场，
+            // 不能重跑生命周期。只还原被动画改掉的视觉状态，否则会留下白屏。
+            if (next is INavigationRestoreAware restoreAware)
+            {
+                _logger.LogInformation("离场途中回到 {Page}，还原离场动画状态", next.GetType().Name);
+                restoreAware.OnNavigationRestored();
+            }
             Navigated?.Invoke(this, next);
             return;
         }
