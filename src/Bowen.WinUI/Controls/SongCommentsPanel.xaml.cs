@@ -4,6 +4,7 @@ using Bowen.Core.Models;
 using Bowen.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.System;
@@ -11,11 +12,23 @@ using Windows.UI.Core;
 
 namespace Bowen.WinUI.Controls;
 
+/// <summary>评论图片的右键动作。</summary>
+public enum CommentImageAction
+{
+    Copy,
+    Save,
+}
+
+/// <summary>评论图片右键请求：图片地址与要执行的动作。</summary>
+public sealed record CommentImageRequest(Uri ImageUri, CommentImageAction Action);
+
 public sealed partial class SongCommentsPanel : UserControl
 {
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _scrollResetTimer;
     private int _scrollResetTicks;
     private bool _resetScroll;
+    private readonly MenuFlyout _imageMenu;
+    private Uri? _contextImageUri;
 
     public SongCommentsPanel(SongCommentsViewModel viewModel)
     {
@@ -25,10 +38,50 @@ public sealed partial class SongCommentsPanel : UserControl
         // 同一首歌重新打开不重载列表，位置自然保留；换歌时把新列表退回顶部。
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.Items.CollectionChanged += OnCommentsChanged;
+        _imageMenu = BuildImageMenu();
     }
 
     public SongCommentsViewModel ViewModel { get; }
     public event EventHandler? CloseRequested;
+
+    /// <summary>请求分享某条评论；由宿主渲染卡片。</summary>
+    public event EventHandler<SongCommentRow>? ShareRequested;
+
+    /// <summary>请求复制或保存评论图片。</summary>
+    public event EventHandler<CommentImageRequest>? ImageActionRequested;
+
+    private MenuFlyout BuildImageMenu()
+    {
+        var menu = new MenuFlyout();
+        var copy = new MenuFlyoutItem { Text = "复制图片", Icon = IconGeometry.CreatePathIcon("IconCopy") };
+        copy.Click += (_, _) => RequestImageAction(CommentImageAction.Copy);
+        var save = new MenuFlyoutItem { Text = "另存为…", Icon = IconGeometry.CreatePathIcon("IconDownload") };
+        save.Click += (_, _) => RequestImageAction(CommentImageAction.Save);
+        menu.Items.Add(copy);
+        menu.Items.Add(save);
+        return menu;
+    }
+
+    private void RequestImageAction(CommentImageAction action)
+    {
+        if (_contextImageUri is { } uri) ImageActionRequested?.Invoke(this, new CommentImageRequest(uri, action));
+    }
+
+    private void OnCommentImageContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    {
+        if (sender is not FrameworkElement { DataContext: SongCommentRow { ImageUri: { } uri } } element) return;
+        _contextImageUri = uri;
+        var options = new FlyoutShowOptions();
+        if (args.TryGetPosition(element, out var position)) options.Position = position;
+        _imageMenu.Hide();
+        _imageMenu.ShowAt(element, options);
+        args.Handled = true;
+    }
+
+    private void OnCommentShareClick(object sender, RoutedEventArgs args)
+    {
+        if ((sender as FrameworkElement)?.DataContext is SongCommentRow row) ShareRequested?.Invoke(this, row);
+    }
 
     /// <summary>
     /// 把焦点移到关闭按钮。

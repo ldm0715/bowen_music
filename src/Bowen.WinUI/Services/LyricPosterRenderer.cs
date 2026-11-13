@@ -64,11 +64,6 @@ internal static class LyricPosterRenderer
     private const float CoverTop = 96;
     private const float CoverToLyricsGap = 104;
     private const float MaxLyricsWidth = MaxWidth - (Margin * 2);
-    private const float FooterGap = 80;
-    private const float BottomMargin = 72;
-
-    /// <summary>页脚左侧品牌块的估算宽度，用于给歌名留出避让空间。</summary>
-    private const float BrandBlockWidth = 176;
 
     /// <summary>封面随选中行数收缩：行少时更大，行多时更小。</summary>
     private const float MaxCoverSize = 560;
@@ -76,28 +71,6 @@ internal static class LyricPosterRenderer
     private const float CoverDecreasePerLine = 12;
     private const float CoverCornerRadius = 16;
     private const float MaxCoverCornerRadius = 28;
-
-    private const float BrandIconSize = 48;
-    private const float BrandTextGap = 12;
-
-    /// <summary>二维码边长取应用图标的两倍。</summary>
-    private const float QrBoxSize = BrandIconSize * 2;
-
-    /// <summary>二维码下方的白色托板，保证深色背景上仍能扫码。</summary>
-    private const float QrPlatePadding = 8;
-    private const float QrPlateSize = QrBoxSize + (QrPlatePadding * 2);
-    private const float QrPlateRadius = 8;
-
-    private const float TitleFontSize = 28;
-    private const float TitleLineHeight = 38;
-    private const float ArtistFontSize = 22;
-    private const float ArtistLineHeight = 30;
-    private const float TrackTextMaxWidth = 420;
-
-    /// <summary>歌名与歌手之间的额外间距。</summary>
-    private const float TitleArtistGap = 6;
-    private const float DividerGap = 24;
-    private const float DividerThickness = 2;
 
     /// <summary>自适应字号的参考值与上下限。</summary>
     private const float ReferenceLyricFontSize = 40;
@@ -109,11 +82,6 @@ internal static class LyricPosterRenderer
     private const float LyricLineSpacing = 1.8f;
 
     private const string DefaultFontFamily = "Microsoft YaHei UI";
-    private const string BrandName = "波纹音乐";
-
-    private static readonly Color White = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-
-    private static readonly QrImageFactory QrFactory = new();
 
     private readonly record struct Typography(float FontSize, float LineHeight);
 
@@ -127,8 +95,7 @@ internal static class LyricPosterRenderer
         var style = content.Style ?? LyricPosterStyle.Default;
 
         using var cover = await TryLoadCoverAsync(device, content.Track.CoverImage);
-        using var brand = await TryLoadBitmapAsync(device, BrandIconPath(style.UseLightLogo));
-        using var qr = await TryLoadQrAsync(device, content.ShareLink);
+        using var footer = await PosterFooterRenderer.LoadAsync(device, content.ShareLink, style.UseLightLogo);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -149,7 +116,7 @@ internal static class LyricPosterRenderer
 
         try
         {
-            var height = CalculateHeight(Measure(layouts), qr is not null, lyricsTop);
+            var height = CalculateHeight(Measure(layouts), footer.Qr is not null, lyricsTop);
             using var target = new CanvasRenderTarget(device, width, height, 96);
 
             using (var session = target.CreateDrawingSession())
@@ -161,7 +128,7 @@ internal static class LyricPosterRenderer
 
                 DrawCover(session, device, cover, coverSize, coverRadius, WithAlpha(style.TextColor, 0x12));
                 DrawLyrics(session, layouts, lyricsTop, textBrush);
-                DrawFooter(session, device, content.Track, width, qr, brand, style, textBrush, secondaryBrush, height);
+                PosterFooterRenderer.Draw(session, device, content.Track, width, footer, style, textBrush, secondaryBrush, height);
             }
 
             using var stream = new InMemoryRandomAccessStream();
@@ -188,8 +155,8 @@ internal static class LyricPosterRenderer
 
     private static int CalculateHeight(float lyricsHeight, bool hasQr, float lyricsTop)
     {
-        var footerHeight = hasQr ? QrPlateSize : TitleLineHeight + ArtistLineHeight;
-        var height = (int)Math.Ceiling(lyricsTop + lyricsHeight + FooterGap + footerHeight + BottomMargin);
+        var footerHeight = PosterFooterRenderer.Height(hasQr);
+        var height = (int)Math.Ceiling(lyricsTop + lyricsHeight + PosterFooterRenderer.Gap + footerHeight + PosterFooterRenderer.BottomMargin);
 
         if (height > MaxHeight)
         {
@@ -318,118 +285,6 @@ internal static class LyricPosterRenderer
         }
     }
 
-    private static void DrawFooter(
-        CanvasDrawingSession session,
-        CanvasDevice device,
-        Track track,
-        int width,
-        CanvasBitmap? qr,
-        CanvasBitmap? brand,
-        LyricPosterStyle style,
-        CanvasSolidColorBrush textBrush,
-        CanvasSolidColorBrush secondaryBrush,
-        int height)
-    {
-        var plateX = width - Margin - QrPlateSize;
-        var plateY = height - BottomMargin - QrPlateSize;
-        var centerY = plateY + (QrPlateSize / 2);
-
-        if (qr is not null)
-        {
-            // 二维码始终放在白色托板上，深色背景也能扫。
-            var plate = new Rect(plateX, plateY, QrPlateSize, QrPlateSize);
-            using var plateBrush = new CanvasSolidColorBrush(device, White);
-            session.FillRoundedRectangle(plate, QrPlateRadius, QrPlateRadius, plateBrush);
-
-            var qrX = plateX + ((QrPlateSize - QrBoxSize) / 2);
-            var qrY = plateY + ((QrPlateSize - QrBoxSize) / 2);
-            var drawSize = Math.Min(QrBoxSize, qr.Size.Width);
-            var rect = new Rect(qrX + ((QrBoxSize - drawSize) / 2), qrY + ((QrBoxSize - drawSize) / 2), drawSize, drawSize);
-            session.DrawImage(qr, rect, new Rect(0, 0, qr.Size.Width, qr.Size.Height), 1, CanvasImageInterpolation.NearestNeighbor);
-        }
-
-        var dividerX = plateX - DividerGap;
-        var rightEdge = qr is not null ? dividerX - DividerGap : width - Margin;
-
-        if (qr is not null)
-        {
-            using var dividerBrush = new CanvasSolidColorBrush(device, WithAlpha(style.TextColor, 0x26));
-            session.DrawLine(dividerX, plateY, dividerX, plateY + QrPlateSize, dividerBrush, DividerThickness);
-        }
-
-        var titleInkTop = DrawTrackText(session, device, track, rightEdge, centerY, textBrush, secondaryBrush);
-        DrawBrand(session, device, brand, textBrush, titleInkTop);
-    }
-
-    /// <returns>歌名首行字形墨迹的顶部，供左下品牌文字对齐。</returns>
-    private static float DrawTrackText(
-        CanvasDrawingSession session,
-        CanvasDevice device,
-        Track track,
-        float rightEdge,
-        float centerY,
-        CanvasSolidColorBrush textBrush,
-        CanvasSolidColorBrush secondaryBrush)
-    {
-        // 给左侧品牌块留出避让，窄画布上长歌名也不会压到「波纹音乐」。
-        var maxWidth = Math.Min(TrackTextMaxWidth, Math.Max(120, rightEdge - Margin - BrandBlockWidth - 24));
-
-        using var titleFormat = CreateSingleLineFormat(TitleFontSize, TitleLineHeight);
-        titleFormat.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-        using var artistFormat = CreateSingleLineFormat(ArtistFontSize, ArtistLineHeight);
-
-        using var title = new CanvasTextLayout(device, track.Title, titleFormat, maxWidth, 0);
-        using var artist = new CanvasTextLayout(device, track.ArtistText, artistFormat, maxWidth, 0);
-
-        var blockHeight = (float)(title.LayoutBounds.Height + TitleArtistGap + artist.LayoutBounds.Height);
-        var titleTop = centerY - (blockHeight / 2);
-
-        // 用两行文字的实际墨迹中心去对齐二维码中心，排版框的上下留白不算。
-        var artistTop = titleTop + (float)title.LayoutBounds.Height + TitleArtistGap;
-        var inkTop = titleTop + (float)title.DrawBounds.Y;
-        var inkBottom = artistTop + (float)artist.DrawBounds.Bottom;
-        var shift = centerY - ((inkTop + inkBottom) / 2);
-        titleTop += shift;
-        artistTop += shift;
-
-        // 超长标题在排版时已被省略号截断；右对齐时再夹一次宽度，保证不会越过右边界。
-        var titleWidth = Math.Min((float)title.LayoutBounds.Width, maxWidth);
-        var artistWidth = Math.Min((float)artist.LayoutBounds.Width, maxWidth);
-
-        session.DrawTextLayout(title, rightEdge - titleWidth, titleTop, textBrush);
-        session.DrawTextLayout(artist, rightEdge - artistWidth, artistTop, secondaryBrush);
-
-        return titleTop + (float)title.DrawBounds.Y;
-    }
-
-    private static void DrawBrand(
-        CanvasDrawingSession session,
-        CanvasDevice device,
-        CanvasBitmap? brand,
-        CanvasSolidColorBrush textBrush,
-        float textInkTop)
-    {
-        using var format = CreateSingleLineFormat(26, 34);
-        format.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-        using var layout = new CanvasTextLayout(device, BrandName, format, 300, 0);
-
-        var ink = layout.DrawBounds;
-
-        // 文字墨迹顶部与右侧歌名齐平；图标再与文字墨迹的垂直中心对齐。
-        var textTop = textInkTop - (float)ink.Y;
-        var center = textTop + (float)(ink.Y + (ink.Height / 2));
-        var iconTop = center - (BrandIconSize / 2);
-
-        if (brand is not null)
-        {
-            var rect = new Rect(Margin, iconTop, BrandIconSize, BrandIconSize);
-            session.DrawImage(brand, rect, new Rect(0, 0, brand.Size.Width, brand.Size.Height), 1,
-                CanvasImageInterpolation.HighQualityCubic);
-        }
-
-        session.DrawTextLayout(layout, Margin + BrandIconSize + BrandTextGap, (float)textTop, textBrush);
-    }
-
     /// <summary>量自然宽度用：不折行、不截断，配合 <c>requestedWidth = 0</c> 取整行宽度。</summary>
     private static CanvasTextFormat CreateAutoWidthFormat(float fontSize, float lineHeight, string fontFamily) => new()
     {
@@ -456,20 +311,6 @@ internal static class LyricPosterRenderer
         VerticalAlignment = CanvasVerticalAlignment.Top,
     };
 
-    /// <summary>单行信息用：超宽直接省略号，不折行。</summary>
-    private static CanvasTextFormat CreateSingleLineFormat(float fontSize, float lineHeight) => new()
-    {
-        FontFamily = DefaultFontFamily,
-        FontSize = fontSize,
-        LineSpacing = lineHeight,
-        LineSpacingMode = CanvasLineSpacingMode.Uniform,
-        WordWrapping = CanvasWordWrapping.NoWrap,
-        TrimmingGranularity = CanvasTextTrimmingGranularity.Character,
-        TrimmingSign = CanvasTrimmingSign.Ellipsis,
-        HorizontalAlignment = CanvasHorizontalAlignment.Left,
-        VerticalAlignment = CanvasVerticalAlignment.Top,
-    };
-
     private static Color WithAlpha(Color color, byte alpha)
         => Color.FromArgb(alpha, color.R, color.G, color.B);
 
@@ -491,45 +332,6 @@ internal static class LyricPosterRenderer
             return null;
         }
     }
-
-    private static async Task<CanvasBitmap?> TryLoadBitmapAsync(CanvasDevice device, string path)
-    {
-        try
-        {
-            return await CanvasBitmap.LoadAsync(device, path);
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
-
-    private static async Task<CanvasBitmap?> TryLoadQrAsync(CanvasDevice device, string shareLink)
-    {
-        if (string.IsNullOrWhiteSpace(shareLink))
-        {
-            return null;
-        }
-
-        try
-        {
-            // 2 px/模块：版本 4–5 的曲目链接约 82–90 px，正好放进 96 px 的二维码区，
-            // 且保持整数像素，不靠缩放糊边。
-            var png = QrFactory.CreatePngBytes(shareLink, pixelsPerModule: 2);
-            using var stream = new InMemoryRandomAccessStream();
-            await stream.WriteAsync(png.AsBuffer());
-            stream.Seek(0);
-            return await CanvasBitmap.LoadAsync(device, stream);
-        }
-        catch (Exception)
-        {
-            // 二维码失败只少一块内容，不阻塞导出。
-            return null;
-        }
-    }
-
-    private static string BrandIconPath(bool useLight)
-        => Path.Combine(AppContext.BaseDirectory, "Assets", useLight ? "RippleLight.png" : "Ripple.png");
 
     private static async Task<byte[]> ReadBytesAsync(InMemoryRandomAccessStream stream)
     {

@@ -16,6 +16,9 @@ public interface IClipboardService
     /// 歌词海报的「复制图片」需要图片和分享链接各一份：进聊天工具贴图，进记事本贴链接。
     /// </remarks>
     Task SetImageAndTextAsync(byte[] png, string text);
+
+    /// <summary>只把一张图片放进剪贴板；评论图片复制用。</summary>
+    Task SetImageAsync(byte[] image);
 }
 
 /// <inheritdoc cref="IClipboardService" />
@@ -46,18 +49,28 @@ public sealed class ClipboardService : IClipboardService
     /// <remarks>
     /// <b>同样必须在 UI 线程调用。</b> 图片流在系统实际粘贴之前不能释放，见 <see cref="_imageStream"/>。
     /// </remarks>
-    public async Task SetImageAndTextAsync(byte[] png, string text)
+    public Task SetImageAndTextAsync(byte[] png, string text)
     {
-        ArgumentNullException.ThrowIfNull(png);
         ArgumentNullException.ThrowIfNull(text);
+        return SetImageCoreAsync(png, text);
+    }
+
+    public Task SetImageAsync(byte[] image) => SetImageCoreAsync(image, null);
+
+    private async Task SetImageCoreAsync(byte[] image, string? text)
+    {
+        ArgumentNullException.ThrowIfNull(image);
 
         var package = new DataPackage();
-        package.SetText(text);
+        if (text is not null)
+        {
+            package.SetText(text);
+        }
 
         var stream = new InMemoryRandomAccessStream();
         using (var writer = new DataWriter(stream))
         {
-            writer.WriteBytes(png);
+            writer.WriteBytes(image);
             await writer.StoreAsync();
             await writer.FlushAsync();
             writer.DetachStream();

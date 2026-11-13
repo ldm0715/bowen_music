@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net.Http;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Bowen.Core.Media;
@@ -145,6 +146,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
     private readonly IClipboardService _clipboard;
     private readonly ILyricPosterSettingsStore _posterSettings;
     private readonly CoverPaletteLoader _posterPaletteLoader;
+    private readonly CommentImageActions _commentImages;
     private readonly nint _windowHandle;
     private NativeMethods.NativePoint? _lastCursorPoint;
     private bool _keyboardInteractionActive;
@@ -193,7 +195,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         LyricsViewModel lyrics, SongCommentsViewModel comments, AudioEffectsViewModel effects,
         INavigationService navigation, Func<Track, MvPage> mvFactory, TrackActionsService trackActions,
         FontSettingsViewModel font, BackgroundImageStore backgroundImages, IClipboardService clipboard,
-        ILyricPosterSettingsStore posterSettings)
+        ILyricPosterSettingsStore posterSettings, HttpMessageHandler httpHandler)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -209,6 +211,7 @@ public sealed partial class LyricsPage : Page, INavigationAware
         ArgumentNullException.ThrowIfNull(backgroundImages);
         ArgumentNullException.ThrowIfNull(clipboard);
         ArgumentNullException.ThrowIfNull(posterSettings);
+        ArgumentNullException.ThrowIfNull(httpHandler);
         _window = window;
         _navigation = navigation;
         _mvFactory = mvFactory;
@@ -279,6 +282,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
             (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory)?.CreateLogger<CoverPaletteLoader>());
         _commentsPanel = new SongCommentsPanel(comments);
         _commentsPanel.CloseRequested += (_, _) => CloseComments();
+        _commentsPanel.ShareRequested += OnCommentShareRequested;
+        _commentsPanel.ImageActionRequested += OnCommentImageActionRequested;
         CommentsHost.Content = _commentsPanel;
         ElementCompositionPreview.SetIsTranslationEnabled(CommentsPane, true);
         ElementCompositionPreview.SetIsTranslationEnabled(AppearancePane, true);
@@ -289,6 +294,8 @@ public sealed partial class LyricsPage : Page, INavigationAware
         _chromeTimer.Interval = TimeSpan.FromSeconds(3);
         _chromeTimer.IsRepeating = false;
         _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        _commentImages = new CommentImageActions(httpHandler, _clipboard, _trackActions, _logger, _windowHandle);
+        CommentsImageViewer.ImageActionRequested += OnCommentImageActionRequested;
         _pointerTimer = DispatcherQueue.CreateTimer();
         _pointerTimer.Interval = TimeSpan.FromMilliseconds(200);
         _layoutTimer = DispatcherQueue.CreateTimer();
@@ -1794,6 +1801,52 @@ public sealed partial class LyricsPage : Page, INavigationAware
     {
         Comments.CloseImage();
         _commentsPanel.FocusCloseButton(CurrentFocusVisualState);
+    }
+
+    /// <summary>把一条评论渲染成分享卡片；数据在点击这一刻取快照。</summary>
+    private async void OnCommentShareRequested(object? sender, SongCommentRow row)
+    {
+        if (Player.CurrentTrack is not { } track)
+        {
+            ((INoticeSink)_trackActions).Show("当前没有可分享的歌曲", NoticeSeverity.Error);
+            return;
+        }
+
+        var content = new CommentPosterContent(
+            track,
+            Player.CreateShareLink() ?? "",
+            row.Nickname,
+            row.AvatarUri,
+            row.Content,
+            row.ImageUri,
+            row.PublishTime,
+            row.Location,
+            row.LikeCount,
+            row.ReplyCaption);
+
+        try
+        {
+            await CommentShareDialog.ShowAsync(new CommentShareContext(
+                content,
+                XamlRoot,
+                _window.ThemeRoot.ActualTheme,
+                _windowHandle,
+                _clipboard,
+                _trackActions,
+                _logger));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "打开评论分享卡片失败：{Title}", track.Title);
+            ((INoticeSink)_trackActions).Show("卡片生成失败，请稍后再试。", NoticeSeverity.Error);
+        }
+    }
+
+    private void OnCommentImageActionRequested(object? sender, CommentImageRequest request)
+    {
+        _ = request.Action == CommentImageAction.Copy
+            ? _commentImages.CopyAsync(request.ImageUri)
+            : _commentImages.SaveAsync(request.ImageUri);
     }
 
     /// <summary>

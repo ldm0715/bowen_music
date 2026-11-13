@@ -67,6 +67,7 @@
 | [`fullscreen-lyrics.md`](fullscreen-lyrics.md) | 全屏歌词实现、滚动选句与点击跳转、验证及性能待办 |
 | [`lyrics-appearance.md`](lyrics-appearance.md) | 歌词页外观浮层：字体、字号、行距、对齐、高亮色、亚克力与存储 |
 | [`lyrics-share-card.md`](lyrics-share-card.md) | 歌词海报：分享面板入口、歌词选择、可自定义卡片、二维码与导出 |
+| [`comment-share-card.md`](comment-share-card.md) | 评论分享卡片与图片导出：右键复制 / 保存、卡片版式、页脚复用 |
 | [`desktop-lyrics.md`](desktop-lyrics.md) | 桌面歌词：悬停控制、固定字形扫色、穿透、拉伸、吸附与验收 |
 | [`search.md`](search.md) | 搜索入口、热榜与历史悬浮面板、综合分段、分类分页及验证记录 |
 | [`play-queue.md`](play-queue.md) | 播放队列与播放模式：队列结构、四种模式语义、加入队列入口、右侧抽屉 |

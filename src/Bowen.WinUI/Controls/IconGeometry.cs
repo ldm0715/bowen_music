@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 
@@ -38,6 +39,17 @@ internal static class IconGeometry
             && value is string pathData
                 ? pathData
                 : "";
+
+    /// <summary>按资源键造一颗菜单用的 <see cref="PathIcon"/>；键不存在时返回 <c>null</c>。</summary>
+    /// <remarks>
+    /// 菜单项的 <c>Icon</c> 只收 <see cref="IconElement"/>，不能用 <see cref="Icon"/> 控件，
+    /// 但同样不能在 XAML 里把字符串资源直接赋给 <c>PathIcon.Data</c>，所以在这里转一次。
+    /// </remarks>
+    internal static PathIcon? CreatePathIcon(string key)
+    {
+        var geometry = From(Paths(key));
+        return geometry is null ? null : new PathIcon { Data = geometry };
+    }
 
     /// <summary>
     /// 把路径文本转成几何；文本为空或转换失败时返回 <c>null</c>（那颗图标画成空白）。

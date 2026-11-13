@@ -4,6 +4,7 @@ using Microsoft.UI.Composition;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -18,6 +19,7 @@ public sealed partial class CommentImageViewer : UserControl
 {
     private readonly ImageViewportState _viewport = new();
     private readonly InputSystemCursor _panCursor = InputSystemCursor.Create(InputSystemCursorShape.Hand);
+    private readonly MenuFlyout _imageMenu;
     private BitmapImage? _bitmap;
     private readonly Visual _imageVisual;
     private uint? _panPointerId;
@@ -30,6 +32,7 @@ public sealed partial class CommentImageViewer : UserControl
     public CommentImageViewer()
     {
         InitializeComponent();
+        _imageMenu = BuildImageMenu();
         ElementCompositionPreview.SetIsTranslationEnabled(FullImage, true);
         _imageVisual = ElementCompositionPreview.GetElementVisual(FullImage);
         _imageVisual.CenterPoint = Vector3.Zero;
@@ -37,6 +40,37 @@ public sealed partial class CommentImageViewer : UserControl
         Loaded += (_, _) => UpdateViewport();
         Unloaded += (_, _) => { EndPan(); CancelRender(); };
     }
+
+    private MenuFlyout BuildImageMenu()
+    {
+        var menu = new MenuFlyout();
+        var copy = new MenuFlyoutItem { Text = "复制图片", Icon = IconGeometry.CreatePathIcon("IconCopy") };
+        copy.Click += (_, _) => RaiseImageAction(CommentImageAction.Copy);
+        var save = new MenuFlyoutItem { Text = "另存为…", Icon = IconGeometry.CreatePathIcon("IconDownload") };
+        save.Click += (_, _) => RaiseImageAction(CommentImageAction.Save);
+        menu.Items.Add(copy);
+        menu.Items.Add(save);
+        return menu;
+    }
+
+    private void RaiseImageAction(CommentImageAction action)
+    {
+        if (ImageUri is { } uri) ImageActionRequested?.Invoke(this, new CommentImageRequest(uri, action));
+    }
+
+    private void OnImageContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    {
+        // 海报预览只有内存 ImageSource，没有可下载的地址，右键菜单不出现。
+        if (ImageUri is null || sender is not FrameworkElement element) return;
+        var options = new FlyoutShowOptions();
+        if (args.TryGetPosition(element, out var position)) options.Position = position;
+        _imageMenu.Hide();
+        _imageMenu.ShowAt(element, options);
+        args.Handled = true;
+    }
+
+    /// <summary>请求复制或保存当前评论图片；海报预览不会触发。</summary>
+    public event EventHandler<CommentImageRequest>? ImageActionRequested;
 
     private void OnViewerKeyDown(object sender, KeyRoutedEventArgs args)
     {
