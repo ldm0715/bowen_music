@@ -47,13 +47,13 @@ public static class AudioEffectGraphBuilder
         var ambient = AudioEffectCatalog.FindAmbient(settings.AmbientId);
         var hasAmbient = ambient is not null && !string.IsNullOrWhiteSpace(ambientFilePath);
         var hasTexture = preset?.TextureId is not null && !string.IsNullOrWhiteSpace(textureFilePath);
+        var chain = ResolveFilterChain(settings);
 
-        if (preset is null && !hasAmbient)
+        if (string.IsNullOrWhiteSpace(chain) && !hasAmbient)
         {
             return null;
         }
 
-        var chain = preset?.FilterChain;
         if (!hasAmbient && !hasTexture)
         {
             return string.IsNullOrWhiteSpace(chain) ? null : $"@{FilterLabel}:lavfi=[{chain}]";
@@ -88,6 +88,14 @@ public static class AudioEffectGraphBuilder
 
         return $"@{FilterLabel}:lavfi=[{graph}]";
     }
+
+    /// <summary>
+    /// 当前设置对应的滤镜片段：内置预设直接用目录里的链，自定义预设按十段增益现场拼。
+    /// </summary>
+    private static string? ResolveFilterChain(AudioEffectSettings settings) =>
+        AudioEffectCatalog.FindCustomPreset(settings.CustomPresets, settings.PresetId) is { } custom
+            ? AudioEffectCatalog.BuildCustomEqChain(custom.Bands)
+            : AudioEffectCatalog.FindPreset(settings.PresetId)?.FilterChain;
 
     /// <summary>
     /// <c>amix</c> 的 weights 值，顺序与输入一致：主音频、纹理、环境音。

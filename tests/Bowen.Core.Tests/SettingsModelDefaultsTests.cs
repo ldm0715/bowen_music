@@ -57,7 +57,7 @@ public sealed class SettingsModelDefaultsTests
         Assert.Equal(string.Empty, value.PresetId);
         Assert.Equal(string.Empty, value.AmbientId);
         Assert.Equal(AudioEffectSettings.DefaultAmbientVolume, value.AmbientVolume);
-        Assert.Null(value.EqBands);
+        Assert.Empty(value.CustomPresets);
     }
 
     [Fact]

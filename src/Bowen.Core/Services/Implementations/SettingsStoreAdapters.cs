@@ -113,7 +113,12 @@ public sealed class UnifiedAudioEffectSettingsStore(ISettingsStore store) : IAud
         var settings = store.Current.AudioEffects;
         return settings with
         {
-            EqBands = settings.EqBands is null ? null : [.. settings.EqBands],
+            CustomPresets = settings.CustomPresets is null
+                ? []
+                : [.. settings.CustomPresets.Select(preset => preset with
+                {
+                    Bands = preset.Bands is null ? [] : [.. preset.Bands],
+                })],
         };
     }
 

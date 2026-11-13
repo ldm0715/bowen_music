@@ -33,6 +33,44 @@ public sealed class AudioEffectGraphBuilderTests
     }
 
     [Fact]
+    public void CustomPreset_UsesItsTenBandCurve()
+    {
+        var settings = new AudioEffectSettings(
+            Enabled: true,
+            PresetId: "custom.a",
+            CustomPresets:
+            [
+                new CustomEqPreset
+                {
+                    Id = "custom.a",
+                    Name = "我的",
+                    Bands = [0, 6, 0, 0, 0, 0, 0, 0, 0, 0],
+                },
+            ]);
+
+        var value = AudioEffectGraphBuilder.Build(settings, null);
+
+        Assert.NotNull(value);
+        Assert.Contains("volume=-6dB", value);
+        Assert.Contains("equalizer=f=62:t=q:w=1.2:g=6", value);
+        Assert.Contains("alimiter=limit=0.95:level=0", value);
+    }
+
+    [Fact]
+    public void FlatCustomPreset_ProducesNoFilter()
+    {
+        var settings = new AudioEffectSettings(
+            Enabled: true,
+            PresetId: "custom.a",
+            CustomPresets:
+            [
+                new CustomEqPreset { Id = "custom.a", Name = "平", Bands = new double[10] },
+            ]);
+
+        Assert.Null(AudioEffectGraphBuilder.Build(settings, null));
+    }
+
+    [Fact]
     public void AmbientOnly_MixesTheLoopWithTheMainSignal()
     {
         var value = AudioEffectGraphBuilder.Build(

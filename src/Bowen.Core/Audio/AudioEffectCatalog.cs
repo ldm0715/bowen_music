@@ -1,4 +1,5 @@
 using System.Globalization;
+using Bowen.Core.Models;
 
 namespace Bowen.Core.Audio;
 
@@ -70,6 +71,12 @@ public static class AudioEffectCatalog
 {
     /// <summary>黑胶底噪素材 id，随黑胶预设循环叠加。</summary>
     public const string VinylTextureId = "texture.vinyl";
+
+    /// <summary>用户自定义预设的 id 前缀，用来和内置预设区分。</summary>
+    public const string CustomPresetIdPrefix = "custom.";
+
+    /// <summary>自定义预设最多保存的套数。</summary>
+    public const int MaxCustomPresets = 20;
 
     /// <summary>均衡器段数。</summary>
     public const int EqBandCount = 10;
@@ -147,6 +154,21 @@ public static class AudioEffectCatalog
             : AllPresets.FirstOrDefault(preset =>
                 string.Equals(preset.Id, id.Trim(), StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>按 id 找自定义预设，大小写不敏感。</summary>
+    public static CustomEqPreset? FindCustomPreset(
+        IReadOnlyList<CustomEqPreset>? presets,
+        string? id)
+    {
+        if (presets is null || string.IsNullOrWhiteSpace(id))
+        {
+            return null;
+        }
+
+        var target = id.Trim();
+        return presets.FirstOrDefault(preset =>
+            string.Equals(preset.Id, target, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>按 id 找环境音，大小写不敏感。</summary>
     public static AmbientSoundDefinition? FindAmbient(string? id) =>
         string.IsNullOrWhiteSpace(id)
@@ -186,6 +208,36 @@ public static class AudioEffectCatalog
         }
 
         return string.Join(',', stages);
+    }
+
+    /// <summary>
+    /// 把自定义十段增益拼成完整滤镜链，含自动 preamp 与末端限幅。
+    /// </summary>
+    /// <remarks>
+    /// preamp 取「十段里最大的正增益」的相反数：抬某一频段时整链先等量衰减，
+    /// 峰值与干声持平，避免只能靠限幅器硬削。全平曲线返回空串，调用方按「无效果」处理。
+    /// </remarks>
+    public static string BuildCustomEqChain(IReadOnlyList<double>? bands)
+    {
+        if (bands is null || bands.Count == 0)
+        {
+            return "";
+        }
+
+        var maxGain = 0d;
+        foreach (var gain in bands)
+        {
+            if (double.IsFinite(gain) && gain > maxGain)
+            {
+                maxGain = gain;
+            }
+        }
+
+        var preampDb = maxGain > 0 ? -maxGain : 0;
+        var chain = BuildEqChain(bands, preampDb);
+        return chain.Length == 0
+            ? ""
+            : chain + ",alimiter=limit=0.95:level=0";
     }
 
     /// <summary>滤镜参数里的数字统一用点号小数，避免中文区域设置写出逗号。</summary>

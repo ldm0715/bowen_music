@@ -32,7 +32,16 @@ public sealed class AudioEffectSettingsStoreTests
             PresetId: "viper.bass",
             AmbientId: "ambient.waves",
             AmbientVolume: 42,
-            EqBands: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+            CustomPresets:
+            [
+                new CustomEqPreset
+                {
+                    Id = "custom.a",
+                    Name = "我的曲线",
+                    Description = "给通勤用",
+                    Bands = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                },
+            ]);
 
         Assert.True(store.Save(settings));
         var loaded = store.Load();
@@ -41,7 +50,10 @@ public sealed class AudioEffectSettingsStoreTests
         Assert.Equal("viper.bass", loaded.PresetId);
         Assert.Equal("ambient.waves", loaded.AmbientId);
         Assert.Equal(42, loaded.AmbientVolume);
-        Assert.Equal(settings.EqBands, loaded.EqBands);
+        Assert.Single(loaded.CustomPresets);
+        Assert.Equal("我的曲线", loaded.CustomPresets[0].Name);
+        Assert.Equal("给通勤用", loaded.CustomPresets[0].Description);
+        Assert.Equal(settings.CustomPresets[0].Bands, loaded.CustomPresets[0].Bands);
     }
 
     [Fact]
@@ -87,20 +99,86 @@ public sealed class AudioEffectSettingsStoreTests
     }
 
     [Fact]
-    public void EqBands_AreAlwaysTenAndClamped()
+    public void CustomPresetBands_AreAlwaysTenAndClamped()
     {
         var path = NewPath();
         var store = new JsonAudioEffectSettingsStore(path);
-        store.Save(new AudioEffectSettings(EqBands: [99, -99, 1]));
+        store.Save(new AudioEffectSettings(
+            CustomPresets:
+            [
+                new CustomEqPreset { Id = "custom.a", Name = "  低音  ", Bands = [99, -99, 1] },
+            ]));
 
-        var bands = store.Load().EqBands;
+        var preset = Assert.Single(store.Load().CustomPresets);
 
-        Assert.NotNull(bands);
-        Assert.Equal(10, bands!.Length);
-        Assert.Equal(12, bands[0]);
-        Assert.Equal(-12, bands[1]);
-        Assert.Equal(1, bands[2]);
-        Assert.Equal(0, bands[3]);
+        Assert.Equal("低音", preset.Name);
+        Assert.Equal(10, preset.Bands.Length);
+        Assert.Equal(12, preset.Bands[0]);
+        Assert.Equal(-12, preset.Bands[1]);
+        Assert.Equal(1, preset.Bands[2]);
+        Assert.Equal(0, preset.Bands[3]);
+    }
+
+    [Fact]
+    public void EmptyDescription_FallsBackToTheDefault()
+    {
+        var path = NewPath();
+        var store = new JsonAudioEffectSettingsStore(path);
+        store.Save(new AudioEffectSettings(
+            CustomPresets:
+            [
+                new CustomEqPreset { Id = "custom.a", Name = "无说明", Description = "  ", Bands = new double[10] },
+            ]));
+
+        Assert.Equal(
+            CustomEqPreset.DefaultDescription,
+            Assert.Single(store.Load().CustomPresets).Description);
+    }
+
+    [Fact]
+    public void CustomPresets_DropBadIdsAndDuplicates()
+    {
+        var path = NewPath();
+        var store = new JsonAudioEffectSettingsStore(path);
+        store.Save(new AudioEffectSettings(
+            CustomPresets:
+            [
+                new CustomEqPreset { Id = "custom.a", Name = "保留", Bands = [1] },
+                new CustomEqPreset { Id = "viper.bass", Name = "前缀不对", Bands = [1] },
+                new CustomEqPreset { Id = "custom.a", Name = "重复", Bands = [1] },
+                new CustomEqPreset { Id = "", Name = "空 id", Bands = [1] },
+            ]));
+
+        var preset = Assert.Single(store.Load().CustomPresets);
+
+        Assert.Equal("custom.a", preset.Id);
+        Assert.Equal("保留", preset.Name);
+    }
+
+    [Fact]
+    public void CustomPresetId_SurvivesTheRoundTrip()
+    {
+        var path = NewPath();
+        var store = new JsonAudioEffectSettingsStore(path);
+        store.Save(new AudioEffectSettings(
+            Enabled: true,
+            PresetId: "custom.a",
+            CustomPresets:
+            [
+                new CustomEqPreset { Id = "custom.a", Name = "我的", Bands = new double[10] },
+            ]));
+
+        Assert.Equal("custom.a", store.Load().PresetId);
+    }
+
+    [Fact]
+    public void UnknownCustomPresetId_IsDropped()
+    {
+        var path = NewPath();
+        var store = new JsonAudioEffectSettingsStore(path);
+        store.Save(new AudioEffectSettings(Enabled: true, PresetId: "custom.gone"));
+
+        Assert.Equal("", store.Load().PresetId);
     }
 
     [Fact]

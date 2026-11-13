@@ -44,6 +44,7 @@
                 <ToggleSwitch
                     MinWidth="0"
                     AutomationProperties.Name="音效总开关"
+                    IsEnabled="{x:Bind ViewModel.CanToggleEnabled, Mode=OneWay}"
                     IsOn="{x:Bind ViewModel.IsEnabled, Mode=TwoWay}"
                     OffContent=""
                     OnContent="" />
@@ -52,7 +53,8 @@
 
         <controls:PillTabBar
             ItemsSource="{x:Bind ViewModel.Tabs}"
-            SelectedIndex="{x:Bind ViewModel.SelectedTabIndex, Mode=TwoWay}" />
+            SelectedIndex="{x:Bind ViewModel.SelectedTabIndex, Mode=TwoWay}"
+            Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.IsEditingCustomPreset), Mode=OneWay}" />
 
         <!-- 经典 / 增强共用一套卡片，再次点击当前卡即取消。 -->
         <Grid Visibility="{x:Bind local:Formats.Visible(ViewModel.IsGalaxyTab), Mode=OneWay}">
@@ -149,8 +151,235 @@
             </GridView>
         </Grid>
 
-        <!-- 环境音是叠加层，固定显示在预设下方，不占页签。 -->
-        <Grid Margin="0,8,0,0" ColumnSpacing="8">
+        <!-- 自定义：卡片负责选择，编辑在独立视图里完成。 -->
+        <Grid Visibility="{x:Bind local:Formats.Visible(ViewModel.IsCustomTab), Mode=OneWay}">
+            <StackPanel Spacing="8">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="11"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="自定义音效" />
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="2">
+                        <Button
+                            Width="28"
+                            Height="28"
+                            MinWidth="0"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            AutomationProperties.Name="编辑当前自定义音效"
+                            Command="{x:Bind ViewModel.EditCustomPresetCommand}"
+                            ToolTipService.ToolTip="编辑当前自定义音效"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.CanEditCustomPreset), Mode=OneWay}">
+                            <controls:Icon Data="{StaticResource IconEdit}" Size="14" />
+                        </Button>
+                        <Button
+                            Width="28"
+                            Height="28"
+                            MinWidth="0"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            AutomationProperties.Name="删除当前自定义音效"
+                            Command="{x:Bind ViewModel.DeleteCustomPresetCommand}"
+                            ToolTipService.ToolTip="删除当前自定义音效"
+                            Visibility="{x:Bind local:Formats.Visible(ViewModel.CanEditCustomPreset), Mode=OneWay}">
+                            <controls:Icon Data="{StaticResource IconDelete}" Size="14" />
+                        </Button>
+                        <Button
+                            Width="28"
+                            Height="28"
+                            MinWidth="0"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            AutomationProperties.Name="新建自定义音效"
+                            Command="{x:Bind ViewModel.AddCustomPresetCommand}"
+                            ToolTipService.ToolTip="新建自定义音效"
+                            Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.IsEditingCustomPreset), Mode=OneWay}">
+                            <controls:Icon Data="{StaticResource IconAdd}" Size="14" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <Grid
+                    RowSpacing="8"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.IsEditingCustomPreset), Mode=OneWay}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <GridView
+                        MaxHeight="324"
+                        Padding="0"
+                        HorizontalAlignment="Stretch"
+                        IsItemClickEnabled="True"
+                        ItemClick="OnCustomPresetClick"
+                        ItemContainerStyle="{StaticResource EffectCardContainer}"
+                        ItemsSource="{x:Bind ViewModel.CustomPresets}"
+                        SelectionMode="None">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid ItemHeight="76" ItemWidth="160" Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                        <GridView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CustomEqPresetItem">
+                                <Grid Margin="2">
+                                    <Border Background="{ThemeResource ControlFillColorDefaultBrush}" CornerRadius="8" />
+                                    <Border
+                                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Visibility="{x:Bind local:Formats.Visible(IsSelected), Mode=OneWay}" />
+                                    <StackPanel Margin="10,8" Spacing="3">
+                                        <Grid>
+                                            <TextBlock FontSize="12.5" FontWeight="SemiBold" Text="{x:Bind Name, Mode=OneWay}" />
+                                            <controls:Icon
+                                                HorizontalAlignment="Right"
+                                                Data="{StaticResource IconSelect}"
+                                                Size="14"
+                                                Visibility="{x:Bind local:Formats.Visible(IsSelected), Mode=OneWay}" />
+                                        </Grid>
+                                        <TextBlock
+                                            FontSize="10"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            MaxLines="2"
+                                            Text="{x:Bind Description}"
+                                            TextTrimming="CharacterEllipsis"
+                                            TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
+
+                <TextBlock
+                    Grid.Row="1"
+                    FontSize="11"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="还没有自定义音效，点右上角的 + 创建一套"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.HasAnyCustomPreset), Mode=OneWay}" />
+                </Grid>
+
+                <StackPanel
+                    Spacing="8"
+                    Visibility="{x:Bind local:Formats.Visible(ViewModel.IsEditingCustomPreset), Mode=OneWay}">
+                    <TextBox
+                        MinHeight="32"
+                        AutomationProperties.Name="自定义音效名称"
+                        FontSize="12"
+                        MaxLength="24"
+                        PlaceholderText="名称"
+                        Text="{x:Bind ViewModel.CustomPresetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox
+                        MinHeight="32"
+                        AutomationProperties.Name="自定义音效说明"
+                        FontSize="12"
+                        MaxLength="32"
+                        PlaceholderText="小字说明（显示在卡片上）"
+                        Text="{x:Bind ViewModel.CustomPresetDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <ItemsControl
+                        HorizontalAlignment="Center"
+                        ItemsSource="{x:Bind ViewModel.CustomBands}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EqBandItem">
+                                <StackPanel
+                                    Width="32"
+                                    HorizontalAlignment="Center"
+                                    Spacing="2">
+                                    <TextBlock
+                                        Width="32"
+                                        FontSize="9"
+                                        Text="{x:Bind GainText, Mode=OneWay}"
+                                        TextAlignment="Center" />
+                                    <Slider
+                                        Width="32"
+                                        Height="104"
+                                        MinWidth="0"
+                                        HorizontalAlignment="Center"
+                                        AutomationProperties.Name="{x:Bind Label}"
+                                        IsThumbToolTipEnabled="False"
+                                        Maximum="12"
+                                        Minimum="-12"
+                                        Orientation="Vertical"
+                                        StepFrequency="0.5"
+                                        Value="{x:Bind Gain, Mode=TwoWay}" />
+                                    <TextBlock
+                                        Width="32"
+                                        FontSize="9"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind Label}"
+                                        TextAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Grid ColumnSpacing="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            MinWidth="0"
+                            MinHeight="0"
+                            Padding="4,0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            AutomationProperties.Name="重置均衡器"
+                            Command="{x:Bind ViewModel.ResetCustomBandsCommand}"
+                            ToolTipService.ToolTip="十段归零">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <controls:Icon Data="{StaticResource IconRefresh}" Size="12" VerticalAlignment="Center" />
+                                <TextBlock FontSize="12" Text="重置" />
+                            </StackPanel>
+                        </Button>
+                        <Button
+                            Grid.Column="2"
+                            Height="28"
+                            MinWidth="0"
+                            Padding="12,0"
+                            Command="{x:Bind ViewModel.CancelCustomEditCommand}"
+                            Content="取消"
+                            FontSize="12" />
+                        <Button
+                            Grid.Column="3"
+                            Height="28"
+                            MinWidth="0"
+                            Padding="12,0"
+                            Command="{x:Bind ViewModel.SaveCustomPresetCommand}"
+                            Content="保存"
+                            FontSize="12"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- 环境音是叠加层，固定显示在预设下方，不占页签；编辑自定义预设时隐藏。 -->
+        <Grid
+            Margin="0,8,0,0"
+            ColumnSpacing="8"
+            Visibility="{x:Bind local:Formats.VisibleWhenFalse(ViewModel.IsEditingCustomPreset), Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />

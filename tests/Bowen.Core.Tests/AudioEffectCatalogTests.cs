@@ -52,4 +52,21 @@ public sealed class AudioEffectCatalogTests
     {
         Assert.Equal("", AudioEffectCatalog.BuildEqChain(new double[10]));
     }
+
+    [Fact]
+    public void CustomEqChain_AddsAutoPreampAndLimiter()
+    {
+        var chain = AudioEffectCatalog.BuildCustomEqChain([0, 6, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+        Assert.Equal(
+            "volume=-6dB,equalizer=f=62:t=q:w=1.2:g=6,alimiter=limit=0.95:level=0",
+            chain);
+    }
+
+    [Fact]
+    public void CustomEqChain_AllFlat_IsEmpty()
+    {
+        Assert.Equal("", AudioEffectCatalog.BuildCustomEqChain(new double[10]));
+        Assert.Equal("", AudioEffectCatalog.BuildCustomEqChain(null));
+    }
 }

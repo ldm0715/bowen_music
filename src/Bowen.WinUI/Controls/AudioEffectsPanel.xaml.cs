@@ -28,6 +28,14 @@ public sealed partial class AudioEffectsPanel : UserControl
         }
     }
 
+    private void OnCustomPresetClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is CustomEqPresetItem item)
+        {
+            ViewModel?.SelectCustomPresetCommand.Execute(item);
+        }
+    }
+
     private void OnAmbientClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is AmbientSoundItem item)
