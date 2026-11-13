@@ -402,12 +402,21 @@ public sealed class LyricsBackdrop : UserControl
 
             // 100% 正好铺满整页。裁剪弹窗的预览用同一个基准；额外放大 10% 会让
             // 用户框住的区域与最终背景对不上。
-            var scale = Math.Max(width / size.Width, height / size.Height) * _requested.Zoom;
+            //
+            // 但合成表面是按 ceil(宽 × 缩放) 分配的，图片边正好落在 width 时，
+            // 最右/最下一列像素只被覆盖一部分，会透出底下的深色底，看起来像一条缝。
+            // 这里向四周各多铺 1 DIP 兜住亚像素；对焦点映射的影响不超过 1 DIP，
+            // 肉眼不可见，也不改变裁剪弹窗的缩放基准。
+            const double Overscan = 1;
+            var scale = Math.Max((width + Overscan * 2) / size.Width, (height + Overscan * 2) / size.Height)
+                * _requested.Zoom;
             surface.Blur.BlurAmount = (float)(_requested.BlurDip / scale);
-            var offsetX = (width / 2) - (_requested.FocusX * size.Width * scale);
-            var offsetY = (height / 2) - (_requested.FocusY * size.Height * scale);
-            offsetX = Math.Clamp(offsetX, width - (size.Width * scale), 0);
-            offsetY = Math.Clamp(offsetY, height - (size.Height * scale), 0);
+            var drawnWidth = size.Width * scale;
+            var drawnHeight = size.Height * scale;
+            var offsetX = (width / 2) - (_requested.FocusX * drawnWidth);
+            var offsetY = (height / 2) - (_requested.FocusY * drawnHeight);
+            offsetX = Math.Clamp(offsetX, width + Overscan - drawnWidth, -Overscan);
+            offsetY = Math.Clamp(offsetY, height + Overscan - drawnHeight, -Overscan);
 
             var previous = session.Transform;
             session.Transform = Matrix3x2.CreateScale((float)scale)
