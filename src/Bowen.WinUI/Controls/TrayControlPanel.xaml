@@ -74,6 +74,12 @@
                 <Setter Property="IsThumbToolTipEnabled" Value="False" />
             </Style>
 
+            <!-- 音效预设下拉框的选项行，两个下拉框共用。 -->
+            <Style x:Key="PanelComboBoxItemStyle" TargetType="ComboBoxItem">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="MinHeight" Value="30" />
+            </Style>
+
             <Style x:Key="PanelSegmentButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
                 <Setter Property="MinWidth" Value="0" />
                 <Setter Property="MinHeight" Value="0" />
@@ -87,13 +93,14 @@
             </Style>
 
             <!--
-                经典 / 增强：真正的 RadioButton 卡片。默认模板里那颗圆点不画，
+                经典 / 增强 / 自定义：真正的 RadioButton 卡片。默认模板里那颗圆点不画，
                 选中态用强调色描边 + 强调色底；未选中是浅色卡面。
+                三张并排时可用宽度只有约 90 DIP，内边距取 8 才放得下四字标签。
             -->
             <Style x:Key="PanelRadioCardStyle" TargetType="RadioButton">
                 <Setter Property="MinWidth" Value="0" />
                 <Setter Property="MinHeight" Value="34" />
-                <Setter Property="Padding" Value="12,8" />
+                <Setter Property="Padding" Value="8,8" />
                 <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}" />
                 <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
@@ -587,9 +594,10 @@
                         </Grid>
                     </Border>
 
-                    <!-- 经典 / 增强：并列的 RadioButton 卡片，等宽 8 DIP 间距。 -->
-                    <Grid Grid.Row="1" ColumnSpacing="8">
+                    <!-- 经典 / 增强 / 自定义：并列的 RadioButton 卡片，等宽 6 DIP 间距。 -->
+                    <Grid Grid.Row="1" ColumnSpacing="6">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
@@ -622,9 +630,27 @@
                                     Text="增强音效" />
                             </StackPanel>
                         </RadioButton>
+                        <RadioButton
+                            Grid.Column="2"
+                            GroupName="EffectsCategory"
+                            IsChecked="{x:Bind Effects.IsCustomTab, Mode=OneWay}"
+                            Style="{StaticResource PanelRadioCardStyle}"
+                            AutomationProperties.Name="自定义音效"
+                            Click="OnEffectsCustomClick">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <controls:Icon Data="{StaticResource IconEdit}" Size="14" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="11"
+                                    Text="自定义" />
+                            </StackPanel>
+                        </RadioButton>
                     </Grid>
 
-                    <!-- 预设：标准 ComboBox，左侧前缀图标，整行撑满。 -->
+                    <!--
+                        预设：标准 ComboBox，左侧前缀图标，整行撑满。
+                        经典/增强与自定义各一只，按页签互斥显示；两者共用同一块位置。
+                    -->
                     <Grid Grid.Row="2" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -643,17 +669,28 @@
                             AutomationProperties.Name="音效预设"
                             DisplayMemberPath="Name"
                             FontSize="11"
+                            ItemContainerStyle="{StaticResource PanelComboBoxItemStyle}"
                             ItemsSource="{x:Bind Effects.VisiblePresets}"
                             PlaceholderText="选择音效预设"
                             SelectedItem="{x:Bind Effects.SelectedPreset, Mode=OneWay}"
-                            SelectionChanged="OnPresetSelectionChanged">
-                            <ComboBox.ItemContainerStyle>
-                                <Style TargetType="ComboBoxItem">
-                                    <Setter Property="FontSize" Value="11" />
-                                    <Setter Property="MinHeight" Value="30" />
-                                </Style>
-                            </ComboBox.ItemContainerStyle>
-                        </ComboBox>
+                            SelectionChanged="OnPresetSelectionChanged"
+                            Visibility="{x:Bind local:Formats.VisibleWhenFalse(Effects.IsCustomTab), Mode=OneWay}" />
+                        <!-- 没有自定义预设时禁用，占位文字直接说明空状态。 -->
+                        <ComboBox
+                            Grid.Column="1"
+                            Height="32"
+                            MinHeight="32"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="自定义音效预设"
+                            DisplayMemberPath="Name"
+                            FontSize="11"
+                            IsEnabled="{x:Bind Effects.HasAnyCustomPreset, Mode=OneWay}"
+                            ItemContainerStyle="{StaticResource PanelComboBoxItemStyle}"
+                            ItemsSource="{x:Bind Effects.CustomPresets}"
+                            PlaceholderText="{x:Bind Effects.CustomPresetPlaceholder, Mode=OneWay}"
+                            SelectedItem="{x:Bind Effects.SelectedCustomPreset, Mode=OneWay}"
+                            SelectionChanged="OnCustomPresetSelectionChanged"
+                            Visibility="{x:Bind local:Formats.Visible(Effects.IsCustomTab), Mode=OneWay}" />
                     </Grid>
                 </Grid>
 

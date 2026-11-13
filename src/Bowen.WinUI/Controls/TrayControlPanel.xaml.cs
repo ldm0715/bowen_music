@@ -305,6 +305,9 @@ public sealed partial class TrayControlPanel : UserControl
     private void OnEffectsEnhancedClick(object sender, RoutedEventArgs e) =>
         Effects?.SelectedTabIndex = 1;
 
+    private void OnEffectsCustomClick(object sender, RoutedEventArgs e) =>
+        Effects?.SelectedTabIndex = 2;
+
     private void OnPresetSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // SelectedPreset 回写也会走到这里；已经选中的那一项不要再执行一次，
@@ -313,6 +316,16 @@ public sealed partial class TrayControlPanel : UserControl
             e.AddedItems[0] is AudioEffectPresetItem { IsSelected: false } item)
         {
             Effects?.SelectPresetCommand.Execute(item);
+        }
+    }
+
+    private void OnCustomPresetSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // 与内置预设同一套去重逻辑：只有用户主动选中的未选中项才下命令。
+        if (e.AddedItems.Count > 0 &&
+            e.AddedItems[0] is CustomEqPresetItem { IsSelected: false } item)
+        {
+            Effects?.SelectCustomPresetCommand.Execute(item);
         }
     }
 

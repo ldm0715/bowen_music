@@ -152,6 +152,9 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
     /// <summary>是否保存过自定义预设；决定空状态提示是否显示。</summary>
     public bool HasAnyCustomPreset => CustomPresets.Count > 0;
 
+    /// <summary>托盘效率面板里自定义预设下拉框的占位文字。</summary>
+    public string CustomPresetPlaceholder => HasAnyCustomPreset ? "选择自定义音效" : "暂无自定义预设";
+
     /// <summary>选中了自定义预设且不在编辑态时，显示「编辑 / 删除」。</summary>
     public bool CanEditCustomPreset => HasCustomPreset && !IsEditingCustomPreset;
 
@@ -561,6 +564,7 @@ public sealed partial class AudioEffectsViewModel : ObservableObject
         OnPropertyChanged(nameof(HasCustomPreset));
         OnPropertyChanged(nameof(CanEditCustomPreset));
         OnPropertyChanged(nameof(HasAnyCustomPreset));
+        OnPropertyChanged(nameof(CustomPresetPlaceholder));
     }
 
     private string NextCustomPresetName()

@@ -61,8 +61,10 @@
 - 选中态统一用 `AccentFillColorSelectedTextBackgroundBrush` 品牌强调底，不用几乎看不见的
   `SubtleFillColorSecondaryBrush`。
 - 音效页：顶部一张「总开关」行卡（图标 + 音效名 + ToggleSwitch），下面是并列的
-  「经典音效 / 增强音效」RadioButton 卡片（Padding 12,8，圆角 4，选中强调色描边），
-  再下面是带前缀图标的标准 ComboBox 选择预设。
+  「经典音效 / 增强音效 / 自定义」RadioButton 卡片（Padding 8,8，圆角 4，选中强调色描边），
+  再下面是带前缀图标的标准 ComboBox 选择预设。经典/增强与自定义各有一只 ComboBox，
+  按当前分类互斥显示；自定义那只在还没保存过预设时禁用，占位文字显示「暂无自定义预设」，
+  不提供新建入口（新建与编辑仍在主界面的音效面板里）。
 - 音质独立成行（不占页签）：标准 / HQ / SQ 三档做成一等三段选，与主题行同一形态；
   不可用档位按 `AudioQualityOption.IsEnabled` 置灰，文件大小走悬停提示。
 - 页签只剩「音效 / 播放列表」两页。
@@ -81,7 +83,7 @@
 | 音量 | `Player.Volume`（TwoWay）、`Player.IsMuted`；静音按钮调 `Player.ToggleMute()` |
 | 模式 | `Player.SetPlayModeCommand` + `PlayMode` 枚举参数；选中态用 `IsSequentialMode` 等四个属性 |
 | 主题 | `Theme.IsSystem/IsLight/IsDark`；点击调 `Theme.Select(AppTheme.X)` |
-| 音效 | `Effects.IsEnabled`、`Effects.VisiblePresets`、`Effects.SelectPresetCommand` |
+| 音效 | `Effects.IsEnabled`、`Effects.VisiblePresets`、`Effects.SelectPresetCommand`；自定义分类用 `Effects.CustomPresets`、`Effects.SelectedCustomPreset`、`Effects.HasAnyCustomPreset`、`Effects.SelectCustomPresetCommand` |
 | 音质 | `Player.QualityOptions`、`Player.SwitchQualityAsync`、`Player.QualityStatus` |
 | 队列 | `Queue.Rows`、`Queue.Play(int)`、`Queue.IsEmpty` |
 | 底部动作 | 左组：`MiniPlayer.ToggleCommand`、`DesktopLyrics.ToggleCommand`；右组：设置/重启/退出抛事件 |
@@ -157,7 +159,7 @@ public enum TrayMenuStyle
 2. 切到效率面板后，右键弹出尺寸正确，不裁切、不多留空白。
 3. 音量拖动生效并落盘；静音按钮状态与主界面一致。
 4. 播放模式单键循环，图标与主界面同步。
-5. 音效开关、预设选择、音质切换、队列点行切歌都生效，面板保持打开。
+5. 音效开关、经典/增强/自定义分类切换、预设选择、音质切换、队列点行切歌都生效，面板保持打开；没有自定义预设时下拉框禁用并显示空状态文字。
 6. 三档主题切换后，主窗口与面板同时变色。
 7. 设置 / 重启 / 退出按预期收起面板并执行。
 8. 深色 / 浅色、100% / 125% / 150% 缩放各过一遍。
