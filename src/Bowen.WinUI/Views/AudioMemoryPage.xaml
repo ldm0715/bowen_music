@@ -490,12 +490,21 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <ComboBox
+                    <StackPanel
                         Grid.Column="0"
-                        Width="140"
-                        DisplayMemberPath="Label"
-                        ItemsSource="{x:Bind ViewModel.Report.Months}"
-                        SelectedItem="{x:Bind ViewModel.Report.SelectedMonth, Mode=TwoWay}" />
+                        Orientation="Horizontal"
+                        Spacing="4">
+                        <ComboBox
+                            Width="100"
+                            DisplayMemberPath="Label"
+                            ItemsSource="{x:Bind ViewModel.Report.Years}"
+                            SelectedItem="{x:Bind ViewModel.Report.SelectedYearOption, Mode=TwoWay}" />
+                        <ComboBox
+                            Width="80"
+                            DisplayMemberPath="Label"
+                            ItemsSource="{x:Bind ViewModel.Report.AvailableMonths}"
+                            SelectedItem="{x:Bind ViewModel.Report.SelectedMonthChoice, Mode=TwoWay}" />
+                    </StackPanel>
 
                     <TextBlock
                         Grid.Column="1"

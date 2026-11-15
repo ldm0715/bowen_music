@@ -155,6 +155,24 @@ public sealed class AccountStatsApiTests : IDisposable
         Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1853769599999), vip.ExpiresAt);
     }
 
+    /// <summary>注册时间来自 <c>userInfo.createTime</c>，月报用它限定可选月份下界。</summary>
+    [Fact]
+    public async Task VipInfo_MapsCreatedAt()
+    {
+        SignIn();
+        RespondWith("""
+            {"id":36828743,"userInfo":{"createTime":"2025-08-07 18:05:29"},"payInfo":{}}
+            """);
+
+        var vip = await _api.GetAccountVipInfoAsync(Ct);
+
+        Assert.NotNull(vip);
+        Assert.NotNull(vip.CreatedAt);
+        Assert.Equal(2025, vip.CreatedAt.Value.Year);
+        Assert.Equal(8, vip.CreatedAt.Value.Month);
+        Assert.Equal(7, vip.CreatedAt.Value.Day);
+    }
+
     [Fact]
     public async Task VipInfo_RequestShape()
     {

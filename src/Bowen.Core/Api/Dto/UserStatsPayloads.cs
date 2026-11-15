@@ -37,6 +37,9 @@ internal sealed class UserMetadataDto
 internal sealed class UserPubDto
 {
     [JsonPropertyName("payInfo")] public AccountPayInfoDto? PayInfo { get; init; }
+
+    /// <summary>公开资料。月报用它拿 <c>createTime</c> 限定可选月份范围。</summary>
+    [JsonPropertyName("userInfo")] public UserInfoDto? UserInfo { get; init; }
 }
 
 /// <summary>

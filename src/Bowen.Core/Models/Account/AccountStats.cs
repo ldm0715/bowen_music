@@ -28,4 +28,7 @@ public sealed record AccountPlayData(long? PlayCount, long? PlaySeconds);
 /// <b>只用于展示</b>，播放权限一律以服务端 <c>checkRight</c> 为准。
 /// 与登录时存进凭据的那份快照相比，这份是「点开就看得到最新」的。
 /// </remarks>
-public sealed record AccountVipInfo(VipBadgeKind Badge, DateTimeOffset? ExpiresAt);
+public sealed record AccountVipInfo(
+    VipBadgeKind Badge,
+    DateTimeOffset? ExpiresAt,
+    DateTimeOffset? CreatedAt = null);

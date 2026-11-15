@@ -22,16 +22,18 @@ namespace Bowen.WinUI.ViewModels;
 /// </remarks>
 public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposable
 {
-    private const int VisibleMonthCount = 12;
-
     private readonly IBodianApi _api;
     private readonly PlaybackCoordinator _coordinator;
     private readonly INoticeSink _notice;
     private readonly ILogger<MonthlyReportViewModel> _logger;
 
     private readonly Dictionary<MonthPeriod, MonthReport?> _cache = [];
+    private readonly Dictionary<int, int[]> _yearMonths = [];
+    private readonly Dictionary<int, Task<int[]>> _monthProbes = [];
     private CancellationTokenSource? _request;
     private int _generation;
+    private int _probeGeneration;
+    private DateOnly? _accountCreatedAt;
     private bool _loaded;
     private bool _suppressSelection;
     private bool _disposed;
@@ -51,19 +53,31 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
         _notice = notice;
         _logger = logger ?? NullLogger<MonthlyReportViewModel>.Instance;
 
-        RebuildMonths(resetSelection: true);
+        _suppressSelection = true;
+        SelectedMonthChoice = MonthChoices[0];
+        _suppressSelection = false;
     }
 
-    /// <summary>月份下拉，默认最近 12 个月。</summary>
-    public ObservableCollection<MonthOption> Months { get; } = [];
+    /// <summary>年份下拉，只保留最近 10 年；更早的年份按需插入。</summary>
+    public ObservableCollection<YearOption> Years { get; } = [];
+
+    /// <summary>固定 12 个月，用于构造选项。</summary>
+    public IReadOnlyList<MonthChoice> MonthChoices { get; } =
+        Enumerable.Range(1, 12).Select(month => new MonthChoice(month)).ToArray();
+
+    /// <summary>当前年份下实际有月报的月份。</summary>
+    public ObservableCollection<MonthChoice> AvailableMonths { get; } = [];
+
+    [ObservableProperty]
+    public partial YearOption? SelectedYearOption { get; set; }
+
+    [ObservableProperty]
+    public partial MonthChoice? SelectedMonthChoice { get; set; }
 
     /// <summary>第 4 名及以后。前三名由擂台卡单独展示。</summary>
     public ObservableCollection<ReportTrackRow> TopRest { get; } = [];
 
     public ObservableCollection<AlbumCoverItem> AlbumCovers { get; } = [];
-
-    [ObservableProperty]
-    public partial MonthOption? SelectedMonth { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText))]
@@ -260,13 +274,21 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
 
         try
         {
-            var summary = await _api.GetMonthReportSummaryAsync().ConfigureAwait(true);
+            // 月报预览 + 账号注册时间：后者用来限定月份选择器的下界。
+            var summaryTask = _api.GetMonthReportSummaryAsync();
+            var profileTask = _api.GetAccountVipInfoAsync();
+            await Task.WhenAll(summaryTask, profileTask).ConfigureAwait(true);
 
             // 等请求期间换号或重置过，这一份结果作废。
             if (generation != _generation)
             {
                 return;
             }
+
+            var summary = summaryTask.Result;
+            _accountCreatedAt = profileTask.Result?.CreatedAt is { } created
+                ? DateOnly.FromDateTime(created.LocalDateTime)
+                : null;
 
             if (summary?.MonthDesc is { Length: > 0 } description
                 && MonthPeriod.TryParseMonthDesc(description, Today(), out var parsed))
@@ -280,13 +302,13 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
             }
 
             var period = target ?? CurrentMonth();
-            var option = EnsureMonthOption(period);
-
-            _suppressSelection = true;
-            SelectedMonth = option;
-            _suppressSelection = false;
+            RebuildYears(period.Year);
+            SelectPeriod(period);
 
             await LoadMonthAsync(period).ConfigureAwait(true);
+
+            // 后台探测该年份实际有月报的月份，探测完再收紧月份下拉。
+            _ = DiscoverMonthsAsync(period.Year);
         }
         catch (OperationCanceledException)
         {
@@ -305,26 +327,54 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
         }
     }
 
-    partial void OnSelectedMonthChanged(MonthOption? value)
+    partial void OnSelectedYearOptionChanged(YearOption? value)
     {
         if (_suppressSelection || value is null)
         {
             return;
         }
 
-        _ = LoadMonthAsync(value.Period);
+        // 换年前先清空月份，避免旧年份的月份被误选。
+        _suppressSelection = true;
+        AvailableMonths.Clear();
+        _suppressSelection = false;
+
+        _ = LoadYearAsync(value.Year);
+    }
+
+    partial void OnSelectedMonthChoiceChanged(MonthChoice? value)
+    {
+        if (_suppressSelection || value is null || SelectedYearOption is not { } year)
+        {
+            return;
+        }
+
+        _ = LoadMonthAsync(new MonthPeriod(year.Year, value.Number));
+    }
+
+    private async Task LoadYearAsync(int year)
+    {
+        await DiscoverMonthsAsync(year).ConfigureAwait(true);
+
+        if (SelectedYearOption?.Year != year || SelectedMonthChoice is not { } month)
+        {
+            return;
+        }
+
+        await LoadMonthAsync(new MonthPeriod(year, month.Number)).ConfigureAwait(true);
     }
 
     [RelayCommand]
     public async Task ReloadAsync()
     {
-        if (SelectedMonth is not { } option)
+        if (SelectedYearOption is not { } year || SelectedMonthChoice is not { } month)
         {
             return;
         }
 
-        _cache.Remove(option.Period);
-        await LoadMonthAsync(option.Period).ConfigureAwait(true);
+        var period = new MonthPeriod(year.Year, month.Number);
+        _cache.Remove(period);
+        await LoadMonthAsync(period).ConfigureAwait(true);
     }
 
     [RelayCommand]
@@ -406,7 +456,18 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
         EmptyText = "";
         OnPropertyChanged(nameof(EmptyText));
         RaiseCollectionsChanged();
-        RebuildMonths(resetSelection: true);
+
+        // 清空年份与月份，等下一次 EnsureLoaded 重新读取注册时间与最新月报。
+        _probeGeneration++;
+        _yearMonths.Clear();
+        _monthProbes.Clear();
+        _accountCreatedAt = null;
+        _suppressSelection = true;
+        Years.Clear();
+        AvailableMonths.Clear();
+        SelectedYearOption = null;
+        SelectedMonthChoice = MonthChoices[0];
+        _suppressSelection = false;
     }
 
     private async Task LoadMonthAsync(MonthPeriod period)
@@ -620,49 +681,226 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
             : ("", cleaned);
     }
 
-    private void RebuildMonths(bool resetSelection)
+    private void SelectPeriod(MonthPeriod period)
     {
-        var current = CurrentMonth();
-        Months.Clear();
+        // 修改 Years / 选中项都会触发 ComboBox 的选择变化，整段一起静默。
+        _suppressSelection = true;
 
-        for (var i = 0; i < VisibleMonthCount; i++)
+        var yearOption = Years.FirstOrDefault(option => option.Year == period.Year);
+
+        if (yearOption is null)
         {
-            Months.Add(new MonthOption(current.AddMonths(-i)));
+            yearOption = new YearOption(period.Year);
+            Years.Add(yearOption);
+
+            var sorted = Years.OrderByDescending(option => option.Year).ToArray();
+            Years.Clear();
+
+            foreach (var option in sorted)
+            {
+                Years.Add(option);
+            }
         }
 
-        if (!resetSelection)
+        SelectedYearOption = yearOption;
+        EnsureAvailableMonth(period.Month);
+        SelectedMonthChoice = MonthChoices.First(choice => choice.Number == period.Month);
+        _suppressSelection = false;
+    }
+
+    /// <summary>按账号注册时间和最新月报年份建立年份列表。</summary>
+    private void RebuildYears(int latestYear)
+    {
+        var startYear = _accountCreatedAt?.Year ?? latestYear;
+
+        if (startYear > latestYear)
+        {
+            startYear = latestYear;
+        }
+
+        Years.Clear();
+
+        for (var year = latestYear; year >= startYear; year--)
+        {
+            Years.Add(new YearOption(year));
+        }
+    }
+
+    /// <summary>
+    /// 某一年允许探测的月份范围：注册当年从注册月开始，当前年只到当前月。
+    /// </summary>
+    private (int Start, int End) MonthRange(int year)
+    {
+        var today = Today();
+        var start = _accountCreatedAt is { } created && year == created.Year ? created.Month : 1;
+        var end = year == today.Year ? Math.Min(12, today.Month) : 12;
+
+        if (start > end)
+        {
+            start = end;
+        }
+
+        return (start, end);
+    }
+
+    /// <summary>
+    /// 探测某一年实际有月报的月份并更新下拉。
+    /// </summary>
+    /// <remarks>
+    /// 接口没有「有数据的月份列表」，只能在这个年份允许的月份范围内逐月查询；
+    /// 结果按年份缓存，同一年只探测一次。请求失败返回 <c>null</c>，会被当作没有数据。
+    /// </remarks>
+    private async Task DiscoverMonthsAsync(int year)
+    {
+        if (_yearMonths.TryGetValue(year, out var cached))
+        {
+            ApplyAvailableMonths(cached, year);
+            return;
+        }
+
+        try
+        {
+            var months = await GetOrProbeMonthsAsync(year).ConfigureAwait(true);
+
+            if (SelectedYearOption?.Year == year)
+            {
+                ApplyAvailableMonths(months, year);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 换号或重置取消，静默。
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "月份探测失败：{Year}", year);
+        }
+    }
+
+    private async Task<int[]> GetOrProbeMonthsAsync(int year)
+    {
+        if (_yearMonths.TryGetValue(year, out var cached))
+        {
+            return cached;
+        }
+
+        var (startMonth, endMonth) = MonthRange(year);
+
+        if (startMonth > endMonth)
+        {
+            return [];
+        }
+
+        if (!_monthProbes.TryGetValue(year, out var task))
+        {
+            task = ProbeMonthsAsync(year, startMonth, endMonth);
+            _monthProbes[year] = task;
+        }
+
+        var months = await task.ConfigureAwait(true);
+
+        if (_monthProbes.TryGetValue(year, out var current) && ReferenceEquals(current, task))
+        {
+            _monthProbes.Remove(year);
+        }
+
+        if (months.Length > 0)
+        {
+            _yearMonths[year] = months;
+        }
+
+        return months;
+    }
+
+    private async Task<int[]> ProbeMonthsAsync(int year, int startMonth, int endMonth)
+    {
+        var generation = _probeGeneration;
+
+        var tasks = Enumerable.Range(startMonth, endMonth - startMonth + 1).Select(async month =>
+        {
+            var period = new MonthPeriod(year, month);
+
+            if (_cache.TryGetValue(period, out var cached))
+            {
+                return (Month: month, Report: cached);
+            }
+
+            var report = await _api.GetMonthReportAsync(period).ConfigureAwait(true);
+            return (Month: month, Report: report);
+        }).ToArray();
+
+        var results = await Task.WhenAll(tasks).ConfigureAwait(true);
+
+        if (generation != _probeGeneration)
+        {
+            return [];
+        }
+
+        var months = new List<int>(12);
+
+        foreach (var (month, report) in results)
+        {
+            _cache[new MonthPeriod(year, month)] = report;
+
+            if (report is not null)
+            {
+                months.Add(month);
+            }
+        }
+
+        return [.. months];
+    }
+
+    private void ApplyAvailableMonths(IReadOnlyList<int> months, int year)
+    {
+        if (SelectedYearOption?.Year != year)
         {
             return;
         }
 
         _suppressSelection = true;
-        SelectedMonth = Months[0];
+        AvailableMonths.Clear();
+
+        if (months.Count == 0)
+        {
+            // 探测失败或该年确实没有数据时，至少保留当前选中的月份，避免下拉变空。
+            if (SelectedMonthChoice is { } current)
+            {
+                AvailableMonths.Add(current);
+            }
+
+            _suppressSelection = false;
+            return;
+        }
+
+        foreach (var month in months)
+        {
+            AvailableMonths.Add(MonthChoices[month - 1]);
+        }
+
+        var preferred = SelectedMonthChoice?.Number ?? months[^1];
+        var target = months.Contains(preferred) ? preferred : months[^1];
+        SelectedMonthChoice = MonthChoices[target - 1];
         _suppressSelection = false;
     }
 
-    private MonthOption EnsureMonthOption(MonthPeriod period)
+    private void EnsureAvailableMonth(int month)
     {
-        foreach (var option in Months)
+        var choice = MonthChoices[month - 1];
+
+        if (AvailableMonths.Contains(choice))
         {
-            if (option.Period == period)
-            {
-                return option;
-            }
+            return;
         }
 
-        var added = new MonthOption(period);
         var index = 0;
 
-        while (index < Months.Count
-               && (Months[index].Period.Year > period.Year
-                   || (Months[index].Period.Year == period.Year
-                       && Months[index].Period.Month > period.Month)))
+        while (index < AvailableMonths.Count && AvailableMonths[index].Number < month)
         {
             index++;
         }
 
-        Months.Insert(index, added);
-        return added;
+        AvailableMonths.Insert(index, choice);
     }
 
     private static DateOnly Today() => DateOnly.FromDateTime(DateTime.Now);
@@ -706,10 +944,16 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
     }
 }
 
-/// <summary>月份下拉的一项。</summary>
-public sealed record MonthOption(MonthPeriod Period)
+/// <summary>年份下拉的一项。</summary>
+public sealed record YearOption(int Year)
 {
-    public string Label => Period.Label;
+    public string Label => Year.ToString(CultureInfo.InvariantCulture);
+}
+
+/// <summary>月份下拉的一项，固定 1–12。</summary>
+public sealed record MonthChoice(int Number)
+{
+    public string Label => $"{Number}月";
 }
 
 /// <summary>月报 Top 列表的一行。</summary>

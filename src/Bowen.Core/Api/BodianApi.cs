@@ -1883,6 +1883,16 @@ public sealed class BodianApi : IBodianApi
     /// <summary>
     /// 月报响应到领域模型。月份以响应里的 <c>monthDate</c> 为准，缺失才用请求参数。
     /// </summary>
+    /// <summary>解析公开资料里的 <c>createTime</c>（形如 <c>2025-08-07 18:05:29</c>）。</summary>
+    private static DateTimeOffset? ParseCreateTime(string? text)
+        => DateTimeOffset.TryParse(
+            text,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeLocal,
+            out var value)
+            ? value
+            : null;
+
     private static MonthReport? MapMonthReport(MonthReportPayload dto, MonthPeriod requested)
     {
         if (dto.Info is not { } info)
@@ -2137,7 +2147,8 @@ public sealed class BodianApi : IBodianApi
             BodianJsonContext.Default.UserPubDto,
             dto => new AccountVipInfo(
                 VipStatus.ResolveBadge(dto.PayInfo),
-                VipStatus.Resolve(dto.PayInfo).ExpiresAt),
+                VipStatus.Resolve(dto.PayInfo).ExpiresAt,
+                ParseCreateTime(dto.UserInfo?.CreateTime)),
             "会员档位",
             cancellationToken);
 
