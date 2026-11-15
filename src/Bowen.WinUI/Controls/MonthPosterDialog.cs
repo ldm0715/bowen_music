@@ -70,11 +70,22 @@ internal static class MonthPosterDialog
         stack.Children.Add(image);
         stack.Children.Add(status);
 
+        var viewer = new CommentImageViewer
+        {
+            Title = "月报海报预览",
+            Visibility = Visibility.Collapsed,
+        };
+
+        var root = new Grid();
+        root.Children.Add(stack);
+        root.Children.Add(viewer);
+
         var dialog = AppDialogs.Create(
             kind == MonthPosterKind.Overview ? "月度总览海报" : "歌曲总览海报",
             xamlRoot, theme, maxWidth: 520);
-        dialog.Resources["ContentDialogMaxHeight"] = 4000d;
-        dialog.Content = stack;
+        dialog.Resources["ContentDialogMaxWidth"] = 1200d;
+        dialog.Resources["ContentDialogMaxHeight"] = 900d;
+        dialog.Content = root;
         dialog.PrimaryButtonText = "保存图片";
         dialog.SecondaryButtonText = "复制图片";
         dialog.CloseButtonText = "关闭";
@@ -86,6 +97,24 @@ internal static class MonthPosterDialog
         {
             dialog.PrimaryButtonStyle = accentStyle;
         }
+
+        ToolTipService.SetToolTip(image, "点击放大预览");
+        image.Tapped += (_, _) =>
+        {
+            if (image.Source is not { } source)
+            {
+                return;
+            }
+
+            viewer.ImageSource = source;
+            viewer.Visibility = Visibility.Visible;
+            viewer.FocusCloseButton();
+        };
+        viewer.CloseRequested += (_, _) =>
+        {
+            viewer.Visibility = Visibility.Collapsed;
+            viewer.ImageSource = null;
+        };
 
         byte[]? png = null;
 
