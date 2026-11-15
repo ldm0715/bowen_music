@@ -7,6 +7,7 @@ using Bowen.Core.Api.Paging;
 using Bowen.Core.Lyrics;
 using Bowen.Core.Models;
 using Bowen.Core.Models.Account;
+using Bowen.Core.Models.AudioMemory;
 using Bowen.Core.Models.Home;
 using Bowen.Core.Models.Lyrics;
 using Bowen.Core.Services;
@@ -1879,6 +1880,56 @@ public sealed class BodianApi : IBodianApi
         };
     }
 
+    /// <summary>
+    /// 月报响应到领域模型。月份以响应里的 <c>monthDate</c> 为准，缺失才用请求参数。
+    /// </summary>
+    private static MonthReport? MapMonthReport(MonthReportPayload dto, MonthPeriod requested)
+    {
+        if (dto.Info is not { } info)
+        {
+            return null;
+        }
+
+        var period = MonthPeriod.TryParseMonthDate(info.MonthDate, out var parsed)
+            ? parsed
+            : requested;
+
+        return new MonthReport
+        {
+            Year = period.Year,
+            Month = period.Month,
+            ListenTotalMinutes = info.ListenTotal,
+            PlayCount = info.PlayTotal,
+            SongCount = info.SongNum,
+            TimeRank = info.TimeRank,
+            ListenChain = info.ListenChain,
+            PlayChain = info.PlayChain,
+            ListenContent = info.ListenContent,
+            ListenTopTrackTitle = info.ListenTop1MusicName,
+            PlayContent = info.PlayContent,
+            ArtistName = info.ArtistName,
+            ArtistCover = ToHttpUri(info.ArtistPic),
+            ArtistMusicName = info.ArtistMusicName,
+            ArtistMusicCover = ToHttpUri(info.ArtistMusicPic),
+            ArtistContent = info.ArtistContent,
+            TopTracks = info.MusicTop10?
+                .Where(t => t.Id > 0)
+                .Select(t => new ReportTrack(
+                    t.Id,
+                    t.Name ?? "(未知曲目)",
+                    t.Artist ?? "",
+                    t.Album,
+                    ToHttpUri(t.AlbumPic),
+                    t.PlayCount))
+                .ToArray() ?? [],
+            // 协议只给封面 URL，没有专辑 id 与名字；解析不了的直接丢掉。
+            AlbumCovers = info.AlbumTop10?
+                .Select(ToHttpUri)
+                .OfType<Uri>()
+                .ToArray() ?? [],
+        };
+    }
+
     private static Album MapAlbum(AlbumDto dto) => new()
     {
         // 两种形状的主键不同（albumId / id），由 DTO 自己挑，调用方不必关心。
@@ -1990,6 +2041,95 @@ public sealed class BodianApi : IBodianApi
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<PlayRankingEntry>?> GetWeeklyPlayRankingAsync(
+        CancellationToken cancellationToken = default)
+        => FetchAccountAsync<PlayRankingPayload, IReadOnlyList<PlayRankingEntry>>(
+            Endpoints.UserPlayRanking,
+            [
+                UidPair(),
+                new("type", Endpoints.PlayRankingRecentWeek.ToString(CultureInfo.InvariantCulture)),
+            ],
+            BodianJsonContext.Default.PlayRankingPayload,
+            dto => dto.MusicList is { } list
+                ? [.. list.Where(t => t.Id > 0)
+                    .Select(t => new PlayRankingEntry(MapTrack(t), t.PlayCount ?? 0))]
+                : [],
+            "本周最爱",
+            cancellationToken);
+
+    /// <inheritdoc />
+    public Task<MonthReportSummary?> GetMonthReportSummaryAsync(
+        CancellationToken cancellationToken = default)
+        => FetchAccountAsync(
+            Endpoints.MonthReportSummary,
+            [UidPair()],
+            BodianJsonContext.Default.MonthReportSummaryPayload,
+            dto => dto.MonthReport is { } preview
+                ? new MonthReportSummary(
+                    preview.MonthDesc,
+                    preview.ListenTotal,
+                    preview.ListenChain,
+                    ToHttpUri(preview.Pic))
+                : null,
+            "月报预览",
+            cancellationToken);
+
+    /// <inheritdoc />
+    public Task<MonthReport?> GetMonthReportAsync(
+        MonthPeriod month,
+        CancellationToken cancellationToken = default)
+        => FetchAccountAsync(
+            Endpoints.MonthReportInfo,
+            [new KeyValuePair<string, string>("date", month.Value)],
+            BodianJsonContext.Default.MonthReportPayload,
+            dto => MapMonthReport(dto, month),
+            "听歌月报",
+            cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<bool> CreateMonthReportPlaylistAsync(
+        MonthPeriod month,
+        CancellationToken cancellationToken = default)
+    {
+        RequireAuthenticated();
+
+        var body = new MonthReportPlaylistBody { Date = month.Value };
+
+        try
+        {
+            var envelope = await _transport.SendAsync(
+                new BodianRequest
+                {
+                    Path = Endpoints.MonthReportPlaylist,
+                    Verb = BodianHttpVerb.Post,
+                    Signed = true,
+                    JsonBody = JsonSerializer.Serialize(
+                        body, BodianJsonContext.Default.MonthReportPlaylistBody),
+                },
+                BodianJsonContext.Default.JsonElement,
+                cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "新建月度歌单：{Month}，业务码 {Code}，reqId {RequestId}",
+                month.Value,
+                envelope.Code,
+                envelope.RequestId);
+
+            return envelope.IsSuccess;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // 与读接口同一口径：一次写失败不该把调用方的命令炸掉，返回 false 让界面提示。
+            _logger.LogDebug(ex, "新建月度歌单失败：{Month}", month.Value);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
     public Task<AccountVipInfo?> GetAccountVipInfoAsync(CancellationToken cancellationToken = default)
         => FetchAccountAsync(
             Endpoints.UserPub(RequireUid()),
@@ -2012,7 +2152,7 @@ public sealed class BodianApi : IBodianApi
         string path,
         IReadOnlyList<KeyValuePair<string, string>>? query,
         JsonTypeInfo<TDto> typeInfo,
-        Func<TDto, TModel> map,
+        Func<TDto, TModel?> map,
         string operation,
         CancellationToken cancellationToken)
         where TDto : class

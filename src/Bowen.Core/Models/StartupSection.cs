@@ -11,8 +11,8 @@ namespace Bowen.Core.Models;
 /// 随时可能重排，写成数字会让旧设置文件静默读成别的页面。
 /// <para>
 /// 账号专属项（<see cref="Favorites"/> / <see cref="CollectedAlbums"/> /
-/// <see cref="CollectedPlaylists"/> / <see cref="FollowedArtists"/>）在未登录启动时
-/// 回退到 <see cref="Discover"/>，见 <c>MainWindow.NavigateToStartupPage</c>。
+/// <see cref="CollectedPlaylists"/> / <see cref="FollowedArtists"/> / <see cref="AudioMemory"/>）
+/// 在未登录启动时回退到 <see cref="Discover"/>，见 <c>MainWindow.NavigateToStartupPage</c>。
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(TolerantEnumConverter<StartupSection>))]
@@ -41,4 +41,7 @@ public enum StartupSection
 
     /// <summary>关注的歌手。需要登录。</summary>
     FollowedArtists,
+
+    /// <summary>音波回忆（本周最爱 / 听歌月报）。需要登录。</summary>
+    AudioMemory,
 }

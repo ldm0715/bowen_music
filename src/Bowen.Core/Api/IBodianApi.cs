@@ -1,6 +1,7 @@
 using Bowen.Core.Api.Paging;
 using Bowen.Core.Models;
 using Bowen.Core.Models.Account;
+using Bowen.Core.Models.AudioMemory;
 using Bowen.Core.Models.Home;
 using Bowen.Core.Models.Lyrics;
 
@@ -626,6 +627,44 @@ public interface IBodianApi
     /// <c>ucenter/playdata/user_data</c>。时长单位是秒，见 <see cref="ListenTimeLabel"/>。
     /// </remarks>
     Task<AccountPlayData?> GetAccountPlayDataAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前账号最近一周的播歌排行。失败返回 <c>null</c>，不抛。
+    /// </summary>
+    /// <remarks>
+    /// <c>ucenter/playdata/play_ranking</c> 的 <c>type = 1</c>。每项是完整曲目加播放次数，
+    /// 服务端已按次数降序。见 <c>docs/audio-memory.md</c>。
+    /// </remarks>
+    Task<IReadOnlyList<PlayRankingEntry>?> GetWeeklyPlayRankingAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 当前账号最近一份月报的预览。没有任何月报时返回 <c>null</c>，不抛。
+    /// </summary>
+    /// <remarks>
+    /// <c>play/month/report/summary</c>。只用 <c>monthDesc</c> 定位最近有数据的月份，
+    /// 年份需要调用方按 <see cref="MonthPeriod.TryParseMonthDesc"/> 推断。
+    /// </remarks>
+    Task<MonthReportSummary?> GetMonthReportSummaryAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定月份的完整月报。该月无数据时返回 <c>null</c>，不抛。
+    /// </summary>
+    /// <remarks><c>play/month/report/info?date=YYYYMM</c>。</remarks>
+    Task<MonthReport?> GetMonthReportAsync(
+        MonthPeriod month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按指定月份在服务端新建月度歌单，成功返回 <c>true</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>写操作，会影响真实账号。</b> <c>play/month/report/playlist</c>，body 只有
+    /// <c>{date}</c>；服务端自己命名歌单。未登录时抛 <see cref="BodianNotSignedInException"/>。
+    /// </remarks>
+    Task<bool> CreateMonthReportPlaylistAsync(
+        MonthPeriod month,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 当前账号的会员档位与到期时间，**实时**。失败返回 <c>null</c>，不抛。

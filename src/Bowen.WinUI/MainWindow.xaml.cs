@@ -61,6 +61,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
     private const string FollowedArtistsTag = "followed-artists";
 
+    private const string AudioMemoryTag = "audio-memory";
+
     /// <summary>紧凑栏里那颗「创建的歌单」图标。点它弹歌单列表，不换页。</summary>
     private const string PlaylistsRailTag = "playlists-rail";
 
@@ -2157,6 +2159,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         CollectedAlbumsItem.Visibility = accountItems;
         CollectedPlaylistsItem.Visibility = accountItems;
         FollowedArtistsItem.Visibility = accountItems;
+        AudioMemoryItem.Visibility = accountItems;
 
         // 标题栏左侧那块 Logo 占位要和栏宽对齐，否则收起后搜索框与返回键还停在 200px 处，
         // 中间空出一段被压住的侧栏。宽度直接问 Nav 要，不另抄一份常量 ——
@@ -2580,6 +2583,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
             StartupSection.CollectedAlbums => CollectedAlbumsTag,
             StartupSection.CollectedPlaylists => CollectedPlaylistsTag,
             StartupSection.FollowedArtists => FollowedArtistsTag,
+            StartupSection.AudioMemory => AudioMemoryTag,
             _ => DiscoverTag,
         });
     }
@@ -2589,7 +2593,8 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         section is StartupSection.Favorites
             or StartupSection.CollectedAlbums
             or StartupSection.CollectedPlaylists
-            or StartupSection.FollowedArtists;
+            or StartupSection.FollowedArtists
+            or StartupSection.AudioMemory;
 
     /// <summary>按侧栏项的 Tag 换根。启动落点与点击共用这一份，避免两处映射漂移。</summary>
     private void NavigateToTag(string tag)
@@ -2626,6 +2631,10 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
 
             case FollowedArtistsTag:
                 _navigation.NavigateRoot<FollowedArtistsPage>();
+                break;
+
+            case AudioMemoryTag:
+                _navigation.NavigateRoot<AudioMemoryPage>();
                 break;
 
             case PlaylistsRailTag:
@@ -3364,6 +3373,7 @@ public sealed partial class MainWindow : Window, IPlaylistLibrarySink, IWindowHa
         CollectedAlbumsPage => CollectedAlbumsItem,
         CollectedPlaylistsPage => CollectedPlaylistsItem,
         FollowedArtistsPage => FollowedArtistsItem,
+        AudioMemoryPage => AudioMemoryItem,
         _ => null,
     };
 

@@ -72,6 +72,9 @@ namespace Bowen.Core.Api;
 [JsonSerializable(typeof(QrCodeDto))]
 [JsonSerializable(typeof(QrCodeStatusDto))]
 [JsonSerializable(typeof(PlayHistoryPagePayload))]
+[JsonSerializable(typeof(PlayRankingPayload))]
+[JsonSerializable(typeof(MonthReportPayload))]
+[JsonSerializable(typeof(MonthReportSummaryPayload))]
 // 请求体也要在这里登记：签名覆盖的是「即将发出的精确字节」，所以由调用方序列化，
 // 而序列化同样要拿 JsonTypeInfo<T>。
 [JsonSerializable(typeof(LoginBody))]
@@ -85,4 +88,5 @@ namespace Bowen.Core.Api;
 [JsonSerializable(typeof(CollectBody))]
 [JsonSerializable(typeof(PlayHistoryAddBody))]
 [JsonSerializable(typeof(PlayRecordBody))]
+[JsonSerializable(typeof(MonthReportPlaylistBody))]
 internal sealed partial class BodianJsonContext : JsonSerializerContext;

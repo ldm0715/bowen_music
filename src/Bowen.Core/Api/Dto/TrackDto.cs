@@ -101,6 +101,9 @@ internal sealed class TrackDto
 
     [JsonPropertyName("psrc")] public string? Psrc { get; init; }
 
+    /// <summary>该曲目在排行里的播放次数。仅 <c>ucenter/playdata/play_ranking</c> 返回。</summary>
+    [JsonPropertyName("playcnt")] public long? PlayCount { get; init; }
+
     /// <summary>酷我资源 id。字段确实存在，但**本项目无用途**，不要拿它去试酷我侧旧接口。</summary>
     [JsonPropertyName("musicRid")] public string? MusicRid { get; init; }
 

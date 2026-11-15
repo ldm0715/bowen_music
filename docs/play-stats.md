@@ -194,11 +194,13 @@ public interface IPlayTelemetry
 
 **月报的读取端不是 `record`**，是：
 
-- `play/month/report/info`
-- `play/month/report/playlist`
-- `play/month/report/summary`
+- `play/month/report/info`（GET，`date=YYYYMM`，只读）
+- `play/month/report/summary`（GET，`userId`，只读）
+- `play/month/report/playlist`（POST，`{date}`，**写：服务端新建月度歌单**）
 
-这三条都是只读，客户端只负责展示。
+2026-11-15 用桌面请求头实测前两条均返回 200。`info` 在无数据月份里缺失，但
+`isUpdate` 仍为 1，所以**不能用 `isUpdate` 判断报告是否存在**，唯一判据是 `data.info`。
+字段、空态与页面方案见 [`audio-memory.md`](audio-memory.md)。
 
 **写入端无法从客户端静态证明。** 安卓端同时存在两条播放上报：
 

@@ -337,6 +337,10 @@ public partial class App : Application
         builder.Services.AddTransient<CollectedPlaylistsPage>();
         builder.Services.AddTransient<FollowedArtistsViewModel>();
         builder.Services.AddTransient<FollowedArtistsPage>();
+        builder.Services.AddTransient<WeeklyFavoritesViewModel>();
+        builder.Services.AddTransient<MonthlyReportViewModel>();
+        builder.Services.AddTransient<AudioMemoryViewModel>();
+        builder.Services.AddTransient<AudioMemoryPage>();
         builder.Services.AddTransient<ShortcutSettingsViewModel>();
         builder.Services.AddTransient<StorageSettingsViewModel>();
 

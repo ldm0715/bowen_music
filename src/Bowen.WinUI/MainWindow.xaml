@@ -1092,6 +1092,16 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
+            <!-- 音波回忆：本周最爱 / 听歌月报，两条都跟账号绑定 -->
+            <NavigationViewItem
+                x:Name="AudioMemoryItem"
+                Content="音波回忆"
+                Tag="audio-memory">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="MusicInfo" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
             <!--
                 紧凑栏（48px 图标轨）里的「创建的歌单」入口。
 

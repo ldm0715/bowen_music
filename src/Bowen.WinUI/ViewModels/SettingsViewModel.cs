@@ -104,7 +104,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         // 顺序必须与 StartupSections 一一对应。默认是「我喜欢的」（StartupSection 的默认值），
         // 不是列表首项。
-        StartupPageOptions = ["发现", "排行榜", "乐库", "我喜欢的", "最近播放", "收藏的专辑", "收藏的歌单", "关注的歌手"];
+        StartupPageOptions = ["发现", "排行榜", "乐库", "我喜欢的", "最近播放", "收藏的专辑", "收藏的歌单", "关注的歌手", "音波回忆"];
 
         // 三个字体下拉共用同一份列表：首项固定「默认字体」，其余按字形覆盖分组。
         var fontOptions = new List<FontOption> { FontOption.Default };
@@ -131,6 +131,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         StartupSection.CollectedAlbums,
         StartupSection.CollectedPlaylists,
         StartupSection.FollowedArtists,
+        StartupSection.AudioMemory,
     ];
 
     /// <summary>左侧分类栏的项。顺序即下标，与下面那六个 <c>IsXxxSelected</c> 一一对应。</summary>

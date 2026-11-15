@@ -535,6 +535,42 @@ internal static class Endpoints
     /// </remarks>
     public const string UserPlayData = "ucenter/playdata/user_data";
 
+    /// <summary>
+    /// 最近一周 / 全部时间的播歌排行。GET + query <c>userId</c> / <c>type</c>。
+    /// </summary>
+    /// <remarks>
+    /// <c>type = 1</c> 是最近一周；返回 <c>data.musicList</c>，每项是完整歌曲对象 + <c>playcnt</c>，
+    /// 服务端已按次数降序。2026-11-15 桌面请求头实测，见 <c>docs/audio-memory.md</c>。
+    /// </remarks>
+    public const string UserPlayRanking = "ucenter/playdata/play_ranking";
+
+    /// <summary>播歌排行的 <c>type</c>：最近一周。</summary>
+    public const int PlayRankingRecentWeek = 1;
+
+    /// <summary>
+    /// 月报详情。GET + query <c>date=YYYYMM</c>。
+    /// </summary>
+    /// <remarks>
+    /// 无数据的月份返回 <c>{ isUpdate: 1 }</c> 但没有 <c>info</c>；判断报告是否存在只能看
+    /// <c>data.info</c>。2026-11-15 桌面请求头实测。
+    /// </remarks>
+    public const string MonthReportInfo = "play/month/report/info";
+
+    /// <summary>
+    /// 月报预览。GET + query <c>userId</c>。返回 <c>monthReport</c> 与 <c>weekReport</c>。
+    /// </summary>
+    /// <remarks>本项目只用 <c>monthReport.monthDesc</c> 定位最近有数据的月份。</remarks>
+    public const string MonthReportSummary = "play/month/report/summary";
+
+    /// <summary>
+    /// 按月份新建歌单。<c>POST</c> + JSON <c>{date}</c>。<b>写操作</b>。
+    /// </summary>
+    /// <remarks>
+    /// 服务端自己命名歌单，官方客户端随后提示「已为你新建月度歌单」。
+    /// 响应体与幂等性未验证，见 <c>docs/audio-memory.md</c>。
+    /// </remarks>
+    public const string MonthReportPlaylist = "play/month/report/playlist";
+
     // ── 歌曲评论（android 请求头，读取、发布与点赞使用 v3）────────────────────────
 
     public const string SongCommentsRecommended = "comments/v3/hot";

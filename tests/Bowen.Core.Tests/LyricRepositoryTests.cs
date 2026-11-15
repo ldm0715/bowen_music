@@ -3,6 +3,7 @@ using Bowen.Core.Api.Paging;
 using Bowen.Core.Lyrics;
 using Bowen.Core.Models;
 using Bowen.Core.Models.Account;
+using Bowen.Core.Models.AudioMemory;
 using Bowen.Core.Models.Home;
 using Bowen.Core.Models.Lyrics;
 using Xunit;
@@ -296,6 +297,24 @@ public sealed class LyricRepositoryTests
             => throw new NotSupportedException();
 
         public Task<AccountVipInfo?> GetAccountVipInfoAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PlayRankingEntry>?> GetWeeklyPlayRankingAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<MonthReportSummary?> GetMonthReportSummaryAsync(
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<MonthReport?> GetMonthReportAsync(
+            MonthPeriod month,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<bool> CreateMonthReportPlaylistAsync(
+            MonthPeriod month,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
