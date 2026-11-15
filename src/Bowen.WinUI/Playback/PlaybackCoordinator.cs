@@ -29,6 +29,18 @@ public sealed class PlaybackCoordinator : IDisposable
     /// <summary>跨端播放历史同步。未注入时只写本地（测试与旧构造点）。</summary>
     private readonly IPlayHistorySync? _historySync;
 
+    /// <summary>播放统计上报。未注入时不上报（测试与旧构造点）。</summary>
+    private readonly IPlayTelemetry? _telemetry;
+
+    /// <summary>刚自然播完的曲目 id，用来避免「完成 + 自动续播」被报成两次。</summary>
+    private long _completedTrackId;
+
+    /// <summary>
+    /// 最近一次进度事件里的位置。切歌与试听结束时用它算已播比例，
+    /// 而不是在引擎停止后再读 <c>Position</c>（那时可能已经归零）。
+    /// </summary>
+    private TimeSpan _lastKnownPosition;
+
     /// <summary>
     /// 当前队列是从哪个歌单 / 专辑点进来的。只用于历史同步；<c>null</c> 表示没有集合上下文。
     /// </summary>
@@ -165,7 +177,8 @@ public sealed class PlaybackCoordinator : IDisposable
         IPlaybackSettingsStore? playbackSettings = null,
         IPlayQueueSnapshotStore? queueStore = null,
         ICurrentAccount? account = null,
-        IPlayHistorySync? historySync = null)
+        IPlayHistorySync? historySync = null,
+        IPlayTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(engine);
@@ -175,6 +188,7 @@ public sealed class PlaybackCoordinator : IDisposable
         _engine = engine;
         _history = history;
         _historySync = historySync;
+        _telemetry = telemetry;
         _logger = logger ?? NullLogger<PlaybackCoordinator>.Instance;
         _qualitySettings = qualitySettings;
         _playbackSettings = playbackSettings;
@@ -868,6 +882,9 @@ public sealed class PlaybackCoordinator : IDisposable
     /// </remarks>
     private void OnEnginePositionChangedForPersist(object? sender, PlaybackPositionChangedEventArgs e)
     {
+        // 统计上报要用最新位置，且必须在检查点判断之前更新 —— 不然后面的提前 return 会把它漏掉。
+        _lastKnownPosition = e.Position;
+
         var delta = e.Position - _lastCheckpoint;
         if (delta >= TimeSpan.Zero && delta < PositionCheckpoint) { return; }
 
@@ -1157,6 +1174,10 @@ public sealed class PlaybackCoordinator : IDisposable
         await _loadGate.WaitAsync(cancellationToken).ConfigureAwait(true);
         try
         {
+            // 加载之前引擎里还是上一首，这一读是它最后的位置；加载完再读就不是它了。
+            var outgoing = CurrentTrack;
+            var outgoingPosition = _engine.Position;
+
             cancellationToken.ThrowIfCancellationRequested();
             await _engine.LoadAsync(new PlaybackSource(source.Url, start, end, track.Title), cancellationToken)
                 .ConfigureAwait(true);
@@ -1181,6 +1202,14 @@ public sealed class PlaybackCoordinator : IDisposable
             // 跨端同步：让这首歌出现在手机端「最近播放」。立即返回，失败不影响播放。
             _historySync?.NotifyPlayed(track.Id);
             ReportCollectionHistory();
+
+            // 播放统计：上一首没播完就切走时按比例上报。刚自然播完的由 OnEngineEnded 报过，这里跳过。
+            if (outgoing is not null && outgoing.Id != _completedTrackId)
+            {
+                _telemetry?.ReportSwitched(outgoing, outgoingPosition);
+            }
+
+            _completedTrackId = 0;
 
             // 已经开始放了，顺手把下一首的音源备好 —— 用户按「下一首」时省掉两跳 API。
             PrefetchNextTrack();
@@ -1395,9 +1424,25 @@ public sealed class PlaybackCoordinator : IDisposable
 
     private void OnEngineEnded(object? sender, EventArgs e)
     {
+        // 音质切换会重载同一个文件并触发 Ended，那不是一次播放结束，不能报统计。
+        if (IsChangingQuality) { return; }
+
+        if (CurrentTrack is { } ended)
+        {
+            if (CurrentPolicy?.IsCompleteTrack == true)
+            {
+                _completedTrackId = ended.Id;
+                _telemetry?.ReportCompleted(ended);
+            }
+            else
+            {
+                // 试听片段结束：按切歌处理，已播比例很小，会落到 operate=1。
+                _telemetry?.ReportSwitched(ended, _lastKnownPosition);
+            }
+        }
+
         // 试听结束不自动续播：30 秒片段连着放会让人以为「连着播」坏了，
         // 也会在用户不知情时消耗整个队列。停在原地并提示更合适。
-        if (IsChangingQuality) { return; }
         if (CurrentPolicy?.IsCompleteTrack == true)
         {
             _ = AdvanceAfterEndAsync();

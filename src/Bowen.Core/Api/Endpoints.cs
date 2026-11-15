@@ -313,6 +313,30 @@ internal static class Endpoints
     public const int PlayHistorySourceAlbum = 3;
 
     /// <summary>
+    /// 播放统计上报。POST + JSON body <c>{musicList, operate}</c>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这是播放次数 / 时长 / 周排行 / 全部排行 / 月报的数据源。官方 PC 端没有接这条链路
+    /// （只发 <c>music.yl</c> 日志），所以官方桌面端的播放不进统计。
+    /// </para>
+    /// <para>
+    /// 2026-11-14 实网闭环：写入后次日聚合，<c>ucenter/playdata/user_data</c> 的次数与时长的增量
+    /// 与上报曲目一致。见 <c>docs/play-stats.md</c>。
+    /// </para>
+    /// </remarks>
+    public const string PlayRecord = "service/music/record";
+
+    /// <summary>播放完成。整曲播到末尾，或切歌时已播超过 90%。</summary>
+    public const int PlayOpComplete = 0;
+
+    /// <summary>切歌。已播不足 30% 时使用。</summary>
+    public const int PlayOpSwitch = 1;
+
+    /// <summary>播放中。切歌时已播 30% - 90% 时使用。</summary>
+    public const int PlayOpNone = 5;
+
+    /// <summary>
     /// 读播放历史。GET + query <c>sourceType</c> / <c>pn</c> / <c>rn</c>。
     /// </summary>
     /// <remarks>

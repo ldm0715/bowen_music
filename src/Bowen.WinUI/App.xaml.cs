@@ -200,6 +200,9 @@ public partial class App : Application
         // 跨端播放历史同步。登录态下把起播曲目上报到账号，手机端「最近播放」才能看到。
         builder.Services.AddSingleton<IPlayHistorySync, PlayHistorySync>();
 
+        // 播放统计上报。播完 / 切歌时发 service/music/record，驱动次数、时长与排行。
+        builder.Services.AddSingleton<IPlayTelemetry, PlayTelemetry>();
+
         // 曲目行「更多」菜单的装配点。这几个接口指向同一个实例：
         // 行内控件从 App 资源拿它，而动作 ViewModel / 发现页只认接口（这样才能进离线测试）。
         builder.Services.AddSingleton<TrackActionsService>();
