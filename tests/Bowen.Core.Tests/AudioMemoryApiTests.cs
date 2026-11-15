@@ -202,7 +202,7 @@ public sealed class AudioMemoryApiTests : IDisposable
     // ── 新建月度歌单 ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task CreatePlaylist_PostsMonthBody()
+    public async Task CreatePlaylist_UsesGetWithMonthQuery()
     {
         SignIn();
         RespondWith("""{}""");
@@ -210,9 +210,10 @@ public sealed class AudioMemoryApiTests : IDisposable
         var created = await _api.CreateMonthReportPlaylistAsync(new MonthPeriod(2026, 10), Ct);
 
         Assert.True(created);
-        Assert.Equal("POST", _handler.LastRequest.Method);
+        Assert.Equal("GET", _handler.LastRequest.Method);
         Assert.Contains("play/month/report/playlist", _handler.LastRequest.Url, StringComparison.Ordinal);
-        Assert.Contains("\"date\":\"202610\"", _handler.LastRequest.Body, StringComparison.Ordinal);
+        Assert.Contains("date=202610", _handler.LastRequest.Url, StringComparison.Ordinal);
+        Assert.Null(_handler.LastRequest.Body);
     }
 
     [Fact]
