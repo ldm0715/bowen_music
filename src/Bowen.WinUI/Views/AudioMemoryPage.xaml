@@ -15,7 +15,7 @@
         <DataTemplate x:Key="WeeklyHeroTemplate" x:DataType="vm:PlayRankingRow">
             <Border
                 Padding="16"
-                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                Background="{ThemeResource BowenAcrylicBrush}"
                 CornerRadius="{StaticResource RadiusMd}">
                 <Grid ColumnSpacing="16">
                     <Grid.ColumnDefinitions>
@@ -193,7 +193,7 @@
             <Border
                 Height="276"
                 Padding="12"
-                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                Background="{ThemeResource BowenAcrylicBrush}"
                 BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
                 BorderThickness="2"
                 CornerRadius="{StaticResource RadiusMd}">
@@ -279,7 +279,7 @@
             <Border
                 Height="240"
                 Padding="10"
-                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                Background="{ThemeResource BowenAcrylicBrush}"
                 BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusMd}">
@@ -395,10 +395,10 @@
                 SelectedIndex="{x:Bind ViewModel.SelectedTab, Mode=TwoWay}" />
         </StackPanel>
 
-        <Grid Grid.Row="1">
+        <Grid x:Name="TabHost" Grid.Row="1">
             <!-- ── 本周最爱 ─────────────────────────────────────────────── -->
             <Grid
-                controls:Motion.TabContent="True"
+                x:Name="WeeklyContent"
                 Visibility="{x:Bind local:Formats.Visible(ViewModel.IsWeeklyTab), Mode=OneWay}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -475,7 +475,7 @@
 
             <!-- ── 听歌月报 ─────────────────────────────────────────────── -->
             <Grid
-                controls:Motion.TabContent="True"
+                x:Name="ReportContent"
                 Visibility="{x:Bind local:Formats.Visible(ViewModel.IsReportTab), Mode=OneWay}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -527,8 +527,11 @@
 
                         <Button
                             AutomationProperties.Name="导出海报"
-                            Content="导出海报"
                             IsEnabled="{x:Bind ViewModel.Report.CanExport, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:Icon Data="{StaticResource IconDownload}" Size="14" />
+                                <TextBlock Text="导出海报" />
+                            </StackPanel>
                             <Button.Flyout>
                                 <MenuFlyout>
                                     <MenuFlyoutItem
@@ -544,8 +547,12 @@
                         <Button
                             AutomationProperties.Name="新建月度歌单"
                             Click="OnCreatePlaylistClick"
-                            Content="新建月度歌单"
-                            IsEnabled="{x:Bind ViewModel.Report.CanCreatePlaylist, Mode=OneWay}" />
+                            IsEnabled="{x:Bind ViewModel.Report.CanCreatePlaylist, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:Icon Data="{StaticResource IconPlaylistAdd}" Size="14" />
+                                <TextBlock Text="新建月度歌单" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Grid>
 
@@ -564,7 +571,7 @@
 
                                 <Border
                                     Padding="14"
-                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    Background="{ThemeResource BowenAcrylicBrush}"
                                     CornerRadius="{StaticResource RadiusMd}">
                                     <StackPanel Spacing="4">
                                         <TextBlock
@@ -580,7 +587,7 @@
                                 <Border
                                     Grid.Column="1"
                                     Padding="14"
-                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    Background="{ThemeResource BowenAcrylicBrush}"
                                     CornerRadius="{StaticResource RadiusMd}">
                                     <StackPanel Spacing="4">
                                         <TextBlock
@@ -622,7 +629,7 @@
                                 <Border
                                     Grid.Column="2"
                                     Padding="14"
-                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    Background="{ThemeResource BowenAcrylicBrush}"
                                     CornerRadius="{StaticResource RadiusMd}">
                                     <StackPanel Spacing="4">
                                         <TextBlock
@@ -644,7 +651,7 @@
                                 <Border
                                     Grid.Column="3"
                                     Padding="14"
-                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    Background="{ThemeResource BowenAcrylicBrush}"
                                     CornerRadius="{StaticResource RadiusMd}">
                                     <StackPanel Spacing="4">
                                         <TextBlock
@@ -668,7 +675,7 @@
                                 <Border
                                     Grid.ColumnSpan="{x:Bind ViewModel.Report.LongestDayCardColumnSpan, Mode=OneWay}"
                                     Padding="14"
-                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    Background="{ThemeResource BowenAcrylicBrush}"
                                     CornerRadius="{StaticResource RadiusMd}">
                                     <StackPanel Spacing="4">
                                         <TextBlock
@@ -691,7 +698,7 @@
                                 <Border
                                     Grid.Column="1"
                                     Padding="14"
-                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    Background="{ThemeResource BowenAcrylicBrush}"
                                     CornerRadius="{StaticResource RadiusMd}"
                                     Visibility="{x:Bind local:Formats.Visible(ViewModel.Report.HasMostPlayedSong), Mode=OneWay}">
                                     <StackPanel Spacing="4">
@@ -713,7 +720,7 @@
 
                             <Border
                                 Padding="16"
-                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                Background="{ThemeResource BowenAcrylicBrush}"
                                 CornerRadius="{StaticResource RadiusMd}"
                                 Visibility="{x:Bind local:Formats.Visible(ViewModel.Report.HasArtist), Mode=OneWay}">
                                 <Grid ColumnSpacing="16">

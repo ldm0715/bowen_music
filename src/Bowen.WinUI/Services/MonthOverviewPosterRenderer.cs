@@ -21,21 +21,25 @@ internal static class MonthOverviewPosterRenderer
     private const int Height = 1700;
     private const float Margin = 80;
 
-    private static readonly Color TopBackground = Color.FromArgb(0xFF, 0x07, 0x0A, 0x12);
-    private static readonly Color BottomBackground = Color.FromArgb(0xFF, 0x10, 0x1A, 0x33);
-    private static readonly Color White = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-    private static readonly Color Muted = Color.FromArgb(0xFF, 0x94, 0xA3, 0xB8);
-    private static readonly Color Cyan = Color.FromArgb(0xFF, 0x5E, 0xEA, 0xD4);
-    private static readonly Color Violet = Color.FromArgb(0xFF, 0x8B, 0x5C, 0xF6);
-    private static readonly Color Placeholder = Color.FromArgb(0xFF, 0x1B, 0x24, 0x3B);
-    private static readonly Color AvatarFallback = Color.FromArgb(0xFF, 0x1E, 0x3A, 0x5F);
+    private static MonthPosterPalette _palette = MonthPosterPalette.Dark;
+
+    private static Color TopBackground => _palette.BackgroundTop;
+    private static Color BottomBackground => _palette.BackgroundBottom;
+    private static Color White => _palette.PrimaryText;
+    private static Color Muted => _palette.MutedText;
+    private static Color Cyan => _palette.Accent;
+    private static Color Violet => _palette.AccentSecondary;
+    private static Color Placeholder => _palette.Placeholder;
+    private static Color AvatarFallback => _palette.AvatarFallback;
 
     public static async Task<byte[]> RenderAsync(
         MonthPosterContent content,
+        bool dark,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
 
+        _palette = dark ? MonthPosterPalette.Dark : MonthPosterPalette.Light;
         MonthPosterDrawing.ChineseFont = string.IsNullOrWhiteSpace(content.UiFontFamily)
             ? "Microsoft YaHei UI"
             : content.UiFontFamily;
@@ -48,7 +52,7 @@ internal static class MonthOverviewPosterRenderer
             var avatar = await MonthPosterDrawing.TryLoadAsync(device, content.AvatarUri);
             bitmaps.Add(avatar);
 
-            var footerIcon = await MonthPosterDrawing.TryLoadBrandIconAsync(device);
+            var footerIcon = await MonthPosterDrawing.TryLoadBrandIconAsync(device, dark);
             bitmaps.Add(footerIcon);
 
             var covers = new List<CanvasBitmap?>();
@@ -71,7 +75,8 @@ internal static class MonthOverviewPosterRenderer
                 DrawAlbumWall(session, device, covers);
                 DrawStats(session, device, content);
                 MonthPosterDrawing.DrawBrandFooter(
-                    session, device, footerIcon, Width, Height, content.Year, content.Month);
+                    session, device, footerIcon, Width, Height, content.Year, content.Month,
+                    White, Muted);
             }
 
             using var stream = new InMemoryRandomAccessStream();
@@ -187,8 +192,8 @@ internal static class MonthOverviewPosterRenderer
         session.FillRoundedRectangle(
             new Rect(badgeX, badgeY, badgeWidth, badgeHeight),
             badgeHeight / 2, badgeHeight / 2,
-            MonthPosterDrawing.WithAlpha(TopBackground, 0xD0));
-        session.DrawTextLayout(measure, textX, textY, Cyan);
+            Color.FromArgb(0xD0, 0x07, 0x0A, 0x12));
+        session.DrawTextLayout(measure, textX, textY, MonthPosterPalette.Dark.Accent);
 
         using var labelFormat = MonthPosterDrawing.Text(20, MonthPosterDrawing.DisplayFont);
         MonthPosterDrawing.Draw(
@@ -261,7 +266,8 @@ internal static class MonthOverviewPosterRenderer
         // 缩小成一块居中的数据面板，四列等宽，内容整体垂直居中。
         // 与专辑墙同宽（80 → 1000），四列铺满，内容整体垂直居中。
         var panel = new Rect(80, 1300, 920, 150);
-        MonthPosterDrawing.DrawGlassPanel(session, panel, 20);
+        MonthPosterDrawing.DrawGlassPanel(
+            session, panel, 20, _palette.GlassFill, _palette.GlassStroke);
 
         for (var i = 1; i < 4; i++)
         {

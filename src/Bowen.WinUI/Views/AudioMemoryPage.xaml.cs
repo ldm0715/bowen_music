@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using Bowen.Core.Api;
 using Bowen.Core.Models.AudioMemory;
@@ -26,6 +27,9 @@ public sealed partial class AudioMemoryPage : Page, INavigationAware, IAccountSc
     private readonly FontSettingsViewModel _fontSettings;
     private readonly ILogger<AudioMemoryPage> _logger;
 
+    /// <summary>上一次显示的页签，用来决定进入动画的方向。</summary>
+    private int _lastTab;
+
     public AudioMemoryPage(
         AudioMemoryViewModel viewModel,
         IBodianLogin login,
@@ -52,6 +56,9 @@ public sealed partial class AudioMemoryPage : Page, INavigationAware, IAccountSc
         _logger = logger;
 
         InitializeComponent();
+
+        _lastTab = viewModel.SelectedTab;
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     public AudioMemoryViewModel ViewModel { get; }
@@ -66,6 +73,33 @@ public sealed partial class AudioMemoryPage : Page, INavigationAware, IAccountSc
 
     public void OnNavigatedFrom()
     {
+    }
+
+    /// <summary>
+    /// 页签切换动画。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Controls.PillTabBar"/> 自带的 <c>Motion.AnimateTabs</c> 依赖可见性更新的时序；
+    /// 这里先把新内容真正放出来，再同步触发进入动画，避免动画在 Collapsed 元素上跑完。
+    /// </remarks>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(AudioMemoryViewModel.SelectedTab))
+        {
+            return;
+        }
+
+        var tab = ViewModel.SelectedTab;
+        var direction = Math.Sign(tab - _lastTab);
+        _lastTab = tab;
+
+        var weekly = tab == 0;
+        WeeklyContent.Visibility = weekly ? Visibility.Visible : Visibility.Collapsed;
+        ReportContent.Visibility = weekly ? Visibility.Collapsed : Visibility.Visible;
+
+        // 动画挂在始终可见的 TabHost 上：刚由 Collapsed 转 Visible 的子元素
+        // 直接在它自己身上跑合成动画时不一定能渲染出来。
+        _ = AppMotion.EnterAsync(TabHost, direction * 40, 0, TimeSpan.FromMilliseconds(400));
     }
 
     private void OnWeeklyPlayClick(object sender, RoutedEventArgs e)

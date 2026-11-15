@@ -21,20 +21,24 @@ internal static class MonthTracksPosterRenderer
     private const float ListTop = 620;
     private const float RowHeight = 108;
 
-    private static readonly Color TopBackground = Color.FromArgb(0xFF, 0x07, 0x0A, 0x12);
-    private static readonly Color BottomBackground = Color.FromArgb(0xFF, 0x0E, 0x17, 0x30);
-    private static readonly Color White = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-    private static readonly Color Muted = Color.FromArgb(0xFF, 0x94, 0xA3, 0xB8);
-    private static readonly Color Cyan = Color.FromArgb(0xFF, 0x5E, 0xEA, 0xD4);
-    private static readonly Color Violet = Color.FromArgb(0xFF, 0x8B, 0x5C, 0xF6);
-    private static readonly Color Placeholder = Color.FromArgb(0xFF, 0x1B, 0x24, 0x3B);
+    private static MonthPosterPalette _palette = MonthPosterPalette.Dark;
+
+    private static Color TopBackground => _palette.BackgroundTop;
+    private static Color BottomBackground => _palette.BackgroundBottom;
+    private static Color White => _palette.PrimaryText;
+    private static Color Muted => _palette.MutedText;
+    private static Color Cyan => _palette.Accent;
+    private static Color Violet => _palette.AccentSecondary;
+    private static Color Placeholder => _palette.Placeholder;
 
     public static async Task<byte[]> RenderAsync(
         MonthPosterContent content,
+        bool dark,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
 
+        _palette = dark ? MonthPosterPalette.Dark : MonthPosterPalette.Light;
         MonthPosterDrawing.ChineseFont = string.IsNullOrWhiteSpace(content.UiFontFamily)
             ? "Microsoft YaHei UI"
             : content.UiFontFamily;
@@ -49,7 +53,7 @@ internal static class MonthTracksPosterRenderer
         try
         {
             cover = await MonthPosterDrawing.TryLoadAsync(device, content.TopSongCover);
-            footerIcon = await MonthPosterDrawing.TryLoadBrandIconAsync(device);
+            footerIcon = await MonthPosterDrawing.TryLoadBrandIconAsync(device, dark);
             cancellationToken.ThrowIfCancellationRequested();
 
             using var target = new CanvasRenderTarget(device, Width, height, 96);
@@ -214,7 +218,8 @@ internal static class MonthTracksPosterRenderer
 
         // 与月度总览共用同一个页脚：真实应用图标 + 品牌 + 标语 + 日期。
         MonthPosterDrawing.DrawBrandFooter(
-            session, device, footerIcon, Width, height, content.Year, content.Month);
+            session, device, footerIcon, Width, height, content.Year, content.Month,
+            White, Muted);
     }
 
     private static async Task<byte[]> ReadBytesAsync(InMemoryRandomAccessStream stream)

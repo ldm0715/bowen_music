@@ -174,9 +174,10 @@ internal static class MonthPosterDrawing
     /// 不用 <c>ms-appx</c>：本项目是未打包 WinUI，Win2D 的 URI 加载在未打包环境下不可靠。
     /// Asset 已通过 <c>CopyToOutputDirectory</c> 落在 exe 旁边。
     /// </remarks>
-    public static async Task<CanvasBitmap?> TryLoadBrandIconAsync(CanvasDevice device)
+    public static async Task<CanvasBitmap?> TryLoadBrandIconAsync(CanvasDevice device, bool dark)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Ripple.png");
+        var fileName = dark ? "RippleLight.png" : "Ripple.png";
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", fileName);
 
         if (!File.Exists(path))
         {
@@ -216,19 +217,19 @@ internal static class MonthPosterDrawing
         float width,
         float height,
         int year,
-        int month)
+        int month,
+        Color textColor,
+        Color mutedColor)
     {
-        var white = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-        var muted = Color.FromArgb(0xFF, 0x94, 0xA3, 0xB8);
         var brandY = height - 136;
         var taglineY = height - 96;
 
+        // 图标高度与「品牌 + 标语」两行文字的总高对齐。
         using var brandFormat = Text(26, ChineseFont);
         using var brandLayout = new CanvasTextLayout(device, "波纹音乐", brandFormat, 260, 0);
         using var taglineFormat = Text(18, ChineseFont);
         using var taglineLayout = new CanvasTextLayout(device, "用音乐记录时光的波纹", taglineFormat, 320, 0);
 
-        // 图标上下边界直接取两行文字的可见墨迹，而不是布局框。
         var brandInk = brandLayout.DrawBounds;
         var taglineInk = taglineLayout.DrawBounds;
         var visualTop = brandY + (float)brandInk.Y;
@@ -243,14 +244,14 @@ internal static class MonthPosterDrawing
                 Color.FromArgb(0, 0, 0, 0));
         }
 
-        session.DrawTextLayout(brandLayout, 160, brandY, white);
-        session.DrawTextLayout(taglineLayout, 160, taglineY, muted);
+        session.DrawTextLayout(brandLayout, 160, brandY, textColor);
+        session.DrawTextLayout(taglineLayout, 160, taglineY, mutedColor);
 
         using var dateFormat = Text(
             18, DisplayFont, alignment: CanvasHorizontalAlignment.Right);
         DrawRight(
             session, device, $"{year}.{month:00}",
-            width - 80, height - 130, 260, dateFormat, muted);
+            width - 80, height - 130, 260, dateFormat, mutedColor);
     }
 
     public static CanvasLinearGradientBrush VerticalGradient(
@@ -316,12 +317,11 @@ internal static class MonthPosterDrawing
         }
     }
 
-    public static void DrawGlassPanel(CanvasDrawingSession session, Rect rect, float radius)
+    public static void DrawGlassPanel(
+        CanvasDrawingSession session, Rect rect, float radius, Color fill, Color stroke)
     {
-        session.FillRoundedRectangle(
-            rect, radius, radius, Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF));
-        session.DrawRoundedRectangle(
-            rect, radius, radius, Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF), 1);
+        session.FillRoundedRectangle(rect, radius, radius, fill);
+        session.DrawRoundedRectangle(rect, radius, radius, stroke, 1);
     }
 
     public static async Task<CanvasBitmap?> TryLoadAsync(CanvasDevice device, Uri? uri)
@@ -341,4 +341,45 @@ internal static class MonthPosterDrawing
             return null;
         }
     }
+}
+
+/// <summary>海报的明暗两套配色。</summary>
+internal sealed record MonthPosterPalette(
+    Color BackgroundTop,
+    Color BackgroundBottom,
+    Color PrimaryText,
+    Color MutedText,
+    Color Accent,
+    Color AccentSecondary,
+    Color Placeholder,
+    Color AvatarFallback,
+    Color GlassFill,
+    Color GlassStroke,
+    Color Shadow)
+{
+    public static MonthPosterPalette Dark { get; } = new(
+        Color.FromArgb(0xFF, 0x07, 0x0A, 0x12),
+        Color.FromArgb(0xFF, 0x10, 0x1A, 0x33),
+        Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF),
+        Color.FromArgb(0xFF, 0x94, 0xA3, 0xB8),
+        Color.FromArgb(0xFF, 0x5E, 0xEA, 0xD4),
+        Color.FromArgb(0xFF, 0x8B, 0x5C, 0xF6),
+        Color.FromArgb(0xFF, 0x1B, 0x24, 0x3B),
+        Color.FromArgb(0xFF, 0x1E, 0x3A, 0x5F),
+        Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF),
+        Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF),
+        Color.FromArgb(0x50, 0x00, 0x00, 0x00));
+
+    public static MonthPosterPalette Light { get; } = new(
+        Color.FromArgb(0xFF, 0xF7, 0xF8, 0xFC),
+        Color.FromArgb(0xFF, 0xE6, 0xEC, 0xF8),
+        Color.FromArgb(0xFF, 0x0F, 0x17, 0x2A),
+        Color.FromArgb(0xFF, 0x64, 0x74, 0x8B),
+        Color.FromArgb(0xFF, 0x0E, 0x9F, 0x8E),
+        Color.FromArgb(0xFF, 0x6D, 0x4A, 0xE0),
+        Color.FromArgb(0xFF, 0xD8, 0xDE, 0xEA),
+        Color.FromArgb(0xFF, 0x5B, 0x7B, 0xB4),
+        Color.FromArgb(0xB8, 0xFF, 0xFF, 0xFF),
+        Color.FromArgb(0x1F, 0x0F, 0x17, 0x2A),
+        Color.FromArgb(0x22, 0x0F, 0x17, 0x2A));
 }

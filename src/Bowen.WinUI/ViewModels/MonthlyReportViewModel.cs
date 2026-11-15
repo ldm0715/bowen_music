@@ -25,6 +25,7 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
     private readonly IBodianApi _api;
     private readonly PlaybackCoordinator _coordinator;
     private readonly INoticeSink _notice;
+    private readonly SidebarViewModel _sidebar;
     private readonly ILogger<MonthlyReportViewModel> _logger;
 
     private readonly Dictionary<MonthPeriod, MonthReport?> _cache = [];
@@ -42,15 +43,18 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
         IBodianApi api,
         PlaybackCoordinator coordinator,
         INoticeSink notice,
+        SidebarViewModel sidebar,
         ILogger<MonthlyReportViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(notice);
+        ArgumentNullException.ThrowIfNull(sidebar);
 
         _api = api;
         _coordinator = coordinator;
         _notice = notice;
+        _sidebar = sidebar;
         _logger = logger ?? NullLogger<MonthlyReportViewModel>.Instance;
 
         _suppressSelection = true;
@@ -425,6 +429,12 @@ public sealed partial class MonthlyReportViewModel : ObservableObject, IDisposab
             _notice.Show(
                 created ? "已为你新建月度歌单" : "歌单生成失败",
                 created ? NoticeSeverity.Success : NoticeSeverity.Error);
+
+            if (created)
+            {
+                // 侧栏「创建的歌单」是常驻数据，建完立刻重拉一次让新歌单出现。
+                await _sidebar.LoadAsync().ConfigureAwait(true);
+            }
         }
         catch (Exception ex)
         {

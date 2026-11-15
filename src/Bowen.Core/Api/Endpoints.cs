@@ -563,11 +563,12 @@ internal static class Endpoints
     public const string MonthReportSummary = "play/month/report/summary";
 
     /// <summary>
-    /// 按月份新建歌单。<c>POST</c> + JSON <c>{date}</c>。<b>写操作</b>。
+    /// 按月份新建歌单。<c>GET</c> + query <c>date=YYYYMM</c>。<b>写操作</b>。
     /// </summary>
     /// <remarks>
-    /// 服务端自己命名歌单，官方客户端随后提示「已为你新建月度歌单」。
-    /// 响应体与幂等性未验证，见 <c>docs/audio-memory.md</c>。
+    /// 官方 <c>createReportPlaylist</c> 走 <c>HttpUtils.request</c> 的默认 GET，<c>date</c>
+    /// 放在 query 里；服务端自己命名歌单。响应体与幂等性仍未实测，
+    /// 见 <c>docs/audio-memory.md</c>。
     /// </remarks>
     public const string MonthReportPlaylist = "play/month/report/playlist";
 

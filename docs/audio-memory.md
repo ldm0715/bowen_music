@@ -15,7 +15,7 @@
 - `musicTop10` 是**简化歌曲对象**，没有音源档位，不能直接进播放器；播放前必须用
   `service/music/info` 补全。
 - `albumTop10` 是**封面 URL 字符串数组**，没有专辑 id 与名字，只能做封面墙。
-- `play/month/report/playlist` 是写操作，服务端自己建歌单，参数只有 `{date}`。
+- `play/month/report/playlist` 是写操作，服务端自己建歌单，参数只有 query `date`。
 
 ## 1. 端点
 
@@ -24,7 +24,7 @@
 | 最近一周排行 | `GET ucenter/playdata/play_ranking` | `userId`、`type = 1` | ✅ 200 |
 | 月报预览 | `GET play/month/report/summary` | `userId` | ✅ 200 |
 | 月报详情 | `GET play/month/report/info` | `date = YYYYMM` | ✅ 200 |
-| 新建月度歌单 | `POST play/month/report/playlist` | JSON `{date}` | ⚪ 未调用 |
+| 新建月度歌单 | `GET play/month/report/playlist` | query `date=YYYYMM` | ⚪ 未实测（写） |
 
 日期格式实测为 `202610`。反编译里是「年 + `padLeft(月, 2, "0")`」直接拼接，没有分隔符。
 
@@ -93,12 +93,13 @@ data.info     : object|null  // 唯一判据
 ### 2.4 `playlist`（未实测）
 
 ```text
-POST play/month/report/playlist
-{ "date": "202610" }
+GET play/month/report/playlist?date=202610
 ```
 
-反编译里服务端自己命名歌单（官方客户端随后提示「已为你新建月度歌单」），
-响应体形状与重复调用是否幂等均未验证。实现时只调用一次，并做按钮防抖。
+官方 `createReportPlaylist` 调的是 `HttpUtils.request` 的默认 GET，`date` 放在 query；
+**不是 POST JSON body**。早期实现按 POST 发送会一直失败，2026-11-15 已修正。
+服务端自己命名歌单（官方客户端随后提示「已为你新建月度歌单」），响应体形状与重复
+调用是否幂等仍未验证。实现时只调用一次，并做按钮防抖。
 
 ## 3. 页面方案
 
@@ -191,7 +192,9 @@ POST play/month/report/playlist
 | 歌曲总览 | 深色波形底 + 前 10 名榜单、均衡器柱 | `musicTop10`、月份 / 年份、榜首封面 |
 
 - 用 Win2D `CanvasRenderTarget` 离屏渲染，不依赖窗口尺寸；导出 PNG，支持保存或复制到剪贴板。
-- 月度总览固定 1080 × 2160；歌曲总览宽 1080，高度随曲目数增长。
+- 海报支持明暗两套主题，默认跟随当前应用主题；预览对话框右上角可切换，切换后重新渲染。
+- 暗色海报使用亮色图标 `RippleLight.png`，亮色海报使用暗色图标 `Ripple.png`。
+- 月度总览固定 1080 × 1700；歌曲总览宽 1080，高度随曲目数增长。
 - 头像是登录凭据里的 `Avatar`，昵称是 `Nickname`；头像加载失败时画昵称首字。
 - 单张封面加载失败只画占位块，不中断整张海报。
 - `timeRank` 按「超过 N% 用户」展示，缺失时显示 `—`。

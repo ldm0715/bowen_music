@@ -659,8 +659,8 @@ public interface IBodianApi
     /// 按指定月份在服务端新建月度歌单，成功返回 <c>true</c>。
     /// </summary>
     /// <remarks>
-    /// <b>写操作，会影响真实账号。</b> <c>play/month/report/playlist</c>，body 只有
-    /// <c>{date}</c>；服务端自己命名歌单。未登录时抛 <see cref="BodianNotSignedInException"/>。
+    /// <b>写操作，会影响真实账号。</b> <c>GET play/month/report/playlist?date=YYYYMM</c>；
+    /// 服务端自己命名歌单。未登录时抛 <see cref="BodianNotSignedInException"/>。
     /// </remarks>
     Task<bool> CreateMonthReportPlaylistAsync(
         MonthPeriod month,

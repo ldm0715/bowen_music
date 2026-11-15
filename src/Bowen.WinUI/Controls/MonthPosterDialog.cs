@@ -1,5 +1,7 @@
 using Bowen.WinUI.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -42,6 +44,10 @@ internal static class MonthPosterDialog
     {
         ArgumentNullException.ThrowIfNull(content);
 
+        var dark = theme == ElementTheme.Dark
+            || (theme == ElementTheme.Default
+                && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+
         var image = new Image
         {
             Stretch = Stretch.Uniform,
@@ -65,7 +71,37 @@ internal static class MonthPosterDialog
             HorizontalAlignment = HorizontalAlignment.Center,
         };
 
+        var toggle = new Button
+        {
+            Width = 32,
+            Height = 32,
+            MinWidth = 0,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Content = IconGeometry.CreatePathIcon(dark ? "IconThemeLight" : "IconThemeDark"),
+        };
+        ToolTipService.SetToolTip(toggle, dark ? "切换为浅色海报" : "切换为深色海报");
+
+        var title = new TextBlock
+        {
+            Text = kind == MonthPosterKind.Overview ? "月度总览海报" : "歌曲总览海报",
+            FontSize = 20,
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var header = new Grid { ColumnSpacing = 8 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(title, 0);
+        Grid.SetColumn(toggle, 1);
+        header.Children.Add(title);
+        header.Children.Add(toggle);
+
         var stack = new StackPanel { Spacing = 12, MinWidth = 320 };
+        stack.Children.Add(header);
         stack.Children.Add(ring);
         stack.Children.Add(image);
         stack.Children.Add(status);
@@ -80,9 +116,7 @@ internal static class MonthPosterDialog
         root.Children.Add(stack);
         root.Children.Add(viewer);
 
-        var dialog = AppDialogs.Create(
-            kind == MonthPosterKind.Overview ? "月度总览海报" : "歌曲总览海报",
-            xamlRoot, theme, maxWidth: 520);
+        var dialog = AppDialogs.Create(null, xamlRoot, theme, maxWidth: 520);
         dialog.Resources["ContentDialogMaxWidth"] = 1200d;
         dialog.Resources["ContentDialogMaxHeight"] = 900d;
         dialog.Content = root;
@@ -117,30 +151,66 @@ internal static class MonthPosterDialog
         };
 
         byte[]? png = null;
+        var generation = 0;
+        var rendering = false;
 
         async Task RenderAsync()
         {
+            var current = ++generation;
+            rendering = true;
+            toggle.IsEnabled = false;
+            ring.IsActive = true;
+            ring.Visibility = Visibility.Visible;
+            status.Text = "正在生成海报…";
+            status.Visibility = Visibility.Visible;
+            dialog.IsPrimaryButtonEnabled = false;
+            dialog.IsSecondaryButtonEnabled = false;
+
             try
             {
-                png = kind == MonthPosterKind.Overview
-                    ? await MonthOverviewPosterRenderer.RenderAsync(content)
-                    : await MonthTracksPosterRenderer.RenderAsync(content);
+                var bytes = kind == MonthPosterKind.Overview
+                    ? await MonthOverviewPosterRenderer.RenderAsync(content, dark)
+                    : await MonthTracksPosterRenderer.RenderAsync(content, dark);
+                if (current != generation) return;
 
-                image.Source = await LoadBitmapAsync(png);
+                png = bytes;
+                image.Source = await LoadBitmapAsync(bytes);
                 ring.IsActive = false;
                 ring.Visibility = Visibility.Collapsed;
                 status.Text = "";
+                status.Visibility = Visibility.Collapsed;
                 dialog.IsPrimaryButtonEnabled = true;
                 dialog.IsSecondaryButtonEnabled = true;
             }
             catch (Exception exception)
             {
+                if (current != generation) return;
                 logger?.LogWarning(exception, "月报海报渲染失败");
                 ring.IsActive = false;
                 ring.Visibility = Visibility.Collapsed;
                 status.Text = "海报生成失败，请稍后再试。";
+                status.Visibility = Visibility.Visible;
+                dialog.IsPrimaryButtonEnabled = png is not null;
+                dialog.IsSecondaryButtonEnabled = png is not null;
+            }
+            finally
+            {
+                if (current == generation)
+                {
+                    rendering = false;
+                    toggle.IsEnabled = true;
+                }
             }
         }
+
+        toggle.Click += async (_, _) =>
+        {
+            if (rendering) return;
+            dark = !dark;
+            toggle.Content = IconGeometry.CreatePathIcon(dark ? "IconThemeLight" : "IconThemeDark");
+            ToolTipService.SetToolTip(toggle, dark ? "切换为浅色海报" : "切换为深色海报");
+            await RenderAsync();
+        };
 
         dialog.PrimaryButtonClick += async (_, args) =>
         {
@@ -198,9 +268,8 @@ internal static class MonthPosterDialog
             }
         };
 
-        var showOperation = dialog.ShowAsync();
-        _ = RenderAsync();
-        await showOperation;
+        dialog.Opened += (_, _) => _ = RenderAsync();
+        await dialog.ShowAsync();
     }
 
     private static string SafeFileName(MonthPosterContent content, MonthPosterKind kind)

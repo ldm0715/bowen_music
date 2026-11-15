@@ -2103,18 +2103,15 @@ public sealed class BodianApi : IBodianApi
     {
         RequireAuthenticated();
 
-        var body = new MonthReportPlaylistBody { Date = month.Value };
-
         try
         {
+            // 官方客户端这条是 GET + query `date`，不是 POST JSON。
             var envelope = await _transport.SendAsync(
                 new BodianRequest
                 {
                     Path = Endpoints.MonthReportPlaylist,
-                    Verb = BodianHttpVerb.Post,
+                    Query = [new KeyValuePair<string, string>("date", month.Value)],
                     Signed = true,
-                    JsonBody = JsonSerializer.Serialize(
-                        body, BodianJsonContext.Default.MonthReportPlaylistBody),
                 },
                 BodianJsonContext.Default.JsonElement,
                 cancellationToken).ConfigureAwait(false);
