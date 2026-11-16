@@ -5,6 +5,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -48,20 +49,18 @@ internal static class MonthPosterDialog
             || (theme == ElementTheme.Default
                 && Application.Current.RequestedTheme == ApplicationTheme.Dark);
 
-        var image = new Image
-        {
-            Stretch = Stretch.Uniform,
-            MaxWidth = 300,
-            MaxHeight = 520,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
+        var imageA = CreatePreviewImage();
+        var imageB = CreatePreviewImage();
+        imageB.Opacity = 0;
+        imageB.Visibility = Visibility.Collapsed;
 
         var ring = new ProgressRing
         {
             IsActive = true,
-            Width = 48,
-            Height = 48,
+            Width = 32,
+            Height = 32,
             HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
         };
 
         var status = new TextBlock
@@ -69,7 +68,23 @@ internal static class MonthPosterDialog
             Text = "正在生成海报…",
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
         };
+
+        // 加载圈和提示文字一起压在图片上方居中，避免单独占一行。
+        var loadingPanel = new StackPanel
+        {
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        loadingPanel.Children.Add(ring);
+        loadingPanel.Children.Add(status);
+
+        var imageHost = new Grid { MinHeight = 140 };
+        imageHost.Children.Add(imageA);
+        imageHost.Children.Add(imageB);
+        imageHost.Children.Add(loadingPanel);
 
         var toggle = new Button
         {
@@ -102,9 +117,7 @@ internal static class MonthPosterDialog
 
         var stack = new StackPanel { Spacing = 12, MinWidth = 320 };
         stack.Children.Add(header);
-        stack.Children.Add(ring);
-        stack.Children.Add(image);
-        stack.Children.Add(status);
+        stack.Children.Add(imageHost);
 
         var viewer = new CommentImageViewer
         {
@@ -132,10 +145,19 @@ internal static class MonthPosterDialog
             dialog.PrimaryButtonStyle = accentStyle;
         }
 
-        ToolTipService.SetToolTip(image, "点击放大预览");
-        image.Tapped += (_, _) =>
+        ToolTipService.SetToolTip(imageA, "点击放大预览");
+        ToolTipService.SetToolTip(imageB, "点击放大预览");
+        imageA.Tapped += (sender, _) => ShowViewer(((Image)sender).Source);
+        imageB.Tapped += (sender, _) => ShowViewer(((Image)sender).Source);
+        viewer.CloseRequested += (_, _) =>
         {
-            if (image.Source is not { } source)
+            viewer.Visibility = Visibility.Collapsed;
+            viewer.ImageSource = null;
+        };
+
+        void ShowViewer(ImageSource? source)
+        {
+            if (source is null)
             {
                 return;
             }
@@ -143,12 +165,62 @@ internal static class MonthPosterDialog
             viewer.ImageSource = source;
             viewer.Visibility = Visibility.Visible;
             viewer.FocusCloseButton();
-        };
-        viewer.CloseRequested += (_, _) =>
+        }
+
+        void Crossfade(ImageSource source)
         {
-            viewer.Visibility = Visibility.Collapsed;
-            viewer.ImageSource = null;
-        };
+            if (imageA.Source is null)
+            {
+                imageA.Source = source;
+                imageA.Opacity = 0;
+                Fade(imageA, 0, 1, 180, () => imageA.Opacity = 1);
+            }
+            else
+            {
+                imageB.Source = source;
+                imageB.Opacity = 0;
+                imageB.Visibility = Visibility.Visible;
+                imageA.Opacity = 1;
+
+                var storyboard = new Storyboard();
+                var fadeIn = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 1,
+                    Duration = TimeSpan.FromMilliseconds(220),
+                };
+                Storyboard.SetTarget(fadeIn, imageB);
+                Storyboard.SetTargetProperty(fadeIn, "Opacity");
+                var fadeOut = new DoubleAnimation
+                {
+                    From = 1,
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(220),
+                };
+                Storyboard.SetTarget(fadeOut, imageA);
+                Storyboard.SetTargetProperty(fadeOut, "Opacity");
+                storyboard.Children.Add(fadeIn);
+                storyboard.Children.Add(fadeOut);
+                storyboard.Completed += (_, _) =>
+                {
+                    imageA.Source = source;
+                    imageA.Opacity = 1;
+                    imageB.Visibility = Visibility.Collapsed;
+                    imageB.Source = null;
+                    imageB.Opacity = 0;
+                    if (viewer.Visibility == Visibility.Visible)
+                    {
+                        viewer.ImageSource = source;
+                    }
+                };
+                storyboard.Begin();
+            }
+
+            if (viewer.Visibility == Visibility.Visible)
+            {
+                viewer.ImageSource = source;
+            }
+        }
 
         byte[]? png = null;
         var generation = 0;
@@ -159,6 +231,7 @@ internal static class MonthPosterDialog
             var current = ++generation;
             rendering = true;
             toggle.IsEnabled = false;
+            loadingPanel.Visibility = Visibility.Visible;
             ring.IsActive = true;
             ring.Visibility = Visibility.Visible;
             status.Text = "正在生成海报…";
@@ -173,12 +246,13 @@ internal static class MonthPosterDialog
                     : await MonthTracksPosterRenderer.RenderAsync(content, dark);
                 if (current != generation) return;
 
+                var bitmap = await LoadBitmapAsync(bytes);
+                if (current != generation) return;
+
                 png = bytes;
-                image.Source = await LoadBitmapAsync(bytes);
+                Crossfade(bitmap);
+                loadingPanel.Visibility = Visibility.Collapsed;
                 ring.IsActive = false;
-                ring.Visibility = Visibility.Collapsed;
-                status.Text = "";
-                status.Visibility = Visibility.Collapsed;
                 dialog.IsPrimaryButtonEnabled = true;
                 dialog.IsSecondaryButtonEnabled = true;
             }
@@ -190,6 +264,7 @@ internal static class MonthPosterDialog
                 ring.Visibility = Visibility.Collapsed;
                 status.Text = "海报生成失败，请稍后再试。";
                 status.Visibility = Visibility.Visible;
+                loadingPanel.Visibility = Visibility.Visible;
                 dialog.IsPrimaryButtonEnabled = png is not null;
                 dialog.IsSecondaryButtonEnabled = png is not null;
             }
@@ -274,6 +349,30 @@ internal static class MonthPosterDialog
 
     private static string SafeFileName(MonthPosterContent content, MonthPosterKind kind)
         => $"音波回忆_{content.Year}{content.Month:00}_{(kind == MonthPosterKind.Overview ? "月度总览" : "歌曲总览")}";
+
+    private static Image CreatePreviewImage() => new()
+    {
+        Stretch = Stretch.Uniform,
+        MaxWidth = 300,
+        MaxHeight = 520,
+        HorizontalAlignment = HorizontalAlignment.Center,
+    };
+
+    private static void Fade(UIElement element, double from, double to, int milliseconds, Action completed)
+    {
+        var animation = new DoubleAnimation
+        {
+            From = from,
+            To = to,
+            Duration = TimeSpan.FromMilliseconds(milliseconds),
+        };
+        Storyboard.SetTarget(animation, element);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(animation);
+        storyboard.Completed += (_, _) => completed();
+        storyboard.Begin();
+    }
 
     private static async Task<BitmapImage> LoadBitmapAsync(byte[] png)
     {
