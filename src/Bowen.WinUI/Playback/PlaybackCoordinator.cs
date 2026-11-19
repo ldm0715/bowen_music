@@ -1203,7 +1203,7 @@ public sealed class PlaybackCoordinator : IDisposable
             _historySync?.NotifyPlayed(track.Id);
             ReportCollectionHistory();
 
-            // 播放统计：上一首没播完就切走时按比例上报。刚自然播完的由 OnEngineEnded 报过，这里跳过。
+            // 播放统计：上一首没播完就切走时上报实际已播位置。刚自然播完的由 OnEngineEnded 报过，这里跳过。
             if (outgoing is not null && outgoing.Id != _completedTrackId)
             {
                 _telemetry?.ReportSwitched(outgoing, outgoingPosition);
@@ -1436,7 +1436,7 @@ public sealed class PlaybackCoordinator : IDisposable
             }
             else
             {
-                // 试听片段结束：按切歌处理，已播比例很小，会落到 operate=1。
+                // 试听片段结束：按切歌处理，记录实际已播位置。
                 _telemetry?.ReportSwitched(ended, _lastKnownPosition);
             }
         }

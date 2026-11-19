@@ -1,6 +1,5 @@
 using Bowen.Core.Api;
 using Bowen.Core.Api.Paging;
-using Bowen.Core.Lyrics;
 using Bowen.Core.Models;
 using Bowen.Core.Models.Account;
 using Bowen.Core.Models.AudioMemory;
@@ -254,11 +253,4 @@ internal sealed class PlaybackApiStub : IBodianApi
         public Task AddCollectionPlayHistoryAsync(int historySourceType, long sourceId, int playlistType,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
-
-        public Func<long, int, int, int, CancellationToken, Task> AddPlayRecord { get; set; } =
-            (_, _, _, _, _) => Task.CompletedTask;
-
-        public Task AddPlayRecordAsync(long musicId, int durationSeconds, int playedSeconds, int operate,
-            CancellationToken cancellationToken = default)
-            => AddPlayRecord(musicId, durationSeconds, playedSeconds, operate, cancellationToken);
     }

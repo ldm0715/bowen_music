@@ -2273,64 +2273,6 @@ public sealed class BodianApi : IBodianApi
             cancellationToken);
     }
 
-    public async Task AddPlayRecordAsync(
-        long musicId,
-        int durationSeconds,
-        int playedSeconds,
-        int operate,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureMusicId(musicId);
-
-        if (durationSeconds <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(durationSeconds), durationSeconds, "曲目时长必须是正数");
-        }
-
-        if (operate is not (Endpoints.PlayOpComplete or Endpoints.PlayOpSwitch or Endpoints.PlayOpNone))
-        {
-            throw new ArgumentOutOfRangeException(nameof(operate), operate, "只支持完成、切歌与播放中");
-        }
-
-        playedSeconds = Math.Clamp(playedSeconds, 0, durationSeconds);
-        RequireAuthenticated();
-
-        var body = new PlayRecordBody
-        {
-            MusicList =
-            [
-                new PlayRecordItem
-                {
-                    Id = musicId,
-                    Src = false,
-                    CurrentDur = durationSeconds,
-                    CurrentSpt = playedSeconds,
-                    PSrc = "",
-                },
-            ],
-            Operate = operate,
-        };
-
-        var envelope = await _transport.SendAsync(
-            new BodianRequest
-            {
-                Path = Endpoints.PlayRecord,
-                Verb = BodianHttpVerb.Post,
-                Signed = true,
-                JsonBody = JsonSerializer.Serialize(body, BodianJsonContext.Default.PlayRecordBody),
-            },
-            BodianJsonContext.Default.JsonElement,
-            cancellationToken).ConfigureAwait(false);
-
-        _logger.LogInformation(
-            "播放统计上报：musicId {MusicId}，{Played}/{Duration} 秒，operate {Operate}，业务码 {Code}",
-            musicId,
-            playedSeconds,
-            durationSeconds,
-            operate,
-            envelope.Code);
-    }
-
     /// <summary>
     /// <c>playlist/history/add</c> 的共同写入流程。
     /// </summary>

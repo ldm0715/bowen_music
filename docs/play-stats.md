@@ -10,12 +10,14 @@
 | 功能 | 写入接口 | 本项目状态 |
 | --- | --- | --- |
 | 最近播放 | `playlist/history/add` | 已实现并验证 |
-| 播放次数 / 时长 / 排行 | `service/music/record` | **未实现**，所以统计不动 |
+| 播放次数 / 时长 / 排行 | `log.kuwo.cn/music.yl`（移动端格式） | 已实现，待实网复验 |
 
-官方 PC 端也没有调用 `record`（抓包只看到 `log.kuwo.cn/music.yl`），所以官方桌面端的播放
-同样不会进入这套统计。要补齐，客户端必须在**播完或切歌时**主动上报。
+官方 PC 端只发桌面格式的 `music.yl`，统计不采纳；移动端格式的 `music.yl` 实测会计入。
+客户端在**播完或切歌时**按移动端格式上报。
 
-## 1. 接口
+## 1. 接口（历史记录：record，最终未采用）
+
+> 以下 `record` 内容是排查过程，客户端最终实现的是 §9 的 `music.yl`。
 
 ```text
 POST service/music/record
@@ -50,7 +52,9 @@ Content-Type: application/json
 | `5` | `OP_NONE` | 播放中 |
 | `2` / `3` / `4` / `6` / `7` / `16` | 分享 / 收藏 / 搜索 / 删除 / 单曲循环 / 取消收藏 | 其它行为，本项目不涉及 |
 
-## 2. 官方触发时机
+## 2. 官方触发时机（record，历史记录）
+
+> 本节是 `record` 的比例规则，客户端最终未采用；实际实现见 §4 与 §8。
 
 ### 2.1 播放完成
 
@@ -89,106 +93,88 @@ Content-Type: application/json
 - 统计是离线聚合，不会立即生效；
 - 当时还没有确认单位，也没有看到聚合结果。
 
-### 3.1 聚合结果（2026-11-14）
+### 3.1 后续对照实验（2026-11-16 / 11-17）
 
-| 指标 | 前一天基线 | 聚合后 | 增量 |
-| --- | --- | --- | --- |
-| `playcnt` | 1153 | 1161 | +8 |
-| `playTime` | 189554 | 191034 | +1480 秒 |
+之前的「聚合结果」结论**已被后续实验推翻**，保留记录如下。
 
-周排行（`play_ranking type=1`）出现「黑色毛衣」1 次；前五名 `playcnt` 为
-`3 / 2 / 1 / 1 / 1`，合计正好 8，与累计次数增量一致。
+| 时间 | 写入 | 结果 |
+| --- | --- | --- |
+| 11-15 | 客户端 `record` 1 条（229 秒） | 11-16 统计未变 |
+| 11-15 | 探针 `record` 143 秒、215000（毫秒） | 11-16 统计未变 |
+| 11-16 | A：`record` + `plat=android` + `ver=5.9.8` + 移动签名，307 秒 | 11-17 统计未变 |
+| 11-16 | B：`music.yl` 移动端 `encv=1`，275 秒 | 11-17 统计未变 |
+| 11-16 | C：`record` + `plat=android` + `ver=5.9.8` + 桌面签名，254 秒 | 11-17 统计未变 |
+| 11-16 | D：`record` + `plat=android` + 默认 `ver=1.1.7`，305 秒 | 11-17 统计未变 |
 
-由此可以确认：
+所有请求都返回 `200`，但 `playcnt / playTime` 始终停在 `1162 / 191038`。
 
-1. **单位是秒。** 如果 `240000` 被当成秒，`playTime` 会涨约 24 万秒；实际只涨 1480，
-   说明服务端按秒解释（或把超长值裁到曲目时长），毫秒写法没有造成量级跳变。
-2. **服务端会去重。** 同一首「黑色毛衣」发了 3 条 `record`，周排行只记 1 次。
-   客户端不必自己做跨会话去重，但也不应按请求条数假设计数。
-3. **周排行与累计次数是同一套聚合。** 两者增量能对上。
-4. 剩余增量里混有官方手机端与其它客户端的播放，无法完全隔离；但毫秒会造成数量级差异，
-   这一点已经排除。
+**修正后的结论：**
 
-## 4. 实现方案（2026-11-14 已实现）
+1. **`200` 只表示接口接收，不表示统计计入。**
+2. 11-14 观察到的 `+8 / +1480` 与「黑色毛衣」次数变化，应归因于官方手机端的播放，
+   不是本项目或探针的写入。
+3. 桌面头、移动头、移动签名、`music.yl` 这四种复刻方式都**没有**被统计采纳。
+4. 单位（秒 / 毫秒）、去重规则、字段语义全部回到**未确认**状态。
+5. 官方统计的真实触发条件仍未找到。下一步必须抓官方手机端一次完整播放的流量，
+   逐字节对比请求路径、请求头、query 与 body。
 
-### 4.1 API 层
+## 4. 实现（2026-11-19）
 
-| 文件 | 改动 |
+### 4.1 发送链路
+
+| 文件 | 内容 |
 | --- | --- |
-| `Api/Endpoints.cs` | `PlayRecord = "service/music/record"` 与三个 `operate` 常量 |
-| `Api/Dto/Requests/PlayRecordBody.cs` | `PlayRecordBody { MusicList[], Operate }`、`PlayRecordItem { Id, Src, CurrentDur, CurrentSpt, PSrc }` |
-| `Api/IBodianApi.cs`、`BodianApi.cs` | `AddPlayRecordAsync(musicId, durationSeconds, playedSeconds, operate)` |
-| `Api/BodianJsonContext.cs` | 注册请求体 |
+| `Services/Implementations/PlayLogComposer.cs` | 按官方移动端格式拼管道串，XOR 密钥后再 Base64 |
+| `Services/Implementations/PlayTelemetry.cs` | `POST http://log.kuwo.cn/music.yl?encv=1`，纯 HTTP、无签名 |
+| `Services/Abstractions/IPlayTelemetry.cs` | `ReportCompleted` / `ReportSwitched` |
+| `PlaybackCoordinator` | 切歌记上一首、播完记当前，失败静默 |
 
-### 4.2 上报服务
-
-新增 `IPlayTelemetry` / `PlayTelemetry`，与 `IPlayHistorySync` 同构：
-
-- 未登录直接跳过；
-- 立即返回，网络请求后台完成；
-- 5 秒超时，失败只记 Debug 日志，不重试；
-- 不阻塞播放。
-
-接口：
-
-```csharp
-public interface IPlayTelemetry
-{
-    void ReportCompleted(Track track);
-    void ReportSwitched(Track track, TimeSpan played);
-}
-```
-
-`ReportSwitched` 内部按第 2.2 节的比例换算 `operate`；`ReportCompleted` 固定 `0`。
-
-### 4.3 调用点
-
-都在 `PlaybackCoordinator`：
-
-1. `OnEngineEnded`：整曲播完时 `ReportCompleted(CurrentTrack)`。
-   **试听不算完成**，按切歌规则上报（试听片段占比很小，会落到 `operate = 1`）。
-2. `StartAsync` 加载新曲目之前，记录上一首的 `CurrentTrack` 与引擎当前位置；
-   新曲目起播后，如果上一首不是刚播完的，调用 `ReportSwitched(上一首, 已播时长)`。
-
-**不额外加门槛**：只要发生切歌就按比例上报，不设 30 秒最短播放，也不设小时限额。
-
-需要一个小状态 `_completedTrackId`：`OnEngineEnded` 记下 id，`StartAsync` 发现上一首就是它
-就跳过切歌上报，避免「完成 + 切歌」重复计数。
-
-### 4.4 字段取值
+### 4.2 字段
 
 | 字段 | 取值 |
 | --- | --- |
-| `id` | `Track.Id` |
-| `src` | 固定 `false`（官方取 `Song.isUserDefault`，本项目没有对应概念） |
-| `currentDur` | 曲目总时长，秒，四舍五入 |
-| `currentSpt` | 已播位置，秒，夹在 `0..currentDur` |
-| `pSrc` | 空字符串 |
+| `RID` / `NA` / `AR` | 曲目 id、标题、艺人 |
+| `DUR` / `SPT` | 曲目总时长（秒） |
+| `PT` / `PLAY_TIME` / `PLAYPAGE_TIME` / `APP_TIME` | 实际已播位置（秒），夹在 `0..DUR` |
+| `UI` | 当前账号 uid |
+| `U` / `UUID` / `Q36` / `ANDROID_ID` / `OAID` | 本机 `devid` |
+| `CT` | 本机时间 `yyyy-MM-dd HH:mm:ss` |
+| `SRC` / `FROM` / `PLAT` / `CHANNEL` / `VER` | 按官方移动端模板（`bodplayer_ar_5.9.8` / `ar` / `oppo` / `5.9.8`） |
 
-单位暂定秒。若聚合结果证明是毫秒，只改这一处换算。
+**为什么用移动端模板**：官方桌面格式的 `music.yl` 不被统计采纳；移动端格式的探针实测计入。
+
+### 4.3 触发与失败
+
+- 切歌：在 `StartAsync` 加载新曲目前记录上一首与当前位置；
+- 播完：`OnEngineEnded` 记录当前曲目，已播位置等于总时长；
+- 试听结束按切歌记录；
+- 暂停不发；
+- 未登录不发；
+- 后台发送、5 秒超时、失败只记 Warning，不重试、不阻塞播放；
+- `_completedTrackId` 避免「播完 + 自动续播」重复上报。
 
 ## 5. 验证
 
 ### 5.1 离线
 
-- 报文形状：`operate` 为整数、item 恰好五个键；
-- 比例映射：`10% → 1`、`50% → 5`、`95% → 0`、`100% → 0`；
-- 未登录不发请求；
-- 传输异常不外抛；
-- 播完自动续播只报一次，不重复。
+- 日志字段：`ACT`、`RID`、`DUR`、`PT`、`PLAY_TIME`、`UI` 等；
+- XOR + Base64 往返解码一致；
+- 发送到 `log.kuwo.cn/music.yl?encv=1`；
+- 未登录不发；
+- 传输失败不外抛；
+- 播完自动续播只报一次；音质切换不报。
 
 ### 5.2 实网
 
-先记录 `user_data` 基线，再用客户端完整播一首，等待聚合后对比 `playcnt` / `playTime`。
-聚合不是实时的，**至少隔天再看**，不能按秒级判断。
+2026-11-19 的对照实验已经证明移动端格式的 `music.yl` 会被计入。客户端实现后仍需完整播一首，
+等待下一次聚合确认。
 
 ## 6. 未决问题
 
-1. 聚合周期：官方手机端也没有立即生效，具体延迟未知。
-2. ~~单位：秒还是毫秒。~~ **已确认是秒**（2026-11-14 聚合结果，见 3.1）。
-3. `src` / `pSrc` 是否必填，空值是否影响计数。
-4. 统计是否只认 `operate = 0`，还是 `1` / `5` 也计入时长。
-5. 服务端是否按 `id + 时间窗` 去重。
+1. 聚合周期：按天或按小时，具体时间未知。
+2. 服务端是否按 `id + 时间窗` 去重。
+3. 显式停止/退出时官方还会补一条，本项目暂未接入 `stop` 钩子。
+4. `record` 是否还负责推荐等其他用途，本项目不再发送。
 
 ## 7. 与音乐月报的关系
 
@@ -215,22 +201,161 @@ public interface IPlayTelemetry
 播放次数、最近一周与全部排行**都没有变化**。官方 PC 只发 `music.yl`，不发 `record` ——
 这条证据说明：
 
-- `music.yl` **不负责**播放次数 / 时长 / 排行榜的计数；
-- 这些统计至少依赖 `service/music/record`；
+- 官方 PC 的 `music.yl`（桌面字段集）**不负责**播放次数 / 时长 / 排行榜的计数；
+- 移动端格式的 `music.yl` 负责：2026-11-19 的对照实验中，只有它对应的探针进入了周排行；
+- `service/music/record` 的修正探针（`src` / `pSrc` 已按官方值）**没有进入统计**；
 - 官方 PC 用户的播放天然不进这套统计，这是桌面端的既有缺口；
-- 月报如果与这些统计共用聚合口径，那么**只补 `music.yl` 不够，必须补 `record`**。
-
-`music.yl` 仍然可能是日志、归因、内容分析的另一条管道，但不再是统计的主链路候选。
-
-对客户端的含义：**要实现播放次数 / 时长 / 排行，`service/music/record` 是必须的。**
-月报是否完全等同这套聚合仍未单独验证，但当前证据不支持「只补 `music.yl`」。
+- 月报是否复用同一套聚合仍未验证，但当前证据指向 `music.yl`。
 
 ## 8. 触发规则以官方为准
 
-不引入第三方客户端的额外门槛（例如 30 秒最短播放或每小时限额）。官方只按已播比例决定
-`operate`，客户端照抄即可：
+不引入第三方客户端的额外门槛（例如 30 秒最短播放或每小时限额）。官方按实际播放行为记录：
 
-- 播完 → `0`；
-- 切歌：`<30%` → `1`，`30%-90%` → `5`，`>90%` → `0`；
+- 切歌：记录**上一首**的已播位置；
+- 播完：记录当前曲目，已播位置等于总时长；
+- 暂停：只发按钮点击事件，不发播放日志；
+- 停止/退出：官方会补一条，本项目暂未接入；
 - 未登录不上报；
 - 失败只丢这一条，不重试、不阻塞播放。
+
+## 9. 官方移动端 `music.yl` 实抓（2026-11-18）
+
+用 Reqable 协同模式抓到官方 Android 5.9.8 的一次完整播放。**这条报文与 PC 抓到的不是同一个数据结构。**
+
+### 9.1 请求形态
+
+```
+POST http://log.kuwo.cn/music.yl?encv=1
+Content-Type: application/x-www-form-urlencoded
+User-Agent: Dart/3.11 (dart:io)
+Accept-Encoding: gzip
+```
+
+- **query 只有 `encv=1`**，没有 `uid` / `token`；
+- 身份在 body 的 `UI:<uid>` 字段；
+- body 是 XOR(密钥 `Z9o+Lw@H`) 再 Base64，与 PC 的纯 Base64 不同。
+
+### 9.2 解码后的字段（已脱敏）
+
+```text
+2%09<SRC:bodplayer_ar_5.9.8|ACT:BOD_PLAY_MUSIC|T:1|RID:118989|VID:|DUR:252|
+NA:黑色毛衣|AR:周杰伦|PT:223|AQ:3|PLAY_TIME:224|PLAYPAGE_TIME:224|APP_TIME:224|
+LSRC:我的->音乐->上一次播放列表|PSRC:playing_more->专辑详情页|MV:0|PATH:|SRC:|
+FG:1|LOCK:2|DELAY:7742|BLKCNT:0|DELAY_FIX:7742|FMT:flac|SCENE:0|PTYPE:0|FTYPE:1|
+PLAY_STATE:0|PLAY_MODE:0|RECOMMEND_MODE:-1|PLAYER_THEME:poster|ERROR_CODE:0|LOW_DEV:0|
+free_mode:0|SPT:252|STARTPlAY_MODE:1|MUSIC_EFFECT:清澈人声|TID:|cut_song_type:2|
+BR:2000|CACHE:0|SPEED:5887000|LAST_SPEED:4448.0|ERROR_DESC:success|HTTPHOST:127.0.0.1|
+HTTPCODE:200|RESPONSE_CODE:200|HTTPURL:<redacted>|PROXY_TYPE:NONE_PROXY|HEADSET_CONNECT:0|
+PROD:bodplayer|FROM:bodplayer_ar_5.9.8_oppo|CHANNEL:oppo|VER:5.9.8|VER_CODE:598|
+BUILD_NO:485|PLAT:ar|DEV:<redacted>|OSV:16|CT:2026-11-18 13:00:48|CIP:<redacted>|
+U:<redacted>|UUID:<redacted>|Q36:<redacted>|ANDROID_ID:<redacted>|OAID:<redacted>|
+UI:<uid>|NE_TYPE:WIFI|IS_VIP:1>
+```
+
+切歌时还会发一条 `ACT:PAGE_EXP`（按钮曝光），与播放统计无关。
+
+### 9.3 与之前探针的差异
+
+之前的探针缺了以下关键项：
+
+- `SRC` 写成 `bodplayer_win_1.1.7`，官方是 `bodplayer_ar_5.9.8`；
+- 缺 `PLAYPAGE_TIME`、`APP_TIME`、`SPT`、`UI`、`U`、`UUID`、`Q36`、`OAID` 等；
+- query 里多带了 `uid` / `token`，官方没有。
+
+### 9.4 对照实验
+
+2026-11-18 当天：
+
+- 官方手机端播放了「黑色毛衣」，作为对照组；
+- 用官方模板发了一条「以父之名」（id `93164603`，151 秒）的修正探针。
+
+下一次聚合后按 `playcnt / playTime` 增量判断 `music.yl` 是否计入统计。
+
+### 9.5 仍未确认
+
+移动端还会调用 `service/music/record`。要确认统计到底来自哪条链路，需要继续用 Reqable 解密
+`bd-api.kuwo.cn` 的 HTTPS 流量，抓一次完整播放中的 `service/music/record` 请求，与第 1 节
+的报文逐字段比对。
+
+### 9.6 官方发送时机（静态 + 实抓）
+
+`MusicModel::sendPlayLog` 的调用点：
+
+| 位置 | 时机 |
+| --- | --- |
+| `MusicModel::play` | 开始播放新曲目前，记录**上一首**（切歌） |
+| `MusicModel::stop` | 停止播放时，记录当前曲目 |
+| `onPlayerStateChanged` 的 `COMPLETED` 分支 | 自然播完 |
+
+实抓补充：
+
+- **暂停不发** `BOD_PLAY_MUSIC`，只发 `ACT:BOD_BTN_CLK | btn_name:btnPlay`；
+- 切歌时抓到的播放日志是**上一首**，`PT:223`、`PLAY_TIME:224`、`DUR:252`、`SPT:252`；
+- 与客户端当前实现（起播时记录上一首 + 播完记录）一致；
+- **缺口**：官方在显式 stop（停止播放/退出）时还会补一条，本项目目前没有对应钩子。
+
+结论：客户端“切歌 + 播完”的时机是对的；暂停不需要发；如果要完全对齐，后续补一个 stop 钩子。
+
+### 9.7 官方 `record` 实抓（2026-11-18）
+
+Reqable 解密的手机端 `service/music/record`：
+
+```text
+POST https://bd-api.kuwo.cn/api/service/music/record?uid=<uid>&token=<token>
+Content-Type: application/json
+
+{
+  "musicList": [
+    {
+      "id": 118988,
+      "src": "",
+      "currentDur": 248,
+      "currentSpt": 248,
+      "pSrc": "playing_more->专辑详情页"
+    }
+  ],
+  "operate": 0
+}
+```
+
+与之前实现的差异：
+
+| 字段 | 官方 | 之前客户端 |
+| --- | --- | --- |
+| `src` | **空字符串** `""` | 布尔 `false` |
+| `pSrc` | **非空来源串**，如 `playing_more->专辑详情页` | 空字符串 |
+| `currentDur/currentSpt` | 秒，248 / 248 | 秒（一致） |
+| `operate` | 整数 `0`（一致） | `0` |
+
+另外，Reqable 显示的 wire payload 不是明文 JSON，说明手机端对请求体做了额外加密；桌面端目前发的是明文 JSON。
+这条差异是否影响服务端采纳统计，尚未验证。
+
+已按官方字段补发一条对照（`id 381467353`，288 秒，`src:""`，
+`pSrc:"playing_more->专辑详情页"`），等待下一次聚合。
+
+### 9.8 对照结果（2026-11-19）
+
+聚合后的变化：
+
+| 指标 | 之前 | 之后 | 增量 |
+| --- | --- | --- | --- |
+| `playcnt` | 1162 | 1166 | +4 |
+| `playTime` | 191038 | 191525 | +487 秒 |
+
+周排行新增：
+
+| 曲目 | id | 来源 |
+| --- | --- | --- |
+| 以父之名 (抖音版) | 93164603 | **本项目的修正 `music.yl` 探针** |
+| 四面楚歌 | 118988 | 官方手机端 |
+| 枫 | 118987 | 官方手机端 |
+| 黑色毛衣 | 118989 | 官方手机端（次数 2→3） |
+
+**修正 `record` 探针（id 381467353）没有出现。**
+
+结论：
+
+1. **移动端格式的 `music.yl` 会被统计采纳。**
+2. **桌面明文 `record`（即使 `src`/`pSrc` 改成官方值）没有被采纳。**
+3. 统计的真实数据源至少是 `music.yl`；`record` 不是必要条件，或者手机端还做了我们没复刻的请求体加密。
+4. 后续实现应以 `music.yl` 为准，`record` 可以先不发。

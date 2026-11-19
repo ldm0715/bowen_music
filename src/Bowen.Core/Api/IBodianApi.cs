@@ -712,25 +712,4 @@ public interface IBodianApi
         long sourceId,
         int playlistType,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 上报一次播放统计，驱动播放次数、时长与排行榜。
-    /// </summary>
-    /// <param name="musicId">曲目 id。</param>
-    /// <param name="durationSeconds">曲目总时长，秒。</param>
-    /// <param name="playedSeconds">已播位置，秒；会被夹到 <c>0..durationSeconds</c>。</param>
-    /// <param name="operate">
-    /// <c>0</c> 播放完成、<c>1</c> 切歌、<c>5</c> 播放中。见
-    /// <c>Endpoints.PlayOpComplete</c> / <c>PlayOpSwitch</c> / <c>PlayOpNone</c>。
-    /// </param>
-    /// <remarks>
-    /// <b>这是写操作，会影响真实账号的统计。</b> 调用方应尽力而为：失败不重试、不提示、不阻塞播放。
-    /// 单位已确认为秒（2026-11-14 聚合结果）。见 <c>docs/play-stats.md</c>。
-    /// </remarks>
-    Task AddPlayRecordAsync(
-        long musicId,
-        int durationSeconds,
-        int playedSeconds,
-        int operate,
-        CancellationToken cancellationToken = default);
 }

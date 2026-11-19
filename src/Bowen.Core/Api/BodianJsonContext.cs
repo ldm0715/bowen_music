@@ -87,6 +87,5 @@ namespace Bowen.Core.Api;
 [JsonSerializable(typeof(DeletePlaylistBody))]
 [JsonSerializable(typeof(CollectBody))]
 [JsonSerializable(typeof(PlayHistoryAddBody))]
-[JsonSerializable(typeof(PlayRecordBody))]
 [JsonSerializable(typeof(MonthReportPlaylistBody))]
 internal sealed partial class BodianJsonContext : JsonSerializerContext;

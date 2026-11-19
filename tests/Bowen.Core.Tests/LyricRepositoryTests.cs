@@ -324,9 +324,5 @@ public sealed class LyricRepositoryTests
         public Task AddCollectionPlayHistoryAsync(int historySourceType, long sourceId, int playlistType,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
-
-        public Task AddPlayRecordAsync(long musicId, int durationSeconds, int playedSeconds, int operate,
-            CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
     }
 }

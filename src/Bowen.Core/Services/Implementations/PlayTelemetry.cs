@@ -1,3 +1,4 @@
+using System.Text;
 using Bowen.Core.Api;
 using Bowen.Core.Models;
 using Bowen.Core.Services.Abstractions;
@@ -9,92 +10,110 @@ namespace Bowen.Core.Services.Implementations;
 /// <inheritdoc cref="IPlayTelemetry" />
 /// <remarks>
 /// <para>
-/// 只负责选 <c>operate</c>、换算秒数、发出请求、吞掉失败。没有本地队列，也没有重试 ——
-/// 统计丢一条不影响播放，重试反而会在网络不佳时堆积请求。
+/// 发的是官方移动端的 <c>log.kuwo.cn/music.yl</c> 日志，不是 <c>service/music/record</c>。
+/// 2026-11-19 的对照实验确认：移动端格式的 <c>music.yl</c> 会被统计采纳，而桌面明文
+/// <c>record</c> 不会。见 <c>docs/play-stats.md</c> §9.8。
 /// </para>
 /// <para>
-/// 不设最短播放秒数或小时限额：官方只按已播比例决定 <c>operate</c>，照抄即可。
+/// 无签名、纯 HTTP、身份在 body 的 <c>UI</c> 字段。只负责拼日志、编码、发出、吞掉失败，
+/// 不重试、不阻塞播放。
 /// </para>
 /// </remarks>
-public sealed class PlayTelemetry : IPlayTelemetry
+public sealed class PlayTelemetry : IPlayTelemetry, IDisposable
 {
-    /// <summary>单次上报的超时。到点就放弃，不重试。</summary>
+    private const string Endpoint = "http://log.kuwo.cn/music.yl?encv=1";
+
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly IBodianApi _api;
     private readonly BodianSession _session;
+    private readonly IDeviceIdentity _device;
+    private readonly TimeProvider _clock;
     private readonly ILogger<PlayTelemetry> _logger;
+    private readonly HttpClient _http;
 
     public PlayTelemetry(
-        IBodianApi api,
         BodianSession session,
+        IDeviceIdentity device,
+        TimeProvider clock,
         ILogger<PlayTelemetry>? logger = null)
+        : this(session, device, clock, logger, handler: null)
     {
-        ArgumentNullException.ThrowIfNull(api);
+    }
+
+    internal PlayTelemetry(
+        BodianSession session,
+        IDeviceIdentity device,
+        TimeProvider clock,
+        ILogger<PlayTelemetry>? logger,
+        HttpMessageHandler? handler)
+    {
         ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(device);
+        ArgumentNullException.ThrowIfNull(clock);
 
-        _api = api;
         _session = session;
+        _device = device;
+        _clock = clock;
         _logger = logger ?? NullLogger<PlayTelemetry>.Instance;
+        _http = handler is null
+            ? new HttpClient()
+            : new HttpClient(handler, disposeHandler: false);
+        _http.Timeout = Timeout.InfiniteTimeSpan;
+        _http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Dart/3.11 (dart:io)");
+        _http.DefaultRequestHeaders.TryAddWithoutValidation("api-ver", "application/json");
     }
 
-    public void ReportCompleted(Track track)
+    public void ReportCompleted(Track track) => Report(track, track.Duration);
+
+    public void ReportSwitched(Track track, TimeSpan position) => Report(track, position);
+
+    private void Report(Track track, TimeSpan played)
     {
-        if (!TryGetSeconds(track, out var duration))
+        if (track.Id <= 0
+            || track.Duration <= TimeSpan.Zero
+            || !_session.IsAuthenticated)
         {
             return;
         }
 
-        FireAndForget(track.Id, duration, duration, Endpoints.PlayOpComplete);
+        // 不 await：统计上报不能挡住切歌或播放结束。异常在 RunAsync 内部全部吞掉。
+        _ = RunAsync(track, played);
     }
 
-    public void ReportSwitched(Track track, TimeSpan position)
-    {
-        if (!TryGetSeconds(track, out var duration))
-        {
-            return;
-        }
-
-        var played = Math.Clamp((int)Math.Round(position.TotalSeconds), 0, duration);
-        var ratio = played / (double)duration;
-
-        // 与官方一致：不足 30% 是切歌，30%-90% 是播放中，超过 90% 按完成计。
-        var operate = ratio < 0.3 ? Endpoints.PlayOpSwitch
-            : ratio <= 0.9 ? Endpoints.PlayOpNone
-            : Endpoints.PlayOpComplete;
-
-        FireAndForget(track.Id, duration, played, operate);
-    }
-
-    private bool TryGetSeconds(Track track, out int durationSeconds)
-    {
-        durationSeconds = (int)Math.Round(track.Duration.TotalSeconds);
-
-        return track.Id > 0
-            && durationSeconds > 0
-            && _session.IsAuthenticated;
-    }
-
-    /// <summary>不 await：统计上报不能挡住切歌或播放结束。异常在 <see cref="RunAsync"/> 内部全部吞掉。</summary>
-    private void FireAndForget(long musicId, int durationSeconds, int playedSeconds, int operate)
-        => _ = RunAsync(musicId, durationSeconds, playedSeconds, operate);
-
-    private async Task RunAsync(long musicId, int durationSeconds, int playedSeconds, int operate)
+    private async Task RunAsync(Track track, TimeSpan played)
     {
         try
         {
+            var log = PlayLogComposer.Build(
+                track,
+                played,
+                _session.Uid,
+                _device.Value,
+                _clock.GetLocalNow());
+            var body = PlayLogComposer.Encode(log);
+
             using var timeout = new CancellationTokenSource(RequestTimeout);
-            await _api.AddPlayRecordAsync(musicId, durationSeconds, playedSeconds, operate, timeout.Token)
-                .ConfigureAwait(false);
+            using var content = new StringContent(body, Encoding.UTF8, "application/x-www-form-urlencoded");
+            using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint) { Content = content };
+            using var response = await _http.SendAsync(request, timeout.Token).ConfigureAwait(false);
+
+            _logger.LogDebug(
+                "播放日志已发送：musicId {MusicId}，{Played}/{Duration} 秒，HTTP {Status}",
+                track.Id,
+                played.TotalSeconds,
+                track.Duration.TotalSeconds,
+                (int)response.StatusCode);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("播放统计上报超时：musicId {MusicId}", musicId);
+            _logger.LogDebug("播放日志发送超时：musicId {MusicId}", track.Id);
         }
         catch (Exception ex)
         {
-            // 未登录、网络错误、服务端拒绝都走这里。只记日志，不向用户提示。
-            _logger.LogWarning(ex, "播放统计上报失败：musicId {MusicId}，operate {Operate}", musicId, operate);
+            // 网络错误、服务端拒绝都走这里。只记日志，不向用户提示。
+            _logger.LogWarning(ex, "播放日志发送失败：musicId {MusicId}", track.Id);
         }
     }
+
+    public void Dispose() => _http.Dispose();
 }

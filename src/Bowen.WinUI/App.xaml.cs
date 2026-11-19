@@ -17,7 +17,6 @@ using Bowen.WinUI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Serilog;
 using Serilog.Extensions.Logging;
@@ -200,7 +199,7 @@ public partial class App : Application
         // 跨端播放历史同步。登录态下把起播曲目上报到账号，手机端「最近播放」才能看到。
         builder.Services.AddSingleton<IPlayHistorySync, PlayHistorySync>();
 
-        // 播放统计上报。播完 / 切歌时发 service/music/record，驱动次数、时长与排行。
+        // 播放统计上报。播完 / 切歌时发 log.kuwo.cn/music.yl，驱动次数、时长与排行。
         builder.Services.AddSingleton<IPlayTelemetry, PlayTelemetry>();
 
         // 曲目行「更多」菜单的装配点。这几个接口指向同一个实例：
