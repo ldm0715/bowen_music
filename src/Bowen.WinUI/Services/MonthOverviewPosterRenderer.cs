@@ -55,9 +55,13 @@ internal static class MonthOverviewPosterRenderer
             var footerIcon = await MonthPosterDrawing.TryLoadBrandIconAsync(device, dark);
             bitmaps.Add(footerIcon);
 
+            // 大图是榜首单曲自己的封面，不来自专辑墙。
+            var hero = await MonthPosterDrawing.TryLoadAsync(device, content.TopSongCover);
+            bitmaps.Add(hero);
+
             var covers = new List<CanvasBitmap?>();
 
-            foreach (var uri in content.AlbumCovers.Take(9))
+            foreach (var uri in content.AlbumCovers.Take(8))
             {
                 var bitmap = await MonthPosterDrawing.TryLoadAsync(device, uri);
                 covers.Add(bitmap);
@@ -71,7 +75,7 @@ internal static class MonthOverviewPosterRenderer
             {
                 DrawBackground(session, device);
                 DrawHeader(session, device, content, avatar);
-                DrawHero(session, device, content, covers);
+                DrawHero(session, device, content, hero);
                 DrawAlbumWall(session, device, covers);
                 DrawStats(session, device, content);
                 MonthPosterDrawing.DrawBrandFooter(
@@ -145,7 +149,7 @@ internal static class MonthOverviewPosterRenderer
         CanvasDrawingSession session,
         CanvasDevice device,
         MonthPosterContent content,
-        IReadOnlyList<CanvasBitmap?> covers)
+        CanvasBitmap? hero)
     {
         const float centerX = 270;
         const float centerY = 540;
@@ -156,7 +160,6 @@ internal static class MonthOverviewPosterRenderer
         session.DrawCircle(centerX, centerY, 370, MonthPosterDrawing.WithAlpha(Cyan, 0x20), 2);
         session.DrawCircle(centerX, centerY, 440, MonthPosterDrawing.WithAlpha(Violet, 0x14), 2);
 
-        var hero = covers.Count > 0 ? covers[0] : null;
         var coverRect = new Rect(Margin, 350, 380, 380);
 
         session.FillRoundedRectangle(
@@ -223,7 +226,7 @@ internal static class MonthOverviewPosterRenderer
         CanvasDevice device,
         IReadOnlyList<CanvasBitmap?> covers)
     {
-        if (covers.Count <= 1)
+        if (covers.Count == 0)
         {
             return;
         }
@@ -236,9 +239,9 @@ internal static class MonthOverviewPosterRenderer
 
         const float size = 200;
 
-        for (var i = 1; i < covers.Count && i <= positions.Length; i++)
+        for (var i = 0; i < covers.Count && i < positions.Length; i++)
         {
-            var (x, y) = positions[i - 1];
+            var (x, y) = positions[i];
             var rect = new Rect(x, y, size, size);
 
             // 一层很轻的阴影，让封面像浮在波纹上。

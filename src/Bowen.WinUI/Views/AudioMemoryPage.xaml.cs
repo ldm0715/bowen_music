@@ -186,12 +186,8 @@ public sealed partial class AudioMemoryPage : Page, INavigationAware, IAccountSc
                 track.PlayCount ?? 0))
             .ToArray();
 
-        // 万一专辑封面列表为空，至少把榜首封面放进封面墙。
+        // 大图单独用榜首单曲封面；专辑墙保持只放专辑封面，避免和榜首重复。
         var albumCovers = report.AlbumCovers.ToList();
-        if (top?.Cover is { } topCover && !albumCovers.Contains(topCover))
-        {
-            albumCovers.Insert(0, topCover);
-        }
 
         return new MonthPosterContent(
             _login.Nickname,
