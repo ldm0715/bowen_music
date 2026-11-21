@@ -1078,7 +1078,7 @@
                 Content="收藏的歌单"
                 Tag="collected-playlists">
                 <NavigationViewItem.Icon>
-                    <SymbolIcon Symbol="List" />
+                    <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xEB51;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
@@ -1098,7 +1098,7 @@
                 Content="音波回忆"
                 Tag="audio-memory">
                 <NavigationViewItem.Icon>
-                    <SymbolIcon Symbol="MusicInfo" />
+                    <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE81C;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
