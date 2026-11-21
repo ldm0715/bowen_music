@@ -10,12 +10,18 @@
         <!-- 按钮外观与图标都不再单写：外观在 Themes/Styles/Player.xaml，图标走 Controls/Icon。 -->
 
         <!-- 歌词外观浮层：沿用设置页 / 评论面板已有的字号、圆角与间距 token。 -->
+        <!--
+            显式样式会顶掉隐式 TextBlock 样式，FontFamily 必须自己写；
+            否则这些文字退回 XamlAutoFontFamily，不跟随界面字体。
+        -->
         <Style x:Key="LyricsSectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeBodyLarge}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
         </Style>
         <Style x:Key="LyricsValueTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
             <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
             <Setter Property="VerticalAlignment" Value="Center" />
