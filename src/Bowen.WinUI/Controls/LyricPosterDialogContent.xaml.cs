@@ -200,11 +200,13 @@ public sealed partial class LyricPosterDialogContent : UserControl
             try
             {
                 var style = await ResolveStyleAsync();
-                var png = await LyricPosterRenderer.RenderAsync(new LyricPosterContent(
-                    Context.Track,
-                    Context.ShareLink,
-                    SelectedLines,
-                    style));
+                var png = await LyricPosterRenderer.RenderAsync(
+                    new LyricPosterContent(
+                        Context.Track,
+                        Context.ShareLink,
+                        SelectedLines,
+                        style),
+                    Context.UiFontFamily);
 
                 if (version != _renderVersion || _renderSuspended)
                 {

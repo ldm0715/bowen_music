@@ -40,9 +40,9 @@ internal static class MonthOverviewPosterRenderer
         ArgumentNullException.ThrowIfNull(content);
 
         _palette = dark ? MonthPosterPalette.Dark : MonthPosterPalette.Light;
-        MonthPosterDrawing.ChineseFont = string.IsNullOrWhiteSpace(content.UiFontFamily)
+        MonthPosterDrawing.ChineseFont = string.IsNullOrWhiteSpace(content.PosterFontFamily)
             ? "Microsoft YaHei UI"
-            : content.UiFontFamily;
+            : content.PosterFontFamily;
 
         var device = CanvasDevice.GetSharedDevice();
         var bitmaps = new List<CanvasBitmap?>();
@@ -80,7 +80,7 @@ internal static class MonthOverviewPosterRenderer
                 DrawStats(session, device, content);
                 MonthPosterDrawing.DrawBrandFooter(
                     session, device, footerIcon, Width, Height, content.Year, content.Month,
-                    White, Muted);
+                    White, Muted, content.UiFontFamily);
             }
 
             using var stream = new InMemoryRandomAccessStream();

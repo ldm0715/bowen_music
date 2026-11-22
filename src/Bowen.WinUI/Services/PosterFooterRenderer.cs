@@ -75,8 +75,10 @@ internal static class PosterFooterRenderer
         LyricPosterStyle style,
         CanvasSolidColorBrush textBrush,
         CanvasSolidColorBrush secondaryBrush,
-        int height)
+        int height,
+        string? fontFamily = null)
     {
+        var font = string.IsNullOrWhiteSpace(fontFamily) ? DefaultFontFamily : fontFamily;
         var plateX = width - Margin - QrPlateSize;
         var plateY = height - BottomMargin - QrPlateSize;
         var centerY = plateY + (QrPlateSize / 2);
@@ -105,8 +107,8 @@ internal static class PosterFooterRenderer
             session.DrawLine(dividerX, plateY, dividerX, plateY + QrPlateSize, dividerBrush, DividerThickness);
         }
 
-        var titleInkTop = DrawTrackText(session, device, track, rightEdge, centerY, textBrush, secondaryBrush);
-        DrawBrand(session, device, assets.Brand, textBrush, titleInkTop);
+        var titleInkTop = DrawTrackText(session, device, track, rightEdge, centerY, textBrush, secondaryBrush, font);
+        DrawBrand(session, device, assets.Brand, textBrush, titleInkTop, font);
     }
 
     /// <returns>歌名首行字形墨迹的顶部，供左下品牌文字对齐。</returns>
@@ -117,14 +119,15 @@ internal static class PosterFooterRenderer
         float rightEdge,
         float centerY,
         CanvasSolidColorBrush textBrush,
-        CanvasSolidColorBrush secondaryBrush)
+        CanvasSolidColorBrush secondaryBrush,
+        string font)
     {
         // 给左侧品牌块留出避让，窄画布上长歌名也不会压到「波纹音乐」。
         var maxWidth = Math.Min(TrackTextMaxWidth, Math.Max(120, rightEdge - Margin - BrandBlockWidth - 24));
 
-        using var titleFormat = CreateSingleLineFormat(TitleFontSize, TitleLineHeight);
+        using var titleFormat = CreateSingleLineFormat(TitleFontSize, TitleLineHeight, font);
         titleFormat.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-        using var artistFormat = CreateSingleLineFormat(ArtistFontSize, ArtistLineHeight);
+        using var artistFormat = CreateSingleLineFormat(ArtistFontSize, ArtistLineHeight, font);
 
         using var title = new CanvasTextLayout(device, track.Title, titleFormat, maxWidth, 0);
         using var artist = new CanvasTextLayout(device, track.ArtistText, artistFormat, maxWidth, 0);
@@ -155,9 +158,10 @@ internal static class PosterFooterRenderer
         CanvasDevice device,
         CanvasBitmap? brand,
         CanvasSolidColorBrush textBrush,
-        float textInkTop)
+        float textInkTop,
+        string font)
     {
-        using var format = CreateSingleLineFormat(26, 34);
+        using var format = CreateSingleLineFormat(26, 34, font);
         format.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         using var layout = new CanvasTextLayout(device, BrandName, format, 300, 0);
 
@@ -179,9 +183,9 @@ internal static class PosterFooterRenderer
     }
 
     /// <summary>单行信息用：超宽直接省略号，不折行。</summary>
-    private static CanvasTextFormat CreateSingleLineFormat(float fontSize, float lineHeight) => new()
+    private static CanvasTextFormat CreateSingleLineFormat(float fontSize, float lineHeight, string font) => new()
     {
-        FontFamily = DefaultFontFamily,
+        FontFamily = font,
         FontSize = fontSize,
         LineSpacing = lineHeight,
         LineSpacingMode = CanvasLineSpacingMode.Uniform,

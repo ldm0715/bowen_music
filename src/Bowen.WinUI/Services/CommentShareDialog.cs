@@ -1,4 +1,5 @@
 using Bowen.WinUI.Controls;
+using Bowen.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI;
 using Microsoft.UI.Text;
@@ -24,6 +25,7 @@ internal sealed record CommentShareContext(
     nint WindowHandle,
     IClipboardService Clipboard,
     INoticeSink Notices,
+    FontSettingsViewModel FontSettings,
     ILogger? Logger);
 
 /// <summary>评论分享卡片：打开即渲染，预览后保存或复制。</summary>
@@ -74,8 +76,18 @@ internal static class CommentShareDialog
         imageHost.Children.Add(progress);
 
         var toggle = BuildThemeToggle();
+        var fontPicker = new FontPicker
+        {
+            ItemsSource = context.FontSettings.PosterFontOptions,
+            SelectedIndex = 0,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        AutomationProperties.SetName(fontPicker, "海报字体");
+        ToolTipService.SetToolTip(fontPicker, "海报字体");
+
         var header = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 0, 0, 4) };
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock
         {
@@ -85,8 +97,10 @@ internal static class CommentShareDialog
             VerticalAlignment = VerticalAlignment.Center,
         };
         Grid.SetColumn(title, 0);
-        Grid.SetColumn(toggle, 1);
+        Grid.SetColumn(fontPicker, 1);
+        Grid.SetColumn(toggle, 2);
         header.Children.Add(title);
+        header.Children.Add(fontPicker);
         header.Children.Add(toggle);
 
         var content = new StackPanel { Spacing = 14 };
@@ -123,6 +137,7 @@ internal static class CommentShareDialog
         viewer.CloseRequested += (_, _) => CloseViewer();
 
         var dark = context.Theme == ElementTheme.Dark;
+        var selectedFont = context.FontSettings.CurrentFontFamily;
         byte[]? latest = null;
         var rendered = false;
         var rendering = false;
@@ -154,6 +169,20 @@ internal static class CommentShareDialog
             await RenderAsync();
         };
 
+        fontPicker.RegisterPropertyChangedCallback(
+            FontPicker.SelectedIndexProperty,
+            (_, _) =>
+            {
+                if (rendering) return;
+
+                var index = fontPicker.SelectedIndex;
+                selectedFont = index <= 0
+                    ? context.FontSettings.CurrentFontFamily
+                    : context.FontSettings.PosterFontOptions[index].FamilyName;
+
+                _ = RenderAsync();
+            });
+
         await dialog.ShowAsync();
 
         void UpdateToggle()
@@ -173,6 +202,7 @@ internal static class CommentShareDialog
             var current = ++generation;
             rendering = true;
             toggle.IsEnabled = false;
+            fontPicker.IsEnabled = false;
             progress.IsActive = true;
             progress.Visibility = Visibility.Visible;
             status.Visibility = Visibility.Collapsed;
@@ -180,7 +210,11 @@ internal static class CommentShareDialog
 
             try
             {
-                var png = await CommentPosterRenderer.RenderAsync(context.Content, dark ? DarkStyle : LightStyle);
+                var png = await CommentPosterRenderer.RenderAsync(
+                    context.Content,
+                    dark ? DarkStyle : LightStyle,
+                    selectedFont,
+                    context.FontSettings.CurrentFontFamily);
                 var bitmap = await LoadBitmapAsync(png);
                 if (current != generation) return;
 
@@ -208,6 +242,7 @@ internal static class CommentShareDialog
                 {
                     rendering = false;
                     toggle.IsEnabled = true;
+                    fontPicker.IsEnabled = true;
                     UpdateButtons();
                 }
             }

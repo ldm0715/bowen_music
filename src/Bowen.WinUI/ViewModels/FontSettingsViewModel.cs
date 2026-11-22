@@ -51,6 +51,13 @@ public sealed partial class FontSettingsViewModel : ObservableObject
 
         Fonts = fonts;
 
+        var posterOptions = new List<FontOption>
+        {
+            new(string.Empty, string.Empty, "跟随界面字体", FontGroup.Default),
+        };
+        posterOptions.AddRange(fonts);
+        PosterFontOptions = posterOptions;
+
         _logger.LogInformation(
             "字体列表：{Count} 个（中文 {Chinese}，西文 {Western}，符号 {Symbol}，未安装 {Missing}），当前 {Current}",
             Fonts.Count,
@@ -66,6 +73,9 @@ public sealed partial class FontSettingsViewModel : ObservableObject
 
     /// <summary>当前区域下可选的字体，已按分组和名称排序，不含「默认字体」。</summary>
     public IReadOnlyList<FontOption> Fonts { get; }
+
+    /// <summary>海报弹窗里的字体选项：首项「跟随界面字体」，其余与 <see cref="Fonts"/> 一致。</summary>
+    public IReadOnlyList<FontOption> PosterFontOptions { get; }
 
     /// <summary>
     /// 保存下次启动使用的字体，不改当前窗口。返回是否写入成功。

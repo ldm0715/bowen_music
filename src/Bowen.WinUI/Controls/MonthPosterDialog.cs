@@ -1,8 +1,10 @@
 using Bowen.WinUI.Services;
+using Bowen.WinUI.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -41,6 +43,7 @@ internal static class MonthPosterDialog
         nint windowHandle,
         IClipboardService clipboard,
         INoticeSink notices,
+        FontSettingsViewModel fontSettings,
         ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -100,6 +103,15 @@ internal static class MonthPosterDialog
         };
         ToolTipService.SetToolTip(toggle, dark ? "切换为浅色海报" : "切换为深色海报");
 
+        var fontPicker = new FontPicker
+        {
+            ItemsSource = fontSettings.PosterFontOptions,
+            SelectedIndex = 0,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        AutomationProperties.SetName(fontPicker, "海报字体");
+        ToolTipService.SetToolTip(fontPicker, "海报字体");
+
         var title = new TextBlock
         {
             Text = kind == MonthPosterKind.Overview ? "月度总览海报" : "歌曲总览海报",
@@ -110,9 +122,12 @@ internal static class MonthPosterDialog
         var header = new Grid { ColumnSpacing = 8 };
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Grid.SetColumn(title, 0);
-        Grid.SetColumn(toggle, 1);
+        Grid.SetColumn(fontPicker, 1);
+        Grid.SetColumn(toggle, 2);
         header.Children.Add(title);
+        header.Children.Add(fontPicker);
         header.Children.Add(toggle);
 
         var stack = new StackPanel { Spacing = 12, MinWidth = 320 };
@@ -225,12 +240,14 @@ internal static class MonthPosterDialog
         byte[]? png = null;
         var generation = 0;
         var rendering = false;
+        var selectedFont = fontSettings.CurrentFontFamily;
 
         async Task RenderAsync()
         {
             var current = ++generation;
             rendering = true;
             toggle.IsEnabled = false;
+            fontPicker.IsEnabled = false;
             loadingPanel.Visibility = Visibility.Visible;
             ring.IsActive = true;
             ring.Visibility = Visibility.Visible;
@@ -239,11 +256,13 @@ internal static class MonthPosterDialog
             dialog.IsPrimaryButtonEnabled = false;
             dialog.IsSecondaryButtonEnabled = false;
 
+            var renderContent = content with { PosterFontFamily = selectedFont };
+
             try
             {
                 var bytes = kind == MonthPosterKind.Overview
-                    ? await MonthOverviewPosterRenderer.RenderAsync(content, dark)
-                    : await MonthTracksPosterRenderer.RenderAsync(content, dark);
+                    ? await MonthOverviewPosterRenderer.RenderAsync(renderContent, dark)
+                    : await MonthTracksPosterRenderer.RenderAsync(renderContent, dark);
                 if (current != generation) return;
 
                 var bitmap = await LoadBitmapAsync(bytes);
@@ -274,9 +293,24 @@ internal static class MonthPosterDialog
                 {
                     rendering = false;
                     toggle.IsEnabled = true;
+                    fontPicker.IsEnabled = true;
                 }
             }
         }
+
+        fontPicker.RegisterPropertyChangedCallback(
+            FontPicker.SelectedIndexProperty,
+            (_, _) =>
+            {
+                if (rendering) return;
+
+                var index = fontPicker.SelectedIndex;
+                selectedFont = index <= 0
+                    ? fontSettings.CurrentFontFamily
+                    : fontSettings.PosterFontOptions[index].FamilyName;
+
+                _ = RenderAsync();
+            });
 
         toggle.Click += async (_, _) =>
         {

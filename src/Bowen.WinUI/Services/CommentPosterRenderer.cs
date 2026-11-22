@@ -37,7 +37,7 @@ public sealed record CommentPosterContent(
 /// </summary>
 /// <remarks>
 /// 与歌词海报一样用 <see cref="CanvasRenderTarget"/>，导出分辨率不依赖窗口缩放。
-/// 版式固定：不接歌词海报的字体与配色自定义，保证同一张卡片在任何人机器上都一样。
+/// 版式与配色固定；字体可由分享弹窗传入，未传时用卡片默认字体。
 /// </remarks>
 internal static class CommentPosterRenderer
 {
@@ -68,12 +68,15 @@ internal static class CommentPosterRenderer
     public static async Task<byte[]> RenderAsync(
         CommentPosterContent content,
         LyricPosterStyle? style = null,
+        string? fontFamily = null,
+        string? uiFontFamily = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
 
         var device = CanvasDevice.GetSharedDevice();
         style ??= LyricPosterStyle.Default;
+        var font = string.IsNullOrWhiteSpace(fontFamily) ? DefaultFontFamily : fontFamily.Trim();
 
         using var avatar = await TryLoadAsync(device, content.AvatarUri);
         using var image = await TryLoadAsync(device, content.ImageUri);
@@ -85,15 +88,15 @@ internal static class CommentPosterRenderer
         using var secondaryBrush = new CanvasSolidColorBrush(device, WithAlpha(style.TextColor, 0x99));
 
         var textWidth = ContentWidth - AvatarSize - AvatarGap;
-        using var nicknameFormat = CreateEllipsisFormat(NicknameFontSize, NicknameLineHeight);
+        using var nicknameFormat = CreateEllipsisFormat(NicknameFontSize, NicknameLineHeight, font);
         nicknameFormat.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         using var nickname = new CanvasTextLayout(device, content.Nickname, nicknameFormat, textWidth, 0);
 
-        using var metaFormat = CreateEllipsisFormat(MetaFontSize, MetaLineHeight);
+        using var metaFormat = CreateEllipsisFormat(MetaFontSize, MetaLineHeight, font);
         using var meta = new CanvasTextLayout(device, BuildMeta(content), metaFormat, textWidth, 0);
 
         var replyCaption = string.IsNullOrWhiteSpace(content.ReplyCaption) ? null : content.ReplyCaption;
-        using var replyFormat = CreateEllipsisFormat(MetaFontSize, MetaLineHeight);
+        using var replyFormat = CreateEllipsisFormat(MetaFontSize, MetaLineHeight, font);
         using var reply = replyCaption is null ? null : new CanvasTextLayout(device, replyCaption, replyFormat, textWidth, 0);
 
         // 按可见墨迹居中，而不是按排版框：排版框的上下留白不对称，
@@ -107,7 +110,7 @@ internal static class CommentPosterRenderer
         var headerTextTop = TopMargin + ((headerHeight - inkHeight) / 2) - inkTopOffset;
         var bodyTop = TopMargin + headerHeight + HeaderToBodyGap;
 
-        using var bodyFormat = CreateWrappedFormat();
+        using var bodyFormat = CreateWrappedFormat(font);
         using var body = string.IsNullOrWhiteSpace(content.Content)
             ? null
             : new CanvasTextLayout(device, content.Content, bodyFormat, ContentWidth, 0);
@@ -133,7 +136,7 @@ internal static class CommentPosterRenderer
         {
             session.Clear(style.Background);
 
-            DrawAvatar(session, device, avatar, content.Nickname, top: TopMargin);
+            DrawAvatar(session, device, avatar, content.Nickname, top: TopMargin, font);
             DrawHeader(session, nickname, reply, meta, nicknameTop: headerTextTop, textBrush, secondaryBrush);
             DrawBody(session, device, body, bodyTop, textBrush);
             if (image is not null)
@@ -141,7 +144,8 @@ internal static class CommentPosterRenderer
                 DrawImage(session, device, image, bodyTop + (float)(body?.LayoutBounds.Height ?? 0) + (body is null ? 0 : TextToImageGap), imageHeight);
             }
 
-            PosterFooterRenderer.Draw(session, device, content.Track, Width, footer, style, textBrush, secondaryBrush, height);
+            PosterFooterRenderer.Draw(
+                session, device, content.Track, Width, footer, style, textBrush, secondaryBrush, height, uiFontFamily);
         }
 
         using var stream = new InMemoryRandomAccessStream();
@@ -149,7 +153,13 @@ internal static class CommentPosterRenderer
         return await ReadBytesAsync(stream);
     }
 
-    private static void DrawAvatar(CanvasDrawingSession session, CanvasDevice device, CanvasBitmap? avatar, string nickname, float top)
+    private static void DrawAvatar(
+        CanvasDrawingSession session,
+        CanvasDevice device,
+        CanvasBitmap? avatar,
+        string nickname,
+        float top,
+        string font)
     {
         var rect = new Rect(Margin, top, AvatarSize, AvatarSize);
 
@@ -181,7 +191,7 @@ internal static class CommentPosterRenderer
         var initial = StringInfo.GetNextTextElement(nickname.Trim());
         using var format = new CanvasTextFormat
         {
-            FontFamily = DefaultFontFamily,
+            FontFamily = font,
             FontSize = 36,
             HorizontalAlignment = CanvasHorizontalAlignment.Center,
             VerticalAlignment = CanvasVerticalAlignment.Center,
@@ -247,9 +257,9 @@ internal static class CommentPosterRenderer
         return string.Join(" · ", parts);
     }
 
-    private static CanvasTextFormat CreateEllipsisFormat(float fontSize, float lineHeight) => new()
+    private static CanvasTextFormat CreateEllipsisFormat(float fontSize, float lineHeight, string font) => new()
     {
-        FontFamily = DefaultFontFamily,
+        FontFamily = font,
         FontSize = fontSize,
         LineSpacing = lineHeight,
         LineSpacingMode = CanvasLineSpacingMode.Uniform,
@@ -260,9 +270,9 @@ internal static class CommentPosterRenderer
         VerticalAlignment = CanvasVerticalAlignment.Top,
     };
 
-    private static CanvasTextFormat CreateWrappedFormat() => new()
+    private static CanvasTextFormat CreateWrappedFormat(string font) => new()
     {
-        FontFamily = DefaultFontFamily,
+        FontFamily = font,
         FontSize = BodyFontSize,
         LineSpacing = BodyLineHeight,
         LineSpacingMode = CanvasLineSpacingMode.Uniform,

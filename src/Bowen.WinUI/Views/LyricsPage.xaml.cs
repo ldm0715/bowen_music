@@ -60,6 +60,7 @@ public sealed partial class LyricsPage : Page, INavigationAware, INavigationRest
 
     /// <summary>底部「更多」菜单要用它现造菜单状态（与曲目行那颗同一个装配点）。</summary>
     private readonly TrackActionsService _trackActions;
+    private readonly FontSettingsViewModel _fontSettings;
     private readonly IReadOnlyList<FontOption> _fontOptions;
     private readonly List<(Border Dot, uint Color)> _colorDots = [];
     private readonly List<(Border Dot, uint Color)> _solidColorDots = [];
@@ -216,6 +217,7 @@ public sealed partial class LyricsPage : Page, INavigationAware, INavigationRest
         _navigation = navigation;
         _mvFactory = mvFactory;
         _trackActions = trackActions;
+        _fontSettings = font;
         _logger = (Application.Current.Resources["BowenLoggerFactory"] as ILoggerFactory
             ?? NullLoggerFactory.Instance).CreateLogger<LyricsPage>();
         _backgroundImages = backgroundImages;
@@ -1845,6 +1847,7 @@ public sealed partial class LyricsPage : Page, INavigationAware, INavigationRest
                 _windowHandle,
                 _clipboard,
                 _trackActions,
+                _fontSettings,
                 _logger));
         }
         catch (Exception exception)
@@ -2007,6 +2010,7 @@ public sealed partial class LyricsPage : Page, INavigationAware, INavigationRest
                 }
             },
             _trackActions,
+            _fontSettings.CurrentFontFamily,
             _logger,
             _fontOptions,
             _posterSettings,

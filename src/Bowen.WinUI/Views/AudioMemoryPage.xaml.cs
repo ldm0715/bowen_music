@@ -171,6 +171,7 @@ public sealed partial class AudioMemoryPage : Page, INavigationAware, IAccountSc
             _windowHandles.WindowHandle,
             _clipboard,
             _notices,
+            _fontSettings,
             _logger);
     }
 
@@ -192,6 +193,9 @@ public sealed partial class AudioMemoryPage : Page, INavigationAware, IAccountSc
         return new MonthPosterContent(
             _login.Nickname,
             _login.Account?.Avatar,
+
+            // 正文默认跟随界面字体，弹窗里可单独换；页脚固定用界面字体。
+            _fontSettings.CurrentFontFamily,
             _fontSettings.CurrentFontFamily,
             report.Year,
             report.Month,

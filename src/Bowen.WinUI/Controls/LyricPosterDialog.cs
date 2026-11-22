@@ -25,6 +25,7 @@ public sealed record LyricPosterDialogContext(
     IClipboardService Clipboard,
     Func<Task> ReportShareAsync,
     INoticeSink Notices,
+    string? UiFontFamily,
     ILogger? Logger,
     IReadOnlyList<FontOption> FontOptions,
     ILyricPosterSettingsStore SettingsStore,

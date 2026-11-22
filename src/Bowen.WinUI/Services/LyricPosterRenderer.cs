@@ -86,7 +86,10 @@ internal static class LyricPosterRenderer
     private readonly record struct Typography(float FontSize, float LineHeight);
 
     /// <summary>渲染 PNG 字节。封面或二维码失败只少画一块，不中断导出。</summary>
-    public static async Task<byte[]> RenderAsync(LyricPosterContent content, CancellationToken cancellationToken = default)
+    public static async Task<byte[]> RenderAsync(
+        LyricPosterContent content,
+        string? footerFontFamily = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(content.Lines);
@@ -128,7 +131,9 @@ internal static class LyricPosterRenderer
 
                 DrawCover(session, device, cover, coverSize, coverRadius, WithAlpha(style.TextColor, 0x12));
                 DrawLyrics(session, layouts, lyricsTop, textBrush);
-                PosterFooterRenderer.Draw(session, device, content.Track, width, footer, style, textBrush, secondaryBrush, height);
+                PosterFooterRenderer.Draw(
+                    session, device, content.Track, width, footer, style, textBrush, secondaryBrush, height,
+                    footerFontFamily);
             }
 
             using var stream = new InMemoryRandomAccessStream();

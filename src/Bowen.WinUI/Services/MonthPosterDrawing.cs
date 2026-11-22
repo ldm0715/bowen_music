@@ -11,7 +11,7 @@ namespace Bowen.WinUI.Services;
 /// <summary>两张月报海报共用的绘制小工具。</summary>
 internal static class MonthPosterDrawing
 {
-    /// <summary>海报中文使用的字体。渲染前由 <see cref="MonthPosterContent.UiFontFamily"/> 写入。</summary>
+    /// <summary>海报正文使用的字体。渲染前由 <see cref="MonthPosterContent.PosterFontFamily"/> 写入。</summary>
     public static string ChineseFont { get; set; } = "Microsoft YaHei UI";
 
     public const string DisplayFont = "Segoe UI";
@@ -219,15 +219,17 @@ internal static class MonthPosterDrawing
         int year,
         int month,
         Color textColor,
-        Color mutedColor)
+        Color mutedColor,
+        string? fontFamily)
     {
         var brandY = height - 136;
         var taglineY = height - 96;
+        var brandFont = string.IsNullOrWhiteSpace(fontFamily) ? ChineseFont : fontFamily;
 
         // 图标高度与「品牌 + 标语」两行文字的总高对齐。
-        using var brandFormat = Text(26, ChineseFont);
+        using var brandFormat = Text(26, brandFont);
         using var brandLayout = new CanvasTextLayout(device, "波纹音乐", brandFormat, 260, 0);
-        using var taglineFormat = Text(18, ChineseFont);
+        using var taglineFormat = Text(18, brandFont);
         using var taglineLayout = new CanvasTextLayout(device, "用音乐记录时光的波纹", taglineFormat, 320, 0);
 
         var brandInk = brandLayout.DrawBounds;

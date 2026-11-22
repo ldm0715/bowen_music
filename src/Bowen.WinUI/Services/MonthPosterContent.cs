@@ -16,6 +16,7 @@ public sealed record MonthPosterTrack(
 public sealed record MonthPosterContent(
     string? Nickname,
     Uri? AvatarUri,
+    string? PosterFontFamily,
     string? UiFontFamily,
     int Year,
     int Month,

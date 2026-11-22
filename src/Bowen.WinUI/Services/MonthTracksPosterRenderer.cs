@@ -39,9 +39,9 @@ internal static class MonthTracksPosterRenderer
         ArgumentNullException.ThrowIfNull(content);
 
         _palette = dark ? MonthPosterPalette.Dark : MonthPosterPalette.Light;
-        MonthPosterDrawing.ChineseFont = string.IsNullOrWhiteSpace(content.UiFontFamily)
+        MonthPosterDrawing.ChineseFont = string.IsNullOrWhiteSpace(content.PosterFontFamily)
             ? "Microsoft YaHei UI"
-            : content.UiFontFamily;
+            : content.PosterFontFamily;
 
         var device = CanvasDevice.GetSharedDevice();
         var tracks = content.Tracks.Take(MaxTracks).ToArray();
@@ -219,7 +219,7 @@ internal static class MonthTracksPosterRenderer
         // 与月度总览共用同一个页脚：真实应用图标 + 品牌 + 标语 + 日期。
         MonthPosterDrawing.DrawBrandFooter(
             session, device, footerIcon, Width, height, content.Year, content.Month,
-            White, Muted);
+            White, Muted, content.UiFontFamily);
     }
 
     private static async Task<byte[]> ReadBytesAsync(InMemoryRandomAccessStream stream)
