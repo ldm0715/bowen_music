@@ -2,6 +2,8 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using Bowen.Core.Models;
 using Bowen.WinUI.ViewModels;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -104,7 +106,105 @@ public sealed partial class SongCommentsPanel : UserControl
     /// </remarks>
     private void OnCommentContentSizeChanged(object sender, SizeChangedEventArgs args)
     {
-        if (sender is TextBlock { DataContext: SongCommentRow row } block) row.IsContentTrimmed = block.IsTextTrimmed;
+        if (sender is TextBlock block) ScheduleContentToggleUpdate(block);
+    }
+
+    private void OnCommentContentLoaded(object sender, RoutedEventArgs args)
+    {
+        if (sender is TextBlock block) ScheduleContentToggleUpdate(block);
+    }
+
+    private void OnCommentContentDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
+    {
+        if (sender is TextBlock block) ScheduleContentToggleUpdate(block);
+    }
+
+    /// <summary>
+    /// 延迟到布局结束后，按实际宽度量一遍完整高度，再直接设置“更多”按钮。
+    /// </summary>
+    /// <remarks>
+    /// 不能只靠 <c>SizeChanged</c>：虚拟化列表回收容器后，新内容可能与旧内容同高，
+    /// 事件不触发，按钮就会一直保持模板默认的 Collapsed。
+    /// </remarks>
+    private void ScheduleContentToggleUpdate(TextBlock block)
+    {
+        block.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () => UpdateContentToggle(block));
+    }
+
+    private void UpdateContentToggle(TextBlock block)
+    {
+        if (block.DataContext is not SongCommentRow row || block.ActualWidth <= 0) return;
+
+        var measured = Measure(block);
+        var need = block.IsTextTrimmed || measured.NeedsExpansion;
+        row.IsContentTrimmed = need;
+
+        var button = (VisualTreeHelper.GetParent(block) as Panel)?
+            .Children.OfType<HyperlinkButton>().FirstOrDefault();
+        if (button is not null)
+        {
+            // 直接设显隐，绕开虚拟化回收后可能不刷新的绑定。
+            button.Visibility = row.ShowContentToggle ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (button is { Visibility: Visibility.Visible })
+        {
+            // Visibility 从 Collapsed 变 Visible 后，虚拟化列表项不一定重新测量，
+            // 结果是按钮/后续内容被旧高度裁掉。逐层失效到 ListViewItem。
+            button.InvalidateMeasure();
+            for (DependencyObject? current = VisualTreeHelper.GetParent(button);
+                 current is not null;
+                 current = VisualTreeHelper.GetParent(current))
+            {
+                if (current is UIElement element) element.InvalidateMeasure();
+                if (current is ListViewItem item)
+                {
+                    item.InvalidateArrange();
+                    item.UpdateLayout();
+                    break;
+                }
+            }
+        }
+
+    }
+
+    /// <summary>按同一宽度和字体量出完整高度，判断是否会超过当前折叠高度。</summary>
+    private static bool NeedsExpansion(TextBlock block) => Measure(block).NeedsExpansion;
+
+    /// <summary>量算并返回宽度 / 折叠高度 / 完整高度。</summary>
+    private static (double Width, double Collapsed, double Full, bool NeedsExpansion) Measure(TextBlock block)
+    {
+        try
+        {
+            var device = CanvasDevice.GetSharedDevice();
+            using var format = new CanvasTextFormat
+            {
+                FontFamily = block.FontFamily.Source,
+                FontSize = (float)block.FontSize,
+                FontWeight = block.FontWeight,
+                FontStyle = block.FontStyle,
+                WordWrapping = CanvasWordWrapping.Wrap,
+            };
+
+            // XAML 的 LineHeight 是固定行高；0 表示按字体自然行高，交给 Canvas 默认值。
+            if (block.LineHeight > 0)
+            {
+                format.LineSpacing = (float)block.LineHeight;
+                format.LineSpacingMode = CanvasLineSpacingMode.Uniform;
+            }
+
+            using var layout = new CanvasTextLayout(
+                device, block.Text ?? "", format, (float)block.ActualWidth, 0);
+
+            var collapsed = block.ActualHeight - block.Padding.Top - block.Padding.Bottom;
+            var full = layout.LayoutBounds.Height;
+            return (block.ActualWidth, collapsed, full, full > collapsed + 1);
+        }
+        catch
+        {
+            return (block.ActualWidth, block.ActualHeight, 0, false);
+        }
     }
 
     private async void OnRecommendedClick(object sender, RoutedEventArgs args)

@@ -283,7 +283,7 @@ public static class Formats
     /// 折叠是为了省掉长评论的纵向占位，行数按面板常用宽度下的观感取：5 行足够看出这条在说什么，
     /// 又不至于两三条就撑满一屏。面板宽度改了要连这个一起看。
     /// </remarks>
-    private const int CommentCollapsedLines = 5;
+    public const int CommentCollapsedLines = 5;
 
     /// <summary>评论正文的最大行数。展开时给 0，<c>MaxLines=0</c> 在 WinUI 里表示不限行数。</summary>
     public static int CommentContentMaxLines(bool expanded) => expanded ? 0 : CommentCollapsedLines;

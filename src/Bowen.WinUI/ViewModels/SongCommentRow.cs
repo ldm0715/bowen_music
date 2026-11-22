@@ -74,8 +74,18 @@ public sealed partial class SongCommentRow : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowContentToggle))]
     public partial bool IsContentTrimmed { get; set; }
 
+    /// <summary>
+    /// 正文的显式换行是否已超过折叠行数。
+    /// </summary>
+    /// <remarks>
+    /// 只做确定性兜底：6 行以上一定有内容被折叠。换行不足时由模板里
+    /// <c>TextBlock</c> 的量算结果（<see cref="IsContentTrimmed"/>）决定。
+    /// </remarks>
+    public bool ContentHasMoreLines =>
+        _comment.Content.Count(c => c == '\n') >= Formats.CommentCollapsedLines;
+
     /// <summary>「更多 / 收起」这颗按钮要不要露出来。展开态要留着，否则点开就收不回去了。</summary>
-    public bool ShowContentToggle => IsContentTrimmed || IsContentExpanded;
+    public bool ShowContentToggle => IsContentTrimmed || IsContentExpanded || ContentHasMoreLines;
 
     /// <summary>
     /// 这一行是不是「评论详情」顶部的那一条。
@@ -94,7 +104,8 @@ public sealed partial class SongCommentRow : ObservableObject
         _comment = comment;
         foreach (var property in new[] { nameof(Comment), nameof(Nickname), nameof(AvatarUri), nameof(Content), nameof(ImageUri),
             nameof(PublishTime), nameof(Location), nameof(LikeCount), nameof(ReplyCount), nameof(IsLiked), nameof(ReplyCaption),
-            nameof(HasReplyCaption), nameof(HasReplies), nameof(ReplyCountText), nameof(LikeActionText) }) OnPropertyChanged(property);
+            nameof(HasReplyCaption), nameof(HasReplies), nameof(ReplyCountText), nameof(LikeActionText),
+            nameof(ContentHasMoreLines), nameof(ShowContentToggle) }) OnPropertyChanged(property);
         ImageCommand.NotifyCanExecuteChanged();
     }
 }

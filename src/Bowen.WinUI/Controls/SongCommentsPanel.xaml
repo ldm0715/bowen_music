@@ -56,11 +56,14 @@
                             MaxLines="{x:Bind local:Formats.CommentContentMaxLines(IsContentExpanded), Mode=OneWay}"
                             TextTrimming="{x:Bind local:Formats.CommentContentTrimming(IsContentExpanded), Mode=OneWay}"
                             SizeChanged="OnCommentContentSizeChanged"
+                            Loaded="OnCommentContentLoaded"
+                            DataContextChanged="OnCommentContentDataContextChanged"
                             Foreground="{ThemeResource CommentPrimaryTextBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        <!-- 显隐由正文 TextBlock 量算后直接设置，走绑定在虚拟化回收时会漏刷新。 -->
                         <HyperlinkButton Content="{x:Bind ContentToggleText, Mode=OneWay}" Command="{x:Bind ToggleContentCommand}"
                             HorizontalAlignment="Left" Padding="0,4" FontSize="12"
                             Foreground="{ThemeResource CommentSecondaryTextBrush}"
-                            Visibility="{x:Bind local:Formats.Visible(ShowContentToggle), Mode=OneWay}" />
+                            Visibility="Collapsed" />
                         <Button Command="{x:Bind ImageCommand}" HorizontalAlignment="Left" Padding="0" BorderThickness="0"
                             Background="{ThemeResource CommentRaisedSurfaceBrush}" CornerRadius="8" AutomationProperties.Name="放大评论图片"
                             ToolTipService.ToolTip="点击查看大图"
