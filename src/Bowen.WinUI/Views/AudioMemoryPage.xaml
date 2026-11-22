@@ -12,6 +12,15 @@
             x:Bind 模板留在页面资源里，不挪进共享字典：共享字典里的 x:Bind 在 WinUI 3
             会编译通过但运行时不生效（见 FollowedArtistsPage.xaml 顶部注释）。
         -->
+
+        <!--
+            DataTemplate 对非 Control 元素（TextBlock）是样式边界，应用级隐式 TextBlock
+            字体样式进不到模板内部。模板里的裸 TextBlock 统一挂这条，字体才跟随界面字体。
+        -->
+        <Style x:Key="MemoryTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{ThemeResource ContentControlThemeFontFamily}" />
+        </Style>
+
         <DataTemplate x:Key="WeeklyHeroTemplate" x:DataType="vm:PlayRankingRow">
             <Border
                 Padding="16"
@@ -48,6 +57,7 @@
                             TextTrimming="CharacterEllipsis" />
                         <TextBlock
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource MemoryTextStyle}"
                             Text="{x:Bind Track.ArtistText}"
                             TextTrimming="CharacterEllipsis" />
                         <TextBlock
@@ -83,6 +93,7 @@
                 <TextBlock
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Style="{StaticResource MemoryTextStyle}"
                     Text="{x:Bind RankLabel}" />
 
                 <Border
@@ -101,6 +112,7 @@
                     VerticalAlignment="Center"
                     Spacing="2">
                     <TextBlock
+                        Style="{StaticResource MemoryTextStyle}"
                         Text="{x:Bind Track.Title}"
                         TextTrimming="CharacterEllipsis" />
                     <TextBlock
@@ -114,6 +126,7 @@
                     Grid.Column="3"
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource MemoryTextStyle}"
                     Text="{x:Bind PlayCountLabel}" />
 
                 <Button
@@ -142,6 +155,7 @@
                 <TextBlock
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Style="{StaticResource MemoryTextStyle}"
                     Text="{x:Bind RankLabel}" />
 
                 <Border
@@ -160,6 +174,7 @@
                     VerticalAlignment="Center"
                     Spacing="2">
                     <TextBlock
+                        Style="{StaticResource MemoryTextStyle}"
                         Text="{x:Bind Source.Title}"
                         TextTrimming="CharacterEllipsis" />
                     <TextBlock
@@ -173,6 +188,7 @@
                     Grid.Column="3"
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource MemoryTextStyle}"
                     Text="{x:Bind PlayCountLabel}" />
 
                 <Button
@@ -229,6 +245,7 @@
                                     VerticalAlignment="Center"
                                     FontWeight="SemiBold"
                                     Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                    Style="{StaticResource MemoryTextStyle}"
                                     Text="{x:Bind RankLabel}" />
                             </Border>
                         </Grid>
@@ -237,6 +254,7 @@
                     <TextBlock
                         Grid.Row="1"
                         MaxLines="2"
+                        Style="{StaticResource MemoryTextStyle}"
                         Text="{x:Bind Source.Title}"
                         TextAlignment="Center"
                         TextTrimming="CharacterEllipsis"
@@ -314,6 +332,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     FontWeight="SemiBold"
+                                    Style="{StaticResource MemoryTextStyle}"
                                     Text="{x:Bind RankLabel}" />
                             </Border>
                         </Grid>
@@ -322,6 +341,7 @@
                     <TextBlock
                         Grid.Row="1"
                         MaxLines="2"
+                        Style="{StaticResource MemoryTextStyle}"
                         Text="{x:Bind Source.Title}"
                         TextAlignment="Center"
                         TextTrimming="CharacterEllipsis"
