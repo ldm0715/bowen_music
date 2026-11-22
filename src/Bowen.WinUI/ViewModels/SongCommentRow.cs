@@ -7,6 +7,9 @@ namespace Bowen.WinUI.ViewModels;
 /// <summary>可更新的评论行；列表和详情共用它，让点赞状态保持一致。</summary>
 public sealed partial class SongCommentRow : ObservableObject
 {
+    /// <summary>与 <c>Formats.CommentCollapsedLines</c> 保持一致。</summary>
+    private const int CollapsedLineCount = 5;
+
     private SongComment _comment;
 
     public SongCommentRow(SongComment comment, SongCommentsViewModel owner, int page, SongCommentSort sort)
@@ -82,7 +85,7 @@ public sealed partial class SongCommentRow : ObservableObject
     /// <c>TextBlock</c> 的量算结果（<see cref="IsContentTrimmed"/>）决定。
     /// </remarks>
     public bool ContentHasMoreLines =>
-        _comment.Content.Count(c => c == '\n') >= Formats.CommentCollapsedLines;
+        _comment.Content.Count(c => c == '\n') >= CollapsedLineCount;
 
     /// <summary>「更多 / 收起」这颗按钮要不要露出来。展开态要留着，否则点开就收不回去了。</summary>
     public bool ShowContentToggle => IsContentTrimmed || IsContentExpanded || ContentHasMoreLines;
